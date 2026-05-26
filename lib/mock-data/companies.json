@@ -1,0 +1,562 @@
+[
+  {
+    "id": "co_0001",
+    "name": "PT Bank Mandiri Tbk",
+    "industry": "Retail",
+    "city": "Semarang",
+    "size": "500+"
+  },
+  {
+    "id": "co_0002",
+    "name": "PT Telekomunikasi Indonesia",
+    "industry": "BUMN",
+    "city": "Semarang",
+    "size": "500+"
+  },
+  {
+    "id": "co_0003",
+    "name": "PT Astra International",
+    "industry": "BPR",
+    "city": "Tangerang",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0004",
+    "name": "PT Sinar Mas",
+    "industry": "Asuransi",
+    "city": "Medan",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0005",
+    "name": "Halodoc",
+    "industry": "Retail",
+    "city": "Yogyakarta",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0006",
+    "name": "PT Bank Rakyat Indonesia",
+    "industry": "Manufaktur",
+    "city": "Makassar",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0007",
+    "name": "PT Unilever Indonesia",
+    "industry": "Perbankan",
+    "city": "Tangerang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0008",
+    "name": "PT Indofood Sukses Makmur",
+    "industry": "BPR",
+    "city": "Bandung",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0009",
+    "name": "Bank Central Asia",
+    "industry": "Retail",
+    "city": "Tangerang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0010",
+    "name": "PT Pertamina",
+    "industry": "BUMN",
+    "city": "Semarang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0011",
+    "name": "UD Prima Berkah",
+    "industry": "Manufaktur",
+    "city": "Bandung",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0012",
+    "name": "CV Cahaya Rejeki",
+    "industry": "Manufaktur",
+    "city": "Tangerang",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0013",
+    "name": "PT Sinar Rejeki",
+    "industry": "Retail",
+    "city": "Palembang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0014",
+    "name": "PT Sejahtera Sumber",
+    "industry": "Logistik",
+    "city": "Jakarta",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0015",
+    "name": "PT Gemilang Bumi",
+    "industry": "Manufaktur",
+    "city": "Medan",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0016",
+    "name": "Koperasi Makmur Makmur",
+    "industry": "BUMN",
+    "city": "Tangerang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0017",
+    "name": "CV Sahabat Sumber",
+    "industry": "FMCG",
+    "city": "Makassar",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0018",
+    "name": "CV Cahaya Mas",
+    "industry": "Asuransi",
+    "city": "Surabaya",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0019",
+    "name": "PT Sentral Mas",
+    "industry": "Properti",
+    "city": "Denpasar",
+    "size": "500+"
+  },
+  {
+    "id": "co_0020",
+    "name": "PT Sumber Sinar",
+    "industry": "Properti",
+    "city": "Yogyakarta",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0021",
+    "name": "CV Persada Anugerah",
+    "industry": "BUMN",
+    "city": "Palembang",
+    "size": "500+"
+  },
+  {
+    "id": "co_0022",
+    "name": "UD Sukses Tunggal",
+    "industry": "Retail",
+    "city": "Tangerang",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0023",
+    "name": "UD Nusantara Karya",
+    "industry": "Perbankan",
+    "city": "Palembang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0024",
+    "name": "CV Cahaya Sahabat",
+    "industry": "Perbankan",
+    "city": "Semarang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0025",
+    "name": "UD Mitra Bahari",
+    "industry": "BPR",
+    "city": "Tangerang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0026",
+    "name": "Koperasi Makmur Mitra",
+    "industry": "Logistik",
+    "city": "Yogyakarta",
+    "size": "500+"
+  },
+  {
+    "id": "co_0027",
+    "name": "CV Karya Cahaya",
+    "industry": "Logistik",
+    "city": "Surabaya",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0028",
+    "name": "PT Mega Makmur",
+    "industry": "Manufaktur",
+    "city": "Palembang",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0029",
+    "name": "CV Mas Prima",
+    "industry": "Retail",
+    "city": "Bandung",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0030",
+    "name": "PT Rejeki Makmur",
+    "industry": "Properti",
+    "city": "Palembang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0031",
+    "name": "PT Sumber Bumi",
+    "industry": "BPR",
+    "city": "Denpasar",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0032",
+    "name": "PT Berkah Persada",
+    "industry": "BPR",
+    "city": "Surabaya",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0033",
+    "name": "PT Bumi Anugerah",
+    "industry": "FMCG",
+    "city": "Yogyakarta",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0034",
+    "name": "PT Lestari Karya",
+    "industry": "Perbankan",
+    "city": "Tangerang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0035",
+    "name": "PT Tunggal Tunggal",
+    "industry": "Perbankan",
+    "city": "Tangerang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0036",
+    "name": "CV Mas Sejahtera",
+    "industry": "Asuransi",
+    "city": "Tangerang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0037",
+    "name": "PT Sinar Bumi",
+    "industry": "Perbankan",
+    "city": "Yogyakarta",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0038",
+    "name": "PT Sentosa Persada",
+    "industry": "Manufaktur",
+    "city": "Jakarta",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0039",
+    "name": "CV Sentosa Mas",
+    "industry": "Properti",
+    "city": "Jakarta",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0040",
+    "name": "PT Sahabat Cipta",
+    "industry": "BPR",
+    "city": "Denpasar",
+    "size": "500+"
+  },
+  {
+    "id": "co_0041",
+    "name": "CV Makmur Berkah",
+    "industry": "Retail",
+    "city": "Jakarta",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0042",
+    "name": "PT Nusantara Sejahtera",
+    "industry": "Retail",
+    "city": "Bandung",
+    "size": "500+"
+  },
+  {
+    "id": "co_0043",
+    "name": "Koperasi Gemilang Sinar",
+    "industry": "BPR",
+    "city": "Medan",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0044",
+    "name": "CV Lestari Anugerah",
+    "industry": "BUMN",
+    "city": "Surabaya",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0045",
+    "name": "PT Lestari Sentosa",
+    "industry": "Manufaktur",
+    "city": "Makassar",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0046",
+    "name": "CV Sinar Mega",
+    "industry": "Teknologi",
+    "city": "Makassar",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0047",
+    "name": "PT Mega Sejahtera",
+    "industry": "Logistik",
+    "city": "Bandung",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0048",
+    "name": "Koperasi Anugerah Cipta",
+    "industry": "FMCG",
+    "city": "Semarang",
+    "size": "500+"
+  },
+  {
+    "id": "co_0049",
+    "name": "PT Mega Makmur",
+    "industry": "Logistik",
+    "city": "Surabaya",
+    "size": "500+"
+  },
+  {
+    "id": "co_0050",
+    "name": "PT Mitra Karya",
+    "industry": "Teknologi",
+    "city": "Semarang",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0051",
+    "name": "PT Sukses Bahari",
+    "industry": "Teknologi",
+    "city": "Surabaya",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0052",
+    "name": "CV Sahabat Sentosa",
+    "industry": "Logistik",
+    "city": "Medan",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0053",
+    "name": "CV Nusantara Persada",
+    "industry": "BUMN",
+    "city": "Medan",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0054",
+    "name": "CV Sentosa Sumber",
+    "industry": "Teknologi",
+    "city": "Yogyakarta",
+    "size": "500+"
+  },
+  {
+    "id": "co_0055",
+    "name": "PT Sahabat Jaya",
+    "industry": "Perbankan",
+    "city": "Denpasar",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0056",
+    "name": "Koperasi Anugerah Tunggal",
+    "industry": "Asuransi",
+    "city": "Jakarta",
+    "size": "500+"
+  },
+  {
+    "id": "co_0057",
+    "name": "Koperasi Anugerah Prima",
+    "industry": "FMCG",
+    "city": "Yogyakarta",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0058",
+    "name": "CV Sukses Sejahtera",
+    "industry": "BPR",
+    "city": "Palembang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0059",
+    "name": "PT Sukses Cipta",
+    "industry": "FMCG",
+    "city": "Surabaya",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0060",
+    "name": "Koperasi Nusantara Sentral",
+    "industry": "Perbankan",
+    "city": "Palembang",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0061",
+    "name": "Koperasi Tunggal Gemilang",
+    "industry": "Properti",
+    "city": "Semarang",
+    "size": "500+"
+  },
+  {
+    "id": "co_0062",
+    "name": "PT Persada Sinar",
+    "industry": "BUMN",
+    "city": "Jakarta",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0063",
+    "name": "Koperasi Persada Makmur",
+    "industry": "FMCG",
+    "city": "Medan",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0064",
+    "name": "UD Karya Mitra",
+    "industry": "BPR",
+    "city": "Semarang",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0065",
+    "name": "CV Lestari Cahaya",
+    "industry": "Asuransi",
+    "city": "Semarang",
+    "size": "500+"
+  },
+  {
+    "id": "co_0066",
+    "name": "PT Nusantara Sentosa",
+    "industry": "Manufaktur",
+    "city": "Semarang",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0067",
+    "name": "CV Bahari Karya",
+    "industry": "Properti",
+    "city": "Yogyakarta",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0068",
+    "name": "CV Makmur Mitra",
+    "industry": "Logistik",
+    "city": "Bandung",
+    "size": "500+"
+  },
+  {
+    "id": "co_0069",
+    "name": "PT Sinar Bahari",
+    "industry": "Logistik",
+    "city": "Denpasar",
+    "size": "500+"
+  },
+  {
+    "id": "co_0070",
+    "name": "CV Sinar Jaya",
+    "industry": "Asuransi",
+    "city": "Tangerang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0071",
+    "name": "PT Lestari Sumber",
+    "industry": "Teknologi",
+    "city": "Makassar",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0072",
+    "name": "CV Jaya Sahabat",
+    "industry": "Logistik",
+    "city": "Tangerang",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0073",
+    "name": "PT Persada Sukses",
+    "industry": "BUMN",
+    "city": "Bandung",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0074",
+    "name": "PT Mega Cipta",
+    "industry": "Perbankan",
+    "city": "Jakarta",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0075",
+    "name": "CV Makmur Mitra",
+    "industry": "Logistik",
+    "city": "Tangerang",
+    "size": "1-10"
+  },
+  {
+    "id": "co_0076",
+    "name": "PT Bahari Mega",
+    "industry": "Logistik",
+    "city": "Surabaya",
+    "size": "11-50"
+  },
+  {
+    "id": "co_0077",
+    "name": "PT Bahari Mas",
+    "industry": "Manufaktur",
+    "city": "Palembang",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0078",
+    "name": "PT Sentosa Lestari",
+    "industry": "Perbankan",
+    "city": "Bandung",
+    "size": "201-500"
+  },
+  {
+    "id": "co_0079",
+    "name": "Koperasi Cahaya Mega",
+    "industry": "Teknologi",
+    "city": "Tangerang",
+    "size": "51-200"
+  },
+  {
+    "id": "co_0080",
+    "name": "CV Mitra Sejahtera",
+    "industry": "Logistik",
+    "city": "Yogyakarta",
+    "size": "500+"
+  }
+]

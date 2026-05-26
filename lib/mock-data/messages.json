@@ -1,0 +1,1802 @@
+[
+  {
+    "id": "ms_0001",
+    "conversationId": "cv_0001",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T04:00:00.000Z"
+  },
+  {
+    "id": "ms_0002",
+    "conversationId": "cv_0001",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-24T00:24:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0003",
+    "conversationId": "cv_0001",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-24T07:40:00.000Z"
+  },
+  {
+    "id": "ms_0004",
+    "conversationId": "cv_0001",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-24T11:08:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0005",
+    "conversationId": "cv_0001",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-24T11:00:00.000Z"
+  },
+  {
+    "id": "ms_0006",
+    "conversationId": "cv_0001",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-24T07:55:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0007",
+    "conversationId": "cv_0001",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T12:32:00.000Z"
+  },
+  {
+    "id": "ms_0008",
+    "conversationId": "cv_0001",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-24T10:51:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0009",
+    "conversationId": "cv_0001",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-24T10:00:00.000Z"
+  },
+  {
+    "id": "ms_0010",
+    "conversationId": "cv_0001",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-24T11:46:00.000Z"
+  },
+  {
+    "id": "ms_0011",
+    "conversationId": "cv_0002",
+    "direction": "in",
+    "body": "Kami butuh fitur integrasi WhatsApp Business API. Apakah tersedia?",
+    "timestamp": "2026-05-24T13:05:00.000Z",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0012",
+    "conversationId": "cv_0002",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T16:08:00.000Z",
+    "status": "delivered",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0013",
+    "conversationId": "cv_0002",
+    "direction": "in",
+    "body": "Terima kasih, kami akan review internal dan kabari pekan depan.",
+    "timestamp": "2026-05-24T18:15:00.000Z",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0014",
+    "conversationId": "cv_0002",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T17:30:00.000Z",
+    "status": "sent",
+    "subject": "Re: Demo produk",
+    "attachmentLabel": "penawaran-growth.pdf"
+  },
+  {
+    "id": "ms_0015",
+    "conversationId": "cv_0002",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T18:04:00.000Z",
+    "status": "delivered",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0016",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Terima kasih, kami akan review internal dan kabari pekan depan.",
+    "timestamp": "2026-05-21T22:12:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0017",
+    "conversationId": "cv_0003",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-21T18:58:00.000Z",
+    "status": "sent",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0018",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Terima kasih, kami akan review internal dan kabari pekan depan.",
+    "timestamp": "2026-05-21T22:20:00.000Z",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0019",
+    "conversationId": "cv_0003",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-22T08:21:00.000Z",
+    "status": "read",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0020",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Kami butuh fitur integrasi WhatsApp Business API. Apakah tersedia?",
+    "timestamp": "2026-05-22T02:16:00.000Z",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0021",
+    "conversationId": "cv_0003",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-21T23:30:00.000Z",
+    "status": "read",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0022",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-22T06:36:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0023",
+    "conversationId": "cv_0003",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-22T07:40:00.000Z",
+    "status": "read",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0024",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-22T05:24:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0025",
+    "conversationId": "cv_0003",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-22T07:00:00.000Z",
+    "status": "sent",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0026",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-22T09:20:00.000Z",
+    "subject": "Penawaran Paket Growth",
+    "attachmentLabel": "penawaran-growth.pdf"
+  },
+  {
+    "id": "ms_0027",
+    "conversationId": "cv_0003",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-22T08:57:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0028",
+    "conversationId": "cv_0004",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-24T07:20:00.000Z"
+  },
+  {
+    "id": "ms_0029",
+    "conversationId": "cv_0004",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-24T11:09:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0030",
+    "conversationId": "cv_0004",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-24T04:00:00.000Z"
+  },
+  {
+    "id": "ms_0031",
+    "conversationId": "cv_0004",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-24T03:44:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0032",
+    "conversationId": "cv_0004",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-24T07:18:00.000Z"
+  },
+  {
+    "id": "ms_0033",
+    "conversationId": "cv_0004",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-24T09:15:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0034",
+    "conversationId": "cv_0004",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-24T12:52:00.000Z"
+  },
+  {
+    "id": "ms_0035",
+    "conversationId": "cv_0004",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-24T12:42:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0036",
+    "conversationId": "cv_0004",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-24T12:16:00.000Z"
+  },
+  {
+    "id": "ms_0037",
+    "conversationId": "cv_0004",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-24T13:39:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0038",
+    "conversationId": "cv_0005",
+    "direction": "in",
+    "body": "Min, ini ready stock? 😍",
+    "timestamp": "2026-05-22T02:40:00.000Z"
+  },
+  {
+    "id": "ms_0039",
+    "conversationId": "cv_0005",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-22T05:00:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0040",
+    "conversationId": "cv_0005",
+    "direction": "in",
+    "body": "Min, ini ready stock? 😍",
+    "timestamp": "2026-05-22T06:51:00.000Z"
+  },
+  {
+    "id": "ms_0041",
+    "conversationId": "cv_0005",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-22T06:34:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0042",
+    "conversationId": "cv_0005",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-22T08:04:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0043",
+    "conversationId": "cv_0006",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-23T15:15:00.000Z"
+  },
+  {
+    "id": "ms_0044",
+    "conversationId": "cv_0006",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-23T12:32:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0045",
+    "conversationId": "cv_0006",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T13:51:00.000Z"
+  },
+  {
+    "id": "ms_0046",
+    "conversationId": "cv_0006",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-23T15:14:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0047",
+    "conversationId": "cv_0006",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T16:13:00.000Z"
+  },
+  {
+    "id": "ms_0048",
+    "conversationId": "cv_0007",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-21T23:37:00.000Z"
+  },
+  {
+    "id": "ms_0049",
+    "conversationId": "cv_0007",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-22T02:24:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0050",
+    "conversationId": "cv_0007",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-22T02:45:00.000Z"
+  },
+  {
+    "id": "ms_0051",
+    "conversationId": "cv_0007",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-22T08:12:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0052",
+    "conversationId": "cv_0007",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-22T07:15:00.000Z"
+  },
+  {
+    "id": "ms_0053",
+    "conversationId": "cv_0007",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-22T09:40:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0054",
+    "conversationId": "cv_0007",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-22T09:27:00.000Z"
+  },
+  {
+    "id": "ms_0055",
+    "conversationId": "cv_0008",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-23T07:43:00.000Z"
+  },
+  {
+    "id": "ms_0056",
+    "conversationId": "cv_0008",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-23T00:20:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0057",
+    "conversationId": "cv_0008",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T03:54:00.000Z"
+  },
+  {
+    "id": "ms_0058",
+    "conversationId": "cv_0008",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-22T21:48:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0059",
+    "conversationId": "cv_0008",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T05:09:00.000Z"
+  },
+  {
+    "id": "ms_0060",
+    "conversationId": "cv_0008",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-23T06:48:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0061",
+    "conversationId": "cv_0008",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T06:10:00.000Z"
+  },
+  {
+    "id": "ms_0062",
+    "conversationId": "cv_0008",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-23T07:36:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0063",
+    "conversationId": "cv_0008",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T08:27:00.000Z"
+  },
+  {
+    "id": "ms_0064",
+    "conversationId": "cv_0008",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-23T08:32:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0065",
+    "conversationId": "cv_0008",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-23T08:32:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0066",
+    "conversationId": "cv_0009",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-22T08:15:00.000Z"
+  },
+  {
+    "id": "ms_0067",
+    "conversationId": "cv_0009",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-22T09:12:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0068",
+    "conversationId": "cv_0009",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-22T13:34:00.000Z"
+  },
+  {
+    "id": "ms_0069",
+    "conversationId": "cv_0009",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-22T14:12:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0070",
+    "conversationId": "cv_0009",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-22T10:45:00.000Z"
+  },
+  {
+    "id": "ms_0071",
+    "conversationId": "cv_0009",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T16:00:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0072",
+    "conversationId": "cv_0009",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-22T14:39:00.000Z"
+  },
+  {
+    "id": "ms_0073",
+    "conversationId": "cv_0009",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-22T15:02:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0074",
+    "conversationId": "cv_0009",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-22T17:10:00.000Z"
+  },
+  {
+    "id": "ms_0075",
+    "conversationId": "cv_0010",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-23T22:05:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0076",
+    "conversationId": "cv_0010",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-23T23:56:00.000Z",
+    "status": "delivered",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0077",
+    "conversationId": "cv_0010",
+    "direction": "in",
+    "body": "Kami butuh fitur integrasi WhatsApp Business API. Apakah tersedia?",
+    "timestamp": "2026-05-23T22:51:00.000Z",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0078",
+    "conversationId": "cv_0010",
+    "direction": "out",
+    "body": "Terlampir penawaran resmi sesuai kebutuhan tim Bapak. Berlaku 30 hari.",
+    "timestamp": "2026-05-23T23:26:00.000Z",
+    "status": "read",
+    "subject": "Re: Demo produk",
+    "attachmentLabel": "penawaran-growth.pdf"
+  },
+  {
+    "id": "ms_0079",
+    "conversationId": "cv_0010",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T00:31:00.000Z",
+    "status": "read",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0080",
+    "conversationId": "cv_0011",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-22T14:47:00.000Z"
+  },
+  {
+    "id": "ms_0081",
+    "conversationId": "cv_0011",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-22T11:30:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0082",
+    "conversationId": "cv_0011",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-22T11:10:00.000Z"
+  },
+  {
+    "id": "ms_0083",
+    "conversationId": "cv_0011",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-22T15:52:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0084",
+    "conversationId": "cv_0011",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-22T13:09:00.000Z"
+  },
+  {
+    "id": "ms_0085",
+    "conversationId": "cv_0011",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-22T15:36:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0086",
+    "conversationId": "cv_0011",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T16:46:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0087",
+    "conversationId": "cv_0012",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-24T08:57:00.000Z"
+  },
+  {
+    "id": "ms_0088",
+    "conversationId": "cv_0012",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-24T08:00:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0089",
+    "conversationId": "cv_0012",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-24T11:30:00.000Z"
+  },
+  {
+    "id": "ms_0090",
+    "conversationId": "cv_0012",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-24T12:16:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0091",
+    "conversationId": "cv_0012",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T13:39:00.000Z"
+  },
+  {
+    "id": "ms_0092",
+    "conversationId": "cv_0012",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-24T16:34:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0093",
+    "conversationId": "cv_0012",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-24T15:31:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0094",
+    "conversationId": "cv_0013",
+    "direction": "in",
+    "body": "Min, ini ready stock? 😍",
+    "timestamp": "2026-05-23T02:50:00.000Z"
+  },
+  {
+    "id": "ms_0095",
+    "conversationId": "cv_0013",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-23T07:18:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0096",
+    "conversationId": "cv_0013",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-23T06:08:00.000Z"
+  },
+  {
+    "id": "ms_0097",
+    "conversationId": "cv_0013",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-23T07:50:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0098",
+    "conversationId": "cv_0013",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-23T12:12:00.000Z"
+  },
+  {
+    "id": "ms_0099",
+    "conversationId": "cv_0013",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-23T08:40:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0100",
+    "conversationId": "cv_0013",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-23T10:08:00.000Z"
+  },
+  {
+    "id": "ms_0101",
+    "conversationId": "cv_0013",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-23T12:45:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0102",
+    "conversationId": "cv_0013",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-23T13:18:00.000Z"
+  },
+  {
+    "id": "ms_0103",
+    "conversationId": "cv_0013",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-23T14:35:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0104",
+    "conversationId": "cv_0014",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-24T00:00:00.000Z",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0105",
+    "conversationId": "cv_0014",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T04:15:00.000Z",
+    "status": "read",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0106",
+    "conversationId": "cv_0014",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-24T02:16:00.000Z",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0107",
+    "conversationId": "cv_0014",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T06:08:00.000Z",
+    "status": "sent",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0108",
+    "conversationId": "cv_0014",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-24T00:06:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0109",
+    "conversationId": "cv_0014",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-24T05:05:00.000Z",
+    "status": "sent",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0110",
+    "conversationId": "cv_0014",
+    "direction": "in",
+    "body": "Kami butuh fitur integrasi WhatsApp Business API. Apakah tersedia?",
+    "timestamp": "2026-05-24T03:12:00.000Z",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0111",
+    "conversationId": "cv_0014",
+    "direction": "out",
+    "body": "Terlampir penawaran resmi sesuai kebutuhan tim Bapak. Berlaku 30 hari.",
+    "timestamp": "2026-05-24T06:06:00.000Z",
+    "status": "read",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0112",
+    "conversationId": "cv_0014",
+    "direction": "in",
+    "body": "Terima kasih, kami akan review internal dan kabari pekan depan.",
+    "timestamp": "2026-05-24T06:50:00.000Z",
+    "subject": "Penawaran Paket Growth",
+    "attachmentLabel": "penawaran-growth.pdf"
+  },
+  {
+    "id": "ms_0113",
+    "conversationId": "cv_0014",
+    "direction": "in",
+    "body": "Terima kasih, kami akan review internal dan kabari pekan depan.",
+    "timestamp": "2026-05-24T06:36:00.000Z",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0114",
+    "conversationId": "cv_0015",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-23T13:06:00.000Z"
+  },
+  {
+    "id": "ms_0115",
+    "conversationId": "cv_0015",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-23T17:10:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0116",
+    "conversationId": "cv_0015",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-23T15:08:00.000Z"
+  },
+  {
+    "id": "ms_0117",
+    "conversationId": "cv_0015",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-23T16:33:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0118",
+    "conversationId": "cv_0015",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-23T17:16:00.000Z"
+  },
+  {
+    "id": "ms_0119",
+    "conversationId": "cv_0015",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-23T17:38:00.000Z"
+  },
+  {
+    "id": "ms_0120",
+    "conversationId": "cv_0016",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-23T03:05:00.000Z"
+  },
+  {
+    "id": "ms_0121",
+    "conversationId": "cv_0016",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-23T02:48:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0122",
+    "conversationId": "cv_0016",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-23T06:30:00.000Z"
+  },
+  {
+    "id": "ms_0123",
+    "conversationId": "cv_0016",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-23T06:32:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0124",
+    "conversationId": "cv_0016",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-23T06:45:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0125",
+    "conversationId": "cv_0017",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-22T12:00:00.000Z"
+  },
+  {
+    "id": "ms_0126",
+    "conversationId": "cv_0017",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T17:41:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0127",
+    "conversationId": "cv_0017",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-22T20:36:00.000Z"
+  },
+  {
+    "id": "ms_0128",
+    "conversationId": "cv_0017",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-22T20:55:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0129",
+    "conversationId": "cv_0017",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-22T21:36:00.000Z"
+  },
+  {
+    "id": "ms_0130",
+    "conversationId": "cv_0017",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-22T21:27:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0131",
+    "conversationId": "cv_0017",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-22T19:00:00.000Z"
+  },
+  {
+    "id": "ms_0132",
+    "conversationId": "cv_0017",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-22T20:38:00.000Z"
+  },
+  {
+    "id": "ms_0133",
+    "conversationId": "cv_0018",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-22T09:52:00.000Z"
+  },
+  {
+    "id": "ms_0134",
+    "conversationId": "cv_0018",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-22T02:20:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0135",
+    "conversationId": "cv_0018",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-22T12:00:00.000Z"
+  },
+  {
+    "id": "ms_0136",
+    "conversationId": "cv_0018",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-22T09:40:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0137",
+    "conversationId": "cv_0018",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-22T05:05:00.000Z"
+  },
+  {
+    "id": "ms_0138",
+    "conversationId": "cv_0018",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-22T06:42:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0139",
+    "conversationId": "cv_0018",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-22T13:10:00.000Z"
+  },
+  {
+    "id": "ms_0140",
+    "conversationId": "cv_0018",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T14:36:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0141",
+    "conversationId": "cv_0018",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-22T13:57:00.000Z"
+  },
+  {
+    "id": "ms_0142",
+    "conversationId": "cv_0018",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-22T14:12:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0143",
+    "conversationId": "cv_0018",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-22T13:41:00.000Z"
+  },
+  {
+    "id": "ms_0144",
+    "conversationId": "cv_0019",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-23T02:04:00.000Z"
+  },
+  {
+    "id": "ms_0145",
+    "conversationId": "cv_0019",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-23T04:25:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0146",
+    "conversationId": "cv_0019",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-22T23:06:00.000Z"
+  },
+  {
+    "id": "ms_0147",
+    "conversationId": "cv_0019",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-23T02:15:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0148",
+    "conversationId": "cv_0019",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-23T02:04:00.000Z"
+  },
+  {
+    "id": "ms_0149",
+    "conversationId": "cv_0019",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-23T03:45:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0150",
+    "conversationId": "cv_0019",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-23T02:26:00.000Z"
+  },
+  {
+    "id": "ms_0151",
+    "conversationId": "cv_0019",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-23T04:11:00.000Z"
+  },
+  {
+    "id": "ms_0152",
+    "conversationId": "cv_0020",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-24T18:54:00.000Z"
+  },
+  {
+    "id": "ms_0153",
+    "conversationId": "cv_0020",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-24T22:15:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0154",
+    "conversationId": "cv_0020",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-24T21:40:00.000Z"
+  },
+  {
+    "id": "ms_0155",
+    "conversationId": "cv_0020",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-25T00:00:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0156",
+    "conversationId": "cv_0020",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-24T22:12:00.000Z"
+  },
+  {
+    "id": "ms_0157",
+    "conversationId": "cv_0020",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-25T00:51:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0158",
+    "conversationId": "cv_0021",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-22T01:15:00.000Z"
+  },
+  {
+    "id": "ms_0159",
+    "conversationId": "cv_0021",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T01:54:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0160",
+    "conversationId": "cv_0021",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-22T06:35:00.000Z"
+  },
+  {
+    "id": "ms_0161",
+    "conversationId": "cv_0021",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-22T04:20:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0162",
+    "conversationId": "cv_0021",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-22T08:57:00.000Z"
+  },
+  {
+    "id": "ms_0163",
+    "conversationId": "cv_0021",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-22T09:06:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0164",
+    "conversationId": "cv_0021",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T08:36:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0165",
+    "conversationId": "cv_0022",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T08:56:00.000Z"
+  },
+  {
+    "id": "ms_0166",
+    "conversationId": "cv_0022",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-24T07:54:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0167",
+    "conversationId": "cv_0022",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-24T02:54:00.000Z"
+  },
+  {
+    "id": "ms_0168",
+    "conversationId": "cv_0022",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-24T05:50:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0169",
+    "conversationId": "cv_0022",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T09:12:00.000Z"
+  },
+  {
+    "id": "ms_0170",
+    "conversationId": "cv_0022",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-24T07:09:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0171",
+    "conversationId": "cv_0022",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T08:04:00.000Z"
+  },
+  {
+    "id": "ms_0172",
+    "conversationId": "cv_0022",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-24T09:20:00.000Z"
+  },
+  {
+    "id": "ms_0173",
+    "conversationId": "cv_0023",
+    "direction": "in",
+    "body": "Min, ini ready stock? 😍",
+    "timestamp": "2026-05-23T20:52:00.000Z"
+  },
+  {
+    "id": "ms_0174",
+    "conversationId": "cv_0023",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-23T23:03:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0175",
+    "conversationId": "cv_0023",
+    "direction": "in",
+    "body": "Min, ini ready stock? 😍",
+    "timestamp": "2026-05-24T02:12:00.000Z"
+  },
+  {
+    "id": "ms_0176",
+    "conversationId": "cv_0023",
+    "direction": "out",
+    "body": "Untuk harga net aku kirim ya kak",
+    "timestamp": "2026-05-24T00:40:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0177",
+    "conversationId": "cv_0023",
+    "direction": "in",
+    "body": "DM aku detailnya dong",
+    "timestamp": "2026-05-24T02:28:00.000Z"
+  },
+  {
+    "id": "ms_0178",
+    "conversationId": "cv_0023",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-24T01:09:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0179",
+    "conversationId": "cv_0023",
+    "direction": "in",
+    "body": "Harga net berapa kak?",
+    "timestamp": "2026-05-24T03:30:00.000Z"
+  },
+  {
+    "id": "ms_0180",
+    "conversationId": "cv_0023",
+    "direction": "out",
+    "body": "Halo kak! Ready ya, boleh cek katalog di bio 😊",
+    "timestamp": "2026-05-24T03:32:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0181",
+    "conversationId": "cv_0024",
+    "direction": "in",
+    "body": "Oke siap, kita lanjut meeting Selasa jam 10 ya.",
+    "timestamp": "2026-05-23T22:06:00.000Z"
+  },
+  {
+    "id": "ms_0182",
+    "conversationId": "cv_0024",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-23T17:28:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0183",
+    "conversationId": "cv_0024",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-23T21:41:00.000Z"
+  },
+  {
+    "id": "ms_0184",
+    "conversationId": "cv_0024",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-23T19:30:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0185",
+    "conversationId": "cv_0024",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T19:05:00.000Z"
+  },
+  {
+    "id": "ms_0186",
+    "conversationId": "cv_0024",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-24T00:48:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0187",
+    "conversationId": "cv_0024",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-24T00:51:00.000Z"
+  },
+  {
+    "id": "ms_0188",
+    "conversationId": "cv_0024",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-24T01:26:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0189",
+    "conversationId": "cv_0024",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-24T01:15:00.000Z"
+  },
+  {
+    "id": "ms_0190",
+    "conversationId": "cv_0025",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T18:20:00.000Z"
+  },
+  {
+    "id": "ms_0191",
+    "conversationId": "cv_0025",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-23T23:00:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0192",
+    "conversationId": "cv_0025",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-23T17:44:00.000Z"
+  },
+  {
+    "id": "ms_0193",
+    "conversationId": "cv_0025",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-23T16:47:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0194",
+    "conversationId": "cv_0025",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-23T17:24:00.000Z"
+  },
+  {
+    "id": "ms_0195",
+    "conversationId": "cv_0025",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-23T22:25:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0196",
+    "conversationId": "cv_0025",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T22:04:00.000Z"
+  },
+  {
+    "id": "ms_0197",
+    "conversationId": "cv_0025",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-24T00:24:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0198",
+    "conversationId": "cv_0025",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-24T00:34:00.000Z"
+  },
+  {
+    "id": "ms_0199",
+    "conversationId": "cv_0025",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-24T01:27:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0200",
+    "conversationId": "cv_0026",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-23T16:36:00.000Z"
+  },
+  {
+    "id": "ms_0201",
+    "conversationId": "cv_0026",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-23T21:12:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0202",
+    "conversationId": "cv_0026",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-23T20:25:00.000Z"
+  },
+  {
+    "id": "ms_0203",
+    "conversationId": "cv_0026",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-23T22:44:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0204",
+    "conversationId": "cv_0026",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-24T00:12:00.000Z"
+  },
+  {
+    "id": "ms_0205",
+    "conversationId": "cv_0026",
+    "direction": "out",
+    "body": "Selamat pagi Bapak/Ibu, terima kasih sudah menghubungi kami 🙏",
+    "timestamp": "2026-05-24T00:10:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0206",
+    "conversationId": "cv_0026",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-23T23:33:00.000Z"
+  },
+  {
+    "id": "ms_0207",
+    "conversationId": "cv_0027",
+    "direction": "in",
+    "body": "Kami butuh fitur integrasi WhatsApp Business API. Apakah tersedia?",
+    "timestamp": "2026-05-22T21:12:00.000Z",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0208",
+    "conversationId": "cv_0027",
+    "direction": "out",
+    "body": "Terlampir penawaran resmi sesuai kebutuhan tim Bapak. Berlaku 30 hari.",
+    "timestamp": "2026-05-22T18:05:00.000Z",
+    "status": "sent",
+    "subject": "Re: Demo produk"
+  },
+  {
+    "id": "ms_0209",
+    "conversationId": "cv_0027",
+    "direction": "in",
+    "body": "Mohon dikirimkan penawaran resmi untuk 25 pengguna.",
+    "timestamp": "2026-05-22T21:36:00.000Z",
+    "subject": "Penawaran Paket Growth"
+  },
+  {
+    "id": "ms_0210",
+    "conversationId": "cv_0027",
+    "direction": "out",
+    "body": "Terlampir penawaran resmi sesuai kebutuhan tim Bapak. Berlaku 30 hari.",
+    "timestamp": "2026-05-23T01:30:00.000Z",
+    "status": "sent",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0211",
+    "conversationId": "cv_0027",
+    "direction": "in",
+    "body": "Kami butuh fitur integrasi WhatsApp Business API. Apakah tersedia?",
+    "timestamp": "2026-05-23T02:24:00.000Z",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0212",
+    "conversationId": "cv_0027",
+    "direction": "out",
+    "body": "Berikut perbandingan paket beserta estimasi ROI untuk perusahaan Anda.",
+    "timestamp": "2026-05-23T02:33:00.000Z",
+    "status": "delivered",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0213",
+    "conversationId": "cv_0027",
+    "direction": "in",
+    "body": "Terima kasih, kami akan review internal dan kabari pekan depan.",
+    "timestamp": "2026-05-23T01:28:00.000Z",
+    "subject": "Integrasi WhatsApp API",
+    "attachmentLabel": "penawaran-growth.pdf"
+  },
+  {
+    "id": "ms_0214",
+    "conversationId": "cv_0027",
+    "direction": "out",
+    "body": "Terlampir penawaran resmi sesuai kebutuhan tim Bapak. Berlaku 30 hari.",
+    "timestamp": "2026-05-23T03:53:00.000Z",
+    "status": "read",
+    "subject": "Integrasi WhatsApp API"
+  },
+  {
+    "id": "ms_0215",
+    "conversationId": "cv_0028",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-24T13:10:00.000Z"
+  },
+  {
+    "id": "ms_0216",
+    "conversationId": "cv_0028",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-24T13:04:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0217",
+    "conversationId": "cv_0028",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-24T10:57:00.000Z"
+  },
+  {
+    "id": "ms_0218",
+    "conversationId": "cv_0028",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-24T11:14:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0219",
+    "conversationId": "cv_0028",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-24T13:49:00.000Z"
+  },
+  {
+    "id": "ms_0220",
+    "conversationId": "cv_0029",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-22T10:35:00.000Z"
+  },
+  {
+    "id": "ms_0221",
+    "conversationId": "cv_0029",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-22T12:28:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0222",
+    "conversationId": "cv_0029",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-22T11:57:00.000Z"
+  },
+  {
+    "id": "ms_0223",
+    "conversationId": "cv_0029",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-22T14:50:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0224",
+    "conversationId": "cv_0029",
+    "direction": "in",
+    "body": "Halo, saya tertarik dengan produknya. Bisa info harga?",
+    "timestamp": "2026-05-22T14:41:00.000Z"
+  },
+  {
+    "id": "ms_0225",
+    "conversationId": "cv_0030",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-22T18:21:00.000Z"
+  },
+  {
+    "id": "ms_0226",
+    "conversationId": "cv_0030",
+    "direction": "out",
+    "body": "Sama-sama Bu, kabari saya kalau ada pertanyaan lagi.",
+    "timestamp": "2026-05-22T14:20:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0227",
+    "conversationId": "cv_0030",
+    "direction": "in",
+    "body": "Pak, apakah masih ada slot demo minggu ini?",
+    "timestamp": "2026-05-22T11:27:00.000Z"
+  },
+  {
+    "id": "ms_0228",
+    "conversationId": "cv_0030",
+    "direction": "out",
+    "body": "Proposal sudah saya kirim ke email Bapak ya, mohon dicek.",
+    "timestamp": "2026-05-22T10:00:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0229",
+    "conversationId": "cv_0030",
+    "direction": "in",
+    "body": "Boleh dikirim proposalnya ke email saya?",
+    "timestamp": "2026-05-22T09:37:00.000Z"
+  },
+  {
+    "id": "ms_0230",
+    "conversationId": "cv_0030",
+    "direction": "out",
+    "body": "Baik, saya jadwalkan demo Kamis pukul 14:00 WIB. Berkenan?",
+    "timestamp": "2026-05-22T13:12:00.000Z",
+    "status": "read"
+  },
+  {
+    "id": "ms_0231",
+    "conversationId": "cv_0030",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-22T12:55:00.000Z"
+  },
+  {
+    "id": "ms_0232",
+    "conversationId": "cv_0030",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T16:28:00.000Z",
+    "status": "delivered"
+  },
+  {
+    "id": "ms_0233",
+    "conversationId": "cv_0030",
+    "direction": "in",
+    "body": "Untuk paket Growth, ada diskon tahunan tidak?",
+    "timestamp": "2026-05-22T17:51:00.000Z"
+  },
+  {
+    "id": "ms_0234",
+    "conversationId": "cv_0030",
+    "direction": "out",
+    "body": "Tentu Pak, untuk paket Growth Rp 449.000/pengguna/bulan. Saya kirim detailnya ya.",
+    "timestamp": "2026-05-22T19:12:00.000Z",
+    "status": "sent"
+  },
+  {
+    "id": "ms_0235",
+    "conversationId": "cv_0030",
+    "direction": "in",
+    "body": "Terima kasih infonya, saya diskusikan dulu dengan tim ya.",
+    "timestamp": "2026-05-22T19:22:00.000Z"
+  }
+]

@@ -1,0 +1,395 @@
+{
+  "cd_0001": [
+    {
+      "id": "cd_0001_s1",
+      "channel": "call",
+      "delayDays": 0,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0001_s2",
+      "channel": "linkedin",
+      "delayDays": 1,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0001_s3",
+      "channel": "call",
+      "delayDays": 2,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    }
+  ],
+  "cd_0002": [
+    {
+      "id": "cd_0002_s1",
+      "channel": "whatsapp",
+      "delayDays": 0,
+      "content": "Halo {{nama}}, mengingatkan untuk demo {{produk}} kita. Berkenan minggu ini?"
+    },
+    {
+      "id": "cd_0002_s2",
+      "channel": "call",
+      "delayDays": 4,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0002_s3",
+      "channel": "whatsapp",
+      "delayDays": 4,
+      "content": "Halo {{nama}}, mengingatkan untuk demo {{produk}} kita. Berkenan minggu ini?"
+    },
+    {
+      "id": "cd_0002_s4",
+      "channel": "call",
+      "delayDays": 1,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0002_s5",
+      "channel": "whatsapp",
+      "delayDays": 3,
+      "content": "Halo {{nama}}, mengingatkan untuk demo {{produk}} kita. Berkenan minggu ini?"
+    },
+    {
+      "id": "cd_0002_s6",
+      "channel": "call",
+      "delayDays": 2,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    }
+  ],
+  "cd_0003": [
+    {
+      "id": "cd_0003_s1",
+      "channel": "linkedin",
+      "delayDays": 0,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0003_s2",
+      "channel": "call",
+      "delayDays": 2,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0003_s3",
+      "channel": "linkedin",
+      "delayDays": 2,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0003_s4",
+      "channel": "call",
+      "delayDays": 1,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0003_s5",
+      "channel": "linkedin",
+      "delayDays": 3,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    }
+  ],
+  "cd_0004": [
+    {
+      "id": "cd_0004_s1",
+      "channel": "linkedin",
+      "delayDays": 0,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0004_s2",
+      "channel": "sms",
+      "delayDays": 2,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    },
+    {
+      "id": "cd_0004_s3",
+      "channel": "linkedin",
+      "delayDays": 3,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0004_s4",
+      "channel": "sms",
+      "delayDays": 2,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    }
+  ],
+  "cd_0005": [
+    {
+      "id": "cd_0005_s1",
+      "channel": "call",
+      "delayDays": 0,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0005_s2",
+      "channel": "sms",
+      "delayDays": 2,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    },
+    {
+      "id": "cd_0005_s3",
+      "channel": "whatsapp",
+      "delayDays": 4,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0005_s4",
+      "channel": "email",
+      "delayDays": 4,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Cara {{perusahaan}} mempercepat closing\n\nHalo {{nama}}, banyak tim sales di Indonesia kehilangan lead karena channel terpisah-pisah..."
+    },
+    {
+      "id": "cd_0005_s5",
+      "channel": "call",
+      "delayDays": 4,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0005_s6",
+      "channel": "sms",
+      "delayDays": 4,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    }
+  ],
+  "cd_0006": [
+    {
+      "id": "cd_0006_s1",
+      "channel": "email",
+      "delayDays": 0,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Penawaran khusus {{produk}}\n\nBapak/Ibu {{nama}}, terlampir penawaran yang kami siapkan untuk {{perusahaan}}."
+    },
+    {
+      "id": "cd_0006_s2",
+      "channel": "call",
+      "delayDays": 3,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0006_s3",
+      "channel": "email",
+      "delayDays": 3,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Penawaran khusus {{produk}}\n\nBapak/Ibu {{nama}}, terlampir penawaran yang kami siapkan untuk {{perusahaan}}."
+    }
+  ],
+  "cd_0007": [
+    {
+      "id": "cd_0007_s1",
+      "channel": "call",
+      "delayDays": 0,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0007_s2",
+      "channel": "linkedin",
+      "delayDays": 4,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0007_s3",
+      "channel": "whatsapp",
+      "delayDays": 3,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0007_s4",
+      "channel": "call",
+      "delayDays": 4,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0007_s5",
+      "channel": "linkedin",
+      "delayDays": 1,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    }
+  ],
+  "cd_0008": [
+    {
+      "id": "cd_0008_s1",
+      "channel": "whatsapp",
+      "delayDays": 0,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0008_s2",
+      "channel": "email",
+      "delayDays": 1,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Penawaran khusus {{produk}}\n\nBapak/Ibu {{nama}}, terlampir penawaran yang kami siapkan untuk {{perusahaan}}."
+    },
+    {
+      "id": "cd_0008_s3",
+      "channel": "call",
+      "delayDays": 1,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0008_s4",
+      "channel": "whatsapp",
+      "delayDays": 4,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0008_s5",
+      "channel": "email",
+      "delayDays": 1,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Penawaran khusus {{produk}}\n\nBapak/Ibu {{nama}}, terlampir penawaran yang kami siapkan untuk {{perusahaan}}."
+    },
+    {
+      "id": "cd_0008_s6",
+      "channel": "call",
+      "delayDays": 1,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    }
+  ],
+  "cd_0009": [
+    {
+      "id": "cd_0009_s1",
+      "channel": "email",
+      "delayDays": 0,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Penawaran khusus {{produk}}\n\nBapak/Ibu {{nama}}, terlampir penawaran yang kami siapkan untuk {{perusahaan}}."
+    },
+    {
+      "id": "cd_0009_s2",
+      "channel": "sms",
+      "delayDays": 2,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    },
+    {
+      "id": "cd_0009_s3",
+      "channel": "whatsapp",
+      "delayDays": 2,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    }
+  ],
+  "cd_0010": [
+    {
+      "id": "cd_0010_s1",
+      "channel": "call",
+      "delayDays": 0,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0010_s2",
+      "channel": "whatsapp",
+      "delayDays": 3,
+      "content": "Halo {{nama}}, mengingatkan untuk demo {{produk}} kita. Berkenan minggu ini?"
+    },
+    {
+      "id": "cd_0010_s3",
+      "channel": "sms",
+      "delayDays": 4,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    },
+    {
+      "id": "cd_0010_s4",
+      "channel": "call",
+      "delayDays": 4,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    }
+  ],
+  "cd_0011": [
+    {
+      "id": "cd_0011_s1",
+      "channel": "whatsapp",
+      "delayDays": 0,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0011_s2",
+      "channel": "call",
+      "delayDays": 4,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0011_s3",
+      "channel": "sms",
+      "delayDays": 4,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    },
+    {
+      "id": "cd_0011_s4",
+      "channel": "whatsapp",
+      "delayDays": 3,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0011_s5",
+      "channel": "call",
+      "delayDays": 3,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    },
+    {
+      "id": "cd_0011_s6",
+      "channel": "sms",
+      "delayDays": 3,
+      "content": "{{nama}}, demo {{produk}} dijadwalkan besok 14:00 WIB. Balas YA untuk konfirmasi."
+    }
+  ],
+  "cd_0012": [
+    {
+      "id": "cd_0012_s1",
+      "channel": "whatsapp",
+      "delayDays": 0,
+      "content": "Halo {{nama}}, mengingatkan untuk demo {{produk}} kita. Berkenan minggu ini?"
+    },
+    {
+      "id": "cd_0012_s2",
+      "channel": "linkedin",
+      "delayDays": 4,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0012_s3",
+      "channel": "whatsapp",
+      "delayDays": 3,
+      "content": "Halo {{nama}}, mengingatkan untuk demo {{produk}} kita. Berkenan minggu ini?"
+    },
+    {
+      "id": "cd_0012_s4",
+      "channel": "linkedin",
+      "delayDays": 1,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    },
+    {
+      "id": "cd_0012_s5",
+      "channel": "whatsapp",
+      "delayDays": 1,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "cd_0012_s6",
+      "channel": "linkedin",
+      "delayDays": 3,
+      "content": "Connect dengan {{nama}} dan kirim pesan pembuka tentang {{produk}}."
+    }
+  ],
+  "default": [
+    {
+      "id": "tpl_s1",
+      "channel": "whatsapp",
+      "delayDays": 0,
+      "content": "Selamat pagi {{nama}}, saya dari Agentic AI Sales. Boleh saya bantu jelaskan bagaimana {{perusahaan}} bisa kelola WhatsApp + email dalam satu inbox?"
+    },
+    {
+      "id": "tpl_s2",
+      "channel": "email",
+      "delayDays": 2,
+      "subject": "Penawaran untuk {{perusahaan}}",
+      "content": "Subjek: Cara {{perusahaan}} mempercepat closing\n\nHalo {{nama}}, banyak tim sales di Indonesia kehilangan lead karena channel terpisah-pisah..."
+    },
+    {
+      "id": "tpl_s3",
+      "channel": "call",
+      "delayDays": 3,
+      "content": "Telepon {{nama}} untuk konfirmasi kebutuhan dan jadwalkan demo."
+    }
+  ]
+}

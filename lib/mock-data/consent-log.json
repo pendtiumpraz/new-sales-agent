@@ -1,0 +1,402 @@
+[
+  {
+    "id": "cl_0001",
+    "contactName": "Dewi Kusuma",
+    "source": "event",
+    "date": "2026-02-05T12:23:30.784Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0002",
+    "contactName": "Yusuf Firmansyah",
+    "source": "form",
+    "date": "2026-03-03T00:11:10.303Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0003",
+    "contactName": "Ahmad Halim",
+    "source": "form",
+    "date": "2026-01-04T04:44:32.934Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0004",
+    "contactName": "Citra Nurhaliza",
+    "source": "wa-optin",
+    "date": "2026-05-16T03:51:55.672Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0005",
+    "contactName": "Budi Permata",
+    "source": "event",
+    "date": "2025-12-10T12:41:18.948Z",
+    "version": "v2.0",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0006",
+    "contactName": "Hadi Gunawan",
+    "source": "form",
+    "date": "2026-01-10T14:34:19.892Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0007",
+    "contactName": "Lina Gunawan",
+    "source": "wa-optin",
+    "date": "2025-12-21T01:31:07.236Z",
+    "version": "v1.9",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0008",
+    "contactName": "Dian Nurhaliza",
+    "source": "form",
+    "date": "2025-12-03T07:54:39.523Z",
+    "version": "v1.9",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0009",
+    "contactName": "Anton Hidayat",
+    "source": "event",
+    "date": "2025-12-26T12:59:03.172Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0010",
+    "contactName": "Sri Firmansyah",
+    "source": "form",
+    "date": "2026-01-09T14:08:45.005Z",
+    "version": "v2.0",
+    "status": "none"
+  },
+  {
+    "id": "cl_0011",
+    "contactName": "Citra Halim",
+    "source": "wa-optin",
+    "date": "2026-05-21T10:10:11.512Z",
+    "version": "v2.0",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0012",
+    "contactName": "Andi Handoko",
+    "source": "event",
+    "date": "2026-01-15T20:01:47.182Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0013",
+    "contactName": "Dian Susanto",
+    "source": "event",
+    "date": "2026-01-14T10:41:03.426Z",
+    "version": "v2.0",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0014",
+    "contactName": "Dian Gunawan",
+    "source": "form",
+    "date": "2026-01-13T14:21:12.105Z",
+    "version": "v2.0",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0015",
+    "contactName": "Eka Nugroho",
+    "source": "form",
+    "date": "2026-03-05T10:55:46.133Z",
+    "version": "v2.0",
+    "status": "none"
+  },
+  {
+    "id": "cl_0016",
+    "contactName": "Yusuf Hidayat",
+    "source": "event",
+    "date": "2026-02-03T16:36:58.388Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0017",
+    "contactName": "Yusuf Hidayat",
+    "source": "event",
+    "date": "2026-02-11T15:27:28.076Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0018",
+    "contactName": "Rizki Pratama",
+    "source": "event",
+    "date": "2026-01-24T00:50:18.886Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0019",
+    "contactName": "Tari Setiawan",
+    "source": "form",
+    "date": "2026-04-22T11:59:11.989Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0020",
+    "contactName": "Hadi Pratama",
+    "source": "form",
+    "date": "2025-12-26T21:10:04.213Z",
+    "version": "v2.1",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0021",
+    "contactName": "Budi Handoko",
+    "source": "form",
+    "date": "2026-03-08T08:47:10.189Z",
+    "version": "v1.9",
+    "status": "none"
+  },
+  {
+    "id": "cl_0022",
+    "contactName": "Ahmad Gunawan",
+    "source": "form",
+    "date": "2026-01-18T11:29:26.735Z",
+    "version": "v1.9",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0023",
+    "contactName": "Anton Wijaya",
+    "source": "form",
+    "date": "2025-12-26T22:24:57.605Z",
+    "version": "v1.9",
+    "status": "none"
+  },
+  {
+    "id": "cl_0024",
+    "contactName": "Reza Permata",
+    "source": "wa-optin",
+    "date": "2025-11-28T15:13:53.194Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0025",
+    "contactName": "Ahmad Hartono",
+    "source": "form",
+    "date": "2025-12-29T10:45:18.040Z",
+    "version": "v2.1",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0026",
+    "contactName": "Indah Maharani",
+    "source": "form",
+    "date": "2026-02-24T14:01:55.165Z",
+    "version": "v2.1",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0027",
+    "contactName": "Arif Permata",
+    "source": "form",
+    "date": "2025-12-07T15:53:48.047Z",
+    "version": "v1.9",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0028",
+    "contactName": "Anton Gunawan",
+    "source": "event",
+    "date": "2026-03-18T03:31:38.311Z",
+    "version": "v1.9",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0029",
+    "contactName": "Surya Utami",
+    "source": "event",
+    "date": "2026-03-13T12:21:22.458Z",
+    "version": "v1.9",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0030",
+    "contactName": "Budi Handoko",
+    "source": "form",
+    "date": "2025-12-05T09:21:08.344Z",
+    "version": "v2.0",
+    "status": "none"
+  },
+  {
+    "id": "cl_0031",
+    "contactName": "Lestari Puspita",
+    "source": "form",
+    "date": "2026-01-23T10:53:55.634Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0032",
+    "contactName": "Mei Lestari",
+    "source": "form",
+    "date": "2026-02-14T17:37:01.215Z",
+    "version": "v1.9",
+    "status": "none"
+  },
+  {
+    "id": "cl_0033",
+    "contactName": "Ahmad Hartono",
+    "source": "wa-optin",
+    "date": "2025-11-20T14:49:46.493Z",
+    "version": "v1.9",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0034",
+    "contactName": "Hadi Susanto",
+    "source": "wa-optin",
+    "date": "2026-02-04T16:55:38.985Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0035",
+    "contactName": "Indah Wibowo",
+    "source": "event",
+    "date": "2026-05-14T04:34:30.429Z",
+    "version": "v1.9",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0036",
+    "contactName": "Reza Susanto",
+    "source": "wa-optin",
+    "date": "2025-12-07T20:26:52.497Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0037",
+    "contactName": "Rizki Saputra",
+    "source": "wa-optin",
+    "date": "2026-02-02T04:48:56.864Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0038",
+    "contactName": "Andi Handoko",
+    "source": "event",
+    "date": "2025-11-23T03:03:06.794Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0039",
+    "contactName": "Ratih Hidayat",
+    "source": "wa-optin",
+    "date": "2025-12-27T14:50:54.087Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0040",
+    "contactName": "Budi Lestari",
+    "source": "form",
+    "date": "2026-04-05T06:18:09.582Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0041",
+    "contactName": "Bayu Maharani",
+    "source": "form",
+    "date": "2025-12-01T03:48:23.333Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0042",
+    "contactName": "Eka Cahyono",
+    "source": "form",
+    "date": "2026-03-18T08:57:48.597Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0043",
+    "contactName": "Dian Gunawan",
+    "source": "event",
+    "date": "2026-02-25T14:51:51.941Z",
+    "version": "v2.1",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0044",
+    "contactName": "Citra Gunawan",
+    "source": "wa-optin",
+    "date": "2026-03-16T06:07:30.329Z",
+    "version": "v2.1",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0045",
+    "contactName": "Sri Permata",
+    "source": "wa-optin",
+    "date": "2026-05-23T12:59:30.386Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0046",
+    "contactName": "Lina Susanto",
+    "source": "form",
+    "date": "2026-02-02T22:41:23.725Z",
+    "version": "v2.0",
+    "status": "pending"
+  },
+  {
+    "id": "cl_0047",
+    "contactName": "Wayan Handoko",
+    "source": "form",
+    "date": "2026-04-20T12:57:02.850Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0048",
+    "contactName": "Fitri Pratama",
+    "source": "form",
+    "date": "2026-04-01T15:40:04.124Z",
+    "version": "v1.9",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0049",
+    "contactName": "Yusuf Hidayat",
+    "source": "event",
+    "date": "2026-04-10T01:08:33.234Z",
+    "version": "v2.0",
+    "status": "consented"
+  },
+  {
+    "id": "cl_0050",
+    "contactName": "Iwan Utami",
+    "source": "wa-optin",
+    "date": "2025-12-22T10:04:42.091Z",
+    "version": "v2.0",
+    "status": "consented"
+  }
+]

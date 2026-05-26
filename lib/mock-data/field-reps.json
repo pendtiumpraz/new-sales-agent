@@ -1,0 +1,274 @@
+[
+  {
+    "id": "fr_0001",
+    "name": "Slamet Setiawan",
+    "status": "istirahat",
+    "city": "Jakarta",
+    "lat": -6.219665840554593,
+    "lng": 106.85806292545428,
+    "visitsToday": 6,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T06:16:25.680Z",
+    "avatarColor": "#3B82F6",
+    "route": [
+      {
+        "lat": -6.1954239375944065,
+        "lng": 106.88626399865025,
+        "label": "Closing 1"
+      },
+      {
+        "lat": -6.1687017776479145,
+        "lng": 106.85522840600557,
+        "label": "Demo 2"
+      },
+      {
+        "lat": -6.262951956176385,
+        "lng": 106.85108008034145,
+        "label": "Closing 3"
+      },
+      {
+        "lat": -6.2593747846770675,
+        "lng": 106.82056186749296,
+        "label": "Demo 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0002",
+    "name": "Nita Puspita",
+    "status": "kunjungan",
+    "city": "Jakarta",
+    "lat": -6.152799281197483,
+    "lng": 106.85005487131598,
+    "visitsToday": 3,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T13:05:31.403Z",
+    "avatarColor": "#0D9488",
+    "route": [
+      {
+        "lat": -6.226628843535607,
+        "lng": 106.80619174718544,
+        "label": "Demo 1"
+      },
+      {
+        "lat": -6.2578159740017405,
+        "lng": 106.81329024953507,
+        "label": "Closing 2"
+      },
+      {
+        "lat": -6.24791569154305,
+        "lng": 106.7921833486456,
+        "label": "Kunjungan 3"
+      },
+      {
+        "lat": -6.192731654442907,
+        "lng": 106.89032553625452,
+        "label": "Demo 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0003",
+    "name": "Siti Hidayat",
+    "status": "istirahat",
+    "city": "Jakarta",
+    "lat": -6.216968852102813,
+    "lng": 106.82023888617063,
+    "visitsToday": 3,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T15:20:10.302Z",
+    "avatarColor": "#14B8A6",
+    "route": [
+      {
+        "lat": -6.243853376727546,
+        "lng": 106.87166437550206,
+        "label": "Survey 1"
+      },
+      {
+        "lat": -6.211056046124424,
+        "lng": 106.85266506253117,
+        "label": "Kunjungan 2"
+      },
+      {
+        "lat": -6.188618296922518,
+        "lng": 106.79923904974432,
+        "label": "Demo 3"
+      },
+      {
+        "lat": -6.20621844311235,
+        "lng": 106.90441233010246,
+        "label": "Demo 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0004",
+    "name": "Iwan Pratama",
+    "status": "istirahat",
+    "city": "Jakarta",
+    "lat": -6.176848544757878,
+    "lng": 106.80338649418967,
+    "visitsToday": 3,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T08:24:10.484Z",
+    "avatarColor": "#0D9488",
+    "route": [
+      {
+        "lat": -6.250574717526637,
+        "lng": 106.89391347701832,
+        "label": "Kunjungan 1"
+      },
+      {
+        "lat": -6.1519177467908746,
+        "lng": 106.8880299825804,
+        "label": "Closing 2"
+      },
+      {
+        "lat": -6.2355425182954995,
+        "lng": 106.8567335464601,
+        "label": "Demo 3"
+      },
+      {
+        "lat": -6.219176725460144,
+        "lng": 106.84789733225237,
+        "label": "Survey 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0005",
+    "name": "Wayan Hidayat",
+    "status": "kunjungan",
+    "city": "Jakarta",
+    "lat": -6.204122805290229,
+    "lng": 106.82166276849617,
+    "visitsToday": 1,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T16:53:38.996Z",
+    "avatarColor": "#14B8A6",
+    "route": [
+      {
+        "lat": -6.25335549002559,
+        "lng": 106.83026762124972,
+        "label": "Closing 1"
+      },
+      {
+        "lat": -6.172536342441582,
+        "lng": 106.87129020283265,
+        "label": "Demo 2"
+      },
+      {
+        "lat": -6.234340715419455,
+        "lng": 106.804044633341,
+        "label": "Demo 3"
+      },
+      {
+        "lat": -6.24849864237823,
+        "lng": 106.79320186020288,
+        "label": "Kunjungan 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0006",
+    "name": "Sari Gunawan",
+    "status": "selesai",
+    "city": "Surabaya",
+    "lat": -7.27204003551385,
+    "lng": 112.72801884502701,
+    "visitsToday": 3,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T18:06:27.748Z",
+    "avatarColor": "#EC4899",
+    "route": [
+      {
+        "lat": -7.233717460847742,
+        "lng": 112.70781665473977,
+        "label": "Survey 1"
+      },
+      {
+        "lat": -7.313636998010581,
+        "lng": 112.7732062324614,
+        "label": "Kunjungan 2"
+      },
+      {
+        "lat": -7.230042527024218,
+        "lng": 112.81094816339284,
+        "label": "Kunjungan 3"
+      },
+      {
+        "lat": -7.220344131554457,
+        "lng": 112.72967378830012,
+        "label": "Demo 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0007",
+    "name": "Iwan Handoko",
+    "status": "kunjungan",
+    "city": "Surabaya",
+    "lat": -7.197879943518773,
+    "lng": 112.72165556578123,
+    "visitsToday": 4,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T06:29:56.042Z",
+    "avatarColor": "#10B981",
+    "route": [
+      {
+        "lat": -7.230711778252367,
+        "lng": 112.77561518998095,
+        "label": "Survey 1"
+      },
+      {
+        "lat": -7.20425420395256,
+        "lng": 112.71931526623592,
+        "label": "Demo 2"
+      },
+      {
+        "lat": -7.258350388236798,
+        "lng": 112.71968259000096,
+        "label": "Demo 3"
+      },
+      {
+        "lat": -7.273487774312853,
+        "lng": 112.75146497715662,
+        "label": "Survey 4"
+      }
+    ]
+  },
+  {
+    "id": "fr_0008",
+    "name": "Ahmad Maharani",
+    "status": "kunjungan",
+    "city": "Surabaya",
+    "lat": -7.266557903981773,
+    "lng": 112.71475716605815,
+    "visitsToday": 3,
+    "visitsPlanned": 6,
+    "lastCheckIn": "2026-05-24T11:39:10.308Z",
+    "avatarColor": "#3B82F6",
+    "route": [
+      {
+        "lat": -7.226282535917625,
+        "lng": 112.71225551105664,
+        "label": "Kunjungan 1"
+      },
+      {
+        "lat": -7.2576759050088,
+        "lng": 112.71288042189587,
+        "label": "Closing 2"
+      },
+      {
+        "lat": -7.243793666816741,
+        "lng": 112.74666875777334,
+        "label": "Kunjungan 3"
+      },
+      {
+        "lat": -7.285750545639002,
+        "lng": 112.74430600400623,
+        "label": "Closing 4"
+      }
+    ]
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ai_1",
+    "triggers": [
+      "cadence email",
+      "buatkan cadence",
+      "cadence b2b",
+      "saas b2b"
+    ],
+    "title": "Cadence Email 5 Langkah — SaaS B2B",
+    "kind": "cadence",
+    "body": "Berikut cadence email 5-langkah untuk SaaS B2B:\n\n1. Hari 0 — Email perkenalan + 1 insight industri\n2. Hari 2 — Studi kasus pelanggan sejenis\n3. Hari 5 — Tawaran demo 20 menit\n4. Hari 8 — Email \"break-up\" lembut + value terakhir\n5. Hari 12 — Penawaran trial 14 hari\n\nMau saya isi template-nya dengan {{nama}} & {{perusahaan}}?"
+  },
+  {
+    "id": "ai_2",
+    "triggers": [
+      "analisa pipeline",
+      "analisis pipeline",
+      "pipeline saya"
+    ],
+    "title": "Analisis Pipeline",
+    "kind": "analysis",
+    "body": "Pipeline Anda saat ini bernilai Rp 8,4 miliar dengan 50 deal. Insight: 28% nilai menumpuk di tahap Negosiasi >21 hari — risiko stagnan. Rekomendasi: prioritaskan 3 deal Negosiasi bernilai tertinggi minggu ini dan aktifkan cadence \"Demo to Close\". Win-rate WhatsApp Anda 34% lebih tinggi dari email — geser follow-up ke WA."
+  },
+  {
+    "id": "ai_3",
+    "triggers": [
+      "lead terbaik",
+      "lead minggu ini",
+      "siapa lead",
+      "scoring"
+    ],
+    "title": "5 Lead Terbaik Minggu Ini",
+    "kind": "scoring",
+    "body": "Lead skor tertinggi (berdasarkan engagement + kecocokan profil):\n\n1. Budi Santoso — PT Sentosa Jaya (92) — buka email 4×, balas WA\n2. Siti Nurhaliza — Bank Mandiri (88) — minta proposal\n3. Ahmad Wijaya — PT Astra (85) — hadir demo\n4. Putri Indah — CV Mitra Sejahtera (81) — klik harga 3×\n5. Rizki Pratama — Halodoc (79) — referral internal\n\nMau saya tambahkan kelimanya ke cadence \"Demo to Close\"?"
+  },
+  {
+    "id": "ai_default",
+    "triggers": [],
+    "title": "Asisten Sales",
+    "kind": "default",
+    "body": "Saya bisa bantu dengan: pembuatan cadence, analisis pipeline, prospek scoring, dan optimasi pesan. Mau coba?"
+  }
+]

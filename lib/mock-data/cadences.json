@@ -1,0 +1,178 @@
+[
+  {
+    "id": "cd_0001",
+    "name": "Onboarding SaaS B2B",
+    "status": "draft",
+    "enrolled": 28,
+    "steps": 3,
+    "replyRate": 26,
+    "channelMix": [
+      "call",
+      "linkedin"
+    ],
+    "createdAt": "2026-04-14T22:38:21.907Z",
+    "owner": "Andi Hidayat"
+  },
+  {
+    "id": "cd_0002",
+    "name": "Reaktivasi Lead Dingin",
+    "status": "active",
+    "enrolled": 71,
+    "steps": 6,
+    "replyRate": 13,
+    "channelMix": [
+      "whatsapp",
+      "call"
+    ],
+    "createdAt": "2026-02-16T19:10:19.853Z",
+    "owner": "Rina Permata"
+  },
+  {
+    "id": "cd_0003",
+    "name": "Follow-up Pameran UMKM",
+    "status": "active",
+    "enrolled": 167,
+    "steps": 5,
+    "replyRate": 27,
+    "channelMix": [
+      "linkedin",
+      "call"
+    ],
+    "createdAt": "2026-02-07T17:25:27.503Z",
+    "owner": "Maya Kusuma"
+  },
+  {
+    "id": "cd_0004",
+    "name": "Demo to Close",
+    "status": "draft",
+    "enrolled": 41,
+    "steps": 4,
+    "replyRate": 32,
+    "channelMix": [
+      "linkedin",
+      "sms"
+    ],
+    "createdAt": "2026-04-02T16:52:09.610Z",
+    "owner": "Andi Hidayat"
+  },
+  {
+    "id": "cd_0005",
+    "name": "Welcome Tokopedia Buyer",
+    "status": "draft",
+    "enrolled": 142,
+    "steps": 6,
+    "replyRate": 30,
+    "channelMix": [
+      "call",
+      "sms",
+      "whatsapp",
+      "email"
+    ],
+    "createdAt": "2026-04-30T18:14:22.481Z",
+    "owner": "Andi Hidayat"
+  },
+  {
+    "id": "cd_0006",
+    "name": "Upsell Enterprise",
+    "status": "active",
+    "enrolled": 174,
+    "steps": 3,
+    "replyRate": 35,
+    "channelMix": [
+      "email",
+      "call"
+    ],
+    "createdAt": "2026-04-22T05:22:30.149Z",
+    "owner": "Andi Hidayat"
+  },
+  {
+    "id": "cd_0007",
+    "name": "Nurture Webinar",
+    "status": "active",
+    "enrolled": 193,
+    "steps": 5,
+    "replyRate": 19,
+    "channelMix": [
+      "call",
+      "linkedin",
+      "whatsapp"
+    ],
+    "createdAt": "2026-02-23T23:21:40.087Z",
+    "owner": "Maya Kusuma"
+  },
+  {
+    "id": "cd_0008",
+    "name": "Win-back Churn",
+    "status": "active",
+    "enrolled": 121,
+    "steps": 6,
+    "replyRate": 10,
+    "channelMix": [
+      "whatsapp",
+      "email",
+      "call"
+    ],
+    "createdAt": "2026-04-10T19:47:59.538Z",
+    "owner": "Teguh Saputra"
+  },
+  {
+    "id": "cd_0009",
+    "name": "Outreach BUMN",
+    "status": "active",
+    "enrolled": 141,
+    "steps": 3,
+    "replyRate": 18,
+    "channelMix": [
+      "email",
+      "sms",
+      "whatsapp",
+      "linkedin"
+    ],
+    "createdAt": "2026-03-29T05:01:42.375Z",
+    "owner": "Maya Kusuma"
+  },
+  {
+    "id": "cd_0010",
+    "name": "Referral Program",
+    "status": "draft",
+    "enrolled": 53,
+    "steps": 4,
+    "replyRate": 24,
+    "channelMix": [
+      "call",
+      "whatsapp",
+      "sms"
+    ],
+    "createdAt": "2026-02-18T16:19:01.685Z",
+    "owner": "Andi Hidayat"
+  },
+  {
+    "id": "cd_0011",
+    "name": "Trial Expiry Reminder",
+    "status": "active",
+    "enrolled": 71,
+    "steps": 6,
+    "replyRate": 32,
+    "channelMix": [
+      "whatsapp",
+      "call",
+      "sms"
+    ],
+    "createdAt": "2026-02-03T23:13:43.868Z",
+    "owner": "Teguh Saputra"
+  },
+  {
+    "id": "cd_0012",
+    "name": "Festive Promo Lebaran",
+    "status": "active",
+    "enrolled": 202,
+    "steps": 6,
+    "replyRate": 41,
+    "channelMix": [
+      "whatsapp",
+      "linkedin"
+    ],
+    "createdAt": "2026-05-17T11:45:33.435Z",
+    "owner": "Teguh Saputra"
+  }
+]

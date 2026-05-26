@@ -1,0 +1,74 @@
+[
+  {
+    "id": "tk_0001",
+    "title": "Follow up Pak Budi via WA",
+    "channel": "whatsapp",
+    "priority": "tinggi",
+    "contactName": "Slamet Setiawan",
+    "due": "10:00 WIB",
+    "done": false
+  },
+  {
+    "id": "tk_0002",
+    "title": "Kirim quote ke PT Sentosa Jaya",
+    "channel": "email",
+    "priority": "tinggi",
+    "contactName": "Hendra Setiawan",
+    "due": "14:30 WIB",
+    "done": false
+  },
+  {
+    "id": "tk_0003",
+    "title": "Telepon Ibu Siti — konfirmasi demo",
+    "channel": "call",
+    "priority": "sedang",
+    "contactName": "Lestari Permata",
+    "due": "14:30 WIB",
+    "done": false
+  },
+  {
+    "id": "tk_0004",
+    "title": "Balas DM Instagram @retailmaju",
+    "channel": "instagram",
+    "priority": "sedang",
+    "contactName": "Iwan Gunawan",
+    "due": "10:00 WIB",
+    "done": false
+  },
+  {
+    "id": "tk_0005",
+    "title": "Connect LinkedIn Direktur PT Astra",
+    "channel": "linkedin",
+    "priority": "rendah",
+    "contactName": "Joko Pratama",
+    "due": "10:00 WIB",
+    "done": false
+  },
+  {
+    "id": "tk_0006",
+    "title": "Review proposal Bank Mandiri",
+    "channel": "email",
+    "priority": "tinggi",
+    "contactName": "Andi Firmansyah",
+    "due": "10:00 WIB",
+    "done": false
+  },
+  {
+    "id": "tk_0007",
+    "title": "Aktifkan cadence Reaktivasi Lead",
+    "channel": "whatsapp",
+    "priority": "sedang",
+    "contactName": "Andi Handoko",
+    "due": "Hari ini",
+    "done": false
+  },
+  {
+    "id": "tk_0008",
+    "title": "Jadwalkan kunjungan Surabaya",
+    "channel": "call",
+    "priority": "rendah",
+    "contactName": "Sari Permata",
+    "due": "Besok",
+    "done": false
+  }
+]

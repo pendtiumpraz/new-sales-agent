@@ -1,0 +1,77 @@
+[
+  {
+    "id": "ac_0005",
+    "actor": "Teguh Saputra",
+    "action": "check-in kunjungan",
+    "target": "Eka Wibowo",
+    "timestamp": "2026-05-24T16:41:53.752Z"
+  },
+  {
+    "id": "ac_0002",
+    "actor": "Andi Hidayat",
+    "action": "menutup deal",
+    "target": "Rizki Susanto",
+    "timestamp": "2026-05-24T10:34:26.828Z"
+  },
+  {
+    "id": "ac_0008",
+    "actor": "Teguh Saputra",
+    "action": "membalas DM",
+    "target": "Tari Hartono",
+    "channel": "instagram",
+    "timestamp": "2026-05-24T10:16:36.011Z"
+  },
+  {
+    "id": "ac_0004",
+    "actor": "Teguh Saputra",
+    "action": "membalas DM",
+    "target": "Hendra Halim",
+    "channel": "instagram",
+    "timestamp": "2026-05-24T08:07:30.226Z"
+  },
+  {
+    "id": "ac_0010",
+    "actor": "Rina Permata",
+    "action": "menerima order baru",
+    "target": "Eka Cahyono",
+    "channel": "tokopedia",
+    "timestamp": "2026-05-24T04:53:48.116Z"
+  },
+  {
+    "id": "ac_0003",
+    "actor": "Maya Kusuma",
+    "action": "menutup deal",
+    "target": "Sari Permata",
+    "timestamp": "2026-05-24T02:04:15.095Z"
+  },
+  {
+    "id": "ac_0006",
+    "actor": "Teguh Saputra",
+    "action": "menerima order baru",
+    "target": "Maya Handoko",
+    "channel": "tokopedia",
+    "timestamp": "2026-05-23T16:37:52.836Z"
+  },
+  {
+    "id": "ac_0001",
+    "actor": "Teguh Saputra",
+    "action": "check-in kunjungan",
+    "target": "Dian Permata",
+    "timestamp": "2026-05-23T14:18:26.767Z"
+  },
+  {
+    "id": "ac_0009",
+    "actor": "Maya Kusuma",
+    "action": "menambahkan kontak ke cadence",
+    "target": "Ratih Anggraini",
+    "channel": "email",
+    "timestamp": "2026-05-23T10:50:35.592Z"
+  },
+  {
+    "id": "ac_0007",
+    "actor": "Andi Hidayat",
+    "action": "menutup deal",
+    "target": "Eka Wibowo",
+    "timestamp": "2026-05-23T06:37:06.887Z"
+  }
+]
