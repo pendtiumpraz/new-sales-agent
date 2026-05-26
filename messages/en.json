@@ -1,0 +1,71 @@
+{
+  "common": {
+    "tryDemo": "Try Demo",
+    "contactSales": "Contact Sales",
+    "login": "Log in",
+    "search": "Search...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "addToCadence": "Add to cadence"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "inbox": "Inbox",
+    "contacts": "Contacts",
+    "pipeline": "Pipeline",
+    "cadences": "Cadences",
+    "field": "Field Sales",
+    "ecommerce": "E-commerce",
+    "aiAssistant": "AI Assistant",
+    "settings": "Settings",
+    "compliance": "Compliance"
+  },
+  "landing": {
+    "navProduct": "Product",
+    "navPricing": "Pricing",
+    "navCompare": "Compare",
+    "heroTitle": "A sales platform that gets how Indonesia sells.",
+    "heroSubtitle": "One home for WhatsApp, email, Instagram, and marketplaces — with smart prospecting and multi-channel cadences, built for local B2B and B2C sales teams.",
+    "heroNote": "No credit card. The demo runs instantly.",
+    "trustedBy": "Trusted by sales teams across Indonesia",
+    "featuresTitle": "Everything your sales team needs",
+    "featuresSubtitle": "Six pillars that make selling in Indonesia faster and cleaner.",
+    "compareTitle": "How we compare",
+    "compareSubtitle": "Apollo's prospecting power, paired with a Mekari-style local channel stack.",
+    "pricingTitle": "Transparent pricing",
+    "pricingSubtitle": "Start small, level up as your team grows. All prices per user / month.",
+    "pricingCta": "Get started",
+    "pricingPopular": "Most popular",
+    "footerTagline": "The WhatsApp-first sales intelligence platform for Indonesia.",
+    "footerProduct": "Product",
+    "footerCompany": "Company",
+    "footerLegal": "Legal",
+    "footerPdp": "Compliant with PDP Law No. 27/2022. Your customer data is safe and encrypted.",
+    "footerRights": "All rights reserved."
+  },
+  "features": {
+    "multichannelTitle": "Multi-channel Core",
+    "multichannelDesc": "WhatsApp, email, Instagram, and LinkedIn in one unified inbox.",
+    "prospectingTitle": "Data + Prospecting",
+    "prospectingDesc": "Find and enrich Indonesian business leads with relevant data.",
+    "cadenceTitle": "Automated Cadences",
+    "cadenceDesc": "Sequence steps across channels with WIB working-hour scheduling.",
+    "pipelineTitle": "Visual Pipeline",
+    "pipelineDesc": "Kanban deals in Rupiah, from prospect to close.",
+    "fieldTitle": "Field Sales",
+    "fieldDesc": "GPS check-in, visit logs, and team routes straight from mobile.",
+    "complianceTitle": "PDP Compliance",
+    "complianceDesc": "Consent logs, audit trails, and data controls banks love."
+  },
+  "pricing": {
+    "starterName": "Starter",
+    "starterDesc": "For small teams getting started.",
+    "growthName": "Growth",
+    "growthDesc": "For growing sales teams.",
+    "enterpriseName": "Enterprise",
+    "enterpriseDesc": "For large-scale and security needs.",
+    "enterprisePrice": "Custom",
+    "perMonth": "/mo",
+    "contactUs": "Contact us"
+  }
+}

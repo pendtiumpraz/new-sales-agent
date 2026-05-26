@@ -1,0 +1,71 @@
+{
+  "common": {
+    "tryDemo": "Coba Demo",
+    "contactSales": "Hubungi Sales",
+    "login": "Masuk",
+    "search": "Cari...",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "addToCadence": "Tambahkan ke cadence"
+  },
+  "nav": {
+    "dashboard": "Dasbor",
+    "inbox": "Inbox",
+    "contacts": "Kontak",
+    "pipeline": "Pipeline",
+    "cadences": "Cadence",
+    "field": "Sales Lapangan",
+    "ecommerce": "E-commerce",
+    "aiAssistant": "Asisten AI",
+    "settings": "Pengaturan",
+    "compliance": "Kepatuhan"
+  },
+  "landing": {
+    "navProduct": "Produk",
+    "navPricing": "Harga",
+    "navCompare": "Perbandingan",
+    "heroTitle": "Sales platform yang ngerti cara jualan di Indonesia.",
+    "heroSubtitle": "Satu tempat untuk WhatsApp, email, Instagram, dan marketplace. Dilengkapi prospecting cerdas dan cadence multi-channel — dirancang untuk tim sales B2B dan B2C lokal.",
+    "heroNote": "Tanpa kartu kredit. Demo langsung jalan.",
+    "trustedBy": "Dipercaya oleh tim sales di seluruh Indonesia",
+    "featuresTitle": "Semua yang tim sales Anda butuhkan",
+    "featuresSubtitle": "Enam pilar yang menjadikan penjualan di Indonesia lebih cepat dan rapi.",
+    "compareTitle": "Bagaimana kami dibandingkan",
+    "compareSubtitle": "Kekuatan prospecting Apollo, dipadu channel-stack lokal ala Mekari.",
+    "pricingTitle": "Harga yang transparan",
+    "pricingSubtitle": "Mulai kecil, naik kelas saat tim Anda berkembang. Semua harga per pengguna / bulan.",
+    "pricingCta": "Mulai sekarang",
+    "pricingPopular": "Paling populer",
+    "footerTagline": "Platform sales intelligence WhatsApp-first untuk Indonesia.",
+    "footerProduct": "Produk",
+    "footerCompany": "Perusahaan",
+    "footerLegal": "Legal",
+    "footerPdp": "Patuh UU PDP No. 27/2022. Data pelanggan Anda aman dan terenkripsi.",
+    "footerRights": "Hak cipta dilindungi."
+  },
+  "features": {
+    "multichannelTitle": "Inti Multi-channel",
+    "multichannelDesc": "WhatsApp, email, Instagram, dan LinkedIn dalam satu inbox terpadu.",
+    "prospectingTitle": "Data + Prospecting",
+    "prospectingDesc": "Temukan dan perkaya lead bisnis Indonesia dengan data yang relevan.",
+    "cadenceTitle": "Cadence Otomatis",
+    "cadenceDesc": "Rangkai langkah lintas channel dengan jadwal pengiriman jam kerja WIB.",
+    "pipelineTitle": "Pipeline Visual",
+    "pipelineDesc": "Kanban deal dalam Rupiah, dari prospek sampai closing.",
+    "fieldTitle": "Sales Lapangan",
+    "fieldDesc": "Check-in GPS, log kunjungan, dan rute tim langsung dari ponsel.",
+    "complianceTitle": "Kepatuhan UU PDP",
+    "complianceDesc": "Log persetujuan, jejak audit, dan kontrol data yang disukai bank."
+  },
+  "pricing": {
+    "starterName": "Starter",
+    "starterDesc": "Untuk tim kecil yang baru mulai.",
+    "growthName": "Growth",
+    "growthDesc": "Untuk tim sales yang sedang berkembang.",
+    "enterpriseName": "Enterprise",
+    "enterpriseDesc": "Untuk kebutuhan skala besar & keamanan.",
+    "enterprisePrice": "Custom",
+    "perMonth": "/bln",
+    "contactUs": "Hubungi kami"
+  }
+}
