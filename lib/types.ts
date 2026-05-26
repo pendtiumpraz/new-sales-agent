@@ -182,3 +182,37 @@ export interface ActivityEvent {
   channel?: MessagingChannel | Marketplace;
   timestamp: string; // ISO
 }
+
+// ---- Content creation & planning (Konten) -----------------------------------
+
+export type ContentType =
+  | "wa-broadcast"
+  | "email-campaign"
+  | "instagram-post"
+  | "tokopedia-post"
+  | "blog";
+
+export type ContentStatus =
+  | "draft"
+  | "review"
+  | "approved"
+  | "scheduled"
+  | "published";
+
+export interface ContentItem {
+  id: string;
+  title: string;
+  type: ContentType;
+  status: ContentStatus;
+  body: string;
+  subject?: string; // email only
+  hashtags?: string[]; // social posts
+  audience?: string; // "Pelanggan VIP", "Lead BUMN", ...
+  scheduledFor?: string; // ISO — required when status is scheduled/published
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
+  reach?: number; // mocked engagement
+  cta?: string;
+}

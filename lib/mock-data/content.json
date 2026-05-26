@@ -1,0 +1,590 @@
+[
+  {
+    "id": "cn_0001",
+    "title": "Survei Kepuasan Pelanggan Q2",
+    "type": "wa-broadcast",
+    "status": "published",
+    "body": "Selamat menyambut Idul Fitri, {{nama}} 🌙 Kami siapkan paket bundling khusus untuk tim sales Anda. Berkenan kami kirimkan proposalnya?",
+    "audience": "Trial users",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-05-20T13:31:09.382Z",
+    "updatedAt": "2026-05-21T10:14:37.294Z",
+    "tags": [
+      "umkm",
+      "studi-kasus",
+      "reactivation"
+    ],
+    "cta": "Pelajari selengkapnya",
+    "scheduledFor": "2026-05-10T03:00:00.000Z",
+    "reach": 2704
+  },
+  {
+    "id": "cn_0002",
+    "title": "Flash Sale 24 Jam",
+    "type": "wa-broadcast",
+    "status": "scheduled",
+    "body": "Pak/Bu {{nama}}, mengingatkan demo {{produk}} besok pukul 14:00 WIB. Balas YA untuk konfirmasi 🙏",
+    "audience": "Lead BUMN",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-04-22T04:52:10.651Z",
+    "updatedAt": "2026-05-22T21:37:35.847Z",
+    "tags": [
+      "reactivation",
+      "umkm"
+    ],
+    "cta": "Mulai trial gratis",
+    "scheduledFor": "2026-05-30T03:00:00.000Z"
+  },
+  {
+    "id": "cn_0003",
+    "title": "Pengingat Tagihan Langganan",
+    "type": "wa-broadcast",
+    "status": "published",
+    "body": "Halo {{nama}} 🎉 Khusus hari ini, paket Growth diskon 20% untuk {{perusahaan}}. Klaim sebelum 17:00 WIB. Reply YA untuk info detail.",
+    "audience": "Lead UMKM",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-05-10T03:50:12.754Z",
+    "updatedAt": "2026-05-24T19:02:19.886Z",
+    "tags": [
+      "umkm"
+    ],
+    "cta": "Baca artikel",
+    "scheduledFor": "2026-05-20T03:00:00.000Z",
+    "reach": 12245
+  },
+  {
+    "id": "cn_0004",
+    "title": "Survei Kepuasan Pelanggan Q2",
+    "type": "wa-broadcast",
+    "status": "draft",
+    "body": "Pak/Bu {{nama}}, mengingatkan demo {{produk}} besok pukul 14:00 WIB. Balas YA untuk konfirmasi 🙏",
+    "audience": "Trial users",
+    "author": "Rina Permata",
+    "createdAt": "2026-05-15T11:12:39.405Z",
+    "updatedAt": "2026-05-21T04:11:23.849Z",
+    "tags": [
+      "edukasi",
+      "lebaran"
+    ],
+    "cta": "Mulai trial gratis"
+  },
+  {
+    "id": "cn_0005",
+    "title": "Update Fitur Inbox Terpadu",
+    "type": "wa-broadcast",
+    "status": "draft",
+    "body": "Halo {{nama}} 🎉 Khusus hari ini, paket Growth diskon 20% untuk {{perusahaan}}. Klaim sebelum 17:00 WIB. Reply YA untuk info detail.",
+    "audience": "Pelanggan aktif",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-04-14T00:17:50.795Z",
+    "updatedAt": "2026-05-22T16:28:06.038Z",
+    "tags": [
+      "edukasi",
+      "reactivation"
+    ],
+    "cta": "Klik untuk daftar"
+  },
+  {
+    "id": "cn_0006",
+    "title": "Penawaran Spesial Lebaran",
+    "type": "wa-broadcast",
+    "status": "approved",
+    "body": "Halo {{nama}} 🎉 Khusus hari ini, paket Growth diskon 20% untuk {{perusahaan}}. Klaim sebelum 17:00 WIB. Reply YA untuk info detail.",
+    "audience": "Lead UMKM",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-04-18T01:33:16.019Z",
+    "updatedAt": "2026-05-18T08:17:56.086Z",
+    "tags": [
+      "umkm",
+      "studi-kasus",
+      "lebaran"
+    ],
+    "cta": "Beli sekarang"
+  },
+  {
+    "id": "cn_0007",
+    "title": "Flash Sale 24 Jam",
+    "type": "wa-broadcast",
+    "status": "scheduled",
+    "body": "{{nama}}, fitur Inbox Terpadu kini mendukung Instagram DM 📸 Cek update lengkap di akun Anda. Kabari kami kalau ada pertanyaan.",
+    "audience": "Lead UMKM",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-05-18T21:49:58.296Z",
+    "updatedAt": "2026-05-18T09:18:38.597Z",
+    "tags": [
+      "bumn",
+      "studi-kasus"
+    ],
+    "cta": "Hubungi tim sales",
+    "scheduledFor": "2026-06-10T03:00:00.000Z"
+  },
+  {
+    "id": "cn_0008",
+    "title": "Promo Hari Belanja Nasional",
+    "type": "wa-broadcast",
+    "status": "scheduled",
+    "body": "Pak/Bu {{nama}}, mengingatkan demo {{produk}} besok pukul 14:00 WIB. Balas YA untuk konfirmasi 🙏",
+    "audience": "Pelanggan aktif",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-05-05T16:22:52.424Z",
+    "updatedAt": "2026-05-23T04:24:14.400Z",
+    "tags": [
+      "feature-launch",
+      "reactivation"
+    ],
+    "cta": "Baca artikel",
+    "scheduledFor": "2026-05-30T03:00:00.000Z"
+  },
+  {
+    "id": "cn_0009",
+    "title": "Welcome Series — Hari 1",
+    "type": "email-campaign",
+    "status": "draft",
+    "body": "Halo Tim,\n\nBulan Mei ini kami mengumpulkan 5 insight tentang tren sales B2B di Indonesia — mulai dari pergeseran ke WhatsApp-first sampai dampak UU PDP pada outbound. Baca selengkapnya di link berikut.\n\nSalam,\nTim Agentic Sales",
+    "audience": "Trial users",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-04-18T04:53:58.048Z",
+    "updatedAt": "2026-05-20T18:44:06.395Z",
+    "tags": [
+      "reactivation",
+      "promo",
+      "edukasi"
+    ],
+    "cta": "Beli sekarang",
+    "subject": "Webinar Gratis: Kepatuhan UU PDP untuk BPR"
+  },
+  {
+    "id": "cn_0010",
+    "title": "Welcome Series — Hari 1",
+    "type": "email-campaign",
+    "status": "approved",
+    "body": "Bapak/Ibu {{nama}},\n\nKami mengundang Anda ke webinar gratis tentang penerapan UU PDP di sektor perbankan, khususnya untuk BPR. Daftar sekarang — kuota terbatas.\n\nTanggal: 12 Juni 2026\nWaktu: 14:00 WIB",
+    "audience": "Trial users",
+    "author": "Rina Permata",
+    "createdAt": "2026-05-01T07:40:53.478Z",
+    "updatedAt": "2026-05-21T11:48:09.224Z",
+    "tags": [
+      "edukasi",
+      "feature-launch"
+    ],
+    "cta": "Mulai trial gratis",
+    "subject": "5 tren sales Indonesia yang penting bulan ini"
+  },
+  {
+    "id": "cn_0011",
+    "title": "Newsletter Sales Mei 2026",
+    "type": "email-campaign",
+    "status": "draft",
+    "body": "Halo Tim,\n\nBulan Mei ini kami mengumpulkan 5 insight tentang tren sales B2B di Indonesia — mulai dari pergeseran ke WhatsApp-first sampai dampak UU PDP pada outbound. Baca selengkapnya di link berikut.\n\nSalam,\nTim Agentic Sales",
+    "audience": "Lead BUMN",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-05-08T02:27:24.655Z",
+    "updatedAt": "2026-05-19T02:46:32.322Z",
+    "tags": [
+      "compliance",
+      "umkm",
+      "bumn"
+    ],
+    "cta": "Hubungi tim sales",
+    "subject": "Bagaimana PT Sentosa Jaya menutup 3× lebih banyak deal"
+  },
+  {
+    "id": "cn_0012",
+    "title": "Webinar UU PDP untuk BPR",
+    "type": "email-campaign",
+    "status": "approved",
+    "body": "Bapak/Ibu {{nama}},\n\nKami mengundang Anda ke webinar gratis tentang penerapan UU PDP di sektor perbankan, khususnya untuk BPR. Daftar sekarang — kuota terbatas.\n\nTanggal: 12 Juni 2026\nWaktu: 14:00 WIB",
+    "audience": "Trial users",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-04-19T04:51:10.330Z",
+    "updatedAt": "2026-05-18T09:46:32.822Z",
+    "tags": [
+      "feature-launch",
+      "reactivation",
+      "bumn"
+    ],
+    "cta": "Beli sekarang",
+    "subject": "5 tren sales Indonesia yang penting bulan ini"
+  },
+  {
+    "id": "cn_0013",
+    "title": "Update Fitur Mei 2026",
+    "type": "email-campaign",
+    "status": "published",
+    "body": "Halo {{nama}},\n\nPT Sentosa Jaya menutup 3× lebih banyak deal setelah memakai cadence WhatsApp + email. Berikut ringkasan singkatnya untuk {{perusahaan}}.\n\nKlik untuk baca studi kasus lengkap.",
+    "audience": "Churned customers",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-05-07T22:40:49.886Z",
+    "updatedAt": "2026-05-24T11:59:48.928Z",
+    "tags": [
+      "umkm",
+      "studi-kasus"
+    ],
+    "cta": "Mulai trial gratis",
+    "scheduledFor": "2026-05-18T03:00:00.000Z",
+    "subject": "5 tren sales Indonesia yang penting bulan ini",
+    "reach": 16717
+  },
+  {
+    "id": "cn_0014",
+    "title": "Studi Kasus: PT Sentosa Jaya",
+    "type": "email-campaign",
+    "status": "scheduled",
+    "body": "Halo Tim,\n\nBulan Mei ini kami mengumpulkan 5 insight tentang tren sales B2B di Indonesia — mulai dari pergeseran ke WhatsApp-first sampai dampak UU PDP pada outbound. Baca selengkapnya di link berikut.\n\nSalam,\nTim Agentic Sales",
+    "audience": "Churned customers",
+    "author": "Rina Permata",
+    "createdAt": "2026-05-13T05:54:17.222Z",
+    "updatedAt": "2026-05-23T11:39:04.493Z",
+    "tags": [
+      "lebaran",
+      "reactivation",
+      "compliance"
+    ],
+    "cta": "Beli sekarang",
+    "scheduledFor": "2026-06-03T03:00:00.000Z",
+    "subject": "Webinar Gratis: Kepatuhan UU PDP untuk BPR"
+  },
+  {
+    "id": "cn_0015",
+    "title": "Newsletter Sales Mei 2026",
+    "type": "email-campaign",
+    "status": "approved",
+    "body": "Halo {{nama}},\n\nPT Sentosa Jaya menutup 3× lebih banyak deal setelah memakai cadence WhatsApp + email. Berikut ringkasan singkatnya untuk {{perusahaan}}.\n\nKlik untuk baca studi kasus lengkap.",
+    "audience": "Lead BUMN",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-04-28T00:53:44.411Z",
+    "updatedAt": "2026-05-20T04:41:43.470Z",
+    "tags": [
+      "umkm"
+    ],
+    "cta": "Pelajari selengkapnya",
+    "subject": "Selamat datang di Agentic Sales 👋"
+  },
+  {
+    "id": "cn_0016",
+    "title": "Quote of the day",
+    "type": "instagram-post",
+    "status": "scheduled",
+    "body": "Hari ini kami spotlight tim sales Halodoc 💚 mereka pakai cadence WhatsApp + email untuk reaktivasi lead — hasilnya: response rate naik 42% dalam 2 minggu. Selamat tim Halodoc!",
+    "audience": "UMKM",
+    "author": "Rina Permata",
+    "createdAt": "2026-04-18T18:20:51.148Z",
+    "updatedAt": "2026-05-23T21:15:14.415Z",
+    "tags": [
+      "edukasi"
+    ],
+    "cta": "Pelajari selengkapnya",
+    "scheduledFor": "2026-06-04T03:00:00.000Z",
+    "hashtags": [
+      "#umkm",
+      "#whatsappbusiness",
+      "#agenticsales"
+    ]
+  },
+  {
+    "id": "cn_0017",
+    "title": "Spotlight Pelanggan: Halodoc",
+    "type": "instagram-post",
+    "status": "review",
+    "body": "Hari ini kami spotlight tim sales Halodoc 💚 mereka pakai cadence WhatsApp + email untuk reaktivasi lead — hasilnya: response rate naik 42% dalam 2 minggu. Selamat tim Halodoc!",
+    "audience": "Komunitas sales",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-04-29T17:59:42.978Z",
+    "updatedAt": "2026-05-22T13:20:18.548Z",
+    "tags": [
+      "reactivation"
+    ],
+    "cta": "Hubungi tim sales",
+    "hashtags": [
+      "#salestips",
+      "#salescoaching",
+      "#agenticsales",
+      "#whatsappbusiness",
+      "#salesb2b"
+    ]
+  },
+  {
+    "id": "cn_0018",
+    "title": "Behind the scenes tim sales",
+    "type": "instagram-post",
+    "status": "approved",
+    "body": "5 Cara Tutup Deal Lebih Cepat (Versi Tim Sales Indonesia 🇮🇩):\n\n1. Balas WA dalam 5 menit\n2. Pakai cadence multi-channel\n3. Selalu catat keberatan\n4. Personalisasi pesan pakai {{nama}}\n5. Follow-up sampai 7×\n\nSimpan post-nya 👇",
+    "audience": "UMKM",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-04-20T03:52:50.091Z",
+    "updatedAt": "2026-05-22T06:21:10.428Z",
+    "tags": [
+      "edukasi",
+      "feature-launch",
+      "reactivation"
+    ],
+    "cta": "Klik untuk daftar",
+    "hashtags": [
+      "#salesb2b",
+      "#whatsappbusiness",
+      "#salesindonesia",
+      "#agenticsales"
+    ]
+  },
+  {
+    "id": "cn_0019",
+    "title": "Tips Sales: 5 Cara Tutup Deal Lebih Cepat",
+    "type": "instagram-post",
+    "status": "scheduled",
+    "body": "5 Cara Tutup Deal Lebih Cepat (Versi Tim Sales Indonesia 🇮🇩):\n\n1. Balas WA dalam 5 menit\n2. Pakai cadence multi-channel\n3. Selalu catat keberatan\n4. Personalisasi pesan pakai {{nama}}\n5. Follow-up sampai 7×\n\nSimpan post-nya 👇",
+    "audience": "Followers IG",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-04-28T03:21:28.612Z",
+    "updatedAt": "2026-05-22T17:05:23.404Z",
+    "tags": [
+      "lebaran"
+    ],
+    "cta": "Mulai trial gratis",
+    "scheduledFor": "2026-05-29T03:00:00.000Z",
+    "hashtags": [
+      "#salesindonesia",
+      "#whatsappbusiness",
+      "#salestips",
+      "#agenticsales",
+      "#salescoaching"
+    ]
+  },
+  {
+    "id": "cn_0020",
+    "title": "Tips Sales: 5 Cara Tutup Deal Lebih Cepat",
+    "type": "instagram-post",
+    "status": "scheduled",
+    "body": "\"Sales bukan tentang menjual. Sales tentang mendengarkan.\" — Tim Agentic Sales 💬",
+    "audience": "Komunitas sales",
+    "author": "Rina Permata",
+    "createdAt": "2026-04-20T02:18:18.002Z",
+    "updatedAt": "2026-05-19T08:28:11.931Z",
+    "tags": [
+      "promo"
+    ],
+    "cta": "Mulai trial gratis",
+    "scheduledFor": "2026-05-26T03:00:00.000Z",
+    "hashtags": [
+      "#agenticsales",
+      "#whatsappbusiness",
+      "#salesb2b",
+      "#salestips"
+    ]
+  },
+  {
+    "id": "cn_0021",
+    "title": "Quote of the day",
+    "type": "instagram-post",
+    "status": "published",
+    "body": "Hari ini kami spotlight tim sales Halodoc 💚 mereka pakai cadence WhatsApp + email untuk reaktivasi lead — hasilnya: response rate naik 42% dalam 2 minggu. Selamat tim Halodoc!",
+    "audience": "Komunitas sales",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-04-11T18:28:23.448Z",
+    "updatedAt": "2026-05-18T13:40:35.615Z",
+    "tags": [
+      "studi-kasus",
+      "compliance"
+    ],
+    "cta": "Beli sekarang",
+    "scheduledFor": "2026-05-22T03:00:00.000Z",
+    "hashtags": [
+      "#salesindonesia",
+      "#salesb2b"
+    ],
+    "reach": 7761
+  },
+  {
+    "id": "cn_0022",
+    "title": "Behind the scenes tim sales",
+    "type": "instagram-post",
+    "status": "approved",
+    "body": "5 Cara Tutup Deal Lebih Cepat (Versi Tim Sales Indonesia 🇮🇩):\n\n1. Balas WA dalam 5 menit\n2. Pakai cadence multi-channel\n3. Selalu catat keberatan\n4. Personalisasi pesan pakai {{nama}}\n5. Follow-up sampai 7×\n\nSimpan post-nya 👇",
+    "audience": "Komunitas sales",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-05-16T14:59:41.964Z",
+    "updatedAt": "2026-05-23T17:15:05.469Z",
+    "tags": [
+      "umkm"
+    ],
+    "cta": "Pelajari selengkapnya",
+    "hashtags": [
+      "#salesindonesia",
+      "#salestips",
+      "#umkm",
+      "#salescoaching",
+      "#whatsappbusiness"
+    ]
+  },
+  {
+    "id": "cn_0023",
+    "title": "Tips Sales: 5 Cara Tutup Deal Lebih Cepat",
+    "type": "instagram-post",
+    "status": "approved",
+    "body": "\"Sales bukan tentang menjual. Sales tentang mendengarkan.\" — Tim Agentic Sales 💬",
+    "audience": "Komunitas sales",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-04-11T04:51:26.103Z",
+    "updatedAt": "2026-05-18T17:06:00.729Z",
+    "tags": [
+      "edukasi"
+    ],
+    "cta": "Baca artikel",
+    "hashtags": [
+      "#salescoaching",
+      "#agenticsales",
+      "#whatsappbusiness",
+      "#salesb2b",
+      "#umkm"
+    ]
+  },
+  {
+    "id": "cn_0024",
+    "title": "Promo Lebaran: Bundling Hemat",
+    "type": "tokopedia-post",
+    "status": "draft",
+    "body": "🎉 Promo Lebaran! Bundling 3 produk best-seller cuma Rp 199.000 (hemat 35%). Gratis ongkir Jakarta & Surabaya. Klik beli sekarang sebelum kehabisan!",
+    "audience": "Tokopedia followers",
+    "author": "Rina Permata",
+    "createdAt": "2026-05-04T16:55:30.411Z",
+    "updatedAt": "2026-05-22T06:18:20.816Z",
+    "tags": [
+      "promo",
+      "studi-kasus",
+      "bumn"
+    ],
+    "cta": "Pelajari selengkapnya"
+  },
+  {
+    "id": "cn_0025",
+    "title": "Promo Lebaran: Bundling Hemat",
+    "type": "tokopedia-post",
+    "status": "draft",
+    "body": "🔥 Flash Sale 7 hari! Semua produk diskon 25%, gratis ongkir di Jabodetabek. Stok terbatas, buruan check-out.",
+    "audience": "Pelanggan toko",
+    "author": "Teguh Saputra",
+    "createdAt": "2026-05-13T18:00:19.593Z",
+    "updatedAt": "2026-05-23T07:17:50.077Z",
+    "tags": [
+      "lebaran",
+      "edukasi",
+      "compliance"
+    ],
+    "cta": "Pelajari selengkapnya"
+  },
+  {
+    "id": "cn_0026",
+    "title": "Promo Lebaran: Bundling Hemat",
+    "type": "tokopedia-post",
+    "status": "scheduled",
+    "body": "🔥 Flash Sale 7 hari! Semua produk diskon 25%, gratis ongkir di Jabodetabek. Stok terbatas, buruan check-out.",
+    "audience": "Pelanggan toko",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-05-09T05:20:07.762Z",
+    "updatedAt": "2026-05-24T02:30:29.640Z",
+    "tags": [
+      "compliance"
+    ],
+    "cta": "Baca artikel",
+    "scheduledFor": "2026-06-15T03:00:00.000Z"
+  },
+  {
+    "id": "cn_0027",
+    "title": "Restock: Kopi Gayo 500g",
+    "type": "tokopedia-post",
+    "status": "draft",
+    "body": "✨ Produk Baru di toko kami — Skincare Set Premium 5-step. Cocok untuk kulit sensitif, BPOM terdaftar. Cek detail di halaman produk.",
+    "audience": "Pelanggan toko",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-04-13T21:53:32.727Z",
+    "updatedAt": "2026-05-18T23:25:09.894Z",
+    "tags": [
+      "reactivation",
+      "edukasi"
+    ],
+    "cta": "Hubungi tim sales"
+  },
+  {
+    "id": "cn_0028",
+    "title": "Restock: Kopi Gayo 500g",
+    "type": "tokopedia-post",
+    "status": "draft",
+    "body": "🎉 Promo Lebaran! Bundling 3 produk best-seller cuma Rp 199.000 (hemat 35%). Gratis ongkir Jakarta & Surabaya. Klik beli sekarang sebelum kehabisan!",
+    "audience": "Pelanggan toko",
+    "author": "Rina Permata",
+    "createdAt": "2026-05-03T13:18:52.369Z",
+    "updatedAt": "2026-05-19T08:15:12.026Z",
+    "tags": [
+      "promo",
+      "bumn",
+      "edukasi"
+    ],
+    "cta": "Mulai trial gratis"
+  },
+  {
+    "id": "cn_0029",
+    "title": "Studi Kasus: Bank Mandiri & Otomatisasi Cadence",
+    "type": "blog",
+    "status": "scheduled",
+    "body": "UU PDP No. 27/2022 mengubah cara tim sales mengelola data pelanggan. Tiga implikasi penting: (1) persetujuan eksplisit untuk outreach, (2) hak akses & hapus data, (3) jejak audit komprehensif.\n\nBerikut checklist 12-poin untuk memastikan tim sales Anda patuh tanpa mengorbankan velocity.",
+    "audience": "Komunitas sales",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-04-30T02:51:30.381Z",
+    "updatedAt": "2026-05-20T03:12:02.392Z",
+    "tags": [
+      "feature-launch"
+    ],
+    "cta": "Hubungi tim sales",
+    "scheduledFor": "2026-06-10T03:00:00.000Z"
+  },
+  {
+    "id": "cn_0030",
+    "title": "Studi Kasus: Bank Mandiri & Otomatisasi Cadence",
+    "type": "blog",
+    "status": "published",
+    "body": "Bank Mandiri menggunakan cadence WhatsApp + email + telepon untuk meningkatkan reaktivasi nasabah dorman. Hasilnya: response rate naik 38% dalam 90 hari. Berikut breakdown setup cadence-nya...",
+    "audience": "SEO traffic",
+    "author": "Rina Permata",
+    "createdAt": "2026-04-19T11:38:55.443Z",
+    "updatedAt": "2026-05-18T13:43:44.473Z",
+    "tags": [
+      "studi-kasus"
+    ],
+    "cta": "Mulai trial gratis",
+    "scheduledFor": "2026-05-10T03:00:00.000Z",
+    "reach": 1856
+  },
+  {
+    "id": "cn_0031",
+    "title": "Cara Memilih Sales Platform untuk UMKM Indonesia",
+    "type": "blog",
+    "status": "approved",
+    "body": "Bank Mandiri menggunakan cadence WhatsApp + email + telepon untuk meningkatkan reaktivasi nasabah dorman. Hasilnya: response rate naik 38% dalam 90 hari. Berikut breakdown setup cadence-nya...",
+    "audience": "Newsletter subscribers",
+    "author": "Maya Kusuma",
+    "createdAt": "2026-04-10T04:42:24.908Z",
+    "updatedAt": "2026-05-19T00:12:34.902Z",
+    "tags": [
+      "umkm",
+      "reactivation"
+    ],
+    "cta": "Pelajari selengkapnya"
+  },
+  {
+    "id": "cn_0032",
+    "title": "5 Tren Sales Indonesia 2026",
+    "type": "blog",
+    "status": "scheduled",
+    "body": "UU PDP No. 27/2022 mengubah cara tim sales mengelola data pelanggan. Tiga implikasi penting: (1) persetujuan eksplisit untuk outreach, (2) hak akses & hapus data, (3) jejak audit komprehensif.\n\nBerikut checklist 12-poin untuk memastikan tim sales Anda patuh tanpa mengorbankan velocity.",
+    "audience": "SEO traffic",
+    "author": "Andi Hidayat",
+    "createdAt": "2026-05-20T13:07:16.261Z",
+    "updatedAt": "2026-05-19T07:23:54.830Z",
+    "tags": [
+      "compliance",
+      "feature-launch",
+      "umkm"
+    ],
+    "cta": "Klik untuk daftar",
+    "scheduledFor": "2026-06-03T03:00:00.000Z"
+  }
+]

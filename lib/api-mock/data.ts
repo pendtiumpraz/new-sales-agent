@@ -11,6 +11,7 @@ import visitsJson from "@/lib/mock-data/visits.json";
 import ordersJson from "@/lib/mock-data/orders.json";
 import aiResponsesJson from "@/lib/mock-data/ai-responses.json";
 import consentLogJson from "@/lib/mock-data/consent-log.json";
+import contentJson from "@/lib/mock-data/content.json";
 import tasksJson from "@/lib/mock-data/tasks.json";
 import activityJson from "@/lib/mock-data/activity.json";
 
@@ -23,6 +24,7 @@ import type {
   Conversation,
   ConsentEntry,
   Contact,
+  ContentItem,
   Deal,
   FieldRep,
   Message,
@@ -43,5 +45,6 @@ export const visits = visitsJson as unknown as Visit[];
 export const orders = ordersJson as unknown as Order[];
 export const aiResponses = aiResponsesJson as unknown as AiResponse[];
 export const consentLog = consentLogJson as unknown as ConsentEntry[];
+export const content = contentJson as unknown as ContentItem[];
 export const tasks = tasksJson as unknown as Task[];
 export const activity = activityJson as unknown as ActivityEvent[];

@@ -428,6 +428,201 @@ const consentLog = Array.from({ length: 50 }, (_, i) => {
   };
 });
 
+// ---- content (Konten) -------------------------------------------------------
+const CONTENT_TYPES = [
+  "wa-broadcast",
+  "email-campaign",
+  "instagram-post",
+  "tokopedia-post",
+  "blog",
+] as const;
+
+const CONTENT_TEMPLATES: Record<
+  (typeof CONTENT_TYPES)[number],
+  {
+    titles: string[];
+    bodies: string[];
+    subjects?: string[];
+    hashtags?: string[];
+    audiences: string[];
+  }
+> = {
+  "wa-broadcast": {
+    titles: [
+      "Promo Hari Belanja Nasional",
+      "Penawaran Spesial Lebaran",
+      "Reminder Demo Produk Selasa",
+      "Update Fitur Inbox Terpadu",
+      "Survei Kepuasan Pelanggan Q2",
+      "Pengingat Tagihan Langganan",
+      "Flash Sale 24 Jam",
+    ],
+    bodies: [
+      "Halo {{nama}} 🎉 Khusus hari ini, paket Growth diskon 20% untuk {{perusahaan}}. Klaim sebelum 17:00 WIB. Reply YA untuk info detail.",
+      "Selamat menyambut Idul Fitri, {{nama}} 🌙 Kami siapkan paket bundling khusus untuk tim sales Anda. Berkenan kami kirimkan proposalnya?",
+      "Pak/Bu {{nama}}, mengingatkan demo {{produk}} besok pukul 14:00 WIB. Balas YA untuk konfirmasi 🙏",
+      "{{nama}}, fitur Inbox Terpadu kini mendukung Instagram DM 📸 Cek update lengkap di akun Anda. Kabari kami kalau ada pertanyaan.",
+    ],
+    audiences: ["Pelanggan VIP", "Lead BUMN", "Lead UMKM", "Trial users", "Pelanggan aktif"],
+  },
+  "email-campaign": {
+    titles: [
+      "Newsletter Sales Mei 2026",
+      "Studi Kasus: PT Sentosa Jaya",
+      "Webinar UU PDP untuk BPR",
+      "Update Fitur Mei 2026",
+      "Welcome Series — Hari 1",
+      "Re-engagement Lead Dingin",
+    ],
+    subjects: [
+      "5 tren sales Indonesia yang penting bulan ini",
+      "Bagaimana PT Sentosa Jaya menutup 3× lebih banyak deal",
+      "Webinar Gratis: Kepatuhan UU PDP untuk BPR",
+      "Fitur baru: Cadence multi-channel + AI assist",
+      "Selamat datang di Agentic Sales 👋",
+    ],
+    bodies: [
+      "Halo Tim,\n\nBulan Mei ini kami mengumpulkan 5 insight tentang tren sales B2B di Indonesia — mulai dari pergeseran ke WhatsApp-first sampai dampak UU PDP pada outbound. Baca selengkapnya di link berikut.\n\nSalam,\nTim Agentic Sales",
+      "Halo {{nama}},\n\nPT Sentosa Jaya menutup 3× lebih banyak deal setelah memakai cadence WhatsApp + email. Berikut ringkasan singkatnya untuk {{perusahaan}}.\n\nKlik untuk baca studi kasus lengkap.",
+      "Bapak/Ibu {{nama}},\n\nKami mengundang Anda ke webinar gratis tentang penerapan UU PDP di sektor perbankan, khususnya untuk BPR. Daftar sekarang — kuota terbatas.\n\nTanggal: 12 Juni 2026\nWaktu: 14:00 WIB",
+    ],
+    audiences: ["Semua pelanggan", "Lead BPR", "Lead BUMN", "Trial users", "Churned customers"],
+  },
+  "instagram-post": {
+    titles: [
+      "Tips Sales: 5 Cara Tutup Deal Lebih Cepat",
+      "Behind the scenes tim sales",
+      "Quote of the day",
+      "Spotlight Pelanggan: Halodoc",
+      "Tren WhatsApp Business 2026",
+      "Survey: Channel favorit tim sales",
+    ],
+    bodies: [
+      "5 Cara Tutup Deal Lebih Cepat (Versi Tim Sales Indonesia 🇮🇩):\n\n1. Balas WA dalam 5 menit\n2. Pakai cadence multi-channel\n3. Selalu catat keberatan\n4. Personalisasi pesan pakai {{nama}}\n5. Follow-up sampai 7×\n\nSimpan post-nya 👇",
+      "Hari ini kami spotlight tim sales Halodoc 💚 mereka pakai cadence WhatsApp + email untuk reaktivasi lead — hasilnya: response rate naik 42% dalam 2 minggu. Selamat tim Halodoc!",
+      "\"Sales bukan tentang menjual. Sales tentang mendengarkan.\" — Tim Agentic Sales 💬",
+    ],
+    hashtags: [
+      "#salesindonesia",
+      "#agenticsales",
+      "#salesb2b",
+      "#whatsappbusiness",
+      "#umkm",
+      "#salestips",
+      "#salescoaching",
+    ],
+    audiences: ["Followers IG", "Komunitas sales", "UMKM"],
+  },
+  "tokopedia-post": {
+    titles: [
+      "Promo Lebaran: Bundling Hemat",
+      "Produk Baru: Skincare Set Premium",
+      "Flash Sale 7 Hari",
+      "Restock: Kopi Gayo 500g",
+    ],
+    bodies: [
+      "🎉 Promo Lebaran! Bundling 3 produk best-seller cuma Rp 199.000 (hemat 35%). Gratis ongkir Jakarta & Surabaya. Klik beli sekarang sebelum kehabisan!",
+      "✨ Produk Baru di toko kami — Skincare Set Premium 5-step. Cocok untuk kulit sensitif, BPOM terdaftar. Cek detail di halaman produk.",
+      "🔥 Flash Sale 7 hari! Semua produk diskon 25%, gratis ongkir di Jabodetabek. Stok terbatas, buruan check-out.",
+    ],
+    audiences: ["Tokopedia followers", "Pelanggan toko"],
+  },
+  blog: {
+    titles: [
+      "Cara Memilih Sales Platform untuk UMKM Indonesia",
+      "UU PDP No. 27/2022: Yang Harus Tim Sales Ketahui",
+      "Studi Kasus: Bank Mandiri & Otomatisasi Cadence",
+      "5 Tren Sales Indonesia 2026",
+    ],
+    bodies: [
+      "Memilih sales platform untuk UMKM di Indonesia tidak semudah memilih dari katalog tools global. Konteks lokal — WhatsApp sebagai channel utama, integrasi marketplace, dan kepatuhan UU PDP — sangat berpengaruh pada keputusan ini.\n\nDi artikel ini, kami bahas 6 kriteria yang sering luput dari evaluasi: ...",
+      "UU PDP No. 27/2022 mengubah cara tim sales mengelola data pelanggan. Tiga implikasi penting: (1) persetujuan eksplisit untuk outreach, (2) hak akses & hapus data, (3) jejak audit komprehensif.\n\nBerikut checklist 12-poin untuk memastikan tim sales Anda patuh tanpa mengorbankan velocity.",
+      "Bank Mandiri menggunakan cadence WhatsApp + email + telepon untuk meningkatkan reaktivasi nasabah dorman. Hasilnya: response rate naik 38% dalam 90 hari. Berikut breakdown setup cadence-nya...",
+    ],
+    audiences: ["SEO traffic", "Newsletter subscribers", "Komunitas sales"],
+  },
+};
+
+const CONTENT_CTAS = [
+  "Klik untuk daftar",
+  "Pelajari selengkapnya",
+  "Hubungi tim sales",
+  "Beli sekarang",
+  "Mulai trial gratis",
+  "Baca artikel",
+];
+
+const CONTENT_TAGS = [
+  "lebaran",
+  "promo",
+  "edukasi",
+  "studi-kasus",
+  "umkm",
+  "bumn",
+  "compliance",
+  "feature-launch",
+  "reactivation",
+];
+
+const TARGET_COUNTS: Record<(typeof CONTENT_TYPES)[number], number> = {
+  "wa-broadcast": 8,
+  "email-campaign": 7,
+  "instagram-post": 8,
+  "tokopedia-post": 5,
+  blog: 4,
+};
+
+let contentSeq = 1;
+const content: any[] = [];
+for (const type of CONTENT_TYPES) {
+  const t = CONTENT_TEMPLATES[type];
+  const count = TARGET_COUNTS[type];
+  for (let i = 0; i < count; i++) {
+    // Status distribution: 25% draft, 12% review, 12% approved, 30% scheduled, 21% published
+    const status = faker.helpers.weightedArrayElement([
+      { value: "draft" as const, weight: 25 },
+      { value: "review" as const, weight: 12 },
+      { value: "approved" as const, weight: 12 },
+      { value: "scheduled" as const, weight: 30 },
+      { value: "published" as const, weight: 21 },
+    ]);
+    let scheduledFor: string | undefined;
+    if (status === "scheduled") {
+      // 0..21 days in the future
+      scheduledFor = new Date(
+        NOW.getTime() + faker.number.int({ min: 1, max: 21 }) * 864e5,
+      ).toISOString();
+    } else if (status === "published") {
+      // 1..21 days in the past
+      scheduledFor = new Date(
+        NOW.getTime() - faker.number.int({ min: 1, max: 21 }) * 864e5,
+      ).toISOString();
+    }
+    const item: any = {
+      id: `cn_${String(contentSeq++).padStart(4, "0")}`,
+      title: pick(t.titles),
+      type,
+      status,
+      body: pick(t.bodies),
+      audience: pick(t.audiences),
+      author: pick(OWNERS),
+      createdAt: isoPast(45),
+      updatedAt: isoPast(7),
+      tags: faker.helpers.arrayElements(CONTENT_TAGS, { min: 1, max: 3 }),
+      cta: pick(CONTENT_CTAS),
+    };
+    if (scheduledFor) item.scheduledFor = scheduledFor;
+    if (type === "email-campaign" && t.subjects) item.subject = pick(t.subjects);
+    if ((type === "instagram-post" || type === "tokopedia-post") && t.hashtags) {
+      item.hashtags = faker.helpers.arrayElements(t.hashtags, { min: 2, max: 5 });
+    }
+    if (status === "published") {
+      item.reach = faker.number.int({ min: 120, max: 18500 });
+    }
+    content.push(item);
+  }
+}
+
 // ---- dashboard helpers: tasks + activity ------------------------------------
 const tasks = [
   { title: "Follow up Pak Budi via WA", channel: "whatsapp", priority: "tinggi" },
@@ -482,6 +677,7 @@ write("visits.json", visits);
 write("orders.json", orders);
 write("ai-responses.json", aiResponses);
 write("consent-log.json", consentLog);
+write("content.json", content);
 write("tasks.json", tasks);
 write("activity.json", activity);
 console.log(`Done. (${messages.length} messages)`);
