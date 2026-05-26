@@ -1,77 +1,78 @@
 [
   {
-    "id": "ac_0005",
-    "actor": "Teguh Saputra",
-    "action": "check-in kunjungan",
-    "target": "Eka Wibowo",
-    "timestamp": "2026-05-24T16:41:53.752Z"
-  },
-  {
-    "id": "ac_0002",
-    "actor": "Andi Hidayat",
-    "action": "menutup deal",
-    "target": "Rizki Susanto",
-    "timestamp": "2026-05-24T10:34:26.828Z"
-  },
-  {
     "id": "ac_0008",
-    "actor": "Teguh Saputra",
-    "action": "membalas DM",
-    "target": "Tari Hartono",
-    "channel": "instagram",
-    "timestamp": "2026-05-24T10:16:36.011Z"
+    "actor": "Rina Permata",
+    "action": "mengirim penawaran",
+    "target": "Bank Mandiri",
+    "channel": "email",
+    "timestamp": "2026-05-24T22:31:51.804Z"
   },
   {
-    "id": "ac_0004",
+    "id": "ac_0007",
     "actor": "Teguh Saputra",
-    "action": "membalas DM",
-    "target": "Hendra Halim",
-    "channel": "instagram",
-    "timestamp": "2026-05-24T08:07:30.226Z"
+    "action": "menerima order baru",
+    "target": "Tari Hartono",
+    "channel": "tokopedia",
+    "timestamp": "2026-05-24T21:47:16.880Z"
   },
   {
     "id": "ac_0010",
-    "actor": "Rina Permata",
-    "action": "menerima order baru",
-    "target": "Eka Cahyono",
-    "channel": "tokopedia",
-    "timestamp": "2026-05-24T04:53:48.116Z"
+    "actor": "Teguh Saputra",
+    "action": "memindahkan deal ke Negosiasi",
+    "target": "Indah Gunawan",
+    "timestamp": "2026-05-24T20:30:54.157Z"
   },
   {
-    "id": "ac_0003",
-    "actor": "Maya Kusuma",
-    "action": "menutup deal",
-    "target": "Sari Permata",
-    "timestamp": "2026-05-24T02:04:15.095Z"
+    "id": "ac_0001",
+    "actor": "Andi Hidayat",
+    "action": "memindahkan deal ke Negosiasi",
+    "target": "Wati Santoso",
+    "timestamp": "2026-05-24T19:40:31.818Z"
   },
   {
     "id": "ac_0006",
     "actor": "Teguh Saputra",
     "action": "menerima order baru",
-    "target": "Maya Handoko",
+    "target": "Gunawan Sutrisno",
     "channel": "tokopedia",
-    "timestamp": "2026-05-23T16:37:52.836Z"
+    "timestamp": "2026-05-24T14:38:39.429Z"
   },
   {
-    "id": "ac_0001",
-    "actor": "Teguh Saputra",
-    "action": "check-in kunjungan",
-    "target": "Dian Permata",
-    "timestamp": "2026-05-23T14:18:26.767Z"
+    "id": "ac_0003",
+    "actor": "Rina Permata",
+    "action": "membalas pesan",
+    "target": "Putri Utami",
+    "channel": "whatsapp",
+    "timestamp": "2026-05-24T11:29:49.706Z"
+  },
+  {
+    "id": "ac_0004",
+    "actor": "Maya Kusuma",
+    "action": "menerima order baru",
+    "target": "Ratih Anggraini",
+    "channel": "tokopedia",
+    "timestamp": "2026-05-24T07:52:25.795Z"
   },
   {
     "id": "ac_0009",
-    "actor": "Maya Kusuma",
-    "action": "menambahkan kontak ke cadence",
-    "target": "Ratih Anggraini",
-    "channel": "email",
-    "timestamp": "2026-05-23T10:50:35.592Z"
+    "actor": "Teguh Saputra",
+    "action": "check-in kunjungan",
+    "target": "Lina Nugroho",
+    "timestamp": "2026-05-24T00:48:01.922Z"
   },
   {
-    "id": "ac_0007",
-    "actor": "Andi Hidayat",
-    "action": "menutup deal",
-    "target": "Eka Wibowo",
-    "timestamp": "2026-05-23T06:37:06.887Z"
+    "id": "ac_0005",
+    "actor": "Teguh Saputra",
+    "action": "memindahkan deal ke Negosiasi",
+    "target": "Nita Susanto",
+    "timestamp": "2026-05-23T16:54:35.804Z"
+  },
+  {
+    "id": "ac_0002",
+    "actor": "Teguh Saputra",
+    "action": "mengirim penawaran",
+    "target": "PT Sentosa Jaya",
+    "channel": "email",
+    "timestamp": "2026-05-23T13:20:12.617Z"
   }
 ]
