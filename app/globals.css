@@ -4,27 +4,30 @@
 
 @layer base {
   :root {
-    /* build.md §3.1 — light mode only */
-    --background: 210 40% 98%; /* slate-50 page bg */
-    --foreground: 222.2 47.4% 11.2%; /* slate-900 */
-    --card: 0 0% 100%; /* white surface */
-    --card-foreground: 222.2 47.4% 11.2%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 174 80% 32%; /* teal-600 brand */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%; /* slate-100 */
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%; /* slate-600 */
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 214.3 31.8% 91.4%; /* slate-200 */
-    --input: 214.3 31.8% 91.4%;
-    --ring: 174 80% 32%; /* teal focus ring */
-    --radius: 0.75rem; /* 12px cards (build.md §3.3) */
+    /* Expressive Dark — Material-3 derived dark palette (mauve / plum) */
+    color-scheme: dark;
+    --background: 330 47% 7%; /* #190911 */
+    --foreground: 336 100% 93%; /* on-surface #ffdce9 */
+    --card: 331 39% 12%; /* surface-container #29121d */
+    --card-foreground: 336 100% 93%;
+    --popover: 331 37% 14%; /* surface-container-high */
+    --popover-foreground: 336 100% 93%;
+    --primary: 334 100% 87%; /* #ffbcd9 */
+    --primary-foreground: 329 37% 31%; /* on-primary #6c3250 */
+    --secondary: 331 35% 20%; /* surface-bright #442132 */
+    --secondary-foreground: 336 100% 93%;
+    --muted: 331 37% 14%; /* surface-container-high */
+    --muted-foreground: 336 32% 71%; /* on-surface-variant #cd9eb1 */
+    --accent: 331 35% 17%; /* surface-container-highest */
+    --accent-foreground: 336 100% 93%;
+    --destructive: 351 95% 71%; /* error #fd6f85 */
+    --destructive-foreground: 344 100% 14%; /* on-error #490013 */
+    --border: 333 23% 31%; /* outline-variant #613d4d */
+    --input: 333 23% 31%;
+    --ring: 334 100% 87%; /* primary focus ring */
+    --tertiary: 173 89% 76%; /* #87fff0 — input focus / accents */
+    --tertiary-foreground: 175 100% 19%; /* on-tertiary #00625a */
+    --radius: 1rem; /* expressive rounding */
   }
 }
 
@@ -36,7 +39,11 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv11", "ss01";
   }
-  /* Tabular figures for all monetary / numeric data (build.md §3.2) */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+  /* Tabular figures for all monetary / numeric data */
   .tnum {
     font-feature-settings: "tnum";
     font-variant-numeric: tabular-nums;
@@ -46,6 +53,17 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  /* Glassmorphism for floating chrome: nav, sidebar, modals (design §Elevation) */
+  .glass {
+    background-color: hsl(var(--card) / 0.62);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+  .glass-strong {
+    background-color: hsl(var(--card) / 0.82);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
   /* Thin scrollbars for dense panels (inbox, kanban) */
   .scrollbar-thin {
@@ -65,8 +83,13 @@
   }
 }
 
-/* Leaflet map base styles (field sales) */
+/* Leaflet map base styles (field sales) — map tiles stay light by design */
 .leaflet-container {
   font-family: var(--font-sans), sans-serif;
-  background: #e8eef3;
+  background: #1b2733;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
 }

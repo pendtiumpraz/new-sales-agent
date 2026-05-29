@@ -8,20 +8,20 @@ const CONFIG: Record<
   consented: {
     label: "Disetujui",
     dot: "bg-success",
-    text: "text-success",
-    bg: "bg-success/10",
+    text: "text-emerald-300",
+    bg: "bg-success/15",
   },
   pending: {
     label: "Menunggu",
     dot: "bg-warning",
-    text: "text-[#B45309]",
-    bg: "bg-warning/10",
+    text: "text-amber-300",
+    bg: "bg-warning/15",
   },
   none: {
     label: "Tanpa izin",
     dot: "bg-danger",
-    text: "text-danger",
-    bg: "bg-danger/10",
+    text: "text-rose-300",
+    bg: "bg-danger/15",
   },
 };
 

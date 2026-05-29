@@ -8,12 +8,10 @@ import {
   endOfWeek,
   isSameDay,
   isSameMonth,
-  isToday,
   startOfMonth,
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import {

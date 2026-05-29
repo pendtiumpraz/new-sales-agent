@@ -43,6 +43,10 @@ const config: Config = {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        tertiary: {
+          DEFAULT: "hsl(var(--tertiary))",
+          foreground: "hsl(var(--tertiary-foreground))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -72,8 +76,19 @@ const config: Config = {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
+        xl: "1.5rem",
+        "2xl": "2rem",
+        "3xl": "3rem",
+      },
+      boxShadow: {
+        // Soft, plum-tinted depth (design §Elevation — no "mud")
+        sm: "0 1px 2px 0 hsl(330 60% 2% / 0.5)",
+        DEFAULT: "0 2px 10px -3px hsl(330 60% 2% / 0.55)",
+        md: "0 10px 30px -8px hsl(334 80% 6% / 0.6)",
+        lg: "0 20px 48px -12px hsl(334 70% 5% / 0.65)",
+        xl: "0 28px 64px -16px hsl(334 70% 4% / 0.7)",
       },
       keyframes: {
         "accordion-down": {

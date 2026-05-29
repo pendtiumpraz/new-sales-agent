@@ -46,7 +46,7 @@ const STAGE_LABEL: Record<string, string> = {
   negosiasi: "Negosiasi",
   tutup: "Tutup",
 };
-const FUNNEL_FILL = ["#0D9488", "#14B8A6", "#2DD4BF", "#5EEAD4", "#99F6E4"];
+const FUNNEL_FILL = ["#ffbcd9", "#e99dbf", "#cd9eb1", "#a8587e", "#7c3a59"];
 
 const PRIORITY: Record<string, "destructive" | "warning" | "muted"> = {
   tinggi: "destructive",

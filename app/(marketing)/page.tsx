@@ -138,7 +138,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+      <header className="glass sticky top-0 z-40 border-b">
         <div className="container flex h-16 items-center justify-between">
           <BrandLogo />
           <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">

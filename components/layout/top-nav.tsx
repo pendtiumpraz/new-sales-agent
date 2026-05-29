@@ -45,7 +45,7 @@ export function TopNav() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-card px-3 sm:px-4">
+    <header className="glass sticky top-0 z-40 flex h-14 items-center gap-3 border-b px-3 sm:px-4">
       <Button
         variant="ghost"
         size="icon"

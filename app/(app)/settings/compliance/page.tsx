@@ -206,13 +206,13 @@ function ScoreGauge({ score }: { score: number }) {
   return (
     <div className="relative h-36 w-36">
       <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#E2E8F0" strokeWidth="10" />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="#442132" strokeWidth="10" />
         <circle
           cx="60"
           cy="60"
           r={r}
           fill="none"
-          stroke="#0D9488"
+          stroke="#ffbcd9"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={c}
@@ -238,11 +238,11 @@ function MiniStat({
 }) {
   const color =
     tone === "success"
-      ? "text-success"
+      ? "text-emerald-300"
       : tone === "warning"
-        ? "text-[#B45309]"
+        ? "text-amber-300"
         : tone === "danger"
-          ? "text-danger"
+          ? "text-rose-300"
           : "text-foreground";
   return (
     <Card>
