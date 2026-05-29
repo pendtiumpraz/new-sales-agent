@@ -123,7 +123,7 @@ export default function CompliancePage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-6">
                   <ScoreGauge score={SCORE} />
-                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-emerald-300">
+                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-emerald-700">
                     <ShieldCheck className="h-4 w-4" />
                     Sangat baik
                   </p>
@@ -385,12 +385,12 @@ export default function CompliancePage() {
                         </TableCell>
                         <TableCell>
                           {v.dpaSigned ? (
-                            <span className="flex items-center gap-1 text-xs text-emerald-300">
+                            <span className="flex items-center gap-1 text-xs text-emerald-700">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Ada
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-xs text-amber-300">
+                            <span className="flex items-center gap-1 text-xs text-amber-700">
                               <AlertTriangle className="h-3.5 w-3.5" />
                               Belum
                             </span>
@@ -552,14 +552,14 @@ function ReportGenerator({
         </div>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
           Format siap-regulator — dapat diserahkan langsung ke KOMDIGI / Lembaga PDP.
         </div>
 
         {state === "ready" ? (
           <div className="flex items-center justify-between rounded-xl border border-emerald-400/30 bg-emerald-400/5 px-4 py-3">
             <span className="flex items-center gap-2 text-sm">
-              <FileCheck2 className="h-4 w-4 text-emerald-300" />
+              <FileCheck2 className="h-4 w-4 text-emerald-700" />
               {t.label} ({period.toUpperCase()}) siap.
             </span>
             <Button size="sm" onClick={() => toast.success("Mengunduh PDF...")}>
@@ -594,13 +594,13 @@ function ScoreGauge({ score }: { score: number }) {
   return (
     <div className="relative h-36 w-36">
       <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#442132" strokeWidth="10" />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="#FCE4DC" strokeWidth="10" />
         <circle
           cx="60"
           cy="60"
           r={r}
           fill="none"
-          stroke="#ffbcd9"
+          stroke="#FB5E3B"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={c}
@@ -650,11 +650,11 @@ function MiniStat({
 }) {
   const color =
     tone === "success"
-      ? "text-emerald-300"
+      ? "text-emerald-700"
       : tone === "warning"
-        ? "text-amber-300"
+        ? "text-amber-700"
         : tone === "danger"
-          ? "text-rose-300"
+          ? "text-rose-600"
           : "text-foreground";
   return (
     <Card>

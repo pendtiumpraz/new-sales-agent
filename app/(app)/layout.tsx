@@ -1,4 +1,3 @@
-import { Sidebar } from "@/components/layout/sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 
 export default function AppLayout({
@@ -9,10 +8,7 @@ export default function AppLayout({
   return (
     <div className="min-h-screen bg-background">
       <TopNav />
-      <div className="flex">
-        <Sidebar />
-        <main className="min-w-0 flex-1">{children}</main>
-      </div>
+      <main className="min-w-0">{children}</main>
     </div>
   );
 }

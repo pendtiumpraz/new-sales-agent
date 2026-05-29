@@ -83,12 +83,12 @@ const config: Config = {
         "3xl": "3rem",
       },
       boxShadow: {
-        // Soft, plum-tinted depth (design §Elevation — no "mud")
-        sm: "0 1px 2px 0 hsl(330 60% 2% / 0.5)",
-        DEFAULT: "0 2px 10px -3px hsl(330 60% 2% / 0.55)",
-        md: "0 10px 30px -8px hsl(334 80% 6% / 0.6)",
-        lg: "0 20px 48px -12px hsl(334 70% 5% / 0.65)",
-        xl: "0 28px 64px -16px hsl(334 70% 4% / 0.7)",
+        // Soft, warm-neutral depth for light mode
+        sm: "0 1px 2px 0 hsl(20 30% 25% / 0.06)",
+        DEFAULT: "0 2px 8px -2px hsl(20 35% 25% / 0.08)",
+        md: "0 12px 28px -8px hsl(16 45% 30% / 0.12)",
+        lg: "0 24px 48px -12px hsl(16 45% 28% / 0.16)",
+        xl: "0 32px 64px -18px hsl(16 45% 26% / 0.18)",
       },
       keyframes: {
         "accordion-down": {

@@ -22,24 +22,25 @@ export function PipelineFunnel({ data }: { data: FunnelDatum[] }) {
           formatter={(v: number) => [`${v} deal`, ""]}
           contentStyle={{
             borderRadius: 12,
-            border: "1px solid hsl(333 23% 31%)",
-            background: "hsl(331 37% 14%)",
-            color: "hsl(336 100% 93%)",
+            border: "1px solid hsl(24 24% 91%)",
+            background: "#ffffff",
+            color: "#1B1A19",
             fontSize: 12,
+            boxShadow: "0 12px 28px -8px hsl(16 45% 30% / 0.16)",
           }}
-          itemStyle={{ color: "hsl(336 100% 93%)" }}
+          itemStyle={{ color: "#1B1A19" }}
         />
         <Funnel dataKey="value" data={data} isAnimationActive>
           <LabelList
             position="right"
-            fill="#ffdce9"
+            fill="#1B1A19"
             stroke="none"
             dataKey="label"
             className="text-xs font-medium"
           />
           <LabelList
             position="left"
-            fill="#cd9eb1"
+            fill="#78716C"
             stroke="none"
             dataKey="value"
             className="text-xs"

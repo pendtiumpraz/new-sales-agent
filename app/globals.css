@@ -4,30 +4,31 @@
 
 @layer base {
   :root {
-    /* Expressive Dark — Material-3 derived dark palette (mauve / plum) */
-    color-scheme: dark;
-    --background: 330 47% 7%; /* #190911 */
-    --foreground: 336 100% 93%; /* on-surface #ffdce9 */
-    --card: 331 39% 12%; /* surface-container #29121d */
-    --card-foreground: 336 100% 93%;
-    --popover: 331 37% 14%; /* surface-container-high */
-    --popover-foreground: 336 100% 93%;
-    --primary: 334 100% 87%; /* #ffbcd9 */
-    --primary-foreground: 329 37% 31%; /* on-primary #6c3250 */
-    --secondary: 174 22% 75%; /* design secondary — teal-grey #b0ccc9 */
-    --secondary-foreground: 175 18% 22%; /* on-secondary #2c4543 */
-    --muted: 331 37% 14%; /* surface-container-high */
-    --muted-foreground: 336 32% 71%; /* on-surface-variant #cd9eb1 */
-    --accent: 331 35% 17%; /* surface-container-highest */
-    --accent-foreground: 336 100% 93%;
-    --destructive: 351 95% 71%; /* error #fd6f85 */
-    --destructive-foreground: 344 100% 14%; /* on-error #490013 */
-    --border: 333 23% 31%; /* outline-variant #613d4d */
-    --input: 333 23% 31%;
-    --ring: 334 100% 87%; /* primary focus ring */
-    --tertiary: 173 89% 76%; /* #87fff0 — input focus / accents */
-    --tertiary-foreground: 175 100% 19%; /* on-tertiary #00625a */
-    --radius: 1rem; /* expressive rounding */
+    /* Coral Sunset — bright light palette (coral / teal / amber) */
+    color-scheme: light;
+    --background: 18 100% 98%; /* warm canvas #FFF8F5 */
+    --foreground: 24 6% 10%; /* #1B1A19 */
+    --card: 0 0% 100%; /* white surface */
+    --card-foreground: 24 6% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 6% 10%;
+    --primary: 11 96% 61%; /* coral #FB5E3B */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 16% 94%; /* warm neutral surface */
+    --secondary-foreground: 24 10% 24%;
+    --muted: 24 30% 96%; /* light warm grey */
+    --muted-foreground: 20 6% 45%; /* warm grey text */
+    --accent: 18 80% 96%; /* warm hover surface */
+    --accent-foreground: 24 6% 10%;
+    --destructive: 0 84% 60%; /* red #EF4444 (distinct from coral) */
+    --destructive-foreground: 0 0% 100%;
+    --border: 24 24% 91%; /* warm light border */
+    --input: 24 24% 91%;
+    --ring: 11 96% 61%; /* coral focus ring */
+    --tertiary: 173 80% 40%; /* teal accent #14B8A6 */
+    --tertiary-foreground: 0 0% 100%;
+    --highlight: 38 92% 50%; /* amber #F59E0B */
+    --radius: 1rem;
   }
 }
 
@@ -86,7 +87,7 @@
 /* Leaflet map base styles (field sales) — map tiles stay light by design */
 .leaflet-container {
   font-family: var(--font-sans), sans-serif;
-  background: #1b2733;
+  background: #e8eef3;
 }
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {

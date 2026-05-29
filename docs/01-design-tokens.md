@@ -1,81 +1,52 @@
-# 01 — Design tokens (Expressive Dark)
+# 01 — Design tokens (Coral Sunset)
 
-The visual foundation. The prototype runs an **Expressive Dark** theme — a
-Material-3-derived dark palette in mauve / plum, with pill-shaped controls,
-large rounded surfaces, and glassmorphic chrome.
-
-> The original build.md spec was light-mode-only; this theme supersedes it.
+The visual foundation: a **bright, warm light theme** — coral primary, teal
+accent, amber highlight — chosen to feel fresh, human, and distinctly *not*
+generic-blue-SaaS, while reading as modern Indonesian commerce software.
 
 ## Palette → Tailwind
 
-`tailwind.config.ts` maps shadcn's semantic tokens (`background`, `foreground`,
-`primary`, `card`, `border`, `muted`, `accent`, `tertiary`, …) to **HSL CSS
-variables** defined in `app/globals.css`. HSL triplets (not hex) are used so
-opacity modifiers keep working (`bg-primary/90`, `bg-success/15`, …).
+`tailwind.config.ts` maps shadcn's semantic tokens to **HSL CSS variables** in
+`app/globals.css` (HSL triplets, so `/opacity` modifiers keep working).
 
 | Token | Value | Source |
 |---|---|---|
-| `--background` | `330 47% 7%` | `#190911` surface |
-| `--foreground` | `336 100% 93%` | `#ffdce9` on-surface |
-| `--card` | `331 39% 12%` | surface-container |
-| `--primary` | `334 100% 87%` | `#ffbcd9` (light pink) |
-| `--primary-foreground` | `329 37% 31%` | `#6c3250` (dark mauve text on pink) |
-| `--muted` / `--accent` | `331 37% 14%` / `331 35% 17%` | neutral plum surfaces (fills, hovers, active nav) |
-| `--secondary` | `174 22% 75%` | **brand secondary — teal-grey `#b0ccc9`** (secondary buttons/badges) |
-| `--secondary-foreground` | `175 18% 22%` | on-secondary `#2c4543` |
-| `--muted-foreground` | `336 32% 71%` | `#cd9eb1` |
-| `--destructive` | `351 95% 71%` | error `#fd6f85` |
-| `--tertiary` | `173 89% 76%` | **brand tertiary — aqua `#87fff0`** (highlights + success) |
+| `--background` | `18 100% 98%` | warm canvas `#FFF8F5` |
+| `--foreground` | `24 6% 10%` | `#1B1A19` |
+| `--card` | `0 0% 100%` | white surfaces |
+| `--primary` | `11 96% 61%` | **coral `#FB5E3B`** (CTAs, brand, active nav) |
+| `--primary-foreground` | `0 0% 100%` | white |
+| `--secondary` | `24 16% 94%` | neutral warm surface (secondary buttons/badges) |
+| `--muted` / `--accent` | `24 30% 96%` / `18 80% 96%` | subtle fills, hovers |
+| `--muted-foreground` | `20 6% 45%` | warm grey text |
+| `--destructive` | `0 84% 60%` | red `#EF4444` (kept distinct from coral) |
+| `--tertiary` | `173 80% 40%` | **teal `#14B8A6`** (highlights + accents) |
+| `--highlight` | `38 92% 50%` | amber `#F59E0B` |
+| `--border` / `--input` | `24 24% 91%` | warm light border |
+| `--ring` | `11 96% 61%` | coral focus ring |
 
-### Using the three brand colors (not just pink)
+`color-scheme: light` is set so native controls render light.
 
-- **Primary (pink)** — main CTAs, brand mark, active emphasis, unread badges.
-- **Secondary (teal-grey)** — `Button`/`Badge` `secondary` variant: supporting
-  chips and buttons (hero "B2B + B2C", role/stage/tag badges). Neutral *surface*
-  fills use `accent`/`muted` (plum), **not** `secondary`, so the teal-grey reads
-  as a deliberate accent rather than a background.
-- **Tertiary (aqua)** — highlights & positive signals: pipeline KPI + its delta,
-  the pink→aqua funnel ramp, the "Live" indicator, cadence reply-rate, input
-  focus rings, and the compliance trust cards (AES-256 / residency / DPO).
-| `--border` / `--input` | `333 23% 31%` | outline-variant |
+### The three brand colors
 
-**Tonal layering** conveys depth (design §Elevation): `background (7%) < card
-(12%) < muted (14%) < accent (17%) < secondary (20%)` — surfaces closer to the
-user are lighter. `color-scheme: dark` is set so native controls (scrollbars,
-date pickers) render dark.
+- **Primary (coral)** — main CTAs, brand mark, active pill nav, pricing emphasis.
+- **Tertiary (teal)** — highlights & positives: pipeline delta, the coral→teal
+  funnel + stage bar, "Live" indicator, cadence reply-rate, input focus rings,
+  compliance trust cards.
+- **Highlight (amber)** — `warning` badges / attention.
 
-Brand/channel colors (WhatsApp green, Tokopedia green, etc.) stay fixed — they
-are external identities, not theme tokens.
+Channel colors (WhatsApp green `#25D366`, Tokopedia, IG, etc.) stay fixed brand
+identities — the primary is intentionally coral, not green, so the channel dots
+stay distinct.
 
-## Shape language — pill + expressive
+## Shape & depth
 
-`--radius: 1rem`. Components apply explicit radii on top:
-
-- **Pill (`rounded-full`)**: buttons, inputs, selects, badges, chips, filter pills.
-- **Large**: cards `rounded-xl` (1.5rem), textarea `rounded-2xl` (2rem),
-  dialogs / sheets `rounded-3xl` (3rem).
-
-## Glassmorphism
-
-`.glass` / `.glass-strong` utilities (`backdrop-blur` + translucent `--card`)
-are applied to floating chrome: the top nav, sidebar, landing header, dialogs,
-sheets, and toasts (design §Elevation).
-
-## Depth & shadows
-
-Tailwind's `boxShadow` scale is overridden with **soft, plum-tinted** shadows
-(near-black with the plum hue) so elevation reads without "mud".
+`--radius: 1rem`. Pills (`rounded-full`) on buttons/inputs/badges/nav; cards
+`rounded-xl`; dialogs/sheets `rounded-3xl`. Tailwind `boxShadow` is a soft,
+warm-neutral light-mode scale. `.glass`/`.glass-strong` (white translucent +
+blur) on the top nav, modals, and toasts.
 
 ## Typography
 
-- **Inter** via `next/font/google`, exposed as `--font-sans`.
-- Tabular figures (`.tnum` + `tabular-nums`) on every IDR amount / metric.
-
-## Files
-
-```
-app/globals.css           HSL dark tokens + glass / scrollbar utilities + selection
-tailwind.config.ts        token mapping + tertiary + tinted shadows + radii
-lib/utils.ts              cn() helper (clsx + tailwind-merge)
-components.json           shadcn config (new-york)
-```
+Inter via `next/font/google` (`--font-sans`); tabular figures (`.tnum`) on every
+IDR amount / metric.

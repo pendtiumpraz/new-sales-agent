@@ -1,9 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Bell, LogOut, PanelLeft, Search, Settings, Sparkles, User } from "lucide-react";
+import {
+  Bell,
+  Inbox,
+  KanbanSquare,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Megaphone,
+  Search,
+  Settings,
+  ShoppingBag,
+  Sparkles,
+  User,
+  Users,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
 
 import { BrandLogo } from "@/components/shared/brand-logo";
 import { LanguageToggle } from "@/components/shared/language-toggle";
@@ -31,7 +47,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUiStore } from "@/lib/stores/ui-store";
+import { cn } from "@/lib/utils";
+
+const NAV: { href: string; icon: LucideIcon; key: string }[] = [
+  { href: "/dashboard", icon: LayoutDashboard, key: "dashboard" },
+  { href: "/inbox", icon: Inbox, key: "inbox" },
+  { href: "/contacts", icon: Users, key: "contacts" },
+  { href: "/pipeline", icon: KanbanSquare, key: "pipeline" },
+  { href: "/cadences", icon: Workflow, key: "cadences" },
+  { href: "/content", icon: Megaphone, key: "content" },
+  { href: "/field", icon: MapPin, key: "field" },
+  { href: "/ecommerce", icon: ShoppingBag, key: "ecommerce" },
+];
 
 const NOTIFS = [
   { ch: "whatsapp", text: "Budi Santoso membalas pesan WhatsApp Anda", time: "2 mnt" },
@@ -41,37 +68,53 @@ const NOTIFS = [
 
 export function TopNav() {
   const router = useRouter();
-  const t = useTranslations("common");
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const pathname = usePathname();
+  const tn = useTranslations("nav");
 
   return (
-    <header className="glass sticky top-0 z-40 flex h-14 items-center gap-3 border-b px-3 sm:px-4">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="hidden md:inline-flex"
-        onClick={toggleSidebar}
-      >
-        <PanelLeft className="h-5 w-5" />
-      </Button>
-      <Link href="/dashboard" className="mr-1">
+    <header className="glass sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-3 sm:px-4">
+      <Link href="/dashboard" className="shrink-0">
         <BrandLogo size="sm" />
       </Link>
 
-      {/* Search (mock) */}
-      <button
-        className="ml-2 hidden h-9 w-full max-w-sm items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 sm:flex"
-        onClick={() => router.push("/contacts")}
-      >
-        <Search className="h-4 w-4" />
-        <span>{t("search")}</span>
-        <kbd className="ml-auto rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-          ⌘K
-        </kbd>
-      </button>
+      {/* Pill navigation (icon-only when tight, icon + label on wide screens) */}
+      <nav className="scrollbar-thin flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1">
+        {NAV.map(({ href, icon: Icon, key }) => {
+          const active = pathname === href || pathname.startsWith(href + "/");
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-colors lg:px-3",
+                active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="hidden lg:inline">{tn(key)}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
-      <div className="ml-auto flex items-center gap-1">
-        <LanguageToggle className="mr-1 hidden sm:inline-flex" />
+      <div className="flex shrink-0 items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden sm:inline-flex"
+              onClick={() => router.push("/contacts")}
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Cari (⌘K)</TooltipContent>
+        </Tooltip>
+
+        <LanguageToggle className="mr-0.5 hidden md:inline-flex" />
 
         {/* AI assistant slide-over */}
         <Sheet>
@@ -124,7 +167,7 @@ export function TopNav() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="ml-1 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
-              <UserAvatar name="Andi Hidayat" color="#0D9488" className="h-8 w-8" />
+              <UserAvatar name="Andi Hidayat" color="#14B8A6" className="h-8 w-8" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -144,6 +187,10 @@ export function TopNav() {
             <DropdownMenuItem onClick={() => router.push("/settings")}>
               <Settings className="h-4 w-4" />
               Pengaturan
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/settings/compliance")}>
+              <Sparkles className="h-4 w-4" />
+              Kepatuhan UU PDP
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/")}>
