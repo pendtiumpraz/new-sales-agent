@@ -9,6 +9,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Send,
+  Sparkles,
 } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -28,6 +29,13 @@ import { channelMeta } from "@/lib/utils/channel-config";
 import { formatTimeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/lib/types";
+
+// Canned AI-suggested replies (channel-agnostic, shown when the draft is empty).
+const AI_SUGGESTIONS = [
+  "Baik, saya kirimkan detailnya sekarang ya 🙏",
+  "Terima kasih. Boleh saya jadwalkan demo 15 menit?",
+  "Sudah saya catat. Ada lagi yang bisa saya bantu?",
+];
 
 export function MessageThread({ conversationId }: { conversationId: string }) {
   const { data, isLoading } = useConversation(conversationId);
@@ -150,6 +158,24 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
       {/* Composer */}
       <div className="border-t bg-card p-3">
         <div className="mx-auto max-w-3xl">
+          {!draft.trim() && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <span className="flex items-center gap-1 text-[11px] font-medium text-tertiary">
+                <Sparkles className="h-3 w-3" />
+                Saran AI
+              </span>
+              {AI_SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDraft(s)}
+                  className="rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-tertiary hover:text-foreground"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
           {isEmail ? (
             <div className="space-y-2">
               <Textarea

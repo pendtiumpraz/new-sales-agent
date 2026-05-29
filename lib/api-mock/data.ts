@@ -13,6 +13,8 @@ import aiResponsesJson from "@/lib/mock-data/ai-responses.json";
 import consentLogJson from "@/lib/mock-data/consent-log.json";
 import dpiaJson from "@/lib/mock-data/dpia.json";
 import vendorsJson from "@/lib/mock-data/vendors.json";
+import prospectsJson from "@/lib/mock-data/prospects.json";
+import inboundJson from "@/lib/mock-data/inbound.json";
 import contentJson from "@/lib/mock-data/content.json";
 import tasksJson from "@/lib/mock-data/tasks.json";
 import activityJson from "@/lib/mock-data/activity.json";
@@ -30,8 +32,10 @@ import type {
   Deal,
   DpiaEntry,
   FieldRep,
+  InboundLead,
   Message,
   Order,
+  ProspectLead,
   Task,
   VendorRisk,
   Visit,
@@ -51,6 +55,8 @@ export const aiResponses = aiResponsesJson as unknown as AiResponse[];
 export const consentLog = consentLogJson as unknown as ConsentEntry[];
 export const dpia = dpiaJson as unknown as DpiaEntry[];
 export const vendors = vendorsJson as unknown as VendorRisk[];
+export const prospects = prospectsJson as unknown as ProspectLead[];
+export const inbound = inboundJson as unknown as InboundLead[];
 export const content = contentJson as unknown as ContentItem[];
 export const tasks = tasksJson as unknown as Task[];
 export const activity = activityJson as unknown as ActivityEvent[];

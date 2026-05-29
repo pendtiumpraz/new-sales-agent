@@ -51,6 +51,25 @@ minutes.** Every click and talking point is spelled out. Legend:
 
 ---
 
+## Scene 1b — Prospecting (≈60s) · `/prospecting`
+
+- 🖱️ **CLICK** **"Prospek"** in the top nav.
+- 👁️ **SEE** the lead table sorted by **AI fit score**, the KPI strip, and the
+  temperature chips.
+  - 💬 "This is our Apollo-style prospecting — net-new leads scored by AI fit and
+    intent."
+- 🖱️ **CLICK** **"Crawl prospek baru"** → toast ("12 prospek baru ditemukan").
+- 🖱️ On an **un-enriched** row, **CLICK** **"Perkaya"** → verified contact data
+  fills in.
+  - 💬 "One click enriches verified email, phone, and tech stack."
+- 🖱️ **CLICK** a row → the **AI research sheet** opens.
+  - 💬 "AI writes the company summary, surfaces buying signals, and drafts a
+    personalized opener." → 🖱️ **CLICK "Tambah ke cadence outbound"**.
+- 🖱️ **CLICK** the **"Inbound"** tab → on a lead 🖱️ **CLICK "Balas dengan AI"**.
+  - 💬 "Inbound leads are auto-scored and can be answered by AI instantly."
+
+---
+
 ## Scene 2 — Unified Inbox (≈90s) · `/inbox/...`
 
 - 👁️ **SEE** the conversation list (channel dots + unread badges) and the
@@ -59,10 +78,10 @@ minutes.** Every click and talking point is spelled out. Legend:
     channel."
 - 🖱️ **CLICK** the **"WhatsApp"** filter chip at the top of the list.
   - 👁️ List narrows to WhatsApp conversations.
-- 🖱️ **CLICK** any WhatsApp conversation → 🖱️ **TYPE** a reply in the composer →
-  press the **send** button.
+- 🖱️ **CLICK** any WhatsApp conversation → 🖱️ **CLICK** a **"Saran AI"** reply
+  chip above the composer (auto-fills the draft) → press **send**.
   - 👁️ A green outgoing bubble appends instantly.
-  - 💬 "Replies feel instant — speed is the whole point."
+  - 💬 "AI suggests replies; one tap and send — speed is the whole point."
 - 👁️ **POINT** at the **contact panel** on the right.
   - 💬 "Here's the context: this lead came from the **Arsa Tower event** and
     **consented on 15 Mei 2026** — that consent record matters for UU PDP."

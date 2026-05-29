@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CalendarClock, Trophy, UserRound } from "lucide-react";
+import { Building2, CalendarClock, Sparkles, Trophy, UserRound } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { IDRAmount } from "@/components/shared/idr-amount";
@@ -31,6 +31,14 @@ const ACTIVITY = [
   { label: "Demo produk dilakukan", when: "5 hari lalu" },
   { label: "Negosiasi harga berlangsung", when: "1 hari lalu" },
 ];
+
+const AI_ACTION: Record<DealStage, string> = {
+  prospek: "Kirim pesan pembuka WhatsApp dan tawarkan demo 15 menit.",
+  kualifikasi: "Telepon untuk konfirmasi anggaran & timeline pembelian.",
+  penawaran: "Follow up penawaran dalam 48 jam + lampirkan studi kasus sejenis.",
+  negosiasi: "Tawarkan diskon tahunan dan jadwalkan closing call minggu ini.",
+  tutup: "Kirim materi onboarding dan minta referral ke 2 kontak.",
+};
 
 export function DealDetailSheet({
   deal,
@@ -95,6 +103,14 @@ export function DealDetailSheet({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="rounded-xl border border-tertiary/30 bg-tertiary/5 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-tertiary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Aksi terbaik (AI)
+                </p>
+                <p className="mt-1 text-sm">{AI_ACTION[deal.stage]}</p>
               </div>
 
               <Separator />

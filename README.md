@@ -78,6 +78,7 @@ Each commit in this repo introduces one feature, accompanied by an explainer in 
 - [14 — E-commerce hub](./docs/14-ecommerce.md)
 - [15 — Settings + UU PDP compliance](./docs/15-settings-compliance.md)
 - [16 — Content creation & planning](./docs/16-content.md)
+- [17 — Prospecting / lead intelligence (Apollo-like)](./docs/17-prospecting.md)
 
 ### Guides
 

@@ -12,6 +12,8 @@ const shots = [
   { name: "01-landing", url: "/", fullPage: true },
   { name: "02-dashboard", url: "/dashboard" },
   { name: "03-inbox", url: "/inbox/cv_0001" },
+  { name: "10-prospecting", url: "/prospecting" },
+  { name: "11-prospecting-inbound", url: "/prospecting", click: "Inbound" },
   { name: "04-content", url: "/content" },
   { name: "05-content-calendar", url: "/content", click: "Kalender" },
   { name: "06-pipeline", url: "/pipeline" },
@@ -41,7 +43,7 @@ for (const s of shots) {
     await page.goto(BASE + s.url, { waitUntil: "load", timeout: 60000 });
     await page.waitForTimeout(2500); // let mock latency + charts settle
     if (s.click) {
-      await page.getByText(s.click, { exact: true }).first().click();
+      await page.getByText(s.click, { exact: false }).first().click();
       await page.waitForTimeout(1200);
     }
     await page.screenshot({

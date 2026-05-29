@@ -54,6 +54,24 @@ full context beside each thread.
 
 ---
 
+## 3b. Prospecting / Lead intelligence — `/prospecting`
+**Who:** rep / SDR hunting net-new leads (Apollo-style).
+
+1. **"Crawl prospek baru"** simulates discovery from LinkedIn / web.
+2. **Temukan** tab — search + temperature chips (Panas / Hangat / Dingin); the
+   table is sorted by **AI fit score** with enrichment status per row.
+3. **Perkaya** a lead (fills verified email/phone/tech) or open the row → **AI
+   research sheet** (AI company summary, buying signals, recommended opener).
+4. Push to outbound: **Tambah ke CRM** / **Tambah ke cadence** (single or bulk).
+5. **Inbound** tab — captured leads (website / form / WA / IG / marketplace) are
+   AI-scored with a suggested action; **Balas dengan AI** auto-replies or
+   **Alihkan** routes.
+
+**Outcome:** net-new leads are discovered, enriched, AI-scored, and handed to
+outbound — the front of the funnel.
+
+---
+
 ## 4. Contacts — `/contacts`
 **Who:** rep prospecting; manager doing list hygiene.
 

@@ -192,6 +192,48 @@ export interface VendorRisk {
   lastReview: string; // ISO
 }
 
+// ---- Prospecting / Lead intelligence (Apollo-like) --------------------------
+
+export type AiTemp = "panas" | "hangat" | "dingin";
+
+export interface ProspectLead {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  industry: string;
+  city: string;
+  companySize: string; // employee band
+  revenue: string; // IDR revenue band
+  email: string;
+  emailVerified: boolean;
+  phone: string;
+  channelPreference: MessagingChannel;
+  techStack: string[];
+  aiScore: number; // 0–100 fit/intent score
+  aiTemp: AiTemp;
+  intentSignals: string[];
+  source: string; // where it was discovered
+  enriched: boolean;
+  inCrm: boolean;
+  avatarColor: string;
+}
+
+export interface InboundLead {
+  id: string;
+  name: string;
+  company: string;
+  source: "website" | "form" | "whatsapp" | "instagram" | "marketplace";
+  channel: MessagingChannel | Marketplace;
+  message: string;
+  aiScore: number;
+  aiTemp: AiTemp;
+  suggestedAction: string;
+  receivedAt: string; // ISO
+  status: "baru" | "dibalas" | "dialihkan";
+  avatarColor: string;
+}
+
 export interface Task {
   id: string;
   title: string;

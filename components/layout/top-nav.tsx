@@ -15,6 +15,7 @@ import {
   Settings,
   ShoppingBag,
   Sparkles,
+  Telescope,
   User,
   Users,
   Workflow,
@@ -52,6 +53,7 @@ import { cn } from "@/lib/utils";
 const NAV: { href: string; icon: LucideIcon; key: string }[] = [
   { href: "/dashboard", icon: LayoutDashboard, key: "dashboard" },
   { href: "/inbox", icon: Inbox, key: "inbox" },
+  { href: "/prospecting", icon: Telescope, key: "prospecting" },
   { href: "/contacts", icon: Users, key: "contacts" },
   { href: "/pipeline", icon: KanbanSquare, key: "pipeline" },
   { href: "/cadences", icon: Workflow, key: "cadences" },

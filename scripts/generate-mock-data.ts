@@ -731,6 +731,103 @@ const vendors = VENDORS.map((v, i) => {
   };
 });
 
+// ---- prospecting: discovered leads ------------------------------------------
+const TECH_STACK = [
+  "WhatsApp Business API", "Mekari Qontak", "HubSpot", "Salesforce", "SAP",
+  "Microsoft 365", "Google Workspace", "Accurate", "Jurnal", "Moka POS",
+  "Tokopedia Seller", "Shopee Seller",
+];
+const INTENT_SIGNALS = [
+  "Mengunjungi halaman harga 3×", "Mengunduh whitepaper UU PDP",
+  "Membuka 2 email kampanye", "Mencari 'sales platform' di Google",
+  "Aktif diskusi sales di LinkedIn", "Hadir webinar produk",
+  "Menambah headcount tim sales", "Membandingkan vendor CRM",
+];
+const REVENUE_BAND = [
+  "< Rp 5 M/thn", "Rp 5–25 M/thn", "Rp 25–100 M/thn",
+  "Rp 100–500 M/thn", "> Rp 500 M/thn",
+];
+const PROSPECT_SOURCE = [
+  "LinkedIn", "Web crawl", "Database B2B", "Event Arsa Tower",
+  "Referral mitra", "Direktori industri",
+];
+const tempFromScore = (s: number): "panas" | "hangat" | "dingin" =>
+  s >= 75 ? "panas" : s >= 50 ? "hangat" : "dingin";
+const slug = (name: string) =>
+  name.replace(/^(PT|CV|UD|Koperasi)\s+/i, "").toLowerCase().replace(/[^a-z]/g, "").slice(0, 12) || "mail";
+
+const prospects = Array.from({ length: 60 }, (_, i) => {
+  const co = pick(companies);
+  const name = fullName();
+  const enriched = faker.datatype.boolean({ probability: 0.45 });
+  const score = faker.number.int({ min: 18, max: 97 });
+  return {
+    id: id("pr", i + 1),
+    name,
+    title: pick(TITLES),
+    company: co.name,
+    industry: co.industry,
+    city: co.city,
+    companySize: co.size,
+    revenue: pick(REVENUE_BAND),
+    email: enriched ? `${name.toLowerCase().replace(/\s+/g, ".")}@${slug(co.name)}.co.id` : "—",
+    emailVerified: enriched,
+    phone: enriched ? `+62 8${faker.string.numeric(2)}-${faker.string.numeric(4)}-${faker.string.numeric(4)}` : "—",
+    channelPreference: pick(MSG_CHANNELS),
+    techStack: enriched ? faker.helpers.arrayElements(TECH_STACK, { min: 1, max: 3 }) : [],
+    aiScore: score,
+    aiTemp: tempFromScore(score),
+    intentSignals: faker.helpers.arrayElements(INTENT_SIGNALS, { min: 1, max: 3 }),
+    source: pick(PROSPECT_SOURCE),
+    enriched,
+    inCrm: false,
+    avatarColor: color(),
+  };
+});
+
+// ---- prospecting: inbound leads ---------------------------------------------
+const INBOUND_SOURCES = [
+  { source: "website", channel: "email" },
+  { source: "form", channel: "email" },
+  { source: "whatsapp", channel: "whatsapp" },
+  { source: "instagram", channel: "instagram" },
+  { source: "marketplace", channel: "tokopedia" },
+] as const;
+const INBOUND_MSGS = [
+  "Halo, saya tertarik dengan paket Growth. Bisa minta penawaran untuk 15 pengguna?",
+  "Apakah platform ini terintegrasi dengan WhatsApp Business API resmi?",
+  "Kami BPR di Surabaya, butuh solusi yang patuh UU PDP. Bisa demo?",
+  "Min, produk ini ready? Boleh tahu harga net-nya?",
+  "Mohon info untuk kebutuhan tim sales 50 orang di seluruh cabang.",
+  "Saya lihat iklan kalian, bagaimana cara mulai trial?",
+];
+const SUGGESTED_ACTIONS = [
+  "Balas info harga + tawarkan demo 15 menit",
+  "Kirim katalog & studi kasus sejenis",
+  "Tambahkan ke cadence 'Demo to Close'",
+  "Alihkan ke tim Enterprise (deal besar)",
+  "Jadwalkan call discovery",
+];
+const inbound = Array.from({ length: 12 }, (_, i) => {
+  const src = pick(INBOUND_SOURCES);
+  const co = pick(companies);
+  const score = faker.number.int({ min: 35, max: 98 });
+  return {
+    id: id("in", i + 1),
+    name: fullName(),
+    company: co.name,
+    source: src.source,
+    channel: src.channel,
+    message: pick(INBOUND_MSGS),
+    aiScore: score,
+    aiTemp: tempFromScore(score),
+    suggestedAction: pick(SUGGESTED_ACTIONS),
+    receivedAt: isoPast(3),
+    status: "baru",
+    avatarColor: color(),
+  };
+}).sort((a, b) => +new Date(b.receivedAt) - +new Date(a.receivedAt));
+
 // ---- write ------------------------------------------------------------------
 console.log("Writing mock data to lib/mock-data/ ...");
 write("companies.json", companies);
@@ -747,6 +844,8 @@ write("ai-responses.json", aiResponses);
 write("consent-log.json", consentLog);
 write("dpia.json", dpia);
 write("vendors.json", vendors);
+write("prospects.json", prospects);
+write("inbound.json", inbound);
 write("content.json", content);
 write("tasks.json", tasks);
 write("activity.json", activity);
