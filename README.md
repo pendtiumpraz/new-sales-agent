@@ -79,6 +79,11 @@ Each commit in this repo introduces one feature, accompanied by an explainer in 
 - [15 — Settings + UU PDP compliance](./docs/15-settings-compliance.md)
 - [16 — Content creation & planning](./docs/16-content.md)
 
+### Guides
+
+- [**Use-case flows**](./docs/USE-CASES.md) — how each feature is used (persona → trigger → steps → outcome)
+- [**Live demo script**](./docs/DEMO-SCRIPT.md) — presenter-ready, click-by-click walkthrough (~8–9 min)
+
 ## Notable deviations from the spec
 
 Two pragmatic substitutions, both flagged in the docs:
