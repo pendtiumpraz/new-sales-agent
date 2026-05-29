@@ -159,9 +159,37 @@ export interface ConsentEntry {
   id: string;
   contactName: string;
   source: "event" | "form" | "wa-optin";
-  date: string; // ISO
+  channel: MessagingChannel; // capture channel
+  ip: string; // capture IP (immutable audit trail)
+  date: string; // ISO — exact capture timestamp
   version: string;
   status: ConsentStatus;
+}
+
+// ---- GRC: DPIA + vendor risk (UU PDP / DPO tooling) --------------------------
+
+export type RiskLevel = "rendah" | "sedang" | "tinggi";
+
+export interface DpiaEntry {
+  id: string;
+  process: string; // business process being assessed
+  dataCategory: string;
+  riskLevel: RiskLevel;
+  status: "selesai" | "berjalan" | "perlu-tinjauan";
+  owner: string; // DPO / reviewer
+  date: string; // ISO
+  mitigations: number;
+}
+
+export interface VendorRisk {
+  id: string;
+  vendor: string;
+  category: string; // Messaging / Hosting / Analytics / ...
+  riskScore: number; // 0–100
+  riskLevel: RiskLevel;
+  dpaSigned: boolean; // Data Processing Agreement on file
+  residency: string; // data residency region
+  lastReview: string; // ISO
 }
 
 export interface Task {

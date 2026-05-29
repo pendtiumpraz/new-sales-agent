@@ -1,0 +1,82 @@
+[
+  {
+    "id": "vnd_0001",
+    "vendor": "Meta WhatsApp BSP",
+    "category": "Messaging",
+    "riskScore": 8,
+    "riskLevel": "rendah",
+    "dpaSigned": true,
+    "residency": "Singapore",
+    "lastReview": "2026-05-08T18:48:45.820Z"
+  },
+  {
+    "id": "vnd_0002",
+    "vendor": "AWS (ap-southeast-3)",
+    "category": "Hosting",
+    "riskScore": 8,
+    "riskLevel": "rendah",
+    "dpaSigned": true,
+    "residency": "AWS Jakarta",
+    "lastReview": "2026-04-15T00:10:48.563Z"
+  },
+  {
+    "id": "vnd_0003",
+    "vendor": "Tokopedia Open API",
+    "category": "Marketplace",
+    "riskScore": 64,
+    "riskLevel": "tinggi",
+    "dpaSigned": true,
+    "residency": "Indonesia",
+    "lastReview": "2026-04-24T15:10:57.405Z"
+  },
+  {
+    "id": "vnd_0004",
+    "vendor": "Shopee Open Platform",
+    "category": "Marketplace",
+    "riskScore": 51,
+    "riskLevel": "sedang",
+    "dpaSigned": false,
+    "residency": "Singapore",
+    "lastReview": "2026-04-26T22:19:57.377Z"
+  },
+  {
+    "id": "vnd_0005",
+    "vendor": "SendGrid",
+    "category": "Email",
+    "riskScore": 37,
+    "riskLevel": "sedang",
+    "dpaSigned": true,
+    "residency": "United States",
+    "lastReview": "2026-05-22T09:22:30.323Z"
+  },
+  {
+    "id": "vnd_0006",
+    "vendor": "Twilio SMS",
+    "category": "Messaging",
+    "riskScore": 44,
+    "riskLevel": "sedang",
+    "dpaSigned": true,
+    "residency": "United States",
+    "lastReview": "2026-04-14T00:29:11.021Z"
+  },
+  {
+    "id": "vnd_0007",
+    "vendor": "Mapbox",
+    "category": "Analytics",
+    "riskScore": 10,
+    "riskLevel": "rendah",
+    "dpaSigned": true,
+    "residency": "United States",
+    "lastReview": "2026-04-21T04:11:28.867Z"
+  },
+  {
+    "id": "vnd_0008",
+    "vendor": "Midtrans",
+    "category": "Payment",
+    "riskScore": 45,
+    "riskLevel": "sedang",
+    "dpaSigned": true,
+    "residency": "Indonesia",
+    "lastReview": "2026-03-05T07:24:15.301Z"
+  }
+]

@@ -68,6 +68,14 @@ export function useConsentLog() {
   });
 }
 
+export function useDpia() {
+  return useQuery({ queryKey: ["dpia"], queryFn: () => settle(db.dpia) });
+}
+
+export function useVendors() {
+  return useQuery({ queryKey: ["vendors"], queryFn: () => settle(db.vendors) });
+}
+
 export function useTasks() {
   return useQuery({ queryKey: ["tasks"], queryFn: () => settle(db.tasks) });
 }

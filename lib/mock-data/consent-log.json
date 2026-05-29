@@ -3,6 +3,8 @@
     "id": "cl_0001",
     "contactName": "Dewi Kusuma",
     "source": "event",
+    "channel": "instagram",
+    "ip": "103.1.0.0",
     "date": "2026-02-05T12:23:30.784Z",
     "version": "v2.0",
     "status": "consented"
@@ -11,6 +13,8 @@
     "id": "cl_0002",
     "contactName": "Yusuf Firmansyah",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.8.13.29",
     "date": "2026-03-03T00:11:10.303Z",
     "version": "v2.0",
     "status": "consented"
@@ -19,6 +23,8 @@
     "id": "cl_0003",
     "contactName": "Ahmad Halim",
     "source": "form",
+    "channel": "sms",
+    "ip": "103.15.26.58",
     "date": "2026-01-04T04:44:32.934Z",
     "version": "v2.0",
     "status": "consented"
@@ -27,6 +33,8 @@
     "id": "cl_0004",
     "contactName": "Citra Nurhaliza",
     "source": "wa-optin",
+    "channel": "sms",
+    "ip": "103.22.39.87",
     "date": "2026-05-16T03:51:55.672Z",
     "version": "v2.0",
     "status": "consented"
@@ -35,6 +43,8 @@
     "id": "cl_0005",
     "contactName": "Budi Permata",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.29.52.116",
     "date": "2025-12-10T12:41:18.948Z",
     "version": "v2.0",
     "status": "pending"
@@ -43,6 +53,8 @@
     "id": "cl_0006",
     "contactName": "Hadi Gunawan",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.36.65.145",
     "date": "2026-01-10T14:34:19.892Z",
     "version": "v2.1",
     "status": "consented"
@@ -51,6 +63,8 @@
     "id": "cl_0007",
     "contactName": "Lina Gunawan",
     "source": "wa-optin",
+    "channel": "email",
+    "ip": "103.43.78.174",
     "date": "2025-12-21T01:31:07.236Z",
     "version": "v1.9",
     "status": "pending"
@@ -59,6 +73,8 @@
     "id": "cl_0008",
     "contactName": "Dian Nurhaliza",
     "source": "form",
+    "channel": "sms",
+    "ip": "103.50.91.203",
     "date": "2025-12-03T07:54:39.523Z",
     "version": "v1.9",
     "status": "pending"
@@ -67,6 +83,8 @@
     "id": "cl_0009",
     "contactName": "Anton Hidayat",
     "source": "event",
+    "channel": "instagram",
+    "ip": "103.57.104.232",
     "date": "2025-12-26T12:59:03.172Z",
     "version": "v2.0",
     "status": "consented"
@@ -75,6 +93,8 @@
     "id": "cl_0010",
     "contactName": "Sri Firmansyah",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.64.117.6",
     "date": "2026-01-09T14:08:45.005Z",
     "version": "v2.0",
     "status": "none"
@@ -83,6 +103,8 @@
     "id": "cl_0011",
     "contactName": "Citra Halim",
     "source": "wa-optin",
+    "channel": "instagram",
+    "ip": "103.71.130.35",
     "date": "2026-05-21T10:10:11.512Z",
     "version": "v2.0",
     "status": "pending"
@@ -91,6 +113,8 @@
     "id": "cl_0012",
     "contactName": "Andi Handoko",
     "source": "event",
+    "channel": "linkedin",
+    "ip": "103.78.143.64",
     "date": "2026-01-15T20:01:47.182Z",
     "version": "v2.0",
     "status": "consented"
@@ -99,6 +123,8 @@
     "id": "cl_0013",
     "contactName": "Dian Susanto",
     "source": "event",
+    "channel": "sms",
+    "ip": "103.85.156.93",
     "date": "2026-01-14T10:41:03.426Z",
     "version": "v2.0",
     "status": "pending"
@@ -107,6 +133,8 @@
     "id": "cl_0014",
     "contactName": "Dian Gunawan",
     "source": "form",
+    "channel": "sms",
+    "ip": "103.92.169.122",
     "date": "2026-01-13T14:21:12.105Z",
     "version": "v2.0",
     "status": "pending"
@@ -115,6 +143,8 @@
     "id": "cl_0015",
     "contactName": "Eka Nugroho",
     "source": "form",
+    "channel": "linkedin",
+    "ip": "103.99.182.151",
     "date": "2026-03-05T10:55:46.133Z",
     "version": "v2.0",
     "status": "none"
@@ -123,6 +153,8 @@
     "id": "cl_0016",
     "contactName": "Yusuf Hidayat",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.106.195.180",
     "date": "2026-02-03T16:36:58.388Z",
     "version": "v2.0",
     "status": "consented"
@@ -131,6 +163,8 @@
     "id": "cl_0017",
     "contactName": "Yusuf Hidayat",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.113.208.209",
     "date": "2026-02-11T15:27:28.076Z",
     "version": "v2.1",
     "status": "consented"
@@ -139,6 +173,8 @@
     "id": "cl_0018",
     "contactName": "Rizki Pratama",
     "source": "event",
+    "channel": "linkedin",
+    "ip": "103.120.221.238",
     "date": "2026-01-24T00:50:18.886Z",
     "version": "v2.0",
     "status": "consented"
@@ -147,6 +183,8 @@
     "id": "cl_0019",
     "contactName": "Tari Setiawan",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.127.234.12",
     "date": "2026-04-22T11:59:11.989Z",
     "version": "v2.0",
     "status": "consented"
@@ -155,6 +193,8 @@
     "id": "cl_0020",
     "contactName": "Hadi Pratama",
     "source": "form",
+    "channel": "sms",
+    "ip": "103.134.247.41",
     "date": "2025-12-26T21:10:04.213Z",
     "version": "v2.1",
     "status": "pending"
@@ -163,6 +203,8 @@
     "id": "cl_0021",
     "contactName": "Budi Handoko",
     "source": "form",
+    "channel": "instagram",
+    "ip": "103.141.5.70",
     "date": "2026-03-08T08:47:10.189Z",
     "version": "v1.9",
     "status": "none"
@@ -171,6 +213,8 @@
     "id": "cl_0022",
     "contactName": "Ahmad Gunawan",
     "source": "form",
+    "channel": "instagram",
+    "ip": "103.148.18.99",
     "date": "2026-01-18T11:29:26.735Z",
     "version": "v1.9",
     "status": "pending"
@@ -179,6 +223,8 @@
     "id": "cl_0023",
     "contactName": "Anton Wijaya",
     "source": "form",
+    "channel": "sms",
+    "ip": "103.155.31.128",
     "date": "2025-12-26T22:24:57.605Z",
     "version": "v1.9",
     "status": "none"
@@ -187,6 +233,8 @@
     "id": "cl_0024",
     "contactName": "Reza Permata",
     "source": "wa-optin",
+    "channel": "linkedin",
+    "ip": "103.162.44.157",
     "date": "2025-11-28T15:13:53.194Z",
     "version": "v2.0",
     "status": "consented"
@@ -195,6 +243,8 @@
     "id": "cl_0025",
     "contactName": "Ahmad Hartono",
     "source": "form",
+    "channel": "instagram",
+    "ip": "103.169.57.186",
     "date": "2025-12-29T10:45:18.040Z",
     "version": "v2.1",
     "status": "pending"
@@ -203,6 +253,8 @@
     "id": "cl_0026",
     "contactName": "Indah Maharani",
     "source": "form",
+    "channel": "email",
+    "ip": "103.176.70.215",
     "date": "2026-02-24T14:01:55.165Z",
     "version": "v2.1",
     "status": "pending"
@@ -211,6 +263,8 @@
     "id": "cl_0027",
     "contactName": "Arif Permata",
     "source": "form",
+    "channel": "instagram",
+    "ip": "103.183.83.244",
     "date": "2025-12-07T15:53:48.047Z",
     "version": "v1.9",
     "status": "pending"
@@ -219,6 +273,8 @@
     "id": "cl_0028",
     "contactName": "Anton Gunawan",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.190.96.18",
     "date": "2026-03-18T03:31:38.311Z",
     "version": "v1.9",
     "status": "consented"
@@ -227,6 +283,8 @@
     "id": "cl_0029",
     "contactName": "Surya Utami",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.197.109.47",
     "date": "2026-03-13T12:21:22.458Z",
     "version": "v1.9",
     "status": "consented"
@@ -235,6 +293,8 @@
     "id": "cl_0030",
     "contactName": "Budi Handoko",
     "source": "form",
+    "channel": "instagram",
+    "ip": "103.4.122.76",
     "date": "2025-12-05T09:21:08.344Z",
     "version": "v2.0",
     "status": "none"
@@ -243,6 +303,8 @@
     "id": "cl_0031",
     "contactName": "Lestari Puspita",
     "source": "form",
+    "channel": "linkedin",
+    "ip": "103.11.135.105",
     "date": "2026-01-23T10:53:55.634Z",
     "version": "v2.0",
     "status": "consented"
@@ -251,6 +313,8 @@
     "id": "cl_0032",
     "contactName": "Mei Lestari",
     "source": "form",
+    "channel": "linkedin",
+    "ip": "103.18.148.134",
     "date": "2026-02-14T17:37:01.215Z",
     "version": "v1.9",
     "status": "none"
@@ -259,6 +323,8 @@
     "id": "cl_0033",
     "contactName": "Ahmad Hartono",
     "source": "wa-optin",
+    "channel": "instagram",
+    "ip": "103.25.161.163",
     "date": "2025-11-20T14:49:46.493Z",
     "version": "v1.9",
     "status": "pending"
@@ -267,6 +333,8 @@
     "id": "cl_0034",
     "contactName": "Hadi Susanto",
     "source": "wa-optin",
+    "channel": "instagram",
+    "ip": "103.32.174.192",
     "date": "2026-02-04T16:55:38.985Z",
     "version": "v2.1",
     "status": "consented"
@@ -275,6 +343,8 @@
     "id": "cl_0035",
     "contactName": "Indah Wibowo",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.39.187.221",
     "date": "2026-05-14T04:34:30.429Z",
     "version": "v1.9",
     "status": "consented"
@@ -283,6 +353,8 @@
     "id": "cl_0036",
     "contactName": "Reza Susanto",
     "source": "wa-optin",
+    "channel": "email",
+    "ip": "103.46.200.250",
     "date": "2025-12-07T20:26:52.497Z",
     "version": "v2.0",
     "status": "consented"
@@ -291,6 +363,8 @@
     "id": "cl_0037",
     "contactName": "Rizki Saputra",
     "source": "wa-optin",
+    "channel": "instagram",
+    "ip": "103.53.213.24",
     "date": "2026-02-02T04:48:56.864Z",
     "version": "v2.1",
     "status": "consented"
@@ -299,6 +373,8 @@
     "id": "cl_0038",
     "contactName": "Andi Handoko",
     "source": "event",
+    "channel": "linkedin",
+    "ip": "103.60.226.53",
     "date": "2025-11-23T03:03:06.794Z",
     "version": "v2.1",
     "status": "consented"
@@ -307,6 +383,8 @@
     "id": "cl_0039",
     "contactName": "Ratih Hidayat",
     "source": "wa-optin",
+    "channel": "sms",
+    "ip": "103.67.239.82",
     "date": "2025-12-27T14:50:54.087Z",
     "version": "v2.1",
     "status": "consented"
@@ -315,6 +393,8 @@
     "id": "cl_0040",
     "contactName": "Budi Lestari",
     "source": "form",
+    "channel": "sms",
+    "ip": "103.74.252.111",
     "date": "2026-04-05T06:18:09.582Z",
     "version": "v2.0",
     "status": "consented"
@@ -323,6 +403,8 @@
     "id": "cl_0041",
     "contactName": "Bayu Maharani",
     "source": "form",
+    "channel": "email",
+    "ip": "103.81.10.140",
     "date": "2025-12-01T03:48:23.333Z",
     "version": "v2.1",
     "status": "consented"
@@ -331,6 +413,8 @@
     "id": "cl_0042",
     "contactName": "Eka Cahyono",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.88.23.169",
     "date": "2026-03-18T08:57:48.597Z",
     "version": "v2.1",
     "status": "consented"
@@ -339,6 +423,8 @@
     "id": "cl_0043",
     "contactName": "Dian Gunawan",
     "source": "event",
+    "channel": "sms",
+    "ip": "103.95.36.198",
     "date": "2026-02-25T14:51:51.941Z",
     "version": "v2.1",
     "status": "pending"
@@ -347,6 +433,8 @@
     "id": "cl_0044",
     "contactName": "Citra Gunawan",
     "source": "wa-optin",
+    "channel": "instagram",
+    "ip": "103.102.49.227",
     "date": "2026-03-16T06:07:30.329Z",
     "version": "v2.1",
     "status": "consented"
@@ -355,6 +443,8 @@
     "id": "cl_0045",
     "contactName": "Sri Permata",
     "source": "wa-optin",
+    "channel": "instagram",
+    "ip": "103.109.62.1",
     "date": "2026-05-23T12:59:30.386Z",
     "version": "v2.0",
     "status": "consented"
@@ -363,6 +453,8 @@
     "id": "cl_0046",
     "contactName": "Lina Susanto",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.116.75.30",
     "date": "2026-02-02T22:41:23.725Z",
     "version": "v2.0",
     "status": "pending"
@@ -371,6 +463,8 @@
     "id": "cl_0047",
     "contactName": "Wayan Handoko",
     "source": "form",
+    "channel": "whatsapp",
+    "ip": "103.123.88.59",
     "date": "2026-04-20T12:57:02.850Z",
     "version": "v2.0",
     "status": "consented"
@@ -379,6 +473,8 @@
     "id": "cl_0048",
     "contactName": "Fitri Pratama",
     "source": "form",
+    "channel": "instagram",
+    "ip": "103.130.101.88",
     "date": "2026-04-01T15:40:04.124Z",
     "version": "v1.9",
     "status": "consented"
@@ -387,6 +483,8 @@
     "id": "cl_0049",
     "contactName": "Yusuf Hidayat",
     "source": "event",
+    "channel": "whatsapp",
+    "ip": "103.137.114.117",
     "date": "2026-04-10T01:08:33.234Z",
     "version": "v2.0",
     "status": "consented"
@@ -395,6 +493,8 @@
     "id": "cl_0050",
     "contactName": "Iwan Utami",
     "source": "wa-optin",
+    "channel": "whatsapp",
+    "ip": "103.144.127.146",
     "date": "2025-12-22T10:04:42.091Z",
     "version": "v2.0",
     "status": "consented"

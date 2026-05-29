@@ -422,6 +422,9 @@ const consentLog = Array.from({ length: 50 }, (_, i) => {
     id: id("cl", i + 1),
     contactName: ct.name,
     source: pick(["event", "form", "wa-optin"]),
+    // Deterministic fields (no faker calls — keeps other files' RNG stable):
+    channel: ct.channelPreference,
+    ip: `103.${((i * 7) % 200) + 1}.${(i * 13) % 255}.${(i * 29) % 255}`,
     date: isoPast(200),
     version: pick(["v2.1", "v2.0", "v1.9"]),
     status: ct.consent,
@@ -663,6 +666,71 @@ const activity = Array.from({ length: 10 }, (_, i) => {
   };
 }).sort((x, y) => +new Date(y.timestamp) - +new Date(x.timestamp));
 
+// ---- GRC: DPIA logs ---------------------------------------------------------
+const DPIA_PROCESSES = [
+  "Kampanye broadcast WhatsApp",
+  "Prospecting & enrichment lead",
+  "Integrasi marketplace (Tokopedia/Shopee)",
+  "Cadence email multi-channel",
+  "Sinkronisasi data sales lapangan",
+  "Skoring lead berbasis AI",
+  "Ekspor data kontak ke CSV",
+];
+const DPIA_DATACATS = [
+  "Data kontak & preferensi channel",
+  "Data perilaku & engagement",
+  "Data transaksi marketplace",
+  "Data lokasi sales lapangan",
+  "Data sensitif (none)",
+];
+const dpia = DPIA_PROCESSES.map((process, i) => {
+  const level = faker.helpers.weightedArrayElement([
+    { value: "rendah" as const, weight: 4 },
+    { value: "sedang" as const, weight: 3 },
+    { value: "tinggi" as const, weight: 2 },
+  ]);
+  return {
+    id: id("dpia", i + 1),
+    process,
+    dataCategory: pick(DPIA_DATACATS),
+    riskLevel: level,
+    status: faker.helpers.weightedArrayElement([
+      { value: "selesai" as const, weight: 5 },
+      { value: "berjalan" as const, weight: 2 },
+      { value: "perlu-tinjauan" as const, weight: 2 },
+    ]),
+    owner: pick(["Andi Hidayat (DPO)", "Maya Kusuma (DPO)"]),
+    date: isoPast(150),
+    mitigations: faker.number.int({ min: 1, max: 6 }),
+  };
+});
+
+// ---- GRC: vendor risk assessments -------------------------------------------
+const VENDORS = [
+  { vendor: "Meta WhatsApp BSP", category: "Messaging", residency: "Singapore" },
+  { vendor: "AWS (ap-southeast-3)", category: "Hosting", residency: "AWS Jakarta" },
+  { vendor: "Tokopedia Open API", category: "Marketplace", residency: "Indonesia" },
+  { vendor: "Shopee Open Platform", category: "Marketplace", residency: "Singapore" },
+  { vendor: "SendGrid", category: "Email", residency: "United States" },
+  { vendor: "Twilio SMS", category: "Messaging", residency: "United States" },
+  { vendor: "Mapbox", category: "Analytics", residency: "United States" },
+  { vendor: "Midtrans", category: "Payment", residency: "Indonesia" },
+];
+const vendors = VENDORS.map((v, i) => {
+  const score = faker.number.int({ min: 8, max: 78 });
+  const level = score < 30 ? "rendah" : score < 55 ? "sedang" : "tinggi";
+  return {
+    id: id("vnd", i + 1),
+    vendor: v.vendor,
+    category: v.category,
+    riskScore: score,
+    riskLevel: level as "rendah" | "sedang" | "tinggi",
+    dpaSigned: faker.datatype.boolean({ probability: 0.8 }),
+    residency: v.residency,
+    lastReview: isoPast(90),
+  };
+});
+
 // ---- write ------------------------------------------------------------------
 console.log("Writing mock data to lib/mock-data/ ...");
 write("companies.json", companies);
@@ -677,6 +745,8 @@ write("visits.json", visits);
 write("orders.json", orders);
 write("ai-responses.json", aiResponses);
 write("consent-log.json", consentLog);
+write("dpia.json", dpia);
+write("vendors.json", vendors);
 write("content.json", content);
 write("tasks.json", tasks);
 write("activity.json", activity);

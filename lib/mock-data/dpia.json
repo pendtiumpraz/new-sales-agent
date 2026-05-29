@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dpia_0001",
+    "process": "Kampanye broadcast WhatsApp",
+    "dataCategory": "Data sensitif (none)",
+    "riskLevel": "rendah",
+    "status": "selesai",
+    "owner": "Maya Kusuma (DPO)",
+    "date": "2026-03-31T16:20:07.251Z",
+    "mitigations": 5
+  },
+  {
+    "id": "dpia_0002",
+    "process": "Prospecting & enrichment lead",
+    "dataCategory": "Data lokasi sales lapangan",
+    "riskLevel": "sedang",
+    "status": "selesai",
+    "owner": "Maya Kusuma (DPO)",
+    "date": "2026-05-07T13:01:56.636Z",
+    "mitigations": 3
+  },
+  {
+    "id": "dpia_0003",
+    "process": "Integrasi marketplace (Tokopedia/Shopee)",
+    "dataCategory": "Data perilaku & engagement",
+    "riskLevel": "sedang",
+    "status": "selesai",
+    "owner": "Maya Kusuma (DPO)",
+    "date": "2026-04-11T04:21:55.163Z",
+    "mitigations": 6
+  },
+  {
+    "id": "dpia_0004",
+    "process": "Cadence email multi-channel",
+    "dataCategory": "Data sensitif (none)",
+    "riskLevel": "rendah",
+    "status": "selesai",
+    "owner": "Maya Kusuma (DPO)",
+    "date": "2026-01-18T08:25:00.024Z",
+    "mitigations": 6
+  },
+  {
+    "id": "dpia_0005",
+    "process": "Sinkronisasi data sales lapangan",
+    "dataCategory": "Data lokasi sales lapangan",
+    "riskLevel": "rendah",
+    "status": "perlu-tinjauan",
+    "owner": "Maya Kusuma (DPO)",
+    "date": "2026-02-15T13:25:48.407Z",
+    "mitigations": 3
+  },
+  {
+    "id": "dpia_0006",
+    "process": "Skoring lead berbasis AI",
+    "dataCategory": "Data kontak & preferensi channel",
+    "riskLevel": "tinggi",
+    "status": "berjalan",
+    "owner": "Maya Kusuma (DPO)",
+    "date": "2026-04-11T11:52:55.531Z",
+    "mitigations": 4
+  },
+  {
+    "id": "dpia_0007",
+    "process": "Ekspor data kontak ke CSV",
+    "dataCategory": "Data perilaku & engagement",
+    "riskLevel": "tinggi",
+    "status": "selesai",
+    "owner": "Andi Hidayat (DPO)",
+    "date": "2026-01-06T04:34:48.902Z",
+    "mitigations": 2
+  }
+]
