@@ -53,7 +53,7 @@ export default function MobileContactsPage() {
                 </div>
                 <button
                   onClick={() => toast.success(`Memanggil ${c.name}...`)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-muted-foreground"
                 >
                   <Phone className="h-4 w-4" />
                 </button>

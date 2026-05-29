@@ -20,11 +20,23 @@ opacity modifiers keep working (`bg-primary/90`, `bg-success/15`, …).
 | `--card` | `331 39% 12%` | surface-container |
 | `--primary` | `334 100% 87%` | `#ffbcd9` (light pink) |
 | `--primary-foreground` | `329 37% 31%` | `#6c3250` (dark mauve text on pink) |
-| `--muted` / `--accent` | `331 37% 14%` / `331 35% 17%` | tonal layers |
-| `--secondary` | `331 35% 20%` | surface-bright (active states) |
+| `--muted` / `--accent` | `331 37% 14%` / `331 35% 17%` | neutral plum surfaces (fills, hovers, active nav) |
+| `--secondary` | `174 22% 75%` | **brand secondary — teal-grey `#b0ccc9`** (secondary buttons/badges) |
+| `--secondary-foreground` | `175 18% 22%` | on-secondary `#2c4543` |
 | `--muted-foreground` | `336 32% 71%` | `#cd9eb1` |
 | `--destructive` | `351 95% 71%` | error `#fd6f85` |
-| `--tertiary` | `173 89% 76%` | `#87fff0` — input focus rings + accents |
+| `--tertiary` | `173 89% 76%` | **brand tertiary — aqua `#87fff0`** (highlights + success) |
+
+### Using the three brand colors (not just pink)
+
+- **Primary (pink)** — main CTAs, brand mark, active emphasis, unread badges.
+- **Secondary (teal-grey)** — `Button`/`Badge` `secondary` variant: supporting
+  chips and buttons (hero "B2B + B2C", role/stage/tag badges). Neutral *surface*
+  fills use `accent`/`muted` (plum), **not** `secondary`, so the teal-grey reads
+  as a deliberate accent rather than a background.
+- **Tertiary (aqua)** — highlights & positive signals: pipeline KPI + its delta,
+  the pink→aqua funnel ramp, the "Live" indicator, cadence reply-rate, input
+  focus rings, and the compliance trust cards (AES-256 / residency / DPO).
 | `--border` / `--input` | `333 23% 31%` | outline-variant |
 
 **Tonal layering** conveys depth (design §Elevation): `background (7%) < card

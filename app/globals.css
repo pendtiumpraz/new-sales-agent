@@ -14,8 +14,8 @@
     --popover-foreground: 336 100% 93%;
     --primary: 334 100% 87%; /* #ffbcd9 */
     --primary-foreground: 329 37% 31%; /* on-primary #6c3250 */
-    --secondary: 331 35% 20%; /* surface-bright #442132 */
-    --secondary-foreground: 336 100% 93%;
+    --secondary: 174 22% 75%; /* design secondary — teal-grey #b0ccc9 */
+    --secondary-foreground: 175 18% 22%; /* on-secondary #2c4543 */
     --muted: 331 37% 14%; /* surface-container-high */
     --muted-foreground: 336 32% 71%; /* on-surface-variant #cd9eb1 */
     --accent: 331 35% 17%; /* surface-container-highest */

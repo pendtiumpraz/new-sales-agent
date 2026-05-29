@@ -100,7 +100,7 @@ export function ConversationList() {
                   href={`/inbox/${c.id}`}
                   className={cn(
                     "flex gap-3 border-b p-3 transition-colors",
-                    active ? "bg-secondary" : "hover:bg-muted/40",
+                    active ? "bg-accent" : "hover:bg-muted/40",
                   )}
                 >
                   <div className="relative">

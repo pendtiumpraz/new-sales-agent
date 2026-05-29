@@ -222,7 +222,7 @@ export default function LandingPage() {
           {FEATURES.map(({ icon: Icon, t }) => (
             <Card key={t} className="transition-shadow hover:shadow-sm">
               <CardContent className="p-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-foreground">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-foreground">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mt-4 font-semibold">{tf(`${t}Title`)}</h3>
@@ -414,8 +414,8 @@ function HeroPreview() {
       <Card className="overflow-hidden shadow-sm">
         <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-3">
           <span className="text-sm font-semibold">Inbox Terpadu</span>
-          <Badge variant="success" className="gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+          <Badge className="gap-1.5 border-transparent bg-tertiary/15 text-tertiary">
+            <span className="h-1.5 w-1.5 rounded-full bg-tertiary" />
             Live
           </Badge>
         </div>

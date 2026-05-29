@@ -105,7 +105,7 @@ function Column({
       <div className="mb-3 flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">{label}</span>
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-secondary px-1.5 text-xs font-medium text-muted-foreground">
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-muted-foreground">
             {deals.length}
           </span>
         </div>
@@ -115,7 +115,7 @@ function Column({
         ref={setNodeRef}
         className={cn(
           "scrollbar-thin flex-1 space-y-2 overflow-y-auto rounded-lg border border-dashed p-2 transition-colors",
-          isOver ? "border-primary bg-primary/5" : "border-transparent bg-secondary/40",
+          isOver ? "border-primary bg-primary/5" : "border-transparent bg-accent/40",
         )}
       >
         {deals.map((deal) => (

@@ -11,7 +11,7 @@ export default function MobileLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-slate-100 p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-background p-6">
       <PhoneFrame>
         <div className="flex h-full flex-col bg-background">
           <div className="scrollbar-thin flex-1 overflow-y-auto">{children}</div>

@@ -31,7 +31,7 @@ export default function MobileHomePage() {
           <p className="text-sm text-muted-foreground">Halo, Andi 👋</p>
           <p className="text-xs text-muted-foreground">{formatDateID("2026-05-25")}</p>
         </div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-primary">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-semibold text-primary">
           AH
         </span>
       </div>

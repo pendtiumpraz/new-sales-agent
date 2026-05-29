@@ -366,7 +366,7 @@ function SortableStep({
         <GripVertical className="h-4 w-4" />
       </button>
       <button onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-xs font-semibold">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-xs font-semibold">
           {index + 1}
         </span>
         <div className="min-w-0 flex-1">
@@ -464,7 +464,7 @@ function StepEditor({
               <button
                 key={v}
                 onClick={() => onChange({ content: `${step.content} ${v}` })}
-                className="rounded border bg-secondary px-2 py-0.5 font-mono text-xs text-foreground transition-colors hover:border-primary"
+                className="rounded border bg-accent px-2 py-0.5 font-mono text-xs text-foreground transition-colors hover:border-primary"
               >
                 {v}
               </button>

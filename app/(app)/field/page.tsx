@@ -81,7 +81,7 @@ export default function FieldPage() {
                     onClick={() => setSelectedId(rep.id)}
                     className={cn(
                       "flex w-full items-center gap-3 border-b p-3 text-left transition-colors",
-                      rep.id === selectedId ? "bg-secondary" : "hover:bg-muted/40",
+                      rep.id === selectedId ? "bg-accent" : "hover:bg-muted/40",
                     )}
                   >
                     <UserAvatar name={rep.name} color={rep.avatarColor} className="h-10 w-10" />

@@ -42,7 +42,7 @@ export default function CadencesPage() {
                 <Card className="h-full transition-shadow hover:shadow-sm">
                   <CardContent className="flex h-full flex-col p-5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
                         <Workflow className="h-5 w-5 text-foreground" />
                       </div>
                       <Badge variant={STATUS[c.status].variant}>
@@ -67,7 +67,7 @@ export default function CadencesPage() {
                       <span
                         className={cn(
                           "font-medium",
-                          c.replyRate >= 25 ? "text-success" : "text-foreground",
+                          c.replyRate >= 25 ? "text-tertiary" : "text-foreground",
                         )}
                       >
                         {c.replyRate}% balas

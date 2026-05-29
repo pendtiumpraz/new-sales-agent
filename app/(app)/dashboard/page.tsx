@@ -46,7 +46,8 @@ const STAGE_LABEL: Record<string, string> = {
   negosiasi: "Negosiasi",
   tutup: "Tutup",
 };
-const FUNNEL_FILL = ["#ffbcd9", "#e99dbf", "#cd9eb1", "#a8587e", "#7c3a59"];
+// Pink → aqua ramp uses both brand accents (primary + tertiary)
+const FUNNEL_FILL = ["#ffbcd9", "#e7aacf", "#c2c0cf", "#9ad8d2", "#87fff0"];
 
 const PRIORITY: Record<string, "destructive" | "warning" | "muted"> = {
   tinggi: "destructive",
@@ -94,11 +95,11 @@ export default function DashboardPage() {
           <KpiCard
             loading={isLoading}
             icon={<TrendingUp className="h-5 w-5" />}
-            accent="#0D9488"
+            accent="#87fff0"
             label="Nilai Pipeline"
             value={kpi ? formatIDRCompact(kpi.pipelineValue) : ""}
             sub={
-              <span className="text-success">
+              <span className="text-tertiary">
                 +{kpi?.pipelineChange}% vs bulan lalu
               </span>
             }

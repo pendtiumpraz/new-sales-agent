@@ -209,7 +209,7 @@ function ContentCard({
             {item.tags.map((t) => (
               <span
                 key={t}
-                className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
               >
                 #{t}
               </span>
