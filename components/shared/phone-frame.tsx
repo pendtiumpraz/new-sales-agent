@@ -16,7 +16,7 @@ export function PhoneFrame({
   statusTime?: string;
 }) {
   return (
-    <div className={cn("mx-auto w-[390px] shrink-0", className)}>
+    <div className={cn("mx-auto w-full max-w-[390px] shrink-0", className)}>
       <div className="relative rounded-[3rem] border border-slate-700 bg-slate-900 p-3 shadow-2xl">
         {/* Dynamic island */}
         <div className="absolute left-1/2 top-[18px] z-20 h-[26px] w-[110px] -translate-x-1/2 rounded-full bg-black" />

@@ -31,8 +31,11 @@ import { formatIDR, formatIDRCompact } from "@/lib/utils/format-idr";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 
-const PipelineFunnel = dynamic(
-  () => import("@/components/dashboard/pipeline-funnel").then((m) => m.PipelineFunnel),
+const PipelineStageChart = dynamic(
+  () =>
+    import("@/components/dashboard/pipeline-stage-chart").then(
+      (m) => m.PipelineStageChart,
+    ),
   { ssr: false, loading: () => <Skeleton className="h-[280px] w-full" /> },
 );
 
@@ -255,10 +258,10 @@ export default function DashboardPage() {
 
           <Card className="lg:col-span-5">
             <CardHeader>
-              <CardTitle>Funnel Pipeline</CardTitle>
+              <CardTitle>Deal per tahap</CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? <Skeleton className="h-[280px] w-full" /> : <PipelineFunnel data={funnelData} />}
+              {isLoading ? <Skeleton className="h-[280px] w-full" /> : <PipelineStageChart data={funnelData} />}
             </CardContent>
           </Card>
         </div>

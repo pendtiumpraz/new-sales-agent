@@ -22,7 +22,7 @@ const FILTERS = [
   { key: "unread", label: "Belum dibaca" },
 ] as const;
 
-export function ConversationList() {
+export function ConversationList({ className }: { className?: string }) {
   const { data: conversations, isLoading } = useConversations();
   const pathname = usePathname();
   const activeId = pathname.split("/")[2];
@@ -46,7 +46,7 @@ export function ConversationList() {
   }, [conversations, filter, query]);
 
   return (
-    <div className="flex w-full shrink-0 flex-col border-r bg-card md:w-80 lg:w-96">
+    <div className={cn("flex w-full shrink-0 flex-col border-r bg-card md:w-80 lg:w-96", className)}>
       <div className="space-y-3 border-b p-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Inbox</h2>

@@ -93,7 +93,8 @@ export function ContentCalendar({ onCreate }: { onCreate: (dateISO: string) => v
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="scrollbar-thin overflow-x-auto rounded-lg border bg-card">
+        <div className="min-w-[680px]">
         <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {DOW.map((d) => (
             <div key={d} className="py-2">
@@ -157,6 +158,7 @@ export function ContentCalendar({ onCreate }: { onCreate: (dateISO: string) => v
               </div>
             );
           })}
+        </div>
         </div>
       </div>
     </div>

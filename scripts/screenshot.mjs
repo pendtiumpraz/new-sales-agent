@@ -8,23 +8,37 @@ const BASE = "http://localhost:3000";
 const OUT = path.join(process.cwd(), "screenshots");
 mkdirSync(OUT, { recursive: true });
 
-const shots = [
-  { name: "01-landing", url: "/", fullPage: true },
-  { name: "02-dashboard", url: "/dashboard" },
-  { name: "03-inbox", url: "/inbox/cv_0001" },
-  { name: "10-prospecting", url: "/prospecting" },
-  { name: "11-prospecting-inbound", url: "/prospecting", click: "Inbound" },
-  { name: "04-content", url: "/content" },
-  { name: "05-content-calendar", url: "/content", click: "Kalender" },
-  { name: "06-pipeline", url: "/pipeline" },
-  { name: "07-compliance", url: "/settings/compliance", fullPage: true },
-  { name: "08-mobile", url: "/m" },
-  { name: "09-contacts", url: "/contacts" },
-];
+const MOBILE = process.env.MOBILE === "1";
+
+const shots = MOBILE
+  ? [
+      { name: "m-inbox-list", url: "/inbox" },
+      { name: "m-inbox-thread", url: "/inbox/cv_0001" },
+      { name: "m-dashboard", url: "/dashboard" },
+      { name: "m-prospecting", url: "/prospecting" },
+      { name: "m-content-calendar", url: "/content", click: "Kalender" },
+      { name: "m-field", url: "/field" },
+      { name: "m-contacts", url: "/contacts" },
+      { name: "m-pipeline", url: "/pipeline" },
+      { name: "m-landing", url: "/", fullPage: true },
+    ]
+  : [
+      { name: "01-landing", url: "/", fullPage: true },
+      { name: "02-dashboard", url: "/dashboard" },
+      { name: "03-inbox", url: "/inbox/cv_0001" },
+      { name: "10-prospecting", url: "/prospecting" },
+      { name: "11-prospecting-inbound", url: "/prospecting", click: "Inbound" },
+      { name: "04-content", url: "/content" },
+      { name: "05-content-calendar", url: "/content", click: "Kalender" },
+      { name: "06-pipeline", url: "/pipeline" },
+      { name: "07-compliance", url: "/settings/compliance", fullPage: true },
+      { name: "08-mobile", url: "/m" },
+      { name: "09-contacts", url: "/contacts" },
+    ];
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
-  viewport: { width: 1440, height: 900 },
+  viewport: MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 900 },
   deviceScaleFactor: 1,
 });
 const page = await ctx.newPage();

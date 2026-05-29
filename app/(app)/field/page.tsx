@@ -50,8 +50,8 @@ export default function FieldPage() {
         </Button>
       </PageHeader>
 
-      <div className="flex h-[calc(100vh-9.25rem)]">
-        <aside className="flex w-80 shrink-0 flex-col border-r bg-card">
+      <div className="flex flex-col lg:h-[calc(100vh-9.25rem)] lg:flex-row">
+        <aside className="order-2 flex w-full shrink-0 flex-col border-t bg-card lg:order-none lg:w-80 lg:border-r lg:border-t-0">
           <div className="border-b p-3">
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="w-full">
@@ -120,7 +120,7 @@ export default function FieldPage() {
           )}
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <div className="order-1 h-[52vh] min-w-0 lg:order-none lg:h-auto lg:flex-1">
           <FieldMap reps={reps ?? []} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
       </div>
