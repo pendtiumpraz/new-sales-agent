@@ -5,8 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import * as db from "./data";
 import type { AiResponse, DealStage } from "@/lib/types";
 
-// Simulated network latency so loading skeletons are visible (build.md §15).
-function settle<T>(data: T, ms = 280): Promise<T> {
+// Small simulated latency so loading skeletons flash briefly (kept short so
+// navigation feels instant).
+function settle<T>(data: T, ms = 160): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms));
 }
 

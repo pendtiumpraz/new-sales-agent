@@ -39,10 +39,16 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind 3.4 + classic shadcn/ui
 
 ```bash
 npm install
-npm run seed   # regenerate the 14 mock JSON files (deterministic, seed: 2026)
-npm run dev    # http://localhost:3000
-npm run build  # production verify (all 22 routes prerender)
+npm run seed     # regenerate the mock JSON files (deterministic, seed: 2026)
+npm run dev      # http://localhost:3000 (Turbopack — fast compiles)
+npm run preview  # production build + serve — use this for demos (instant nav)
 ```
+
+> **Demo tip:** `npm run dev` compiles each route on first visit, so the *first*
+> click to a page can take a few seconds. For a smooth live demo run
+> `npm run preview` (production build) — client-side navigation is then instant.
+> If `next start` ever 500s with `MODULE_NOT_FOUND: _document`, clear the stale
+> cache: `rm -rf .next` then rebuild.
 
 ## File map
 

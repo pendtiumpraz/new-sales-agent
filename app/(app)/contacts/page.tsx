@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { ConsentBadge } from "@/components/shared/consent-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { TempBadge } from "@/components/shared/temp-badge";
 import { ContactDetailSheet } from "@/components/contacts/contact-detail-sheet";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,6 +49,7 @@ import {
 import { useContacts } from "@/lib/api-mock/hooks";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
+import { leadScore } from "@/lib/utils/lead-score";
 import type { Contact, ConsentStatus } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -130,6 +132,15 @@ export default function ContactsPage() {
               <span className="text-muted-foreground">{channelMeta(ch).label}</span>
             </span>
           );
+        },
+      },
+      {
+        id: "aiScore",
+        accessorFn: (c) => leadScore(c).score,
+        header: "Skor AI",
+        cell: ({ row }) => {
+          const { score, temp } = leadScore(row.original);
+          return <TempBadge score={score} temp={temp} />;
         },
       },
       {
@@ -306,14 +317,14 @@ export default function ContactsPage() {
                 {isLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : pageRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                       Tidak ada kontak yang cocok dengan filter.
                     </TableCell>
                   </TableRow>

@@ -13,7 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { TempBadge } from "@/components/prospecting/temp-badge";
+import { TempBadge } from "@/components/shared/temp-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

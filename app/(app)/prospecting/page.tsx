@@ -14,7 +14,7 @@ import {
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { TempBadge } from "@/components/prospecting/temp-badge";
+import { TempBadge } from "@/components/shared/temp-badge";
 import { ProspectSheet } from "@/components/prospecting/prospect-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ const SOURCE_LABEL: Record<string, string> = {
 export default function ProspectingPage() {
   const prospects = useProspectingStore((s) => s.prospects);
   const inbound = useProspectingStore((s) => s.inbound);
+  const crawl = useProspectingStore((s) => s.crawl);
   const enrich = useProspectingStore((s) => s.enrich);
   const enrichMany = useProspectingStore((s) => s.enrichMany);
   const addManyToCrm = useProspectingStore((s) => s.addManyToCrm);
@@ -112,9 +113,11 @@ export default function ProspectingPage() {
         description="Temukan, perkaya, dan skor lead baru — lalu kirim ke outbound."
       >
         <Button
-          onClick={() =>
-            toast.success("Crawl selesai — 12 prospek baru ditemukan dari LinkedIn & web.")
-          }
+          onClick={() => {
+            const n = 6 + Math.floor(Math.random() * 7); // 6–12
+            crawl(n);
+            toast.success(`Crawl selesai — ${n} prospek baru ditemukan dari LinkedIn & web.`);
+          }}
         >
           <Globe className="h-4 w-4" />
           Crawl prospek baru
