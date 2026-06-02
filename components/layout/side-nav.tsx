@@ -49,6 +49,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { cn } from "@/lib/utils";
 
@@ -72,13 +73,14 @@ const NOTIFS = [
 ];
 
 function handleLogout(router: ReturnType<typeof useRouter>) {
-  // Prototype "logout" — no auth state to clear, but we reset volatile UI state
-  // and route back to the marketing landing page.
+  // Resets volatile UI state, clears the auth session back to the default
+  // Superadmin shell, then bounces to the marketing landing page.
   useUiStore.setState({
     sidebarCollapsed: false,
     aiPanelOpen: false,
     inboxPanelOpen: true,
   });
+  useAuthStore.getState().logout();
   toast.success("Anda telah keluar dari sesi");
   router.push("/");
 }
@@ -202,6 +204,7 @@ export function TopBar() {
   const pathname = usePathname();
   const tn = useTranslations("nav");
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const currentUser = useAuthStore((s) => s.currentUser);
 
   return (
     <header className="glass sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b px-3 sm:px-4">
@@ -306,21 +309,35 @@ export function TopBar() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="ml-1 flex items-center gap-2 rounded-full pl-1 pr-2 outline-none ring-offset-background transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-            <UserAvatar name="Andi Hidayat" color="#14B8A6" className="h-8 w-8" />
+            <UserAvatar
+              name={currentUser.name}
+              color={currentUser.avatarColor}
+              className="h-8 w-8"
+            />
             <div className="hidden flex-col text-left leading-tight md:flex">
-              <span className="text-sm font-medium">Andi Hidayat</span>
+              <span className="text-sm font-medium">{currentUser.name}</span>
               <span className="text-xs text-muted-foreground">
-                andi@agentic.co.id
+                {currentUser.role}
               </span>
             </div>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Andi Hidayat</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium">{currentUser.name}</span>
               <span className="text-xs font-normal text-muted-foreground">
-                andi@agentic.co.id
+                {currentUser.email}
+              </span>
+              <span
+                className={cn(
+                  "mt-1 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  currentUser.role === "Superadmin"
+                    ? "bg-primary/15 text-primary"
+                    : "bg-secondary text-secondary-foreground",
+                )}
+              >
+                {currentUser.role}
               </span>
             </div>
           </DropdownMenuLabel>
