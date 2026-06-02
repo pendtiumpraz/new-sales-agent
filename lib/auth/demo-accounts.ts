@@ -18,7 +18,7 @@ export interface DemoAccount {
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: "u_superadmin",
-    name: "Almir Arana",
+    name: "Almira Rana",
     email: "superadmin@agentic.co.id",
     password: "super1234",
     role: "Superadmin",
