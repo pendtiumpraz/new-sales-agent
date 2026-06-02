@@ -23,10 +23,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useActivity,
+  useCadences,
   useConversations,
-  useDashboard,
+  useDeals,
   useTasks,
 } from "@/lib/api-mock/hooks";
+import type { DealStage } from "@/lib/types";
 import { formatIDR, formatIDRCompact } from "@/lib/utils/format-idr";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
@@ -39,7 +41,15 @@ const PipelineStageChart = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-[280px] w-full" /> },
 );
 
-const STAGE_LABEL: Record<string, string> = {
+const STAGE_ORDER: DealStage[] = [
+  "prospek",
+  "kualifikasi",
+  "penawaran",
+  "negosiasi",
+  "tutup",
+];
+
+const STAGE_LABEL: Record<DealStage, string> = {
   prospek: "Prospek",
   kualifikasi: "Kualifikasi",
   penawaran: "Penawaran",
@@ -61,32 +71,127 @@ const CHANNEL_FILTERS = [
   { key: "email", label: "Email" },
   { key: "instagram", label: "Instagram" },
   { key: "tokopedia", label: "Tokopedia" },
-];
+] as const;
+
+type ChannelKey = (typeof CHANNEL_FILTERS)[number]["key"];
+
+// Fixed "today" matches the data seed so KPIs stay deterministic.
+const NOW = new Date("2026-05-25T10:00:00+07:00").getTime();
+const WEEK_AHEAD = NOW + 7 * 864e5;
 
 export default function DashboardPage() {
-  const { data: kpi, isLoading } = useDashboard();
+  const { data: deals, isLoading: dealsLoading } = useDeals();
+  const { data: conversations } = useConversations();
+  const { data: cadences } = useCadences();
   const { data: tasks } = useTasks();
   const { data: activity } = useActivity();
-  const { data: conversations } = useConversations();
   const [done, setDone] = useState<Set<string>>(new Set());
-  const [channel, setChannel] = useState("all");
+  const [channel, setChannel] = useState<ChannelKey>("all");
+
+  // ── Channel-filtered slices ────────────────────────────────────────────
+  // Every section below derives from these — flipping the channel re-renders
+  // the hero, KPI tiles, tasks, funnel, and activity feed.
+  const filtered = useMemo(() => {
+    const isAll = channel === "all";
+    const f = {
+      deals: (deals ?? []).filter(
+        (d) => isAll || d.sourceChannel === channel,
+      ),
+      conversations: (conversations ?? []).filter(
+        (c) => isAll || c.channel === channel,
+      ),
+      cadences: (cadences ?? []).filter(
+        (c) => isAll || c.channelMix.includes(channel as never),
+      ),
+      tasks: (tasks ?? []).filter((t) => isAll || t.channel === channel),
+      activity: (activity ?? []).filter((a) => isAll || a.channel === channel),
+    };
+    return f;
+  }, [deals, conversations, cadences, tasks, activity, channel]);
+
+  // ── KPIs derived from the filtered slices ──────────────────────────────
+  const kpi = useMemo(() => {
+    const openDeals = filtered.deals.filter((d) => d.stage !== "tutup");
+    const pipelineValue = openDeals.reduce((s, d) => s + d.value, 0);
+    const closing = filtered.deals.filter(
+      (d) => +new Date(d.expectedClose) <= WEEK_AHEAD && d.stage !== "tutup",
+    );
+    const closingValue = closing.reduce((s, d) => s + d.value, 0);
+
+    const activeCadences = filtered.cadences.filter((c) => c.status === "active");
+    const enrolled = activeCadences.reduce((s, c) => s + c.enrolled, 0);
+
+    // Response rate from the filtered conversations — replied = unread 0.
+    // For "all" this is across every channel; for a specific channel it's the
+    // share of conversations on that channel without unread messages.
+    const totalConvos = filtered.conversations.length;
+    const replied = filtered.conversations.filter((c) => c.unread === 0).length;
+    const responseRate =
+      totalConvos > 0 ? Math.round((replied / totalConvos) * 100) : 0;
+    const unanswered = filtered.conversations.reduce(
+      (s, c) => s + c.unread,
+      0,
+    );
+
+    const funnel = STAGE_ORDER.map((stage) => ({
+      stage,
+      count: filtered.deals.filter((d) => d.stage === stage).length,
+      value: filtered.deals
+        .filter((d) => d.stage === stage)
+        .reduce((s, d) => s + d.value, 0),
+    }));
+
+    return {
+      pipelineValue,
+      pipelineChange: 12.4, // mocked trend — same regardless of slice
+      closingCount: closing.length,
+      closingValue,
+      responseRate,
+      unanswered,
+      activeCadences: activeCadences.length,
+      enrolled,
+      funnel,
+      totalConvos,
+    };
+  }, [filtered]);
 
   const taskHref = (ch: string) => {
-    const convo = conversations?.find((c) => c.channel === ch);
+    const convo = (conversations ?? []).find((c) => c.channel === ch);
     return convo ? `/inbox/${convo.id}` : "/inbox";
   };
 
   const funnelData =
-    kpi?.funnel.map((f, i) => ({
+    kpi.funnel.map((f, i) => ({
       label: STAGE_LABEL[f.stage],
       value: f.count,
       fill: FUNNEL_FILL[i],
     })) ?? [];
 
-  const totalDeals = kpi?.funnel.reduce((s, f) => s + f.count, 0) ?? 0;
-  const filteredActivity = (activity ?? []).filter(
-    (a) => channel === "all" || a.channel === channel,
-  );
+  const totalDeals = kpi.funnel.reduce((s, f) => s + f.count, 0);
+  const activeLabel = CHANNEL_FILTERS.find((f) => f.key === channel)?.label;
+  const isAll = channel === "all";
+
+  // Per-channel labels keep the KPI tile copy honest.
+  const responseLabel =
+    channel === "whatsapp"
+      ? "Respon WhatsApp"
+      : channel === "email"
+        ? "Respon Email"
+        : channel === "instagram"
+          ? "Respon Instagram"
+          : channel === "tokopedia"
+            ? "Pesanan Tokopedia"
+            : "Respon pelanggan";
+  const responseAccent =
+    channel === "whatsapp"
+      ? "#25D366"
+      : channel === "email"
+        ? "#6366F1"
+        : channel === "instagram"
+          ? "#E1306C"
+          : channel === "tokopedia"
+            ? "#03AC0E"
+            : "#14B8A6";
 
   return (
     <div>
@@ -117,6 +222,12 @@ export default function DashboardPage() {
               {f.label}
             </button>
           ))}
+          {!isAll && (
+            <Badge variant="secondary" className="ml-1 gap-1.5 text-[11px]">
+              <ChannelDot channel={channel} size={7} />
+              Memfilter semua kartu di bawah ke {activeLabel}
+            </Badge>
+          )}
         </div>
 
         {/* Band 1: hero + stat cluster */}
@@ -130,44 +241,54 @@ export default function DashboardPage() {
                 </span>
                 <Badge variant="success" className="gap-1">
                   <ArrowUpRight className="h-3 w-3" />
-                  +{kpi?.pipelineChange ?? 0}%
+                  +{kpi.pipelineChange}%
                 </Badge>
               </div>
-              <p className="mt-5 text-sm text-muted-foreground">Nilai Pipeline</p>
-              {isLoading ? (
+              <p className="mt-5 text-sm text-muted-foreground">
+                Nilai Pipeline{!isAll ? ` · ${activeLabel}` : ""}
+              </p>
+              {dealsLoading ? (
                 <Skeleton className="mt-1 h-10 w-44" />
               ) : (
                 <p className="tnum mt-1 text-4xl font-semibold tracking-tight">
-                  {formatIDRCompact(kpi?.pipelineValue ?? 0)}
+                  {formatIDRCompact(kpi.pipelineValue)}
                 </p>
               )}
               <p className="mt-1 text-xs text-muted-foreground">
-                {kpi?.closingCount ?? 0} deal closing minggu ini ·{" "}
-                {kpi ? formatIDR(kpi.closingValue) : ""}
+                {kpi.closingCount} deal closing minggu ini ·{" "}
+                {formatIDR(kpi.closingValue)}
               </p>
 
               {/* Stage distribution mini-bar */}
               <div className="mt-auto pt-6">
-                <div className="flex h-2.5 w-full overflow-hidden rounded-full">
-                  {funnelData.map((f, i) => (
-                    <div
-                      key={i}
-                      title={`${f.label}: ${f.value}`}
-                      style={{
-                        width: `${totalDeals ? (f.value / totalDeals) * 100 : 0}%`,
-                        backgroundColor: f.fill,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                  {funnelData.map((f, i) => (
-                    <span key={i} className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: f.fill }} />
-                      {f.label} {f.value}
-                    </span>
-                  ))}
-                </div>
+                {totalDeals === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Tidak ada deal aktif di channel ini.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+                      {funnelData.map((f, i) => (
+                        <div
+                          key={i}
+                          title={`${f.label}: ${f.value}`}
+                          style={{
+                            width: `${(f.value / totalDeals) * 100}%`,
+                            backgroundColor: f.fill,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                      {funnelData.map((f, i) => (
+                        <span key={i} className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: f.fill }} />
+                          {f.label} {f.value}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -175,36 +296,46 @@ export default function DashboardPage() {
           {/* Stat cluster (2x2) */}
           <div className="grid gap-4 sm:grid-cols-2 lg:col-span-7">
             <StatTile
-              loading={isLoading}
+              loading={dealsLoading}
               icon={<MessageCircle className="h-5 w-5" />}
-              accent="#25D366"
-              label="Respon WhatsApp"
-              value={kpi ? `${kpi.waResponseRate}%` : ""}
-              sub={`${kpi?.waUnanswered ?? 0} belum dibalas`}
+              accent={responseAccent}
+              label={responseLabel}
+              value={
+                kpi.totalConvos > 0
+                  ? channel === "tokopedia"
+                    ? `${kpi.totalConvos}`
+                    : `${kpi.responseRate}%`
+                  : "—"
+              }
+              sub={
+                kpi.totalConvos > 0
+                  ? `${kpi.unanswered} belum dibalas`
+                  : "Tidak ada percakapan di channel ini"
+              }
             />
             <StatTile
-              loading={isLoading}
+              loading={dealsLoading}
               icon={<CheckCircle2 className="h-5 w-5" />}
               accent="#14B8A6"
-              label="Closing minggu ini"
-              value={kpi ? `${kpi.closingCount}` : ""}
-              sub={kpi ? formatIDR(kpi.closingValue) : ""}
+              label={isAll ? "Closing minggu ini" : `Closing · ${activeLabel}`}
+              value={`${kpi.closingCount}`}
+              sub={formatIDR(kpi.closingValue)}
             />
             <StatTile
-              loading={isLoading}
+              loading={dealsLoading}
               icon={<Workflow className="h-5 w-5" />}
               accent="#F59E0B"
-              label="Cadence aktif"
-              value={kpi ? `${kpi.activeCadences}` : ""}
-              sub={`${kpi?.enrolled ?? 0} kontak terdaftar`}
+              label={isAll ? "Cadence aktif" : `Cadence · ${activeLabel}`}
+              value={`${kpi.activeCadences}`}
+              sub={`${kpi.enrolled} kontak terdaftar`}
             />
             <StatTile
-              loading={isLoading}
+              loading={dealsLoading}
               icon={<Users className="h-5 w-5" />}
-              accent="#3B82F6"
+              accent="#FB5E3B"
               label="Kontak dalam cadence"
-              value={kpi ? `${kpi.enrolled}` : ""}
-              sub="lintas semua channel"
+              value={`${kpi.enrolled}`}
+              sub={isAll ? "lintas semua channel" : `via ${activeLabel}`}
             />
           </div>
         </div>
@@ -213,55 +344,75 @@ export default function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-12">
           <Card className="lg:col-span-7">
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>Tugas hari ini</CardTitle>
-              <Badge variant="secondary">{(tasks?.length ?? 0) - done.size} tersisa</Badge>
+              <CardTitle>
+                Tugas hari ini{!isAll ? ` · ${activeLabel}` : ""}
+              </CardTitle>
+              <Badge variant="secondary">
+                {(filtered.tasks.length ?? 0) - done.size} tersisa
+              </Badge>
             </CardHeader>
             <CardContent className="p-0">
-              <ul className="divide-y">
-                {(tasks ?? []).map((task) => {
-                  const isDone = done.has(task.id);
-                  return (
-                    <li
-                      key={task.id}
-                      className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/40"
-                    >
-                      <Checkbox
-                        checked={isDone}
-                        onCheckedChange={() =>
-                          setDone((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(task.id)) next.delete(task.id);
-                            else next.add(task.id);
-                            return next;
-                          })
-                        }
-                      />
-                      <Link href={taskHref(task.channel)} className="flex min-w-0 flex-1 items-center gap-3">
-                        <ChannelDot channel={task.channel} size={8} />
-                        <div className="min-w-0 flex-1">
-                          <p className={cn("truncate text-sm font-medium", isDone && "text-muted-foreground line-through")}>
-                            {task.title}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">{task.contactName}</p>
-                        </div>
-                      </Link>
-                      <Badge variant={PRIORITY[task.priority]}>{task.priority}</Badge>
-                      <span className="hidden w-20 text-right text-xs text-muted-foreground sm:block">
-                        {task.due}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              {filtered.tasks.length === 0 ? (
+                <p className="px-6 py-8 text-center text-sm text-muted-foreground">
+                  Tidak ada tugas untuk channel ini.
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {filtered.tasks.map((task) => {
+                    const isDone = done.has(task.id);
+                    return (
+                      <li
+                        key={task.id}
+                        className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/40"
+                      >
+                        <Checkbox
+                          checked={isDone}
+                          onCheckedChange={() =>
+                            setDone((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(task.id)) next.delete(task.id);
+                              else next.add(task.id);
+                              return next;
+                            })
+                          }
+                        />
+                        <Link href={taskHref(task.channel)} className="flex min-w-0 flex-1 items-center gap-3">
+                          <ChannelDot channel={task.channel} size={8} />
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("truncate text-sm font-medium", isDone && "text-muted-foreground line-through")}>
+                              {task.title}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">{task.contactName}</p>
+                          </div>
+                        </Link>
+                        <Badge variant={PRIORITY[task.priority]}>{task.priority}</Badge>
+                        <span className="hidden w-20 text-right text-xs text-muted-foreground sm:block">
+                          {task.due}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </CardContent>
           </Card>
 
           <Card className="lg:col-span-5">
             <CardHeader>
-              <CardTitle>Deal per tahap</CardTitle>
+              <CardTitle>
+                Deal per tahap{!isAll ? ` · ${activeLabel}` : ""}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? <Skeleton className="h-[280px] w-full" /> : <PipelineStageChart data={funnelData} />}
+              {dealsLoading ? (
+                <Skeleton className="h-[280px] w-full" />
+              ) : totalDeals === 0 ? (
+                <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+                  Tidak ada deal aktif di channel ini.
+                </div>
+              ) : (
+                <PipelineStageChart data={funnelData} />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -269,22 +420,24 @@ export default function DashboardPage() {
         {/* Band 3: activity */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle>Aktivitas terbaru</CardTitle>
-            {channel !== "all" && (
+            <CardTitle>
+              Aktivitas terbaru{!isAll ? ` · ${activeLabel}` : ""}
+            </CardTitle>
+            {!isAll && (
               <Badge variant="secondary" className="gap-1.5">
                 <ChannelDot channel={channel} size={8} />
-                {CHANNEL_FILTERS.find((f) => f.key === channel)?.label}
+                {activeLabel}
               </Badge>
             )}
           </CardHeader>
           <CardContent className="p-0">
-            {filteredActivity.length === 0 ? (
+            {filtered.activity.length === 0 ? (
               <p className="px-6 py-8 text-center text-sm text-muted-foreground">
                 Tidak ada aktivitas untuk channel ini.
               </p>
             ) : (
               <ul className="divide-y">
-                {filteredActivity.map((a) => (
+                {filtered.activity.map((a) => (
                   <li key={a.id} className="flex items-center gap-3 px-6 py-3">
                     <UserAvatar name={a.actor} className="h-8 w-8" />
                     <p className="flex-1 text-sm">
