@@ -140,6 +140,19 @@ export function useDashboard() {
   });
 }
 
+// TODO(gap-b): Migrate any remaining callers to `composeKbReply` from
+// `@/lib/utils/compose-kb-reply`, then delete this function + the
+// `aiResponses` seed data in `lib/api-mock/data.ts` and the `AiResponse`
+// type in `lib/types.ts`. The global AI assistant (`components/ai/ai-chat.tsx`)
+// is already migrated. This rule-based matcher is kept temporarily for
+// backwards compatibility with any legacy surface not yet ported.
+/**
+ * @deprecated Use `composeKbReply(prompt, kb)` from `@/lib/utils/compose-kb-reply`
+ * instead. The new composer reads the live Knowledge Base (products, pricing,
+ * segments, strategy notes, upsell rules, retention flows) and returns a
+ * grounded multi-paragraph reply + source citations — closing Gap B
+ * (feature-revisions.md §4).
+ */
 export function matchAiResponse(prompt: string): AiResponse {
   const p = prompt.toLowerCase();
   const hit = db.aiResponses.find(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, ShieldCheck } from "lucide-react";
+import { BrainCircuit, ChevronRight, ShieldCheck } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -69,6 +69,23 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Link href="/settings/knowledge-base">
+              <Card className="transition-shadow hover:shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <BrainCircuit className="h-5 w-5" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-medium">Basis Pengetahuan AI</p>
+                    <p className="text-xs text-muted-foreground">
+                      Produk, harga, segmen, & alur retensi — sumber data Advanced RAG
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
 
             <Link href="/settings/compliance">
               <Card className="transition-shadow hover:shadow-sm">

@@ -1,4 +1,4 @@
-import { TopNav } from "@/components/layout/top-nav";
+import { SideNav, TopBar } from "@/components/layout/side-nav";
 
 export default function AppLayout({
   children,
@@ -6,9 +6,12 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
-      <TopNav />
-      <main className="min-w-0">{children}</main>
+    <div className="flex min-h-screen bg-background">
+      <SideNav />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   );
 }
