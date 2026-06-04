@@ -280,6 +280,35 @@ export function TopBar() {
         <TooltipContent side="bottom">Cari (⌘K)</TooltipContent>
       </Tooltip>
 
+      {/* AI assistant — visible on every viewport so it's never missing on
+          mobile where the sidebar (and its bottom dock) is hidden. */}
+      <Sheet>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10"
+              >
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="hidden lg:inline">Asisten</span>
+              </Button>
+            </SheetTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Asisten Sales</TooltipContent>
+        </Tooltip>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
+          <SheetHeader className="border-b">
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Asisten Sales
+            </SheetTitle>
+          </SheetHeader>
+          <AiChat className="flex-1" />
+        </SheetContent>
+      </Sheet>
+
       <LanguageToggle className="hidden sm:inline-flex" />
 
       {/* Notifications */}
