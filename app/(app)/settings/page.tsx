@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, ShieldCheck } from "lucide-react";
+import { BrainCircuit, ChevronRight, ShieldCheck } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -15,12 +15,23 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DEMO_ACCOUNTS } from "@/lib/auth/demo-accounts";
 
+// Pengguna list = demo accounts + one extra rep, surfaced in the workspace
+// so the Superadmin can see who has seats.
 const USERS = [
-  { name: "Andi Hidayat", email: "andi@agentic.co.id", role: "Admin" },
-  { name: "Rina Permata", email: "rina@agentic.co.id", role: "Sales Manager" },
-  { name: "Teguh Saputra", email: "teguh@agentic.co.id", role: "Sales Rep" },
-  { name: "Maya Kusuma", email: "maya@agentic.co.id", role: "Sales Rep" },
+  ...DEMO_ACCOUNTS.map((a) => ({
+    name: a.name,
+    email: a.email,
+    role: a.role,
+    avatarColor: a.avatarColor,
+  })),
+  {
+    name: "Maya Kusuma",
+    email: "maya@agentic.co.id",
+    role: "Sales Rep",
+    avatarColor: "#A855F7",
+  },
 ];
 
 const INTEGRATIONS = [
@@ -70,6 +81,23 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            <Link href="/settings/knowledge-base">
+              <Card className="transition-shadow hover:shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <BrainCircuit className="h-5 w-5" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-medium">Basis Pengetahuan AI</p>
+                    <p className="text-xs text-muted-foreground">
+                      Produk, harga, segmen, & alur retensi — sumber data Advanced RAG
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
+
             <Link href="/settings/compliance">
               <Card className="transition-shadow hover:shadow-sm">
                 <CardContent className="flex items-center gap-3 p-4">
@@ -94,12 +122,22 @@ export default function SettingsPage() {
                 <ul className="divide-y">
                   {USERS.map((u) => (
                     <li key={u.email} className="flex items-center gap-3 p-4">
-                      <UserAvatar name={u.name} />
+                      <UserAvatar name={u.name} color={u.avatarColor} />
                       <div className="flex-1">
                         <p className="text-sm font-medium">{u.name}</p>
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
-                      <Badge variant="secondary">{u.role}</Badge>
+                      <Badge
+                        variant={
+                          u.role === "Superadmin"
+                            ? "destructive"
+                            : u.role === "Admin"
+                              ? "warning"
+                              : "secondary"
+                        }
+                      >
+                        {u.role}
+                      </Badge>
                     </li>
                   ))}
                 </ul>

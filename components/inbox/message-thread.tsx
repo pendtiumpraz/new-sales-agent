@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   CheckCheck,
+  HandHeart,
   Paperclip,
   PanelRightClose,
   PanelRightOpen,
   Send,
+  ShieldAlert,
   Sparkles,
+  UserCheck,
 } from "lucide-react";
 
+import { AutoReplyCard } from "@/components/inbox/auto-reply-card";
+import { SentimentBadge } from "@/components/inbox/sentiment-badge";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -23,7 +28,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getAiDraft, getSentiment } from "@/lib/api-mock/handoff";
 import { useConversation } from "@/lib/api-mock/hooks";
+import { useHandoffStore } from "@/lib/stores/handoff-store";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatTimeID } from "@/lib/utils/format-date-id";
@@ -41,17 +48,57 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
   const { data, isLoading } = useConversation(conversationId);
   const togglePanel = useUiStore((s) => s.toggleInboxPanel);
   const panelOpen = useUiStore((s) => s.inboxPanelOpen);
+  const autoReplyEnabled = useHandoffStore((s) => s.config.autoReplyEnabled);
+  const handoffState = useHandoffStore((s) => s.states[conversationId]);
+  const activeTriggers = useHandoffStore((s) =>
+    s.getActiveTriggers(conversationId),
+  );
+  const takeOver = useHandoffStore((s) => s.takeOver);
   const [sent, setSent] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
+  const [dismissedDraft, setDismissedDraft] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Reset locally-sent messages when switching conversations.
   useEffect(() => {
     setSent([]);
     setDraft("");
+    setDismissedDraft(false);
   }, [conversationId]);
 
   const all = data ? [...data.messages, ...sent] : [];
+  const sentiment = useMemo(() => getSentiment(conversationId), [conversationId]);
+  const handedOff = handoffState?.status === "handed-off";
+  const lastMessage = all[all.length - 1];
+  const aiDraft = useMemo(
+    () => (data?.conversation ? getAiDraft(conversationId, data.conversation.contactName) : ""),
+    [conversationId, data?.conversation],
+  );
+  // Serialize the last 3–5 messages for the AI Gateway call. Bahasa labels
+  // ("Pelanggan:" / "Anda:") help the model and our heuristic seed extractor
+  // detect inbound vs outbound turns.
+  const conversationContext = useMemo(() => {
+    if (!data?.conversation) return "";
+    const tail = all.slice(-5);
+    return tail
+      .map((m) => {
+        const speaker = m.direction === "in" ? "Pelanggan" : "Anda";
+        const body = (m.body ?? "").trim();
+        return body ? `${speaker}: ${body}` : null;
+      })
+      .filter((line): line is string => Boolean(line))
+      .join("\n");
+  }, [all, data?.conversation]);
+  // Show the auto-reply card when: auto-reply is on, NOT yet handed off,
+  // last message came from the prospect, user hasn't dismissed it locally,
+  // and no draft is being composed.
+  const showAutoReply =
+    autoReplyEnabled &&
+    !handedOff &&
+    !dismissedDraft &&
+    !draft.trim() &&
+    lastMessage?.direction === "in";
+  const showHandoffBanner = activeTriggers.length > 0 && !handedOff;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -116,10 +163,23 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
         </Button>
         <UserAvatar name={convo.contactName} color={convo.avatarColor} className="h-10 w-10" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{convo.contactName}</p>
+          <div className="flex items-center gap-2">
+            <p className="truncate font-semibold">{convo.contactName}</p>
+            <SentimentBadge
+              score={sentiment.score}
+              trend={sentiment.trend}
+              size="compact"
+            />
+          </div>
           <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
             <ChannelDot channel={channel} size={8} />
             {meta.label} · {convo.company}
+            {handedOff && (
+              <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-tertiary/15 px-1.5 py-0.5 text-[10px] font-medium text-tertiary">
+                <UserCheck className="h-2.5 w-2.5" />
+                Diambil alih oleh Anda
+              </span>
+            )}
           </p>
         </div>
         <Tooltip>
@@ -137,6 +197,37 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
           </TooltipContent>
         </Tooltip>
       </div>
+
+      {/* Handoff trigger banner */}
+      {showHandoffBanner && (
+        <div className="flex items-center gap-2 border-b border-rose-200 bg-rose-50/80 px-4 py-2 text-xs">
+          <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
+          <span className="flex-1 text-rose-700">
+            <strong className="font-semibold">Pemicu handoff aktif:</strong>{" "}
+            {activeTriggers
+              .map((t) =>
+                t === "sentiment"
+                  ? "sentimen turun"
+                  : t === "timeout"
+                    ? "tanpa respons"
+                    : "topik kompleks",
+              )
+              .join(" · ")}
+            . AI menyarankan eskalasi ke agen.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 border-rose-300 bg-white text-rose-700 hover:bg-rose-100"
+            onClick={() => {
+              takeOver(conversationId, "Anda");
+            }}
+          >
+            <HandHeart className="h-3.5 w-3.5" />
+            Ambil alih
+          </Button>
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -157,8 +248,37 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
 
       {/* Composer */}
       <div className="border-t bg-card p-3">
-        <div className="mx-auto max-w-3xl">
-          {!draft.trim() && (
+        <div className="mx-auto max-w-3xl space-y-2">
+          {showAutoReply && (
+            <AutoReplyCard
+              conversationId={conversationId}
+              conversationContext={conversationContext}
+              contactName={convo.contactName}
+              company={convo.company}
+              initialDraft={aiDraft}
+              onApprove={(liveDraft) => {
+                const body = (liveDraft || aiDraft).trim();
+                if (!body) return;
+                setSent((s) => [
+                  ...s,
+                  {
+                    id: `local_${Date.now()}`,
+                    conversationId,
+                    direction: "out",
+                    body,
+                    timestamp: new Date().toISOString(),
+                    status: "sent",
+                  },
+                ]);
+                setDismissedDraft(true);
+              }}
+              onEdit={(liveDraft) => {
+                setDraft(liveDraft || aiDraft);
+                setDismissedDraft(true);
+              }}
+            />
+          )}
+          {!draft.trim() && !showAutoReply && (
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
               <span className="flex items-center gap-1 text-[11px] font-medium text-tertiary">
                 <Sparkles className="h-3 w-3" />

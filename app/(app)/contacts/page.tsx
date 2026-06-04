@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type ColumnDef,
   type SortingState,
@@ -15,8 +16,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Eye,
+  Mail,
+  MessagesSquare,
+  MoreHorizontal,
   Plus,
   Search,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 
@@ -39,6 +45,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -46,10 +59,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useContacts } from "@/lib/api-mock/hooks";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { ProspectingPanel } from "@/components/prospecting/prospecting-panel";
+import { useContacts, useConversations } from "@/lib/api-mock/hooks";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { leadScore } from "@/lib/utils/lead-score";
+import { cn } from "@/lib/utils";
 import type { Contact, ConsentStatus } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -60,7 +81,20 @@ const CONSENT_LABEL: Record<ConsentStatus, string> = {
 };
 
 export default function ContactsPage() {
+  // useSearchParams requires a Suspense boundary at the page level (Next 14
+  // static-prerender constraint). The inner component reads the query string.
+  return (
+    <Suspense fallback={<div className="p-6">Memuat kontak...</div>}>
+      <ContactsPageInner />
+    </Suspense>
+  );
+}
+
+function ContactsPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: contacts, isLoading } = useContacts();
+  const { data: conversations } = useConversations();
   const [search, setSearch] = useState("");
   const [industries, setIndustries] = useState<Set<string>>(new Set());
   const [cities, setCities] = useState<Set<string>>(new Set());
@@ -70,6 +104,31 @@ export default function ContactsPage() {
   const [detail, setDetail] = useState<Contact | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Wave 3 — side-nav profile dock links to `/contacts?view=inbox`. When that
+  // is active, sort contacts with unread WA messages first and show a banner.
+  const view = searchParams.get("view");
+  const inboxView = view === "inbox";
+
+  // Discovery tab folds the legacy /prospecting page into Contacts. Persisted
+  // in the URL so deep links from /prospecting (which redirects) land correctly.
+  const activeTab = searchParams.get("tab") === "discovery" ? "discovery" : "contacts";
+  function setTab(next: "contacts" | "discovery") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "contacts") params.delete("tab");
+    else params.set("tab", "discovery");
+    const qs = params.toString();
+    router.push(qs ? `/contacts?${qs}` : "/contacts");
+  }
+
+  // Unread map (contactId -> total unread across channels) drives the inbox sort.
+  const unreadByContact = useMemo(() => {
+    const m = new Map<string, number>();
+    (conversations ?? []).forEach((c) => {
+      m.set(c.contactId, (m.get(c.contactId) ?? 0) + c.unread);
+    });
+    return m;
+  }, [conversations]);
 
   const allIndustries = useMemo(
     () => uniq((contacts ?? []).map((c) => c.industry)).sort(),
@@ -94,24 +153,58 @@ export default function ContactsPage() {
           c.title.toLowerCase().includes(q),
       );
     }
+    if (inboxView) {
+      // Sort by unread desc, then last activity desc — surfaces the contacts
+      // that need a reply right now.
+      list = list.slice().sort((a, b) => {
+        const ua = unreadByContact.get(a.id) ?? 0;
+        const ub = unreadByContact.get(b.id) ?? 0;
+        if (ua !== ub) return ub - ua;
+        return (
+          new Date(b.lastActivity).getTime() -
+          new Date(a.lastActivity).getTime()
+        );
+      });
+    }
     return list;
-  }, [contacts, industries, cities, consents, search]);
+  }, [contacts, industries, cities, consents, search, inboxView, unreadByContact]);
+
+  // Auto-focus a contact passed via ?focus=ct_XXXX (opens the sheet).
+  useEffect(() => {
+    const focusId = searchParams.get("focus");
+    if (!focusId || !contacts) return;
+    const target = contacts.find((c) => c.id === focusId);
+    if (target) {
+      setDetail(target);
+      setSheetOpen(true);
+    }
+  }, [searchParams, contacts]);
 
   const columns = useMemo<ColumnDef<Contact>[]>(
     () => [
       {
         accessorKey: "name",
         header: "Nama",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2.5">
-            <UserAvatar
-              name={row.original.name}
-              color={row.original.avatarColor}
-              className="h-8 w-8 text-[11px]"
-            />
-            <span className="font-medium">{row.original.name}</span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const unread = unreadByContact.get(row.original.id) ?? 0;
+          return (
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <UserAvatar
+                  name={row.original.name}
+                  color={row.original.avatarColor}
+                  className="h-8 w-8 text-[11px]"
+                />
+                {unread > 0 && inboxView && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground ring-2 ring-card">
+                    {unread}
+                  </span>
+                )}
+              </div>
+              <span className="font-medium">{row.original.name}</span>
+            </div>
+          );
+        },
       },
       { accessorKey: "company", header: "Perusahaan" },
       {
@@ -159,8 +252,21 @@ export default function ContactsPage() {
           <ConsentBadge status={getValue<ConsentStatus>()} />
         ),
       },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <RowActions
+            contact={row.original}
+            onPreview={(c) => {
+              setDetail(c);
+              setSheetOpen(true);
+            }}
+          />
+        ),
+      },
     ],
-    [],
+    [unreadByContact, inboxView],
   );
 
   const table = useReactTable({
@@ -195,9 +301,33 @@ export default function ContactsPage() {
     });
   }
 
-  function openContact(c: Contact) {
-    setDetail(c);
-    setSheetOpen(true);
+  /**
+   * Wave 3 default: clicking a row opens the unified workspace. The classic
+   * detail sheet remains available via the row-level overflow menu and the
+   * `?focus=ct_XXXX` URL param (preserves backward compatibility for any
+   * existing deep links).
+   */
+  function openWorkspace(c: Contact) {
+    router.push(`/workspace/${c.id}`);
+  }
+
+  function openHero() {
+    // Header CTA — opens the workspace for whichever contact has the most
+    // recent unread activity, falling back to the first contact in the list.
+    const candidates = (contacts ?? []).slice().sort((a, b) => {
+      const ua = unreadByContact.get(a.id) ?? 0;
+      const ub = unreadByContact.get(b.id) ?? 0;
+      if (ua !== ub) return ub - ua;
+      return (
+        new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+      );
+    });
+    const target = candidates[0];
+    if (!target) {
+      toast.error("Belum ada kontak untuk dibuka di workspace.");
+      return;
+    }
+    router.push(`/workspace/${target.id}`);
   }
 
   function exportCsv() {
@@ -220,16 +350,72 @@ export default function ContactsPage() {
     toast.success(`${rows.length} kontak diekspor ke CSV.`);
   }
 
+  const headerTitle =
+    activeTab === "discovery"
+      ? "Kontak · Penemuan Lead"
+      : inboxView
+        ? "Kontak — fokus inbox"
+        : "Kontak";
+  const headerDescription =
+    activeTab === "discovery"
+      ? "Temukan lead baru, perkaya datanya, lalu kirim ke CRM atau cadence outbound."
+      : inboxView
+        ? `${unreadByContact.size} kontak dengan aktivitas terbaru. Pesan belum dibaca diutamakan.`
+        : `${(contacts ?? []).length} kontak dalam database Anda. Klik baris untuk membuka workspace terpadu.`;
+
   return (
     <div>
-      <PageHeader title="Kontak" description={`${(contacts ?? []).length} kontak dalam database Anda.`}>
-        <Button variant="outline">
-          <Plus className="h-4 w-4" />
-          Tambah kontak
-        </Button>
+      <PageHeader title={headerTitle} description={headerDescription}>
+        {activeTab === "contacts" && (
+          <>
+            <Button variant="outline">
+              <Plus className="h-4 w-4" />
+              Tambah kontak
+            </Button>
+            <Button onClick={openHero}>
+              <Sparkles className="h-4 w-4" />
+              Buka workspace terpadu
+            </Button>
+          </>
+        )}
       </PageHeader>
 
-      <div className="flex">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setTab(v as "contacts" | "discovery")}
+      >
+        <div className="border-b px-6 pt-2">
+          <TabsList>
+            <TabsTrigger value="contacts">Kontak</TabsTrigger>
+            <TabsTrigger value="discovery">Penemuan Lead</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="discovery" className="m-0">
+          <ProspectingPanel embedded />
+        </TabsContent>
+
+        <TabsContent value="contacts" className="m-0">
+          {/* Inbox view banner — explains the sort + offers a quick exit */}
+          {inboxView && (
+            <div className="flex items-center gap-2 border-b bg-tertiary/8 px-6 py-2.5 text-xs">
+              <MessagesSquare className="h-4 w-4 text-tertiary" />
+              <span className="flex-1">
+                Daftar diurutkan berdasarkan pesan belum dibaca. Klik kontak untuk
+                membuka workspace terpadu — chat + prospek + enrichment.
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => router.push("/contacts")}
+              >
+                Tampilkan semua
+              </Button>
+            </div>
+          )}
+
+          <div className="flex">
         {/* Filter sidebar */}
         <aside className="hidden w-60 shrink-0 space-y-5 border-r bg-card p-4 lg:block">
           <FilterGroup
@@ -307,7 +493,9 @@ export default function ContactsPage() {
                         onClick={h.column.getToggleSortingHandler()}
                       >
                         {flexRender(h.column.columnDef.header, h.getContext())}
-                        <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        {h.id !== "actions" && (
+                          <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        )}
                       </button>
                     </TableHead>
                   ))}
@@ -317,38 +505,53 @@ export default function ContactsPage() {
                 {isLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : pageRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                       Tidak ada kontak yang cocok dengan filter.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pageRows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="cursor-pointer"
-                      data-state={selected.has(row.original.id) ? "selected" : undefined}
-                      onClick={() => openContact(row.original)}
-                    >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selected.has(row.original.id)}
-                          onCheckedChange={() => toggleSel(row.original.id)}
-                        />
-                      </TableCell>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  pageRows.map((row) => {
+                    const unread = unreadByContact.get(row.original.id) ?? 0;
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          "cursor-pointer",
+                          inboxView && unread > 0 && "bg-tertiary/5",
+                        )}
+                        data-state={
+                          selected.has(row.original.id) ? "selected" : undefined
+                        }
+                        onClick={() => openWorkspace(row.original)}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selected.has(row.original.id)}
+                            onCheckedChange={() => toggleSel(row.original.id)}
+                          />
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            onClick={
+                              cell.column.id === "actions"
+                                ? (e) => e.stopPropagation()
+                                : undefined
+                            }
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -384,6 +587,9 @@ export default function ContactsPage() {
         </div>
       </div>
 
+        </TabsContent>
+      </Tabs>
+
       <ContactDetailSheet contact={detail} open={sheetOpen} onOpenChange={setSheetOpen} />
 
       {/* PDPA-aware delete confirmation */}
@@ -417,6 +623,49 @@ export default function ContactsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function RowActions({
+  contact,
+  onPreview,
+}: {
+  contact: Contact;
+  onPreview: (c: Contact) => void;
+}) {
+  const router = useRouter();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={() => router.push(`/workspace/${contact.id}`)}>
+          <Sparkles className="h-4 w-4" />
+          Buka workspace terpadu
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onPreview(contact)}>
+          <Eye className="h-4 w-4" />
+          Pratinjau cepat
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() =>
+            toast.success(`${contact.name} ditambahkan ke cadence.`)
+          }
+        >
+          <Mail className="h-4 w-4" />
+          Tambah ke cadence
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
