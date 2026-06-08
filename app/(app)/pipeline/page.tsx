@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LayoutGrid, ListChecks, Settings2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -10,9 +10,18 @@ import { AiAnalysisPanel } from "@/components/pipeline/ai-analysis-panel";
 import { ProductManagerDialog } from "@/components/pipeline/product-manager-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePipelineStore } from "@/lib/stores/pipeline-store";
 
 export default function PipelinePage() {
   const [productsOpen, setProductsOpen] = useState(false);
+
+  // Hydrate persisted deals from /api/db/deals once when the pipeline page mounts.
+  // The store's hydrateDeals is idempotent (guarded by `dealsHydrated` + in-flight
+  // promise) so this is safe across re-mounts and concurrent callers.
+  const hydrateDeals = usePipelineStore((s) => s.hydrateDeals);
+  useEffect(() => {
+    void hydrateDeals();
+  }, [hydrateDeals]);
 
   return (
     <div>

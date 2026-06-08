@@ -3,7 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 
 import * as db from "./data";
-import type { AiResponse, DealStage } from "@/lib/types";
+import type {
+  AiResponse,
+  Contact,
+  Conversation,
+  DealStage,
+  Message,
+} from "@/lib/types";
 
 // Small simulated latency so loading skeletons flash briefly (kept short so
 // navigation feels instant).
@@ -12,7 +18,14 @@ function settle<T>(data: T, ms = 160): Promise<T> {
 }
 
 export function useContacts() {
-  return useQuery({ queryKey: ["contacts"], queryFn: () => settle(db.contacts) });
+  return useQuery({
+    queryKey: ["contacts"],
+    queryFn: async () => {
+      const res = await fetch("/api/db/contacts");
+      const json = (await res.json()) as { data: Contact[] };
+      return json.data;
+    },
+  });
 }
 
 export function useDeals() {
@@ -22,20 +35,32 @@ export function useDeals() {
 export function useConversations() {
   return useQuery({
     queryKey: ["conversations"],
-    queryFn: () => settle(db.conversations),
+    queryFn: async () => {
+      const res = await fetch("/api/db/conversations");
+      const json = (await res.json()) as { data: Conversation[] };
+      return json.data;
+    },
   });
 }
 
 export function useConversation(id: string) {
   return useQuery({
     queryKey: ["conversation", id],
-    queryFn: () =>
-      settle({
-        conversation: db.conversations.find((c) => c.id === id) ?? null,
-        messages: db.messages
-          .filter((m) => m.conversationId === id)
-          .sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp)),
-      }),
+    queryFn: async () => {
+      const [convsRes, msgsRes] = await Promise.all([
+        fetch("/api/db/conversations"),
+        fetch(`/api/db/messages?conversationId=${encodeURIComponent(id)}`),
+      ]);
+      const conversations = ((await convsRes.json()) as { data: Conversation[] })
+        .data;
+      const messages = ((await msgsRes.json()) as { data: Message[] }).data;
+      return {
+        conversation: conversations.find((c) => c.id === id) ?? null,
+        messages: messages.sort(
+          (a, b) => +new Date(a.timestamp) - +new Date(b.timestamp),
+        ),
+      };
+    },
   });
 }
 

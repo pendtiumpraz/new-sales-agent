@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { SideNav, TopBar } from "@/components/layout/side-nav";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useKbStore } from "@/lib/stores/kb-store";
 
 export default function AppLayout({
   children,
@@ -23,6 +24,13 @@ export default function AppLayout({
       router.replace(`/login?next=${next}`);
     }
   }, [authenticated, pathname, router]);
+
+  // Hydrate the Knowledge Base from Postgres once per session. The store
+  // guards itself with a `hydrated` flag, so this is a safe no-op on repeat
+  // mounts (e.g. route transitions that re-render the layout).
+  useEffect(() => {
+    void useKbStore.getState().hydrate();
+  }, []);
 
   // Brief blank frame before redirect — prevents flashing protected content.
   if (!authenticated) {

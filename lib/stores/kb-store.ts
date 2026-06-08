@@ -20,6 +20,10 @@ const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${seq++}
 interface KbState {
   kb: KnowledgeBase;
 
+  // Persistence flags / lifecycle
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
+
   // Products
   addProduct: (p: Omit<KbProduct, "id">) => string;
   updateProduct: (id: string, patch: Partial<KbProduct>) => void;
@@ -66,34 +70,88 @@ const stamp = (kb: KnowledgeBase): KnowledgeBase => ({
   lastUpdated: new Date().toISOString(),
 });
 
-// Seeded from mock KB; edits persist for the session only (build.md §11).
-export const useKbStore = create<KbState>((set) => ({
-  kb: {
-    ...seedKnowledgeBase,
-    products: seedKnowledgeBase.products.map((p) => ({ ...p })),
-    pricing: seedKnowledgeBase.pricing.map((p) => ({ ...p })),
-    segments: seedKnowledgeBase.segments.map((s) => ({
-      ...s,
-      talkingPoints: [...s.talkingPoints],
-    })),
-    priorityProducts: seedKnowledgeBase.priorityProducts.map((m) => ({
-      ...m,
-      productIds: [...m.productIds],
-    })),
-    marketingStrategy: seedKnowledgeBase.marketingStrategy.map((n) => ({ ...n })),
-    upsellMap: seedKnowledgeBase.upsellMap.map((u) => ({
-      ...u,
-      toProductIds: [...u.toProductIds],
-    })),
-    retentionFlows: seedKnowledgeBase.retentionFlows.map((f) => ({
-      ...f,
-      productIds: [...f.productIds],
-      segmentIds: [...f.segmentIds],
-    })),
-    sources: seedKnowledgeBase.sources.map((s) => ({
-      ...s,
-      segmentScope: s.segmentScope ? [...s.segmentScope] : [],
-    })),
+// Deep clone the seed so the in-memory KB never shares references with the
+// frozen mock module (prevents accidental mutations leaking across stores).
+const cloneSeed = (): KnowledgeBase => ({
+  ...seedKnowledgeBase,
+  products: seedKnowledgeBase.products.map((p) => ({ ...p })),
+  pricing: seedKnowledgeBase.pricing.map((p) => ({ ...p })),
+  segments: seedKnowledgeBase.segments.map((s) => ({
+    ...s,
+    talkingPoints: [...s.talkingPoints],
+  })),
+  priorityProducts: seedKnowledgeBase.priorityProducts.map((m) => ({
+    ...m,
+    productIds: [...m.productIds],
+  })),
+  marketingStrategy: seedKnowledgeBase.marketingStrategy.map((n) => ({ ...n })),
+  upsellMap: seedKnowledgeBase.upsellMap.map((u) => ({
+    ...u,
+    toProductIds: [...u.toProductIds],
+  })),
+  retentionFlows: seedKnowledgeBase.retentionFlows.map((f) => ({
+    ...f,
+    productIds: [...f.productIds],
+    segmentIds: [...f.segmentIds],
+  })),
+  sources: seedKnowledgeBase.sources.map((s) => ({
+    ...s,
+    segmentScope: s.segmentScope ? [...s.segmentScope] : [],
+  })),
+});
+
+// ── Debounced persistence ────────────────────────────────────────────────
+// Every store mutation calls persistKb() after set(...). We coalesce bursts of
+// edits (e.g. typing in a text field) into a single PUT after 400ms of quiet.
+// Server-side calls are a no-op; the route handles the !hasDb() case gracefully.
+let persistTimeout: ReturnType<typeof setTimeout> | undefined;
+let hydratePromise: Promise<void> | undefined;
+
+function persistKb() {
+  if (typeof window === "undefined") return; // server-side no-op
+  // Don't persist before hydration completes — otherwise the seed clone would
+  // immediately overwrite whatever is in the DB on first load.
+  if (!useKbStore.getState().hydrated) return;
+  clearTimeout(persistTimeout);
+  persistTimeout = setTimeout(() => {
+    const kb = useKbStore.getState().kb;
+    fetch("/api/db/kb", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: kb }),
+    }).catch((e) => console.error("[kb-store persist]", e));
+  }, 400);
+}
+
+// Seeded from mock KB; edits persist via /api/db/kb (Postgres + Vercel).
+export const useKbStore = create<KbState>((set, get) => ({
+  kb: cloneSeed(),
+  hydrated: false,
+
+  // ── Lifecycle ────────────────────────────────────────────────────────
+  hydrate: async () => {
+    if (typeof window === "undefined") return;
+    if (get().hydrated) return;
+    if (hydratePromise) return hydratePromise;
+    hydratePromise = (async () => {
+      try {
+        const res = await fetch("/api/db/kb", { cache: "no-store" });
+        if (res.ok) {
+          const json = (await res.json()) as { data?: KnowledgeBase };
+          if (json?.data) {
+            set({ kb: json.data, hydrated: true });
+            return;
+          }
+        }
+        // Fall through to mark hydrated even if fetch returned no data,
+        // so the in-memory seed can be edited without blocking persistence.
+        set({ hydrated: true });
+      } catch (e) {
+        console.error("[kb-store hydrate]", e);
+        set({ hydrated: true });
+      }
+    })();
+    return hydratePromise;
   },
 
   // ── Products ─────────────────────────────────────────────────────────
@@ -102,16 +160,19 @@ export const useKbStore = create<KbState>((set) => ({
     set((s) => ({
       kb: stamp({ ...s.kb, products: [...s.kb.products, { id, ...p }] }),
     }));
+    persistKb();
     return id;
   },
-  updateProduct: (id, patch) =>
+  updateProduct: (id, patch) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
         products: s.kb.products.map((p) => (p.id === id ? { ...p, ...patch } : p)),
       }),
-    })),
-  removeProduct: (id) =>
+    }));
+    persistKb();
+  },
+  removeProduct: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -134,7 +195,9 @@ export const useKbStore = create<KbState>((set) => ({
           productIds: f.productIds.filter((p) => p !== id),
         })),
       }),
-    })),
+    }));
+    persistKb();
+  },
 
   // ── Pricing ──────────────────────────────────────────────────────────
   addPricing: (t) => {
@@ -142,19 +205,24 @@ export const useKbStore = create<KbState>((set) => ({
     set((s) => ({
       kb: stamp({ ...s.kb, pricing: [...s.kb.pricing, { id, ...t }] }),
     }));
+    persistKb();
     return id;
   },
-  updatePricing: (id, patch) =>
+  updatePricing: (id, patch) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
         pricing: s.kb.pricing.map((t) => (t.id === id ? { ...t, ...patch } : t)),
       }),
-    })),
-  removePricing: (id) =>
+    }));
+    persistKb();
+  },
+  removePricing: (id) => {
     set((s) => ({
       kb: stamp({ ...s.kb, pricing: s.kb.pricing.filter((t) => t.id !== id) }),
-    })),
+    }));
+    persistKb();
+  },
 
   // ── Segments ─────────────────────────────────────────────────────────
   addSegment: (segment) => {
@@ -169,9 +237,10 @@ export const useKbStore = create<KbState>((set) => ({
         ],
       }),
     }));
+    persistKb();
     return id;
   },
-  updateSegment: (id, patch) =>
+  updateSegment: (id, patch) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -179,8 +248,10 @@ export const useKbStore = create<KbState>((set) => ({
           seg.id === id ? { ...seg, ...patch } : seg,
         ),
       }),
-    })),
-  removeSegment: (id) =>
+    }));
+    persistKb();
+  },
+  removeSegment: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -199,9 +270,11 @@ export const useKbStore = create<KbState>((set) => ({
           segmentScope: (src.segmentScope ?? []).filter((sId) => sId !== id),
         })),
       }),
-    })),
+    }));
+    persistKb();
+  },
 
-  setPriorityProducts: (segmentId, productIds) =>
+  setPriorityProducts: (segmentId, productIds) => {
     set((s) => {
       const exists = s.kb.priorityProducts.some((m) => m.segmentId === segmentId);
       const next = exists
@@ -210,7 +283,9 @@ export const useKbStore = create<KbState>((set) => ({
           )
         : [...s.kb.priorityProducts, { segmentId, productIds }];
       return { kb: stamp({ ...s.kb, priorityProducts: next }) };
-    }),
+    });
+    persistKb();
+  },
 
   // ── Strategy notes ───────────────────────────────────────────────────
   addStrategy: (n) => {
@@ -221,9 +296,10 @@ export const useKbStore = create<KbState>((set) => ({
         marketingStrategy: [...s.kb.marketingStrategy, { id, ...n }],
       }),
     }));
+    persistKb();
     return id;
   },
-  updateStrategy: (id, patch) =>
+  updateStrategy: (id, patch) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -231,14 +307,18 @@ export const useKbStore = create<KbState>((set) => ({
           n.id === id ? { ...n, ...patch } : n,
         ),
       }),
-    })),
-  removeStrategy: (id) =>
+    }));
+    persistKb();
+  },
+  removeStrategy: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
         marketingStrategy: s.kb.marketingStrategy.filter((n) => n.id !== id),
       }),
-    })),
+    }));
+    persistKb();
+  },
 
   // ── Upsell ───────────────────────────────────────────────────────────
   addUpsell: (r) => {
@@ -246,19 +326,24 @@ export const useKbStore = create<KbState>((set) => ({
     set((s) => ({
       kb: stamp({ ...s.kb, upsellMap: [...s.kb.upsellMap, { id, ...r }] }),
     }));
+    persistKb();
     return id;
   },
-  updateUpsell: (id, patch) =>
+  updateUpsell: (id, patch) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
         upsellMap: s.kb.upsellMap.map((u) => (u.id === id ? { ...u, ...patch } : u)),
       }),
-    })),
-  removeUpsell: (id) =>
+    }));
+    persistKb();
+  },
+  removeUpsell: (id) => {
     set((s) => ({
       kb: stamp({ ...s.kb, upsellMap: s.kb.upsellMap.filter((u) => u.id !== id) }),
-    })),
+    }));
+    persistKb();
+  },
 
   // ── Retention ────────────────────────────────────────────────────────
   addRetention: (f) => {
@@ -269,9 +354,10 @@ export const useKbStore = create<KbState>((set) => ({
         retentionFlows: [...s.kb.retentionFlows, { id, ...f }],
       }),
     }));
+    persistKb();
     return id;
   },
-  updateRetention: (id, patch) =>
+  updateRetention: (id, patch) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -279,15 +365,19 @@ export const useKbStore = create<KbState>((set) => ({
           f.id === id ? { ...f, ...patch } : f,
         ),
       }),
-    })),
-  removeRetention: (id) =>
+    }));
+    persistKb();
+  },
+  removeRetention: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
         retentionFlows: s.kb.retentionFlows.filter((f) => f.id !== id),
       }),
-    })),
-  toggleRetention: (id) =>
+    }));
+    persistKb();
+  },
+  toggleRetention: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -295,7 +385,9 @@ export const useKbStore = create<KbState>((set) => ({
           f.id === id ? { ...f, active: !f.active } : f,
         ),
       }),
-    })),
+    }));
+    persistKb();
+  },
 
   // ── Sources (Advanced RAG) ───────────────────────────────────────────
   upsertSource: (src) => {
@@ -309,6 +401,7 @@ export const useKbStore = create<KbState>((set) => ({
             : [...s.kb.sources, { ...src }],
         }),
       }));
+      persistKb();
       return existingId;
     }
     const id = newId("src");
@@ -318,16 +411,19 @@ export const useKbStore = create<KbState>((set) => ({
         sources: [...s.kb.sources, { id, ...(src as Omit<KbSource, "id">) }],
       }),
     }));
+    persistKb();
     return id;
   },
-  removeSource: (id) =>
+  removeSource: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
         sources: s.kb.sources.filter((x) => x.id !== id),
       }),
-    })),
-  toggleSourceActive: (id) =>
+    }));
+    persistKb();
+  },
+  toggleSourceActive: (id) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -335,8 +431,10 @@ export const useKbStore = create<KbState>((set) => ({
           x.id === id ? { ...x, active: !x.active } : x,
         ),
       }),
-    })),
-  setSourceStatus: (id, status) =>
+    }));
+    persistKb();
+  },
+  setSourceStatus: (id, status) => {
     set((s) => ({
       kb: stamp({
         ...s.kb,
@@ -352,7 +450,9 @@ export const useKbStore = create<KbState>((set) => ({
             : x,
         ),
       }),
-    })),
+    }));
+    persistKb();
+  },
 }));
 
 // Stable label sets used by the editor UIs.

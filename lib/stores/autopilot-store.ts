@@ -15,6 +15,8 @@ export interface AutopilotState {
   currentRun: AutopilotRun | null;
   /** Completed/stopped runs from this session, newest first. */
   history: AutopilotRun[];
+  /** True once history has been hydrated from /api/db/autopilot-runs. */
+  historyHydrated: boolean;
   /** Config the operator is editing in the panel (separate from currentRun.config). */
   config: AutopilotRunConfig;
 
@@ -37,6 +39,25 @@ export interface AutopilotState {
   stopRun: () => void;
   /** Clear the current run without archiving (used by "ulangi" reset). */
   resetRun: () => void;
+  /**
+   * One-shot fetch of past runs from the server. Subsequent calls are no-ops
+   * (gated by historyHydrated) so it's safe to call from a page mount effect.
+   */
+  hydrateHistory: () => Promise<void>;
+}
+
+/**
+ * Fire-and-forget POST of a terminal run to /api/db/autopilot-runs so the
+ * row survives the page reload / redeploy. Browser-only — server-rendered
+ * paths skip the fetch.
+ */
+function persistRun(run: AutopilotRun | null): void {
+  if (typeof window === "undefined" || !run) return;
+  fetch("/api/db/autopilot-runs", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: run }),
+  }).catch((e) => console.error("[autopilot persist]", e));
 }
 
 /** Stable id generator — crypto.randomUUID if available, else a fallback. */
@@ -67,9 +88,10 @@ function cloneConfig(c: AutopilotRunConfig): AutopilotRunConfig {
   };
 }
 
-export const useAutopilotStore = create<AutopilotState>((set) => ({
+export const useAutopilotStore = create<AutopilotState>((set, get) => ({
   currentRun: null,
   history: [],
+  historyHydrated: false,
   config: cloneConfig(DEFAULT_AUTOPILOT_CONFIG),
 
   setConfig: (patch) =>
@@ -145,17 +167,23 @@ export const useAutopilotStore = create<AutopilotState>((set) => ({
       return { currentRun: { ...s.currentRun, events } };
     }),
 
-  setRunStatus: (status) =>
+  setRunStatus: (status) => {
+    let terminalRun: AutopilotRun | null = null;
     set((s) => {
       if (!s.currentRun) return s;
-      const finishedAt =
-        status === "done" || status === "stopped" || status === "failed"
-          ? (s.currentRun.finishedAt ?? new Date().toISOString())
-          : s.currentRun.finishedAt;
-      return {
-        currentRun: { ...s.currentRun, status, finishedAt },
-      };
-    }),
+      const isTerminal =
+        status === "done" || status === "stopped" || status === "failed";
+      const finishedAt = isTerminal
+        ? (s.currentRun.finishedAt ?? new Date().toISOString())
+        : s.currentRun.finishedAt;
+      const next: AutopilotRun = { ...s.currentRun, status, finishedAt };
+      if (isTerminal) terminalRun = next;
+      return { currentRun: next };
+    });
+    // Persist outside set() so we don't block the state update or fire on
+    // server-rendered paths.
+    if (terminalRun) persistRun(terminalRun);
+  },
 
   bumpMetric: (key, by = 1) =>
     set((s) => {
@@ -171,10 +199,11 @@ export const useAutopilotStore = create<AutopilotState>((set) => ({
       };
     }),
 
-  stopRun: () =>
+  stopRun: () => {
+    let stopped: AutopilotRun | null = null;
     set((s) => {
       if (!s.currentRun) return s;
-      const stopped: AutopilotRun = {
+      stopped = {
         ...s.currentRun,
         status: "stopped",
         finishedAt: s.currentRun.finishedAt ?? new Date().toISOString(),
@@ -183,7 +212,36 @@ export const useAutopilotStore = create<AutopilotState>((set) => ({
         currentRun: stopped,
         history: [stopped, ...s.history],
       };
-    }),
+    });
+    if (stopped) persistRun(stopped);
+  },
 
   resetRun: () => set({ currentRun: null }),
+
+  hydrateHistory: async () => {
+    if (typeof window === "undefined") return;
+    if (get().historyHydrated) return;
+    // Mark hydrated immediately so re-mounts don't re-fetch in flight.
+    set({ historyHydrated: true });
+    try {
+      const res = await fetch("/api/db/autopilot-runs", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as { data?: AutopilotRun[] };
+      const rows = Array.isArray(json?.data) ? json.data : [];
+      if (rows.length === 0) return;
+      // Merge with session-only history: keep any in-session runs that aren't
+      // in the server set, then sort by startedAt desc.
+      set((s) => {
+        const byId = new Map<string, AutopilotRun>();
+        for (const r of rows) byId.set(r.id, r);
+        for (const r of s.history) if (!byId.has(r.id)) byId.set(r.id, r);
+        const merged = Array.from(byId.values()).sort((a, b) =>
+          b.startedAt.localeCompare(a.startedAt),
+        );
+        return { history: merged };
+      });
+    } catch (e) {
+      console.error("[autopilot hydrate]", e);
+    }
+  },
 }));

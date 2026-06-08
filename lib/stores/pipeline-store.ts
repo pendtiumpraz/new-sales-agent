@@ -17,6 +17,10 @@ interface PipelineState {
   products: EnrichmentProduct[];
   analyses: EnrichmentDealAnalysis[];
 
+  // Persistence flag — only the deals slice round-trips to /api/db/deals.
+  dealsHydrated: boolean;
+  hydrateDeals: () => Promise<void>;
+
   // Deals
   moveDeal: (id: string, stage: DealStage) => void;
 
@@ -27,13 +31,68 @@ interface PipelineState {
   resetProducts: () => void;
 }
 
-// Seeded from mock deals; drag-drop changes persist for the session (build.md §11).
-export const usePipelineStore = create<PipelineState>((set) => ({
+// Debounced PUT — collapses rapid drag-drop / inline edits into a single round-trip.
+let persistTimeout: ReturnType<typeof setTimeout> | undefined;
+function persistDeals() {
+  if (typeof window === "undefined") return;
+  if (persistTimeout) clearTimeout(persistTimeout);
+  persistTimeout = setTimeout(() => {
+    const deals = usePipelineStore.getState().deals;
+    fetch("/api/db/deals", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: deals }),
+    }).catch((e) => console.error("[pipeline persist]", e));
+  }, 400);
+}
+
+// In-flight hydration promise — guards against duplicate fetches when multiple
+// components mount simultaneously and all call hydrateDeals().
+let hydratePromise: Promise<void> | undefined;
+
+// Seeded from mock deals; drag-drop changes persist via /api/db/deals (build.md §11).
+export const usePipelineStore = create<PipelineState>((set, get) => ({
   deals: seed.map((d) => ({ ...d })),
   products: seedProducts.map((p) => ({ ...p })),
   analyses: seedAnalyses.map((a) => ({ ...a })),
 
-  moveDeal: (id, stage) =>
+  dealsHydrated: false,
+
+  hydrateDeals: async () => {
+    if (get().dealsHydrated) return;
+    if (hydratePromise) return hydratePromise;
+    if (typeof window === "undefined") return;
+    hydratePromise = (async () => {
+      try {
+        const res = await fetch("/api/db/deals");
+        if (!res.ok) throw new Error(`hydrate failed: ${res.status}`);
+        const body = (await res.json()) as { data: Deal[] };
+        if (Array.isArray(body?.data)) {
+          set((s) => {
+            // Keep analyses' stage in sync with whatever the DB says.
+            const stageById = new Map(body.data.map((d) => [d.id, d.stage]));
+            const analyses = s.analyses.map((a) =>
+              stageById.has(a.dealId)
+                ? { ...a, stage: stageById.get(a.dealId) as DealStage }
+                : a,
+            );
+            return { deals: body.data, analyses, dealsHydrated: true };
+          });
+        } else {
+          set({ dealsHydrated: true });
+        }
+      } catch (err) {
+        console.error("[pipeline hydrate]", err);
+        // Mark hydrated anyway so we don't loop on a broken backend.
+        set({ dealsHydrated: true });
+      } finally {
+        hydratePromise = undefined;
+      }
+    })();
+    return hydratePromise;
+  },
+
+  moveDeal: (id, stage) => {
     set((s) => {
       const deals = s.deals.map((d) =>
         d.id === id ? { ...d, stage } : d,
@@ -43,7 +102,9 @@ export const usePipelineStore = create<PipelineState>((set) => ({
         a.dealId === id ? { ...a, stage } : a,
       );
       return { deals, analyses };
-    }),
+    });
+    persistDeals();
+  },
 
   addProduct: (p) =>
     set((s) => {

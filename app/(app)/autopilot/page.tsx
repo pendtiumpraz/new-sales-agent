@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { Calendar, CheckCircle2, History, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,11 +10,13 @@ import { AudiencePicker } from "@/components/autopilot/audience-picker";
 import { GuardrailsPanel } from "@/components/autopilot/guardrails-panel";
 import { HeroBanner } from "@/components/autopilot/hero-banner";
 import { RunSummary } from "@/components/autopilot/run-summary";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { runAutopilot } from "@/lib/autopilot/orchestrator";
 import { useAutopilotStore } from "@/lib/stores/autopilot-store";
 import { useKbStore } from "@/lib/stores/kb-store";
 import { useProspectingStore } from "@/lib/stores/prospecting-store";
-import type { AutopilotRunConfig } from "@/lib/types/autopilot";
+import type { AutopilotRun, AutopilotRunConfig } from "@/lib/types/autopilot";
 import type { ProspectLead } from "@/lib/types";
 
 /** Same heuristic the AudiencePicker uses — keep in sync. */
@@ -47,9 +50,16 @@ export default function AutopilotPage() {
   const config = useAutopilotStore((s) => s.config);
   const setConfig = useAutopilotStore((s) => s.setConfig);
   const currentRun = useAutopilotStore((s) => s.currentRun);
+  const history = useAutopilotStore((s) => s.history);
 
   const kb = useKbStore((s) => s.kb);
   const prospects = useProspectingStore((s) => s.prospects);
+
+  // Pull past runs from Postgres once per mount. The store guards with
+  // historyHydrated so this is safe to call unconditionally.
+  useEffect(() => {
+    void useAutopilotStore.getState().hydrateHistory();
+  }, []);
 
   const running = currentRun?.status === "running";
   const done = currentRun?.status === "done";
@@ -157,9 +167,99 @@ export default function AutopilotPage() {
           <div className="space-y-4 lg:col-span-8">
             <ActivityTimeline />
             <RunSummary />
+            <HistoryCard history={history} currentRunId={currentRun?.id} />
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+/**
+ * Compact "Riwayat run" card listing the last 5 finished autopilot runs.
+ * Hydrated from /api/db/autopilot-runs so it persists across sessions.
+ */
+function HistoryCard({
+  history,
+  currentRunId,
+}: {
+  history: AutopilotRun[];
+  currentRunId?: string;
+}) {
+  // Exclude the run that's still front-and-center in the page header so the
+  // list reads as strictly historical.
+  const rows = history
+    .filter((r) => r.id !== currentRunId)
+    .slice(0, 5);
+  if (rows.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <History className="h-4 w-4 text-muted-foreground" />
+          Riwayat run
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 pt-0">
+        {rows.map((r) => (
+          <HistoryRow key={r.id} run={r} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function HistoryRow({ run }: { run: AutopilotRun }) {
+  const started = new Date(run.startedAt);
+  const startedLabel = isNaN(started.getTime())
+    ? run.startedAt
+    : started.toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border bg-card/60 px-3 py-2 text-sm">
+      <div className="flex min-w-0 items-center gap-3">
+        <StatusBadge status={run.status} />
+        <span className="truncate text-muted-foreground">{startedLabel}</span>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1 tnum">
+          <Users className="h-3.5 w-3.5" />
+          {run.metrics.prospectsEngaged}
+        </span>
+        <span className="inline-flex items-center gap-1 tnum">
+          <Calendar className="h-3.5 w-3.5" />
+          {run.metrics.meetingsBooked}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: AutopilotRun["status"] }) {
+  if (status === "done") {
+    return (
+      <Badge variant="secondary" className="gap-1">
+        <CheckCircle2 className="h-3 w-3" />
+        Selesai
+      </Badge>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <XCircle className="h-3 w-3" />
+        Gagal
+      </Badge>
+    );
+  }
+  if (status === "stopped") {
+    return <Badge variant="outline">Dihentikan</Badge>;
+  }
+  return <Badge variant="outline">{status}</Badge>;
 }
