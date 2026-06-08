@@ -61,12 +61,13 @@ const NAV: { href: string; icon: LucideIcon; key: string; label?: string }[] = [
   // Lead discovery (Prospek) now lives as the "Penemuan Lead" tab inside Contacts.
   { href: "/contacts", icon: Users, key: "contacts" },
   { href: "/pipeline", icon: Database, key: "pipeline", label: "Enrichment" },
-  { href: "/autopilot", icon: Rocket, key: "autopilot", label: "Autopilot" },
   { href: "/cadences", icon: Workflow, key: "cadences" },
   { href: "/content", icon: Megaphone, key: "content" },
   { href: "/retention", icon: Heart, key: "retention", label: "Retensi" },
   { href: "/reports", icon: BarChart3, key: "reports", label: "Laporan" },
 ];
+// Autopilot is intentionally NOT in NAV — it surfaces as a "special" coral
+// button in both the top bar and the bottom of the sidebar (above the AI dock).
 
 const NOTIFS = [
   { ch: "whatsapp", text: "Budi Santoso membalas pesan WhatsApp Anda", time: "2 mnt" },
@@ -152,8 +153,37 @@ export function SideNav() {
         })}
       </nav>
 
+      {/* Special Autopilot button — coral primary, sits above the AI dock as
+          the headline action. Replaces the sidebar nav entry. */}
+      <div className={cn("border-t", collapsed ? "p-2" : "p-3 pb-1.5")}>
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href="/autopilot"
+                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-105"
+              >
+                <Rocket className="h-4 w-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">Autopilot — pipeline AI satu klik</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Link
+            href="/autopilot"
+            className="group flex w-full items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[#F6845C] px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md"
+          >
+            <Rocket className="h-4 w-4" />
+            <span className="flex-1 text-left">Autopilot</span>
+            <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide">
+              Baru
+            </span>
+          </Link>
+        )}
+      </div>
+
       {/* AI assistant dock — anchored at the bottom of the sidebar */}
-      <div className={cn("border-t", collapsed ? "p-2" : "p-3")}>
+      <div className={cn(collapsed ? "p-2" : "p-3 pt-1.5")}>
         <Sheet>
           {collapsed ? (
             <Tooltip>
@@ -267,6 +297,25 @@ export function TopBar() {
       </Link>
 
       <div className="flex-1" />
+
+      {/* Special Autopilot button — coral gradient, always prominent. The
+          headline "one-button pipeline" action lives here as well as in the
+          sidebar bottom. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            href="/autopilot"
+            className="group inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-[#F6845C] px-3 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md"
+          >
+            <Rocket className="h-4 w-4" />
+            <span className="hidden sm:inline">Autopilot</span>
+            <span className="hidden rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide lg:inline">
+              Baru
+            </span>
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Autopilot — pipeline AI satu klik</TooltipContent>
+      </Tooltip>
 
       {/* Search */}
       <Tooltip>
