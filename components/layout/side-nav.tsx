@@ -13,6 +13,7 @@ import {
   Megaphone,
   Menu,
   PanelLeft,
+  Rocket,
   Search,
   Settings,
   Sparkles,
@@ -60,6 +61,7 @@ const NAV: { href: string; icon: LucideIcon; key: string; label?: string }[] = [
   // Lead discovery (Prospek) now lives as the "Penemuan Lead" tab inside Contacts.
   { href: "/contacts", icon: Users, key: "contacts" },
   { href: "/pipeline", icon: Database, key: "pipeline", label: "Enrichment" },
+  { href: "/autopilot", icon: Rocket, key: "autopilot", label: "Autopilot" },
   { href: "/cadences", icon: Workflow, key: "cadences" },
   { href: "/content", icon: Megaphone, key: "content" },
   { href: "/retention", icon: Heart, key: "retention", label: "Retensi" },

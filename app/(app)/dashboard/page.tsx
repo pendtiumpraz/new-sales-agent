@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   MessageCircle,
+  Rocket,
   TrendingUp,
   Users,
   Workflow,
@@ -229,6 +230,36 @@ export default function DashboardPage() {
             </Badge>
           )}
         </div>
+
+        {/* Autopilot AI hero CTA — the headline feature, surfaced front-and-center */}
+        <Card className="overflow-hidden border-primary/20 bg-gradient-to-r from-primary/10 via-tertiary/8 to-transparent">
+          <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-start gap-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <Rocket className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
+                    Autopilot AI
+                  </h2>
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                    Baru
+                  </Badge>
+                </div>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Dari pemilihan audiens hingga booking meeting — satu klik, AI menjalankan seluruh pipeline.
+                </p>
+              </div>
+            </div>
+            <Button asChild className="shrink-0">
+              <Link href="/autopilot">
+                <Rocket className="h-4 w-4" />
+                Mulai Autopilot
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Band 1: hero + stat cluster */}
         <div className="grid gap-4 lg:grid-cols-12">
