@@ -11,20 +11,27 @@ import * as schema from "./schema";
  * you can set a custom prefix (e.g. "MAIRA") which produces env var names like
  * MAIRA_POSTGRES_URL instead of the canonical POSTGRES_URL. We scan for both.
  *
- * Preference order:
- *  1. Canonical POSTGRES_URL_NON_POOLING (best for migrations & long queries)
- *  2. Canonical POSTGRES_URL (pooled connection)
- *  3. Any *_POSTGRES_URL_NON_POOLING the Marketplace generated with a prefix
- *  4. Any *_POSTGRES_URL with a prefix
+ * Preference order — **pooled first** for runtime serverless calls. Non-pooled
+ * URLs trigger @vercel/postgres 'invalid_connection_string' at request time.
+ * Migrations (in drizzle.config.ts) keep the inverse preference.
+ *
+ *  1. Canonical POSTGRES_URL (pooler endpoint — what serverless needs)
+ *  2. Any *_POSTGRES_URL prefixed variant
+ *  3. Canonical POSTGRES_URL_NON_POOLING (last-resort fallback for local dev)
+ *  4. Any *_POSTGRES_URL_NON_POOLING prefixed variant
  */
 function findConnectionString(): string | undefined {
-  if (process.env.POSTGRES_URL_NON_POOLING) return process.env.POSTGRES_URL_NON_POOLING;
   if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
   for (const [key, value] of Object.entries(process.env)) {
-    if (typeof value === "string" && /_POSTGRES_URL_NON_POOLING$/.test(key)) return value;
+    if (typeof value !== "string" || value.length === 0) continue;
+    // Match _POSTGRES_URL but NOT _POSTGRES_URL_NON_POOLING (the $ anchor
+    // handles it naturally since "...URL" !== "...URL_NON_POOLING").
+    if (/_POSTGRES_URL$/.test(key)) return value;
   }
+  if (process.env.POSTGRES_URL_NON_POOLING) return process.env.POSTGRES_URL_NON_POOLING;
   for (const [key, value] of Object.entries(process.env)) {
-    if (typeof value === "string" && /_POSTGRES_URL$/.test(key)) return value;
+    if (typeof value !== "string" || value.length === 0) continue;
+    if (/_POSTGRES_URL_NON_POOLING$/.test(key)) return value;
   }
   return undefined;
 }
