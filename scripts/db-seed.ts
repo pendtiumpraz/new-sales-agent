@@ -250,8 +250,19 @@ async function seedMessages() {
   console.log(`  messages: ${rows.length} rows`);
 }
 
+// Tolerate Vercel Marketplace's "Environment Variables Prefix" feature
+// (e.g. MAIRA_POSTGRES_URL instead of the canonical POSTGRES_URL). The
+// runtime client in lib/db/client.ts handles this gracefully; mirror the
+// same scan here so the pre-flight error message is accurate.
+function hasAnyPostgresUrl(): boolean {
+  if (process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING) return true;
+  return Object.keys(process.env).some(
+    (k) => /_POSTGRES_URL(_NON_POOLING)?$/.test(k),
+  );
+}
+
 async function main() {
-  if (!process.env.POSTGRES_URL && !process.env.POSTGRES_URL_NON_POOLING) {
+  if (!hasAnyPostgresUrl()) {
     console.error(
       "Missing POSTGRES_URL. Run `vercel env pull .env.local` first, " +
         "then re-run `npm run db:seed`.",

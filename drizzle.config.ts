@@ -30,11 +30,27 @@ function loadEnvLocal() {
   }
 }
 
+// Tolerate Vercel Marketplace's "Environment Variables Prefix" feature: scans
+// for any *_POSTGRES_URL_NON_POOLING / *_POSTGRES_URL after the canonical names.
+function findConnectionUrl(): string {
+  if (process.env.POSTGRES_URL_NON_POOLING) return process.env.POSTGRES_URL_NON_POOLING;
+  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string" && /_POSTGRES_URL_NON_POOLING$/.test(key)) return value;
+  }
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string" && /_POSTGRES_URL$/.test(key)) return value;
+  }
+  throw new Error(
+    "No Postgres connection string found in env. Run `vercel env pull .env.local` and verify the Neon database is connected to this project.",
+  );
+}
+
 export default defineConfig({
   schema: "./lib/db/schema.ts",
   out: "./drizzle/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.POSTGRES_URL_NON_POOLING ?? process.env.POSTGRES_URL!,
+    url: findConnectionUrl(),
   },
 });

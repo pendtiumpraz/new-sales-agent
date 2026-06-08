@@ -1,13 +1,49 @@
 import { drizzle } from "drizzle-orm/vercel-postgres";
-import { sql } from "@vercel/postgres";
+import { createPool, sql as defaultSql } from "@vercel/postgres";
 
 import * as schema from "./schema";
 
-// Singleton drizzle client — safe to import from any route handler / server
-// component. The underlying @vercel/postgres `sql` connection is pooled.
-export const db = drizzle(sql, { schema });
+/**
+ * Find a Postgres connection string in process.env, tolerating Vercel
+ * Marketplace's "Environment Variables Prefix" feature.
+ *
+ * When you connect a Neon database to a Vercel project through the Marketplace,
+ * you can set a custom prefix (e.g. "MAIRA") which produces env var names like
+ * MAIRA_POSTGRES_URL instead of the canonical POSTGRES_URL. We scan for both.
+ *
+ * Preference order:
+ *  1. Canonical POSTGRES_URL_NON_POOLING (best for migrations & long queries)
+ *  2. Canonical POSTGRES_URL (pooled connection)
+ *  3. Any *_POSTGRES_URL_NON_POOLING the Marketplace generated with a prefix
+ *  4. Any *_POSTGRES_URL with a prefix
+ */
+function findConnectionString(): string | undefined {
+  if (process.env.POSTGRES_URL_NON_POOLING) return process.env.POSTGRES_URL_NON_POOLING;
+  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string" && /_POSTGRES_URL_NON_POOLING$/.test(key)) return value;
+  }
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string" && /_POSTGRES_URL$/.test(key)) return value;
+  }
+  return undefined;
+}
 
-// Helper: true when database creds are present at runtime.
+const connectionString = findConnectionString();
+
+// Build a pool against the resolved connection string. If none is found, fall
+// back to `@vercel/postgres`'s default `sql` client — calls degrade to seed
+// data via hasDb() == false so the demo still boots without a database.
+const client = connectionString
+  ? createPool({ connectionString })
+  : defaultSql;
+
+// Singleton drizzle client — safe to import from any route handler / server
+// component. The underlying @vercel/postgres connection is pooled.
+export const db = drizzle(client, { schema });
+
+// True when a Postgres credential is present at runtime (either canonical or
+// prefixed via the Marketplace).
 export function hasDb(): boolean {
-  return Boolean(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING);
+  return Boolean(connectionString);
 }
