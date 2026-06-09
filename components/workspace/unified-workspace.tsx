@@ -57,20 +57,24 @@ export function UnifiedWorkspace({
     string | null
   >(initialConversationId ?? null);
 
+  // Reconcile active conversation against the available list. Computes the
+  // *target* id first and only setState when it actually differs — prevents
+  // a re-render cascade if myConversations recomputes with the same content.
   useEffect(() => {
-    if (!activeConversationId && myConversations.length > 0) {
-      setActiveConversationId(myConversations[0].id);
-    }
-    // If the active id no longer matches this contact's conversations, reset it.
-    if (
+    if (myConversations.length === 0) return;
+    const stillValid =
       activeConversationId &&
-      myConversations.length > 0 &&
-      !myConversations.some((c) => c.id === activeConversationId)
-    ) {
-      setActiveConversationId(myConversations[0].id);
+      myConversations.some((c) => c.id === activeConversationId);
+    if (!stillValid) {
+      const nextId = myConversations[0].id;
+      if (nextId !== activeConversationId) {
+        setActiveConversationId(nextId);
+      }
     }
-    // Allow null when contact has no conversations yet.
-  }, [activeConversationId, myConversations]);
+    // Deps intentionally exclude activeConversationId — the effect should
+    // only re-run when the conversation list changes, not when we set the id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myConversations]);
 
   const deal = useMemo(
     () => (deals ?? []).find((d) => d.contactId === contactId) ?? null,
