@@ -36,8 +36,13 @@ function WorkspacePageInner({ contactId }: { contactId: string }) {
   const search = useSearchParams();
   const initialConversationId = search.get("cv") ?? undefined;
 
+  // The `key` forces a fresh mount when the contact in the URL changes,
+  // which short-circuits any stale memoization that could otherwise leak
+  // between previous and next contact (and contributed to React #185 in
+  // some browsers when navigating between workspaces).
   return (
     <UnifiedWorkspace
+      key={contactId}
       contactId={contactId}
       initialConversationId={initialConversationId}
     />

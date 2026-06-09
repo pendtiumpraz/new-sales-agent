@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { MessageCircle, Plus } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -31,6 +32,14 @@ export function WorkspaceConversationList({
   activeId,
   onSelect,
 }: WorkspaceConversationListProps) {
+  // Memoize the sentiment lookup so a single render produces one object —
+  // getSentiment() returns a fresh object for unknown IDs which can ripple
+  // through SentimentBadge as a new prop reference on every render.
+  const activeSentiment = useMemo(
+    () => (activeId ? getSentiment(activeId) : null),
+    [activeId],
+  );
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto p-3">
       {/* Contact header card — pinned to the top of the rail */}
@@ -53,10 +62,10 @@ export function WorkspaceConversationList({
             <ChannelDot channel={contact.channelPreference} size={7} />
             {channelMeta(contact.channelPreference).label}
           </span>
-          {activeId && (
+          {activeSentiment && (
             <SentimentBadge
-              score={getSentiment(activeId).score}
-              trend={getSentiment(activeId).trend}
+              score={activeSentiment.score}
+              trend={activeSentiment.trend}
               size="compact"
               showTrend={false}
             />
