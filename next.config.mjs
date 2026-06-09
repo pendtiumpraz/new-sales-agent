@@ -10,6 +10,10 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Ship browser source maps to prod so React's minified error messages
+  // produce readable stacks in the DevTools console. Trivial cost — these
+  // are only fetched by the browser when DevTools is open.
+  productionBrowserSourceMaps: true,
 };
 
 export default nextConfig;
