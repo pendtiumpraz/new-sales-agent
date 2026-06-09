@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import * as db from "./data";
 import type {
   AiResponse,
+  Cadence,
+  CadenceEnrollment,
+  CadenceStep,
   Contact,
   Conversation,
   DealStage,
@@ -65,13 +68,38 @@ export function useConversation(id: string) {
 }
 
 export function useCadences() {
-  return useQuery({ queryKey: ["cadences"], queryFn: () => settle(db.cadences) });
+  return useQuery({
+    queryKey: ["cadences"],
+    queryFn: async () => {
+      const res = await fetch("/api/db/cadences");
+      const json = (await res.json()) as { data: Cadence[] };
+      return json.data;
+    },
+  });
 }
 
 export function useSequence(id: string) {
   return useQuery({
     queryKey: ["sequence", id],
-    queryFn: () => settle(db.sequences[id] ?? db.sequences["default"] ?? []),
+    queryFn: async () => {
+      const res = await fetch(`/api/db/cadences/${id}`);
+      const json = (await res.json()) as { data: Cadence | null };
+      return (json.data?.steps ?? []) as CadenceStep[];
+    },
+  });
+}
+
+export function useCadenceEnrollments(cadenceId?: string) {
+  return useQuery({
+    queryKey: ["cadenceEnrollments", cadenceId ?? "all"],
+    queryFn: async () => {
+      const url = cadenceId
+        ? `/api/db/cadence-enrollments?cadenceId=${encodeURIComponent(cadenceId)}`
+        : "/api/db/cadence-enrollments";
+      const res = await fetch(url);
+      const json = (await res.json()) as { data: CadenceEnrollment[] };
+      return json.data;
+    },
   });
 }
 

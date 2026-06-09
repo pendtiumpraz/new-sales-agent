@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   PointerSensor,
@@ -52,7 +53,7 @@ import {
 } from "@/components/ui/dialog";
 import { CHANNELS, channelMeta } from "@/lib/utils/channel-config";
 import { cn } from "@/lib/utils";
-import type { CadenceStep, CadenceStepChannel } from "@/lib/types";
+import type { Cadence, CadenceStep, CadenceStepChannel } from "@/lib/types";
 import { toast } from "sonner";
 
 const BUILDER_CHANNELS: CadenceStepChannel[] = [
@@ -98,6 +99,8 @@ const newStep = (channel: CadenceStepChannel): CadenceStep => ({
 
 export function CadenceBuilder() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState("Cadence Baru");
   const [steps, setSteps] = useState<CadenceStep[]>([
     {
@@ -146,23 +149,76 @@ export function CadenceBuilder() {
     }
   }
 
+  /**
+   * Persist the current builder state to the DB. The cadence id is generated
+   * client-side with the `cd_` prefix the rest of the app uses; channelMix
+   * is derived from the steps so the list card dots stay in sync.
+   */
+  async function saveCadence(status: "draft" | "active") {
+    if (!name.trim()) {
+      toast.error("Nama cadence wajib diisi.");
+      return;
+    }
+    if (steps.length === 0) {
+      toast.error("Tambahkan minimal satu langkah.");
+      return;
+    }
+    setSaving(true);
+    const channelMix = Array.from(
+      new Set(steps.map((s) => s.channel)),
+    ) as CadenceStepChannel[];
+    const cadence: Cadence = {
+      id: `cd_${crypto.randomUUID().slice(0, 8)}`,
+      name: name.trim(),
+      status,
+      enrolled: 0,
+      steps,
+      replyRate: 0,
+      channelMix,
+      createdAt: new Date().toISOString(),
+      owner: "Anda",
+    };
+    try {
+      const res = await fetch("/api/db/cadences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: cadence }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      toast.success("Cadence disimpan.");
+      await queryClient.invalidateQueries({ queryKey: ["cadences"] });
+      router.push("/cadences");
+    } catch (err) {
+      console.error("[CadenceBuilder save]", err);
+      toast.error("Gagal menyimpan cadence.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Cadence Builder" description="Rangkai langkah lintas channel.">
         <Button
           variant="outline"
           onClick={() => router.push("/cadences")}
+          disabled={saving}
         >
           Batal
         </Button>
         <Button
-          onClick={() => {
-            toast.success(`Cadence "${name}" disimpan & diaktifkan.`);
-            router.push("/cadences");
-          }}
+          variant="outline"
+          onClick={() => saveCadence("draft")}
+          disabled={saving}
         >
+          Simpan sebagai draf
+        </Button>
+        <Button onClick={() => saveCadence("active")} disabled={saving}>
           <Sparkles className="h-4 w-4" />
-          Simpan & Aktifkan
+          Aktifkan sekarang
         </Button>
       </PageHeader>
 

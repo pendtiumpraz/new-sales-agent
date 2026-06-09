@@ -60,13 +60,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { ProspectingPanel } from "@/components/prospecting/prospecting-panel";
-import { useContacts, useConversations } from "@/lib/api-mock/hooks";
+import { useCadences, useContacts, useConversations } from "@/lib/api-mock/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { leadScore } from "@/lib/utils/lead-score";
@@ -92,9 +100,11 @@ export default function ContactsPage() {
 
 function ContactsPageInner() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: contacts, isLoading } = useContacts();
   const { data: conversations } = useConversations();
+  const { data: cadences } = useCadences();
   const [search, setSearch] = useState("");
   const [industries, setIndustries] = useState<Set<string>>(new Set());
   const [cities, setCities] = useState<Set<string>>(new Set());
@@ -104,6 +114,56 @@ function ContactsPageInner() {
   const [detail, setDetail] = useState<Contact | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cadencePickerOpen, setCadencePickerOpen] = useState(false);
+  const [selectedCadenceId, setSelectedCadenceId] = useState<string>("");
+  const [enrolling, setEnrolling] = useState(false);
+
+  const activeCadences = useMemo(
+    () => (cadences ?? []).filter((c) => c.status === "active"),
+    [cadences],
+  );
+
+  async function enrollSelected() {
+    if (!selectedCadenceId) {
+      toast.error("Pilih cadence terlebih dahulu.");
+      return;
+    }
+    const contactIds = Array.from(selected);
+    if (contactIds.length === 0) return;
+    setEnrolling(true);
+    try {
+      const res = await fetch("/api/db/cadence-enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cadenceId: selectedCadenceId,
+          contactIds,
+        }),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        count?: number;
+        error?: string;
+      };
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      const cad = activeCadences.find((c) => c.id === selectedCadenceId);
+      toast.success(
+        `${json.count ?? contactIds.length} kontak didaftarkan ke ${cad?.name ?? "cadence"}`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["cadences"] });
+      await queryClient.invalidateQueries({ queryKey: ["cadenceEnrollments"] });
+      setSelected(new Set());
+      setCadencePickerOpen(false);
+      setSelectedCadenceId("");
+    } catch (err) {
+      console.error("[contacts enroll]", err);
+      toast.error("Gagal mendaftarkan kontak ke cadence.");
+    } finally {
+      setEnrolling(false);
+    }
+  }
 
   // Wave 3 — side-nav profile dock links to `/contacts?view=inbox`. When that
   // is active, sort contacts with unread WA messages first and show a banner.
@@ -463,7 +523,14 @@ function ContactsPageInner() {
             <div className="mb-3 flex items-center gap-2 rounded-lg border bg-accent/60 px-4 py-2.5 text-sm">
               <span className="font-medium">{selected.size} dipilih</span>
               <div className="ml-auto flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => toast.success(`${selected.size} kontak ditambahkan ke cadence.`)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedCadenceId(activeCadences[0]?.id ?? "");
+                    setCadencePickerOpen(true);
+                  }}
+                >
                   <Plus className="h-4 w-4" />
                   Ke cadence
                 </Button>
@@ -618,6 +685,71 @@ function ContactsPageInner() {
               }}
             >
               Hapus permanen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cadence picker — bulk enroll selected contacts into an active cadence */}
+      <Dialog open={cadencePickerOpen} onOpenChange={setCadencePickerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              Daftarkan {selected.size} kontak ke cadence
+            </DialogTitle>
+            <DialogDescription>
+              Pilih salah satu cadence aktif. Kontak akan masuk ke langkah pertama
+              dan terhitung di counter "{`{enrolled}`}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium">Cadence aktif</label>
+            {activeCadences.length === 0 ? (
+              <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                Belum ada cadence aktif. Buat dan aktifkan satu di halaman{" "}
+                <button
+                  className="underline"
+                  onClick={() => router.push("/cadences/new")}
+                >
+                  Cadence
+                </button>
+                .
+              </p>
+            ) : (
+              <Select
+                value={selectedCadenceId}
+                onValueChange={setSelectedCadenceId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih cadence" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeCadences.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} · {c.steps.length} langkah · {c.enrolled} terdaftar
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCadencePickerOpen(false)}
+              disabled={enrolling}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={enrollSelected}
+              disabled={
+                enrolling || !selectedCadenceId || activeCadences.length === 0
+              }
+            >
+              <Plus className="h-4 w-4" />
+              Daftarkan
             </Button>
           </DialogFooter>
         </DialogContent>

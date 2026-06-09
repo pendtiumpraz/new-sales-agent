@@ -1,5 +1,6 @@
 import { pgTable, text, integer, jsonb, timestamp, real, boolean } from "drizzle-orm/pg-core";
 import type { KnowledgeBase } from "@/lib/types/kb";
+import type { CadenceStep } from "@/lib/types";
 import type {
   AutopilotRun,
   AutopilotStepEvent,
@@ -83,6 +84,30 @@ export const autopilotRunsTable = pgTable("autopilot_runs", {
   events: jsonb("events").$type<AutopilotStepEvent[]>().notNull().default([]),
   metrics: jsonb("metrics").$type<AutopilotRun["metrics"]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const cadencesTable = pgTable("cadences", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  status: text("status").notNull(),                       // active | draft | paused
+  steps: jsonb("steps").$type<CadenceStep[]>().notNull(),
+  channelMix: jsonb("channel_mix").$type<string[]>().notNull(),
+  enrolled: integer("enrolled").notNull().default(0),
+  replyRate: real("reply_rate").notNull().default(0),    // 0-100
+  owner: text("owner"),
+  createdAt: text("created_at"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const cadenceEnrollmentsTable = pgTable("cadence_enrollments", {
+  id: text("id").primaryKey(),                            // composite-like, e.g. cadenceId:contactId or uuid
+  cadenceId: text("cadence_id").notNull(),
+  contactId: text("contact_id").notNull(),
+  currentStepIdx: integer("current_step_idx").notNull().default(0),  // 0-based
+  status: text("status").notNull().default("aktif"),     // aktif | selesai | berhenti
+  enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow().notNull(),
+  lastStepAt: timestamp("last_step_at", { withTimezone: true }),
+  nextStepDueAt: timestamp("next_step_due_at", { withTimezone: true }),
 });
 
 export const usersTable = pgTable("users", {

@@ -55,7 +55,7 @@ export default function CadencesPage() {
                         <ChannelDot key={ch} channel={ch} size={8} />
                       ))}
                       <span className="text-xs text-muted-foreground">
-                        {c.steps} langkah
+                        {c.steps.length} langkah
                       </span>
                     </div>
 

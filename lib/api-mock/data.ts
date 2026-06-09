@@ -46,8 +46,17 @@ export const contacts = contactsJson as unknown as Contact[];
 export const deals = dealsJson as unknown as Deal[];
 export const conversations = conversationsJson as unknown as Conversation[];
 export const messages = messagesJson as unknown as Message[];
-export const cadences = cadencesJson as unknown as Cadence[];
+// The mock JSON for cadences stores `steps` as a numeric count and the actual
+// step bodies live in a separate `sequences.json` keyed by cadence id. The
+// canonical Cadence type now embeds the steps array directly (matches the
+// Postgres jsonb column shape), so we hydrate here.
 export const sequences = sequencesJson as unknown as Record<string, CadenceStep[]>;
+export const cadences: Cadence[] = (cadencesJson as unknown as Array<
+  Omit<Cadence, "steps"> & { steps: number }
+>).map((c) => ({
+  ...c,
+  steps: sequences[c.id] ?? sequences["default"] ?? [],
+}));
 export const fieldReps = fieldRepsJson as unknown as FieldRep[];
 export const visits = visitsJson as unknown as Visit[];
 export const orders = ordersJson as unknown as Order[];

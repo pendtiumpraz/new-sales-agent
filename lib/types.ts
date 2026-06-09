@@ -101,11 +101,27 @@ export interface Cadence {
   name: string;
   status: "active" | "draft" | "paused";
   enrolled: number;
-  steps: number;
+  /**
+   * Full sequence of steps. Storage in Postgres is jsonb; the UI count badge
+   * uses `steps.length`. Older mock JSON used a numeric `steps` field — the
+   * `lib/api-mock/data.ts` adapter hydrates that into the array form here.
+   */
+  steps: CadenceStep[];
   replyRate: number;
   channelMix: CadenceStepChannel[];
   createdAt: string;
   owner: string;
+}
+
+export interface CadenceEnrollment {
+  id: string;
+  cadenceId: string;
+  contactId: string;
+  currentStepIdx: number; // 0-based
+  status: "aktif" | "selesai" | "berhenti";
+  enrolledAt: string; // ISO
+  lastStepAt?: string | null; // ISO
+  nextStepDueAt?: string | null; // ISO
 }
 
 export interface FieldRep {
