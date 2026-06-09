@@ -77,3 +77,8 @@ export async function PUT(req: Request) {
     );
   }
 }
+
+// POST is an alias for PUT so callers using either verb succeed. Some
+// clients (axios defaults, demo cURL examples) reach for POST when
+// upserting; we don't want a 405 from a method mismatch.
+export const POST = PUT;
