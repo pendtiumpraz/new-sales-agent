@@ -22,20 +22,37 @@ export function ProspectCard({ contact }: ProspectCardProps) {
   const { score, temp } = leadScore(contact);
   const pref = channelMeta(contact.channelPreference);
 
+  // Channel brand color drives the channel chip + a subtle accent ring around
+  // the channel dot — keeps each contact card visually anchored to their
+  // primary channel.
+  const channelColor = pref.color;
+
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
-        <UserAvatar
-          name={contact.name}
-          color={contact.avatarColor}
-          className="h-11 w-11 text-sm"
+    <Card className="overflow-hidden border-tertiary/25 shadow-sm">
+      <div className="relative flex items-center gap-3 border-b border-tertiary/15 bg-gradient-to-r from-tertiary/12 via-tertiary/6 to-card px-4 py-3">
+        {/* Decorative soft teal glow */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-tertiary/20 blur-2xl"
         />
-        <div className="min-w-0 flex-1">
+        <div
+          className="relative rounded-full p-0.5"
+          style={{
+            background: `conic-gradient(from 140deg, ${contact.avatarColor ?? "#14B8A6"}, ${channelColor}, ${contact.avatarColor ?? "#14B8A6"})`,
+          }}
+        >
+          <UserAvatar
+            name={contact.name}
+            color={contact.avatarColor}
+            className="h-11 w-11 text-sm ring-2 ring-card"
+          />
+        </div>
+        <div className="relative min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold">{contact.name}</p>
             <Link
               href={`/contacts?focus=${contact.id}`}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground transition-colors hover:text-tertiary"
               title="Lihat di Kontak"
             >
               <ExternalLink className="h-3 w-3" />
@@ -45,7 +62,7 @@ export function ProspectCard({ contact }: ProspectCardProps) {
             {contact.title}
           </p>
         </div>
-        <TempBadge score={score} temp={temp} className="shrink-0" />
+        <TempBadge score={score} temp={temp} className="relative shrink-0" />
       </div>
 
       <div className="space-y-2.5 p-4 text-xs">
@@ -60,7 +77,14 @@ export function ProspectCard({ contact }: ProspectCardProps) {
           icon={Briefcase}
           label="Channel utama"
           value={
-            <span className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+              style={{
+                borderColor: `${channelColor}55`,
+                backgroundColor: `${channelColor}15`,
+                color: channelColor,
+              }}
+            >
               <ChannelDot channel={contact.channelPreference} size={8} />
               {pref.label}
             </span>
@@ -70,7 +94,7 @@ export function ProspectCard({ contact }: ProspectCardProps) {
 
       <Separator />
 
-      <div className="flex items-center justify-between px-4 py-2.5 text-[11px]">
+      <div className="flex items-center justify-between bg-muted/20 px-4 py-2.5 text-[11px]">
         <span className="text-muted-foreground">Status persetujuan</span>
         <ConsentBadge status={contact.consent} />
       </div>

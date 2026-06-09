@@ -216,7 +216,11 @@ export function CadenceBuilder() {
         >
           Simpan sebagai draf
         </Button>
-        <Button onClick={() => saveCadence("active")} disabled={saving}>
+        <Button
+          onClick={() => saveCadence("active")}
+          disabled={saving}
+          className="shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)] transition-all hover:-translate-y-px hover:shadow-[0_6px_18px_-4px_rgba(251,94,59,0.7)]"
+        >
           <Sparkles className="h-4 w-4" />
           Aktifkan sekarang
         </Button>
@@ -407,22 +411,40 @@ function SortableStep({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
       className={cn(
-        "flex items-center gap-2 rounded-lg border bg-card p-3 transition-shadow",
-        active && "border-primary ring-1 ring-primary",
+        "group relative flex items-center gap-2 overflow-hidden rounded-lg border bg-card p-3 transition-all duration-150",
+        active
+          ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-[0_4px_14px_-6px_rgba(251,94,59,0.45)]"
+          : "hover:-translate-y-px hover:border-primary/30 hover:shadow-sm",
         isDragging && "shadow-lg",
       )}
     >
+      {/* Channel-colored left rail */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ backgroundColor: meta.color }}
+      />
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab text-muted-foreground active:cursor-grabbing"
+        className="ml-1 cursor-grab text-muted-foreground active:cursor-grabbing"
       >
         <GripVertical className="h-4 w-4" />
       </button>
       <button onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-xs font-semibold">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold transition-colors",
+            active
+              ? "bg-primary text-primary-foreground"
+              : "bg-accent text-foreground",
+          )}
+        >
           {index + 1}
         </span>
         <div className="min-w-0 flex-1">

@@ -13,10 +13,12 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Download,
   Eye,
+  Flame,
   Mail,
   MessagesSquare,
   MoreHorizontal,
@@ -24,6 +26,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -279,10 +282,22 @@ function ContactsPageInner() {
         header: "Channel",
         cell: ({ getValue }) => {
           const ch = getValue<string>();
+          const meta = channelMeta(ch);
           return (
-            <span className="flex items-center gap-1.5">
-              <ChannelDot channel={ch} size={8} />
-              <span className="text-muted-foreground">{channelMeta(ch).label}</span>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
+              style={{
+                borderColor: `${meta.color}40`,
+                backgroundColor: `${meta.color}14`,
+                color: meta.color,
+              }}
+            >
+              <span
+                aria-hidden
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: meta.color }}
+              />
+              {meta.label}
             </span>
           );
         },
@@ -423,6 +438,20 @@ function ContactsPageInner() {
         ? `${unreadByContact.size} kontak dengan aktivitas terbaru. Pesan belum dibaca diutamakan.`
         : `${(contacts ?? []).length} kontak dalam database Anda. Klik baris untuk membuka workspace terpadu.`;
 
+  // KPI pills shown in the coral hero strip.
+  const totalContacts = (contacts ?? []).length;
+  const sevenDaysAgo = Date.now() - 7 * 864e5;
+  const newThisWeek = (contacts ?? []).filter(
+    (c) => +new Date(c.lastActivity) >= sevenDaysAgo,
+  ).length;
+  const inCadence = (cadences ?? []).reduce(
+    (s, c) => s + (c.status === "active" ? c.enrolled : 0),
+    0,
+  );
+  const hotCount = (contacts ?? []).filter(
+    (c) => leadScore(c).temp === "panas",
+  ).length;
+
   return (
     <div>
       <PageHeader title={headerTitle} description={headerDescription}>
@@ -439,6 +468,40 @@ function ContactsPageInner() {
           </>
         )}
       </PageHeader>
+
+      {/* Coral hero strip — KPI pills (contacts tab only) */}
+      {activeTab === "contacts" && (
+        <div className="relative overflow-hidden border-b bg-gradient-to-r from-primary/12 via-primary/6 to-tertiary/8 px-6 py-4">
+          <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
+          <div className="absolute -left-4 -bottom-12 h-32 w-32 rounded-full bg-tertiary/20 blur-3xl" />
+          <div className="relative flex flex-wrap items-center gap-2">
+            <KpiPill
+              icon={Users}
+              label="Total kontak"
+              value={totalContacts}
+              tone="coral"
+            />
+            <KpiPill
+              icon={CalendarClock}
+              label="Aktif 7 hari"
+              value={newThisWeek}
+              tone="teal"
+            />
+            <KpiPill
+              icon={Sparkles}
+              label="Dalam cadence"
+              value={inCadence}
+              tone="amber"
+            />
+            <KpiPill
+              icon={Flame}
+              label="Lead panas"
+              value={hotCount}
+              tone="rose"
+            />
+          </div>
+        </div>
+      )}
 
       <Tabs
         value={activeTab}
@@ -458,16 +521,19 @@ function ContactsPageInner() {
         <TabsContent value="contacts" className="m-0">
           {/* Inbox view banner — explains the sort + offers a quick exit */}
           {inboxView && (
-            <div className="flex items-center gap-2 border-b bg-tertiary/8 px-6 py-2.5 text-xs">
-              <MessagesSquare className="h-4 w-4 text-tertiary" />
-              <span className="flex-1">
+            <div className="relative flex items-center gap-2 overflow-hidden border-b bg-gradient-to-r from-tertiary/20 via-primary/8 to-transparent px-6 py-3 text-xs">
+              <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-tertiary/25 blur-2xl" />
+              <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-tertiary text-tertiary-foreground shadow-sm">
+                <MessagesSquare className="h-4 w-4" />
+              </span>
+              <span className="relative flex-1 font-medium">
                 Daftar diurutkan berdasarkan pesan belum dibaca. Klik kontak untuk
                 membuka workspace terpadu — chat + prospek + enrichment.
               </span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs"
+                className="relative h-7 text-xs hover:bg-primary/10 hover:text-primary"
                 onClick={() => router.push("/contacts")}
               >
                 Tampilkan semua
@@ -476,8 +542,8 @@ function ContactsPageInner() {
           )}
 
           <div className="flex">
-        {/* Filter sidebar */}
-        <aside className="hidden w-60 shrink-0 space-y-5 border-r bg-card p-4 lg:block">
+        {/* Filter sidebar — tinted sections per group */}
+        <aside className="hidden w-60 shrink-0 space-y-4 border-r bg-card p-4 lg:block">
           <FilterGroup
             title="Status persetujuan"
             options={["consented", "pending", "none"].map((v) => ({
@@ -486,18 +552,21 @@ function ContactsPageInner() {
             }))}
             selected={consents}
             onToggle={(v) => toggleInSet(setConsents, v)}
+            tone="green"
           />
           <FilterGroup
             title="Industri"
             options={allIndustries.map((v) => ({ value: v, label: v }))}
             selected={industries}
             onToggle={(v) => toggleInSet(setIndustries, v)}
+            tone="teal"
           />
           <FilterGroup
             title="Kota"
             options={allCities.map((v) => ({ value: v, label: v }))}
             selected={cities}
             onToggle={(v) => toggleInSet(setCities, v)}
+            tone="amber"
           />
         </aside>
 
@@ -518,14 +587,18 @@ function ContactsPageInner() {
             </span>
           </div>
 
-          {/* Bulk action bar */}
+          {/* Bulk action bar — coral-tinted when active */}
           {selected.size > 0 && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border bg-accent/60 px-4 py-2.5 text-sm">
-              <span className="font-medium">{selected.size} dipilih</span>
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-tertiary/5 px-4 py-2.5 text-sm shadow-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-xs font-semibold">
+                <Sparkles className="h-3 w-3" />
+                {selected.size} dipilih
+              </span>
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
                   variant="outline"
+                  className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
                   onClick={() => {
                     setSelectedCadenceId(activeCadences[0]?.id ?? "");
                     setCadencePickerOpen(true);
@@ -534,7 +607,12 @@ function ContactsPageInner() {
                   <Plus className="h-4 w-4" />
                   Ke cadence
                 </Button>
-                <Button size="sm" variant="outline" onClick={exportCsv}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-tertiary/30 bg-tertiary/5 text-tertiary hover:bg-tertiary/10 hover:text-tertiary"
+                  onClick={exportCsv}
+                >
                   <Download className="h-4 w-4" />
                   Export CSV
                 </Button>
@@ -590,8 +668,8 @@ function ContactsPageInner() {
                       <TableRow
                         key={row.id}
                         className={cn(
-                          "cursor-pointer",
-                          inboxView && unread > 0 && "bg-tertiary/5",
+                          "cursor-pointer transition-colors even:bg-muted/30 hover:bg-primary/[0.06]",
+                          inboxView && unread > 0 && "bg-tertiary/10 hover:bg-tertiary/15",
                         )}
                         data-state={
                           selected.has(row.original.id) ? "selected" : undefined
@@ -695,7 +773,9 @@ function ContactsPageInner() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-primary" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_6px_16px_-6px_rgba(251,94,59,0.6)]">
+                <Mail className="h-4 w-4" />
+              </span>
               Daftarkan {selected.size} kontak ke cadence
             </DialogTitle>
             <DialogDescription>
@@ -703,8 +783,10 @@ function ContactsPageInner() {
               dan terhitung di counter "{`{enrolled}`}".
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
-            <label className="text-sm font-medium">Cadence aktif</label>
+          <div className="space-y-3 py-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Cadence aktif
+            </label>
             {activeCadences.length === 0 ? (
               <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
                 Belum ada cadence aktif. Buat dan aktifkan satu di halaman{" "}
@@ -717,21 +799,65 @@ function ContactsPageInner() {
                 .
               </p>
             ) : (
-              <Select
-                value={selectedCadenceId}
-                onValueChange={setSelectedCadenceId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih cadence" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeCadences.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} · {c.steps.length} langkah · {c.enrolled} terdaftar
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select
+                  value={selectedCadenceId}
+                  onValueChange={setSelectedCadenceId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih cadence" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeCadences.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} · {c.steps.length} langkah · {c.enrolled} terdaftar
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Colorful preview list — selected cadence gets coral border */}
+                <ul className="space-y-1.5">
+                  {activeCadences.map((c) => {
+                    const firstCh = c.channelMix[0] ?? "whatsapp";
+                    const meta = channelMeta(firstCh);
+                    const isActive = c.id === selectedCadenceId;
+                    return (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCadenceId(c.id)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl border-l-4 border-y border-r bg-card px-3 py-2 text-left text-sm transition-all hover:shadow-sm",
+                            isActive
+                              ? "bg-primary/5 ring-1 ring-primary/30"
+                              : "hover:bg-muted/40",
+                          )}
+                          style={{ borderLeftColor: meta.color }}
+                        >
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white"
+                            style={{ backgroundColor: meta.color }}
+                          >
+                            <meta.icon className="h-3.5 w-3.5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{c.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {c.steps.length} langkah · {c.enrolled} terdaftar
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            {c.channelMix.slice(0, 3).map((ch) => (
+                              <ChannelDot key={ch} channel={ch} size={8} />
+                            ))}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
             )}
           </div>
           <DialogFooter>
@@ -806,22 +932,75 @@ function FilterGroup({
   options,
   selected,
   onToggle,
+  tone = "neutral",
 }: {
   title: string;
   options: { value: string; label: string }[];
   selected: Set<string>;
   onToggle: (value: string) => void;
+  tone?: "green" | "teal" | "amber" | "neutral";
 }) {
+  const palette = {
+    green: {
+      bg: "bg-success/8",
+      border: "border-success/20",
+      bar: "bg-success",
+      title: "text-emerald-700",
+      pill: "bg-success/15 text-emerald-700",
+    },
+    teal: {
+      bg: "bg-tertiary/8",
+      border: "border-tertiary/20",
+      bar: "bg-tertiary",
+      title: "text-tertiary",
+      pill: "bg-tertiary/15 text-tertiary",
+    },
+    amber: {
+      bg: "bg-warning/10",
+      border: "border-warning/20",
+      bar: "bg-warning",
+      title: "text-amber-700",
+      pill: "bg-warning/20 text-amber-700",
+    },
+    neutral: {
+      bg: "bg-muted/30",
+      border: "border-muted",
+      bar: "bg-muted-foreground/40",
+      title: "text-muted-foreground",
+      pill: "bg-muted text-muted-foreground",
+    },
+  }[tone];
+
   return (
-    <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {title}
-      </p>
+    <div className={cn("rounded-xl border p-3", palette.bg, palette.border)}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={cn("h-3 w-1 rounded-full", palette.bar)} />
+          <p
+            className={cn(
+              "text-[11px] font-semibold uppercase tracking-wide",
+              palette.title,
+            )}
+          >
+            {title}
+          </p>
+        </div>
+        {selected.size > 0 && (
+          <span
+            className={cn(
+              "rounded-full px-1.5 py-0.5 text-[10px] font-bold tnum",
+              palette.pill,
+            )}
+          >
+            {selected.size}
+          </span>
+        )}
+      </div>
       <div className="scrollbar-thin max-h-44 space-y-1.5 overflow-y-auto pr-1">
         {options.map((o) => (
           <label
             key={o.value}
-            className="flex cursor-pointer items-center gap-2 text-sm"
+            className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 text-sm hover:bg-card/80"
           >
             <Checkbox
               checked={selected.has(o.value)}
@@ -831,6 +1010,60 @@ function FilterGroup({
           </label>
         ))}
       </div>
+    </div>
+  );
+}
+
+function KpiPill({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  tone: "coral" | "teal" | "amber" | "rose";
+}) {
+  const palette = {
+    coral: {
+      bg: "bg-primary text-primary-foreground",
+      surround: "border-primary/25 bg-card",
+      text: "text-primary",
+    },
+    teal: {
+      bg: "bg-tertiary text-tertiary-foreground",
+      surround: "border-tertiary/25 bg-card",
+      text: "text-tertiary",
+    },
+    amber: {
+      bg: "bg-warning text-white",
+      surround: "border-warning/25 bg-card",
+      text: "text-amber-700",
+    },
+    rose: {
+      bg: "bg-rose-500 text-white",
+      surround: "border-rose-300/40 bg-card",
+      text: "text-rose-600",
+    },
+  }[tone];
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 shadow-sm",
+        palette.surround,
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-full",
+          palette.bg,
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <span className={cn("text-sm font-bold tnum", palette.text)}>{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

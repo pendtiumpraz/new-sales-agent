@@ -28,6 +28,30 @@ const TEMP_META: Record<AiTemp, { label: string; cls: string; icon: typeof Flame
   dingin: { label: "Dingin", cls: "bg-sky-500/10 text-sky-700", icon: Snowflake },
 };
 
+// Per-stage chip tints. Active state gets coral pulse ring applied separately.
+const STAGE_CHIP: Record<DealStage, { active: string; idle: string }> = {
+  prospek: {
+    active: "border-slate-400 bg-slate-700 text-white",
+    idle: "border-slate-300 bg-slate-100 text-slate-700 hover:border-slate-400",
+  },
+  kualifikasi: {
+    active: "border-sky-400 bg-sky-600 text-white",
+    idle: "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-400",
+  },
+  penawaran: {
+    active: "border-amber-400 bg-amber-500 text-white",
+    idle: "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400",
+  },
+  negosiasi: {
+    active: "border-primary bg-primary text-primary-foreground",
+    idle: "border-primary/30 bg-primary/5 text-primary hover:border-primary",
+  },
+  tutup: {
+    active: "border-emerald-400 bg-emerald-600 text-white",
+    idle: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400",
+  },
+};
+
 /**
  * Right-rail card surfacing enrichment context for the linked deal AND the
  * interactive stage selector (the "pipeline status editable from chat"
@@ -73,18 +97,23 @@ export function EnrichmentStageCard({ deal }: EnrichmentStageCardProps) {
     toast.success(`Tahap diperbarui ke "${label}".`);
   }
 
+  const daysOverdue = (analysis?.daysInStage ?? 0) > 7;
+
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <Card className="overflow-hidden border-amber-300/30 shadow-sm">
+      <div className="flex items-center justify-between border-b border-amber-300/20 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-card px-4 py-2.5">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/15 text-amber-700">
+            <Clock className="h-3 w-3" />
+          </span>
           Tahap Enrichment
         </p>
         <span
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
             status === "aktif"
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-slate-100 text-slate-600",
+              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+              : "border-slate-300 bg-slate-100 text-slate-600",
           )}
           title={status === "aktif" ? "Masih aktif" : "Berhenti > 14 hari"}
         >
@@ -115,19 +144,26 @@ export function EnrichmentStageCard({ deal }: EnrichmentStageCardProps) {
         <div className="flex flex-wrap gap-1.5">
           {STAGES.map((s) => {
             const active = s.key === liveDeal.stage;
+            const chip = STAGE_CHIP[s.key];
             return (
               <button
                 key={s.key}
                 type="button"
                 onClick={() => handleMove(s.key)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  active
-                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                    : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  "relative rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-150",
+                  active ? chip.active : chip.idle,
+                  active && "shadow-sm",
                 )}
               >
-                {s.label}
+                {/* Coral pulse ring on the currently-active stage. */}
+                {active && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 -z-0 rounded-full ring-2 ring-primary/40 animate-[pulse_2.4s_ease-in-out_infinite]"
+                  />
+                )}
+                <span className="relative z-10">{s.label}</span>
               </button>
             );
           })}
@@ -162,11 +198,25 @@ export function EnrichmentStageCard({ deal }: EnrichmentStageCardProps) {
             Lama di tahap
           </p>
           <p className="mt-1 flex items-center gap-1 text-sm font-semibold">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="tnum">{analysis?.daysInStage ?? 0}</span>
-            <span className="text-[11px] font-normal text-muted-foreground">
-              hari
-            </span>
+            <Clock
+              className={cn(
+                "h-3.5 w-3.5",
+                daysOverdue ? "text-amber-600" : "text-muted-foreground",
+              )}
+            />
+            {daysOverdue ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">
+                <span className="tnum">{analysis?.daysInStage ?? 0}</span>
+                <span className="font-normal">hari</span>
+              </span>
+            ) : (
+              <>
+                <span className="tnum">{analysis?.daysInStage ?? 0}</span>
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  hari
+                </span>
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -174,8 +224,9 @@ export function EnrichmentStageCard({ deal }: EnrichmentStageCardProps) {
       {analysis?.aiSuggestion && (
         <>
           <Separator />
-          <div className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="bg-gradient-to-br from-tertiary/5 to-transparent px-4 py-3">
+            <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-tertiary">
+              <Activity className="h-3 w-3" />
               Saran AI untuk tahap ini
             </p>
             <p className="mt-1 text-[11px] leading-snug text-foreground">

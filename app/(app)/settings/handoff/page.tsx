@@ -31,6 +31,12 @@ const TRIGGER_LABEL: Record<string, string> = {
   complexity: "Topik kompleks",
 };
 
+const TRIGGER_STYLE: Record<string, string> = {
+  sentiment: "border-primary/30 bg-primary/10 text-primary",
+  timeout: "border-warning/30 bg-warning/15 text-amber-700",
+  complexity: "border-tertiary/30 bg-tertiary/10 text-tertiary",
+};
+
 export default function HandoffSettingsPage() {
   const config = useHandoffStore((s) => s.config);
   const setSentimentThreshold = useHandoffStore((s) => s.setSentimentThreshold);
@@ -63,15 +69,45 @@ export default function HandoffSettingsPage() {
         </Button>
       </PageHeader>
 
+      {/* Hero strip — teal+coral gradient banner */}
+      <div className="relative overflow-hidden border-b bg-gradient-to-r from-tertiary/15 via-primary/8 to-transparent px-6 py-4">
+        <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-tertiary/25 blur-3xl" />
+        <div className="absolute -left-4 -bottom-12 h-28 w-28 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary text-tertiary-foreground shadow-[0_8px_20px_-8px_rgba(20,184,166,0.55)]">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">
+              Tiga pemicu — sentimen, batas waktu, dan topik
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Atur kondisi handoff sekali, AI menjalankan otomatis di seluruh
+              channel.
+            </p>
+          </div>
+          <Badge variant="default" className="gap-1 bg-tertiary/15 text-tertiary">
+            <AlarmClock className="h-3 w-3" />
+            {config.timeoutMinutes} mnt timeout
+          </Badge>
+          <Badge variant="default" className="gap-1 bg-primary/15 text-primary">
+            <Sparkles className="h-3 w-3" />
+            Threshold {config.sentimentThreshold}
+          </Badge>
+        </div>
+      </div>
+
       <div className="space-y-6 p-6">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           {/* Triggers */}
           <div className="space-y-4">
             {/* Sentiment threshold */}
-            <Card>
+            <Card className="overflow-hidden border-l-4 border-l-primary">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="h-4 w-4 text-tertiary" />
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Sparkles className="h-4 w-4" />
+                  </span>
                   Ambang batas sentimen
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
@@ -121,10 +157,12 @@ export default function HandoffSettingsPage() {
             </Card>
 
             {/* Timeout */}
-            <Card>
+            <Card className="overflow-hidden border-l-4 border-l-warning">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <AlarmClock className="h-4 w-4 text-tertiary" />
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/15 text-amber-700">
+                    <AlarmClock className="h-4 w-4" />
+                  </span>
                   Batas waktu tanpa resolusi
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
@@ -174,9 +212,14 @@ export default function HandoffSettingsPage() {
             </Card>
 
             {/* Complexity topics */}
-            <Card>
+            <Card className="overflow-hidden border-l-4 border-l-tertiary">
               <CardHeader>
-                <CardTitle className="text-base">Topik eskalasi otomatis</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-tertiary/10 text-tertiary">
+                    <BookOpen className="h-4 w-4" />
+                  </span>
+                  Topik eskalasi otomatis
+                </CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Daftar topik yang selalu dialihkan ke agen — di luar
                   cakupan AI.
@@ -189,25 +232,39 @@ export default function HandoffSettingsPage() {
                       Belum ada topik. Tambahkan di bawah.
                     </p>
                   ) : (
-                    config.complexityTopics.map((t) => (
-                      <span
-                        key={t}
-                        className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs font-medium"
-                      >
-                        {t}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            removeComplexityTopic(t);
-                            toast.success(`Topik "${t}" dihapus.`);
-                          }}
-                          className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                          aria-label={`Hapus ${t}`}
+                    config.complexityTopics.map((t, i) => {
+                      // Rotate through coral/teal/amber/blue/violet for each chip.
+                      const tones = [
+                        "border-primary/30 bg-primary/10 text-primary",
+                        "border-tertiary/30 bg-tertiary/10 text-tertiary",
+                        "border-warning/30 bg-warning/15 text-amber-700",
+                        "border-info/30 bg-info/10 text-info",
+                        "border-violet-300/40 bg-violet-50 text-violet-700",
+                      ];
+                      const tone = tones[i % tones.length];
+                      return (
+                        <span
+                          key={t}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold",
+                            tone,
+                          )}
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))
+                          {t}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              removeComplexityTopic(t);
+                              toast.success(`Topik "${t}" dihapus.`);
+                            }}
+                            className="ml-0.5 rounded-full p-0.5 opacity-70 transition hover:bg-black/5 hover:opacity-100"
+                            aria-label={`Hapus ${t}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })
                   )}
                 </div>
                 <form
@@ -231,9 +288,9 @@ export default function HandoffSettingsPage() {
             </Card>
 
             {/* Auto-reply master switch */}
-            <Card>
+            <Card className="overflow-hidden border-primary/20 bg-gradient-to-r from-primary/8 via-transparent to-tertiary/8">
               <CardContent className="flex items-center gap-3 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10 text-tertiary">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_20px_-8px_rgba(251,94,59,0.55)]">
                   <Sparkles className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -274,11 +331,16 @@ export default function HandoffSettingsPage() {
               <CardContent className="p-0">
                 <ul className="divide-y">
                   {handoffEvents.map((e) => (
-                    <li key={e.id} className="space-y-1 px-5 py-3">
+                    <li key={e.id} className="space-y-1 px-5 py-3 even:bg-muted/30">
                       <div className="flex items-center justify-between gap-2">
-                        <Badge variant="outline" className="text-[10px]">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                            TRIGGER_STYLE[e.trigger] ?? "border-muted text-muted-foreground",
+                          )}
+                        >
                           {TRIGGER_LABEL[e.trigger]}
-                        </Badge>
+                        </span>
                         <span className="text-[11px] text-muted-foreground">
                           {formatRelativeID(e.triggeredAt)}
                         </span>

@@ -37,6 +37,21 @@ const STAGE_LABEL: Record<string, string> = Object.fromEntries(
   STAGES.map((s) => [s.key, s.label]),
 );
 
+// Per-stage color tints — keeps the Coral Sunset language consistent.
+// prospek=muted slate, kualifikasi=info-blue, penawaran=amber, negosiasi=coral,
+// tutup=success-green. Used for the stage pill in the table + workspace.
+const STAGE_PILL: Record<string, string> = {
+  prospek: "border-slate-300/70 bg-slate-100 text-slate-700",
+  kualifikasi: "border-sky-300/70 bg-sky-100 text-sky-700",
+  penawaran: "border-amber-300/70 bg-amber-100 text-amber-800",
+  negosiasi: "border-primary/40 bg-primary/10 text-primary",
+  tutup: "border-emerald-300/70 bg-emerald-100 text-emerald-700",
+};
+
+// Fallback accents for product chips when a product has no `accent` set.
+// Rotates coral → teal → amber so the chips visibly punctuate the row.
+const PRODUCT_ACCENT_FALLBACK = ["#FB5E3B", "#14B8A6", "#F59E0B"];
+
 export function EnrichmentTable() {
   const deals = usePipelineStore((s) => s.deals);
   const analyses = usePipelineStore((s) => s.analyses);
@@ -90,29 +105,38 @@ export function EnrichmentTable() {
             className="pl-8"
           />
         </div>
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setStatus(f.key)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              status === f.key
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+        {STATUS_FILTERS.map((f) => {
+          const isActive = status === f.key;
+          const activeAccent =
+            f.key === "aktif"
+              ? "border-emerald-300 bg-emerald-100 text-emerald-700"
+              : f.key === "berhenti"
+                ? "border-slate-300 bg-slate-100 text-slate-700"
+                : "border-primary bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)]";
+          return (
+            <button
+              key={f.key}
+              onClick={() => setStatus(f.key)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150",
+                isActive
+                  ? activeAccent
+                  : "bg-card text-muted-foreground hover:-translate-y-px hover:text-foreground hover:shadow-sm",
+              )}
+            >
+              {f.label}
+            </button>
+          );
+        })}
         <span className="ml-auto text-sm text-muted-foreground">
           {rows.length} prospek
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="overflow-hidden rounded-xl border border-primary/10 bg-card shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="border-b border-primary/10 bg-gradient-to-r from-primary/5 via-tertiary/4 to-transparent hover:bg-transparent">
               <TableHead>Prospek</TableHead>
               <TableHead>Tahap</TableHead>
               <TableHead>Status</TableHead>
@@ -135,7 +159,7 @@ export function EnrichmentTable() {
             {rows.map(({ deal, analysis }) => (
               <TableRow
                 key={deal.id}
-                className="cursor-pointer"
+                className="group cursor-pointer transition-all duration-150 even:bg-muted/20 hover:bg-primary/5 hover:shadow-[inset_3px_0_0_0_rgba(251,94,59,0.7)] active:scale-[0.998]"
                 onClick={() => open(deal)}
               >
                 <TableCell>
@@ -143,7 +167,7 @@ export function EnrichmentTable() {
                     <UserAvatar
                       name={deal.contactName}
                       color={deal.avatarColor}
-                      className="h-8 w-8 text-[11px]"
+                      className="h-8 w-8 text-[11px] ring-2 ring-transparent transition-shadow group-hover:ring-primary/30"
                     />
                     <div className="min-w-0">
                       <p className="truncate font-medium">{deal.contactName}</p>
@@ -154,21 +178,33 @@ export function EnrichmentTable() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className="font-normal">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                      STAGE_PILL[analysis.stage] ?? STAGE_PILL.prospek,
+                    )}
+                  >
                     {STAGE_LABEL[analysis.stage] ?? analysis.stage}
-                  </Badge>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  </span>
+                  <p
+                    className={cn(
+                      "mt-1 text-[11px]",
+                      analysis.daysInStage > 7
+                        ? "font-medium text-amber-700"
+                        : "text-muted-foreground",
+                    )}
+                  >
                     {analysis.daysInStage} hari di tahap
                   </p>
                 </TableCell>
                 <TableCell>
                   {analysis.status === "aktif" ? (
-                    <Badge variant="success" className="gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                    <Badge variant="success" className="gap-1.5 border border-emerald-300/60">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shadow-[0_0_0_2px_rgba(16,185,129,0.18)]" />
                       Aktif
                     </Badge>
                   ) : (
-                    <Badge variant="muted" className="gap-1.5">
+                    <Badge variant="muted" className="gap-1.5 border border-slate-300/60">
                       <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
                       Berhenti
                     </Badge>
@@ -181,8 +217,8 @@ export function EnrichmentTable() {
                   />
                 </TableCell>
                 <TableCell className="max-w-[280px]">
-                  <p className="flex items-start gap-1.5 text-xs text-tertiary">
-                    <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
+                  <p className="flex items-start gap-1.5 text-xs">
+                    <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-tertiary" />
                     <span className="line-clamp-2 text-foreground/80">
                       {analysis.aiSuggestion}
                     </span>
@@ -190,22 +226,28 @@ export function EnrichmentTable() {
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    {analysis.matchedProducts.map((pid) => {
+                    {analysis.matchedProducts.map((pid, idx) => {
                       const p = productById(pid, products);
                       if (!p) return null;
+                      const accent =
+                        p.accent ??
+                        PRODUCT_ACCENT_FALLBACK[
+                          idx % PRODUCT_ACCENT_FALLBACK.length
+                        ];
                       return (
                         <span
                           key={pid}
                           title={p.description}
-                          className="inline-flex items-center gap-1.5 rounded-full border bg-card px-2 py-0.5 text-[11px] font-medium"
+                          className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-shadow hover:shadow-sm"
                           style={{
-                            borderColor: p.accent ? `${p.accent}55` : undefined,
-                            color: p.accent ?? "inherit",
+                            borderColor: `${accent}55`,
+                            backgroundColor: `${accent}12`,
+                            color: accent,
                           }}
                         >
                           <span
                             className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: p.accent ?? "#64748B" }}
+                            style={{ backgroundColor: accent }}
                           />
                           {p.name}
                         </span>

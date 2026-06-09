@@ -5,6 +5,7 @@ import { Clock, GripVertical, Plus, Trash2 } from "lucide-react";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { channelMeta } from "@/lib/utils/channel-config";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -215,21 +216,37 @@ function StepRow({
   onSelect: () => void;
   onRemove: () => void;
 }) {
+  const channelHex = channelMeta(step.channel).color;
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg border bg-card p-3 transition-shadow",
-        active && "border-primary ring-1 ring-primary",
+        "group relative flex items-center gap-2 overflow-hidden rounded-lg border bg-card p-3 transition-all duration-150",
+        active
+          ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-[0_4px_14px_-6px_rgba(251,94,59,0.45)]"
+          : "hover:-translate-y-px hover:border-primary/30 hover:shadow-sm",
       )}
     >
-      <span className="cursor-grab text-muted-foreground">
+      {/* Channel-colored left rail */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ backgroundColor: channelHex }}
+      />
+      <span className="ml-1 cursor-grab text-muted-foreground">
         <GripVertical className="h-4 w-4" />
       </span>
       <button
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-xs font-semibold">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold transition-colors",
+            active
+              ? "bg-primary text-primary-foreground"
+              : "bg-accent text-foreground",
+          )}
+        >
           {index + 1}
         </span>
         <div className="min-w-0 flex-1">
@@ -248,7 +265,7 @@ function StepRow({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className="h-8 w-8 shrink-0 hover:bg-destructive/10 hover:text-destructive"
         onClick={onRemove}
       >
         <Trash2 className="h-4 w-4 text-muted-foreground" />

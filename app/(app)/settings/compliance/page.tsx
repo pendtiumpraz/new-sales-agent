@@ -107,6 +107,35 @@ export default function CompliancePage() {
         </Button>
       </PageHeader>
 
+      {/* Hero strip — success-green gradient for a GRC page */}
+      <div className="relative overflow-hidden border-b bg-gradient-to-r from-success/15 via-tertiary/10 to-primary/8 px-6 py-4">
+        <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-success/25 blur-3xl" />
+        <div className="absolute -left-6 -bottom-12 h-32 w-32 rounded-full bg-primary/15 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.55)]">
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">
+              UU PDP No. 27/2022 · skor kepatuhan {SCORE}/100
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Audit-ready. Compliance-as-a-Service untuk DPO modern.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="success" className="gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              AES-256 at rest
+            </Badge>
+            <Badge variant="default" className="gap-1 bg-tertiary/15 text-tertiary">
+              <Server className="h-3 w-3" />
+              ap-southeast-3
+            </Badge>
+          </div>
+        </div>
+      </div>
+
       <div className="p-6">
         <Tabs defaultValue="ringkasan">
           <TabsList className="flex-wrap">
@@ -149,16 +178,19 @@ export default function CompliancePage() {
                 icon={Lock}
                 title="Enkripsi AES-256"
                 desc="Consent database terenkripsi at-rest & in-transit. Setiap entri immutable."
+                tone="primary"
               />
               <TrustCard
                 icon={Server}
                 title="Residensi data: AWS Jakarta"
                 desc="Data pelanggan disimpan di region ap-southeast-3 (Indonesia)."
+                tone="tertiary"
               />
               <TrustCard
                 icon={UserCog}
                 title="DPO terkelola"
                 desc="Compliance-as-a-Service: konsultasi DPO & alur hak hapus terkelola."
+                tone="info"
               />
             </div>
 
@@ -261,7 +293,7 @@ export default function CompliancePage() {
                             </TableRow>
                           ))
                         : (consentLog ?? []).map((c) => (
-                            <TableRow key={c.id}>
+                            <TableRow key={c.id} className="even:bg-tertiary/[0.04] hover:bg-primary/[0.04]">
                               <TableCell className="font-medium">{c.contactName}</TableCell>
                               <TableCell className="text-muted-foreground">
                                 {SOURCE_LABEL[c.source]}
@@ -592,15 +624,24 @@ function ScoreGauge({ score }: { score: number }) {
   const c = 2 * Math.PI * r;
   const offset = c - (score / 100) * c;
   return (
-    <div className="relative h-36 w-36">
-      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#FCE4DC" strokeWidth="10" />
+    <div className="relative h-40 w-40">
+      {/* Soft halo behind the gauge for extra pop */}
+      <div className="absolute inset-2 rounded-full bg-gradient-to-br from-success/20 via-tertiary/10 to-primary/15 blur-xl" />
+      <svg viewBox="0 0 120 120" className="relative h-full w-full -rotate-90">
+        <defs>
+          <linearGradient id="score-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#10B981" />
+            <stop offset="55%" stopColor="#14B8A6" />
+            <stop offset="100%" stopColor="#FB5E3B" />
+          </linearGradient>
+        </defs>
+        <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(20 80% 95%)" strokeWidth="10" />
         <circle
           cx="60"
           cy="60"
           r={r}
           fill="none"
-          stroke="#FB5E3B"
+          stroke="url(#score-stroke)"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={c}
@@ -608,7 +649,9 @@ function ScoreGauge({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-semibold tnum">{score}</span>
+        <span className="bg-gradient-to-br from-emerald-600 via-tertiary to-primary bg-clip-text text-4xl font-bold tnum text-transparent">
+          {score}
+        </span>
         <span className="text-xs text-muted-foreground">/ 100</span>
       </div>
     </div>
@@ -619,15 +662,23 @@ function TrustCard({
   icon: Icon,
   title,
   desc,
+  tone = "tertiary",
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   desc: string;
+  tone?: "primary" | "tertiary" | "info";
 }) {
+  const palette =
+    tone === "primary"
+      ? { iconBg: "bg-primary text-primary-foreground", border: "border-l-primary" }
+      : tone === "info"
+        ? { iconBg: "bg-info text-white", border: "border-l-info" }
+        : { iconBg: "bg-tertiary text-tertiary-foreground", border: "border-l-tertiary" };
   return (
-    <Card>
+    <Card className={cn("overflow-hidden border-l-4 transition-shadow hover:shadow-md", palette.border)}>
       <CardContent className="flex gap-3 p-5">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tertiary/10 text-tertiary">
+        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm", palette.iconBg)}>
           <Icon className="h-5 w-5" />
         </span>
         <div>
@@ -648,19 +699,41 @@ function MiniStat({
   value: string;
   tone: "success" | "warning" | "danger" | "default";
 }) {
-  const color =
+  const palette =
     tone === "success"
-      ? "text-emerald-700"
+      ? {
+          text: "text-emerald-700",
+          bar: "bg-gradient-to-r from-success/70 to-tertiary/70",
+          border: "border-success/25",
+          tint: "from-success/10 to-transparent",
+        }
       : tone === "warning"
-        ? "text-amber-700"
+        ? {
+            text: "text-amber-700",
+            bar: "bg-gradient-to-r from-amber-400 to-amber-500",
+            border: "border-warning/25",
+            tint: "from-warning/10 to-transparent",
+          }
         : tone === "danger"
-          ? "text-rose-600"
-          : "text-foreground";
+          ? {
+              text: "text-rose-600",
+              bar: "bg-gradient-to-r from-rose-400 to-rose-500",
+              border: "border-destructive/25",
+              tint: "from-destructive/10 to-transparent",
+            }
+          : {
+              text: "text-foreground",
+              bar: "bg-gradient-to-r from-tertiary/70 to-primary/70",
+              border: "border-tertiary/20",
+              tint: "from-tertiary/8 to-transparent",
+            };
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className={`text-2xl font-semibold tnum ${color}`}>{value}</p>
+    <Card className={cn("relative overflow-hidden border", palette.border)}>
+      <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br", palette.tint)} />
+      <CardContent className="relative p-4">
+        <p className={`text-2xl font-semibold tnum ${palette.text}`}>{value}</p>
         <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+        <div className={cn("mt-2 h-1 w-10 rounded-full", palette.bar)} />
       </CardContent>
     </Card>
   );

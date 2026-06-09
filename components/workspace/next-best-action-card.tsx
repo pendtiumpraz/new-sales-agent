@@ -49,6 +49,26 @@ const CONFIDENCE_LABEL: Record<Confidence, string> = {
   dingin: "Dingin",
 };
 
+// Pill tint + icon-swatch tint per confidence level — matches temp-badge so
+// the action cards feel related to the AI score chips elsewhere.
+const CONFIDENCE_PILL: Record<Confidence, string> = {
+  panas: "border-primary/30 bg-primary/10 text-primary",
+  hangat: "border-amber-300/60 bg-amber-100 text-amber-800",
+  dingin: "border-sky-300/60 bg-sky-100 text-sky-700",
+};
+
+const CONFIDENCE_ICON_BG: Record<Confidence, string> = {
+  panas: "bg-primary/15 text-primary",
+  hangat: "bg-amber-500/15 text-amber-700",
+  dingin: "bg-sky-500/15 text-sky-700",
+};
+
+const CONFIDENCE_BORDER: Record<Confidence, string> = {
+  panas: "border-primary/25 hover:border-primary/55",
+  hangat: "border-amber-300/40 hover:border-amber-400/70",
+  dingin: "border-sky-300/40 hover:border-sky-400/70",
+};
+
 interface NextBestActionCardProps {
   contact: Contact;
   deal: Deal | null;
@@ -283,19 +303,29 @@ export function NextBestActionCard({
   }, [analysis?.daysInStage, deal?.stage, sentiment, topProduct]);
 
   return (
-    <Card className="relative overflow-hidden border-tertiary/40 bg-gradient-to-br from-primary/8 via-tertiary/6 to-card shadow-sm">
-      {/* Decorative coral glow */}
+    <Card className="relative overflow-hidden border-primary/35 bg-gradient-to-br from-primary/12 via-tertiary/8 to-card shadow-[0_4px_18px_-8px_rgba(251,94,59,0.35)]">
+      {/* Decorative coral glow + secondary teal accent */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/15 blur-3xl"
+        className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-primary/25 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-tertiary/20 blur-3xl"
       />
       <div className="relative space-y-3 p-4">
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-tertiary text-white shadow-sm">
-            <Sparkles className="h-4 w-4" />
+          {/* Glowing coral sparkles badge */}
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-tertiary text-white shadow-[0_6px_18px_-6px_rgba(251,94,59,0.65)]">
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-xl bg-primary/50 blur-md"
+            />
+            <Sparkles className="relative h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-tertiary">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_0_3px_rgba(251,94,59,0.18)]" />
               Saran berikutnya
             </p>
             <h3 className="mt-0.5 text-[15px] font-semibold leading-snug">
@@ -346,9 +376,16 @@ export function NextBestActionCard({
         </div>
 
         {/* Footer attribution */}
-        <p className="flex items-center gap-1.5 text-[10px] leading-snug text-muted-foreground">
-          <BookOpen className="h-3 w-3 shrink-0" />
-          Disusun AI berbasis percakapan, enrichment, dan Basis Pengetahuan.
+        <p className="flex items-center gap-1.5 text-[10px] italic leading-snug text-muted-foreground">
+          <Sparkles className="h-3 w-3 shrink-0 text-tertiary" />
+          <span>
+            Disusun AI berbasis percakapan, enrichment, dan{" "}
+            <span className="not-italic">
+              <BookOpen className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
+              Basis Pengetahuan
+            </span>
+            .
+          </span>
         </p>
       </div>
     </Card>
@@ -358,15 +395,29 @@ export function NextBestActionCard({
 function ActionRow({ action }: { action: Action }) {
   const Icon = action.icon;
   return (
-    <li className="group flex items-start gap-2.5 rounded-lg border bg-card/80 p-2.5 shadow-sm transition-colors hover:border-primary/40">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <li
+      className={cn(
+        "group flex items-start gap-2.5 rounded-lg border bg-card/85 p-2.5 shadow-sm backdrop-blur-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md",
+        CONFIDENCE_BORDER[action.confidence],
+      )}
+    >
+      <span
+        className={cn(
+          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
+          CONFIDENCE_ICON_BG[action.confidence],
+        )}
+      >
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold leading-snug">{action.label}</p>
+          {/* Confidence chip — coral / amber / blue per panas/hangat/dingin */}
           <span
-            className="ml-1 mt-1 flex shrink-0 items-center gap-1"
+            className={cn(
+              "ml-1 inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+              CONFIDENCE_PILL[action.confidence],
+            )}
             title={`Keyakinan AI: ${CONFIDENCE_LABEL[action.confidence]}`}
           >
             <span
@@ -375,9 +426,7 @@ function ActionRow({ action }: { action: Action }) {
                 CONFIDENCE_DOT[action.confidence],
               )}
             />
-            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {CONFIDENCE_LABEL[action.confidence]}
-            </span>
+            {CONFIDENCE_LABEL[action.confidence]}
           </span>
         </div>
         {action.description && (
@@ -388,7 +437,15 @@ function ActionRow({ action }: { action: Action }) {
         <Button
           size="sm"
           variant="outline"
-          className="mt-2 h-7 text-xs"
+          className={cn(
+            "mt-2 h-7 text-xs transition-colors",
+            action.confidence === "panas" &&
+              "border-primary/40 text-primary hover:bg-primary/10 hover:text-primary",
+            action.confidence === "hangat" &&
+              "border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800",
+            action.confidence === "dingin" &&
+              "border-sky-300 text-sky-700 hover:bg-sky-50 hover:text-sky-800",
+          )}
           onClick={action.onClick}
         >
           {action.cta}

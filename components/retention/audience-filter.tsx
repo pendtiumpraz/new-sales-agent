@@ -43,17 +43,19 @@ export function AudienceFilter({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-primary/15">
+      <CardHeader className="border-b border-primary/10 bg-gradient-to-r from-primary/5 via-card to-tertiary/5">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Filter className="h-4 w-4 text-primary" />
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+            <Filter className="h-3.5 w-3.5" />
+          </span>
           Audiens & filter
         </CardTitle>
         <p className="text-xs text-muted-foreground">
           Saring pelanggan berdasarkan segmen produk dan riwayat interaksi.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-5">
         <div>
           <Label className="mb-1.5 block">Segmen produk</Label>
           <Select value={segment} onValueChange={setSegment}>
@@ -121,14 +123,26 @@ export function AudienceFilter({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/30 p-3 text-xs">
-          <span className="text-muted-foreground">Pratinjau filter:</span>
-          <Badge variant="muted">Segmen: {segment}</Badge>
-          <Badge variant="muted" className="tnum">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-tertiary/20 bg-tertiary/5 p-3 text-xs">
+          <span className="font-medium text-tertiary">Pratinjau filter:</span>
+          <Badge
+            variant="muted"
+            className="bg-tertiary/10 text-tertiary"
+          >
+            Segmen: {segment}
+          </Badge>
+          <Badge
+            variant="muted"
+            className="tnum bg-amber-100 text-amber-700"
+          >
             {minDays}–{maxDays} hari
           </Badge>
           {Array.from(tags).map((t) => (
-            <Badge key={t} variant="secondary">
+            <Badge
+              key={t}
+              variant="secondary"
+              className="bg-primary/10 text-primary"
+            >
               {t}
             </Badge>
           ))}

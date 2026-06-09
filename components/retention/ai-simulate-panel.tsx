@@ -49,11 +49,13 @@ export function AiSimulatePanel({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+    <Card className="border-primary/15">
+      <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-primary/10 bg-gradient-to-r from-primary/5 via-card to-tertiary/5">
         <div>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+            </span>
             Simulasi pesan AI
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -65,6 +67,7 @@ export function AiSimulatePanel({
           size="sm"
           onClick={regenerate}
           disabled={generating}
+          className="text-primary hover:bg-primary/10 hover:text-primary"
         >
           <RefreshCw
             className={
@@ -74,14 +77,19 @@ export function AiSimulatePanel({
           Buat ulang
         </Button>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 pt-4">
         {/* KB context chips */}
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="muted" className="gap-1">
             <BookOpen className="h-3 w-3" />
             KB: {flow.kbFlowId ?? "n/a"}
           </Badge>
-          <Badge variant="secondary">Segmen: {flow.segmentTarget ?? "Semua"}</Badge>
+          <Badge
+            variant="secondary"
+            className="bg-tertiary/10 text-tertiary"
+          >
+            Segmen: {flow.segmentTarget ?? "Semua"}
+          </Badge>
           {step && (
             <Badge variant="outline" className="gap-1.5">
               <ChannelDot channel={step.channel} size={6} />
@@ -89,15 +97,18 @@ export function AiSimulatePanel({
             </Badge>
           )}
           {step && (
-            <Badge variant="outline" className="tnum">
+            <Badge
+              variant="outline"
+              className="tnum border-amber-300 text-amber-700"
+            >
               Hari +{step.delayDays}
             </Badge>
           )}
         </div>
 
         {/* Sample customer header */}
-        <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-          <p className="font-medium text-foreground">Konteks contoh</p>
+        <div className="rounded-lg border border-tertiary/20 bg-tertiary/5 p-3 text-xs">
+          <p className="font-medium text-tertiary">Konteks contoh</p>
           <ul className="mt-1 grid gap-0.5 text-muted-foreground sm:grid-cols-2">
             <li>
               <span className="text-foreground">Pelanggan:</span> Ibu Maharani
@@ -116,7 +127,7 @@ export function AiSimulatePanel({
         </div>
 
         {/* Rendered message */}
-        <div className="min-h-[160px] whitespace-pre-line rounded-lg border bg-card p-4 text-sm leading-relaxed">
+        <div className="min-h-[160px] whitespace-pre-line rounded-lg border border-primary/15 bg-gradient-to-br from-primary/[0.04] to-card p-4 text-sm leading-relaxed">
           {generating ? (
             <span className="flex items-center gap-2 text-muted-foreground">
               <span className="flex gap-1">

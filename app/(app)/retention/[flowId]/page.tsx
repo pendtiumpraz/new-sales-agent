@@ -28,6 +28,14 @@ import {
   FLOW_TYPE_LABEL,
   useRetentionStore,
 } from "@/lib/stores/retention-store";
+import type { RetentionFlowType } from "@/lib/types/retention";
+
+// Match FlowCard accents so the detail page reads as the same "flow object".
+const TYPE_ACCENT_HEX: Record<RetentionFlowType, string> = {
+  "repeat-order": "#FB5E3B", // coral
+  upsell: "#F59E0B", // amber
+  "after-sales": "#14B8A6", // teal
+};
 
 export default function RetentionFlowDetailPage() {
   const params = useParams<{ flowId: string }>();
@@ -136,21 +144,58 @@ export default function RetentionFlowDetailPage() {
       <div className="space-y-4 p-6">
         {/* Summary band */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardContent className="space-y-4 p-5">
+          <Card
+            className="relative overflow-hidden lg:col-span-2"
+            style={{
+              background: `linear-gradient(135deg, ${TYPE_ACCENT_HEX[flow.type]}0D 0%, hsl(var(--card)) 60%, ${TYPE_ACCENT_HEX[flow.type]}14 100%)`,
+              borderColor: `${TYPE_ACCENT_HEX[flow.type]}33`,
+            }}
+          >
+            {/* Type-tinted top strip */}
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-1"
+              style={{
+                background: `linear-gradient(90deg, ${TYPE_ACCENT_HEX[flow.type]}cc, ${TYPE_ACCENT_HEX[flow.type]}33)`,
+              }}
+            />
+            {/* Corner halo */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-70 blur-2xl"
+              style={{
+                background: `radial-gradient(circle at center, ${TYPE_ACCENT_HEX[flow.type]}26, transparent 70%)`,
+              }}
+            />
+            <CardContent className="relative space-y-4 p-5 pt-6">
               <div className="flex flex-wrap items-center gap-2">
                 {typeMeta && (
                   <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>
                 )}
                 {statusMeta && (
-                  <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+                  <Badge
+                    variant={statusMeta.variant}
+                    className="gap-1.5 px-2.5"
+                  >
+                    <span
+                      aria-hidden
+                      className={
+                        isActive
+                          ? "h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"
+                          : flow.status === "jeda"
+                            ? "h-1.5 w-1.5 rounded-full bg-amber-500"
+                            : "h-1.5 w-1.5 rounded-full bg-muted-foreground/40"
+                      }
+                    />
+                    {statusMeta.label}
+                  </Badge>
                 )}
                 <Badge variant="muted" className="gap-1">
                   <BookOpen className="h-3 w-3" />
                   KB ref: {flow.kbFlowId ?? "—"}
                 </Badge>
                 {flow.segmentTarget && (
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="border-tertiary/30 text-tertiary">
                     Segmen: {flow.segmentTarget}
                   </Badge>
                 )}
@@ -191,31 +236,31 @@ export default function RetentionFlowDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-primary/15">
+            <CardHeader className="border-b border-primary/10 bg-gradient-to-r from-primary/5 via-card to-tertiary/5">
               <CardTitle className="text-base">Performa</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg border p-3">
+            <CardContent className="space-y-3 pt-5">
+              <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Users className="h-3.5 w-3.5" />
+                  </span>
                   Terdaftar
                 </span>
                 <span className="tnum text-lg font-semibold">
                   {flow.enrolled}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <span className="text-sm text-muted-foreground">
-                  Konversi
-                </span>
+              <div className="flex items-center justify-between rounded-lg border border-tertiary/20 bg-tertiary/5 p-3">
+                <span className="text-sm text-muted-foreground">Konversi</span>
                 <span className="tnum text-lg font-semibold text-tertiary">
                   {flow.conversionRate}%
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <span className="text-sm text-muted-foreground">Langkah</span>
-                <span className="tnum text-lg font-semibold">
+                <span className="tnum text-lg font-semibold text-amber-700">
                   {flow.steps.length}
                 </span>
               </div>
@@ -244,9 +289,14 @@ export default function RetentionFlowDetailPage() {
           <TabsContent value="audience">
             <div className="grid gap-4 lg:grid-cols-2">
               <AudienceFilter initialSegment={flow.segmentTarget} />
-              <Card>
+              <Card className="border-tertiary/20 bg-gradient-to-br from-tertiary/5 via-card to-primary/5">
                 <CardHeader>
-                  <CardTitle className="text-base">Catatan AI</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-tertiary/15 text-tertiary">
+                      <BookOpen className="h-3.5 w-3.5" />
+                    </span>
+                    Catatan AI
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm text-muted-foreground">
                   <p>
@@ -265,9 +315,11 @@ export default function RetentionFlowDetailPage() {
                     diikutsertakan. Jumlah perkiraan akan diperbarui setelah
                     aturan disimpan.
                   </p>
-                  <div className="mt-3 rounded-lg border bg-muted/30 p-3">
-                    <p className="text-xs text-foreground">Estimasi audiens</p>
-                    <p className="tnum mt-1 text-2xl font-semibold tracking-tight">
+                  <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <p className="text-xs font-medium text-primary">
+                      Estimasi audiens
+                    </p>
+                    <p className="tnum mt-1 text-2xl font-semibold tracking-tight text-foreground">
                       ~{Math.max(20, flow.enrolled * 2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -282,39 +334,51 @@ export default function RetentionFlowDetailPage() {
           <TabsContent value="simulate">
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <AiSimulatePanel flow={flow} stepId={selectedStepId} />
-              <Card>
-                <CardHeader>
+              <Card className="border-primary/15">
+                <CardHeader className="border-b border-primary/10 bg-gradient-to-r from-primary/5 via-card to-tertiary/5">
                   <CardTitle className="text-base">Pilih langkah</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     Klik langkah untuk melihat pesannya dirender AI.
                   </p>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {flow.steps.map((step, i) => (
-                    <button
-                      key={step.id}
-                      onClick={() => setSelectedStepId(step.id)}
-                      className={
-                        "flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors " +
-                        (selectedStepId === step.id
-                          ? "border-primary ring-1 ring-primary"
-                          : "hover:bg-muted/40")
-                      }
-                    >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-xs font-semibold">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium capitalize">{step.channel}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {step.delayDays === 0
-                            ? "Langsung"
-                            : `Hari +${step.delayDays}`}{" "}
-                          · {step.content.slice(0, 60)}...
-                        </p>
-                      </div>
-                    </button>
-                  ))}
+                <CardContent className="space-y-2 pt-4">
+                  {flow.steps.map((step, i) => {
+                    const active = selectedStepId === step.id;
+                    return (
+                      <button
+                        key={step.id}
+                        onClick={() => setSelectedStepId(step.id)}
+                        className={
+                          "flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-all duration-150 " +
+                          (active
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-[0_4px_14px_-6px_rgba(251,94,59,0.45)]"
+                            : "hover:-translate-y-px hover:border-primary/30 hover:bg-primary/[0.04]")
+                        }
+                      >
+                        <span
+                          className={
+                            "flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold transition-colors " +
+                            (active
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-accent text-foreground")
+                          }
+                        >
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium capitalize">
+                            {step.channel}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {step.delayDays === 0
+                              ? "Langsung"
+                              : `Hari +${step.delayDays}`}{" "}
+                            · {step.content.slice(0, 60)}...
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                   {flow.steps.length === 0 && (
                     <p className="py-6 text-center text-sm text-muted-foreground">
                       Belum ada langkah pada alur ini.

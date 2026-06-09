@@ -10,6 +10,10 @@ import { cn } from "@/lib/utils";
  * Inline KPI tile for the Retention dashboard — same visual rhythm as the
  * dashboard `StatTile` but local to this module so we don't reach into
  * private components from `app/(app)/dashboard/page.tsx`.
+ *
+ * Tiles use an accent-tinted gradient backdrop so they feel alive even
+ * before the user reads the number. A faint corner halo (radial-gradient
+ * blob using the same accent hex) adds depth without noise.
  */
 export function RetentionStatTile({
   icon,
@@ -33,12 +37,31 @@ export function RetentionStatTile({
   const positive = hasDelta && delta! >= 0;
 
   return (
-    <Card className="transition-shadow hover:shadow-md">
-      <CardContent className="flex h-full flex-col p-5">
+    <Card
+      className={cn(
+        "group relative overflow-hidden transition-all duration-200 ease-out",
+        "hover:-translate-y-1 hover:shadow-[0_12px_28px_-12px_rgba(251,94,59,0.35)] hover:ring-1 hover:ring-primary/15",
+      )}
+      style={{
+        // Subtle accent-tinted background; alpha kept tiny so foreground text
+        // stays WCAG-AA compliant against the warm-white canvas.
+        background: `linear-gradient(135deg, ${accent}0D 0%, hsl(var(--card)) 55%, ${accent}14 100%)`,
+        borderColor: `${accent}33`,
+      }}
+    >
+      {/* Soft corner halo using the same accent — sits below content */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full opacity-60 blur-2xl transition-opacity duration-300 group-hover:opacity-90"
+        style={{
+          background: `radial-gradient(circle at center, ${accent}26, transparent 70%)`,
+        }}
+      />
+      <CardContent className="relative flex h-full flex-col p-5">
         <div className="flex items-center justify-between">
           <span
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${accent}1A`, color: accent }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105"
+            style={{ backgroundColor: `${accent}1F`, color: accent }}
           >
             {icon}
           </span>
@@ -47,7 +70,7 @@ export function RetentionStatTile({
               className={cn(
                 "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
                 positive
-                  ? "bg-success/10 text-emerald-700"
+                  ? "bg-success/15 text-emerald-700"
                   : "bg-destructive/10 text-destructive",
               )}
             >
@@ -60,7 +83,7 @@ export function RetentionStatTile({
               {delta}%
             </span>
           ) : (
-            <ArrowUpRight className="h-4 w-4 text-muted-foreground/30" />
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 transition-colors group-hover:text-primary/60" />
           )}
         </div>
         <p className="mt-4 text-sm text-muted-foreground">{label}</p>

@@ -82,6 +82,32 @@ export function WorkspaceHandoffCard({
   const handedOff = state?.status === "handed-off";
   const tone = toneFromScore(sentiment.score);
 
+  // Sentiment-driven header tints + pulsing status dot. Negative gets rose,
+  // positive gets emerald, neutral stays muted — matches sentiment-badge.
+  const TONE_STYLES = {
+    positive: {
+      card: "border-emerald-300/40",
+      header:
+        "border-b border-emerald-300/30 bg-gradient-to-r from-emerald-50 via-emerald-50/40 to-card",
+      label: "text-emerald-700",
+      dot: "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]",
+    },
+    neutral: {
+      card: "border-slate-300/40",
+      header: "border-b bg-muted/30",
+      label: "text-muted-foreground",
+      dot: "bg-slate-400 shadow-[0_0_0_3px_rgba(148,163,184,0.18)]",
+    },
+    negative: {
+      card: "border-rose-300/40",
+      header:
+        "border-b border-rose-300/30 bg-gradient-to-r from-rose-50 via-rose-50/40 to-card",
+      label: "text-rose-700",
+      dot: "bg-rose-500 shadow-[0_0_0_3px_rgba(244,63,94,0.2)] animate-pulse",
+    },
+  } as const;
+  const ts = TONE_STYLES[tone];
+
   function onTakeOver() {
     if (!conversationId) return;
     takeOver(conversationId, CURRENT_AGENT);
@@ -97,9 +123,15 @@ export function WorkspaceHandoffCard({
   }
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <Card className={cn("overflow-hidden shadow-sm", ts.card)}>
+      <div className={cn("flex items-center justify-between px-4 py-2.5", ts.header)}>
+        <p
+          className={cn(
+            "flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider",
+            ts.label,
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full", ts.dot)} />
           Handoff & sentimen
         </p>
         <SentimentBadge
