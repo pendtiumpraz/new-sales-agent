@@ -135,7 +135,7 @@ export function SideNav() {
                   : "gap-2.5 px-3 py-2",
                 active
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  : "text-foreground/75 hover:bg-accent hover:text-foreground",
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -272,7 +272,7 @@ export function TopBar() {
                     "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     active
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      : "text-foreground/75 hover:bg-accent hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />

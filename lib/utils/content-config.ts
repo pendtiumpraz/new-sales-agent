@@ -83,7 +83,7 @@ export const CONTENT_AI_DRAFTS: Record<ContentType, string[]> = {
     "Pak/Bu {{nama}}, terima kasih sudah berbelanja di toko kami 🙏 Kami siapkan diskon 15% untuk pembelian berikutnya, berlaku 7 hari. Kode: LANJUT15",
   ],
   "email-campaign": [
-    "Subjek: 5 tren sales Indonesia bulan ini\n\nHalo Tim,\n\nBulan ini kami mengumpulkan 5 insight tentang tren sales B2B di Indonesia — dari pergeseran ke WhatsApp-first sampai dampak UU PDP pada outbound. Baca selengkapnya di link berikut.\n\nSalam,\nTim Agentic Sales",
+    "Subjek: 5 tren sales Indonesia bulan ini\n\nHalo Tim,\n\nBulan ini kami mengumpulkan 5 insight tentang tren sales B2B di Indonesia — dari pergeseran ke WhatsApp-first sampai dampak UU PDP pada outbound. Baca selengkapnya di link berikut.\n\nSalam,\nTim Maira Sales",
     "Subjek: {{nama}}, lihat bagaimana tim sales sejenis mempercepat closing\n\nHalo {{nama}},\n\nKami baru saja terbitkan studi kasus tim sales yang menutup 3× lebih banyak deal setelah pakai cadence WhatsApp + email. Mau saya kirim ringkasannya untuk {{perusahaan}}?",
   ],
   "instagram-post": [

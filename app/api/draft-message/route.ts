@@ -57,7 +57,7 @@ function templateDraft(body: DraftMessageBody): string {
     `Boleh kami jadwalkan demo 20 menit minggu ini?`,
     ``,
     `Terima kasih,`,
-    `Tim Agentic Sales`,
+    `Tim Maira Sales`,
   ].join("\n");
 }
 

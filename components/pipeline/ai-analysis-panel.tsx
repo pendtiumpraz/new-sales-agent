@@ -124,7 +124,7 @@ function draftMessage(product: EnrichmentProduct, segment: string): string {
     `Boleh kami jadwalkan demo 20 menit minggu ini?`,
     ``,
     `Terima kasih,`,
-    `Tim Agentic Sales`,
+    `Tim Maira Sales`,
   ].join("\n");
 }
 

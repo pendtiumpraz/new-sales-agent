@@ -34,7 +34,7 @@ function aiSummary(p: ProspectLead): string {
 
 function aiOpener(p: ProspectLead): string {
   const first = p.name.split(" ")[0];
-  return `Halo ${first} 👋 Saya perhatikan ${p.company} sedang berkembang di sektor ${p.industry}. Banyak tim sales sejenis memakai Agentic Sales untuk menyatukan WhatsApp + email dan mempercepat closing hingga 3×. Berkenan demo singkat 15 menit minggu ini?`;
+  return `Halo ${first} 👋 Saya perhatikan ${p.company} sedang berkembang di sektor ${p.industry}. Banyak tim sales sejenis memakai Maira Sales untuk menyatukan WhatsApp + email dan mempercepat closing hingga 3×. Berkenan demo singkat 15 menit minggu ini?`;
 }
 
 export function ProspectSheet({

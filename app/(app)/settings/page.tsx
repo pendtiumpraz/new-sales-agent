@@ -157,7 +157,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-4 p-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="ws-name">Nama workspace</Label>
-                  <Input id="ws-name" defaultValue="Agentic Sales Indonesia" />
+                  <Input id="ws-name" defaultValue="Maira Sales Indonesia" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ws-domain">Domain</Label>

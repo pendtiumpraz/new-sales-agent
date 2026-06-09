@@ -72,11 +72,11 @@ const AI_DRAFTS: Record<string, string[]> = {
     "Selamat pagi {{nama}}, satu tips singkat: tim yang follow-up dalam 5 menit menutup 3× lebih banyak deal. Kami otomatiskan itu untuk {{perusahaan}}. Tertarik lihat?",
   ],
   email: [
-    "Subjek: Ide cepat untuk tim sales {{perusahaan}}\n\nHalo {{nama}},\n\nSaya perhatikan {{perusahaan}} mengandalkan banyak channel. Kami bantu menyatukannya jadi satu inbox sehingga tidak ada lead terlewat. Boleh saya kirim studi kasus singkat?\n\nSalam,\nTim Agentic Sales",
+    "Subjek: Ide cepat untuk tim sales {{perusahaan}}\n\nHalo {{nama}},\n\nSaya perhatikan {{perusahaan}} mengandalkan banyak channel. Kami bantu menyatukannya jadi satu inbox sehingga tidak ada lead terlewat. Boleh saya kirim studi kasus singkat?\n\nSalam,\nTim Maira Sales",
     "Subjek: {{nama}}, 3× lebih cepat closing untuk {{perusahaan}}\n\nHalo {{nama}}, terlampir cara tim sejenis memakai {{produk}} untuk mempercepat closing. Berkenan demo singkat minggu ini?",
   ],
   sms: [
-    "{{nama}}, pengingat demo {{produk}} besok 14:00 WIB. Balas YA untuk konfirmasi. - Agentic Sales",
+    "{{nama}}, pengingat demo {{produk}} besok 14:00 WIB. Balas YA untuk konfirmasi. - Maira Sales",
   ],
   linkedin: [
     "Halo {{nama}}, senang terhubung! Saya bantu tim sales di {{perusahaan}} mempercepat closing lewat cadence multi-channel. Boleh saya bagikan 1 ide singkat?",

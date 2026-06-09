@@ -426,7 +426,7 @@ export const seedSources: KbSource[] = [
 // ── Full KB ────────────────────────────────────────────────────────────────
 export const seedKnowledgeBase: KnowledgeBase = {
   clientId: "client_agentic_id",
-  clientName: "Agentic Sales Indonesia",
+  clientName: "Maira Sales Indonesia",
   products: seedProducts,
   pricing: seedPricing,
   segments: seedSegments,

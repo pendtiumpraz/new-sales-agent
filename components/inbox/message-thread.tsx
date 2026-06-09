@@ -66,7 +66,15 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
     setDismissedDraft(false);
   }, [conversationId]);
 
-  const all = data ? [...data.messages, ...sent] : [];
+  // Memoize `all` so its identity is stable when neither slice changes —
+  // a fresh array literal each render was causing the conversationContext
+  // useMemo + downstream useCallback in AutoReplyCard to thrash, which is
+  // the prime suspect behind the React #185 'Maximum update depth' on
+  // /workspace/[contactId].
+  const all = useMemo(
+    () => (data ? [...data.messages, ...sent] : []),
+    [data, sent],
+  );
   const sentiment = useMemo(() => getSentiment(conversationId), [conversationId]);
   const handedOff = handoffState?.status === "handed-off";
   const lastMessage = all[all.length - 1];

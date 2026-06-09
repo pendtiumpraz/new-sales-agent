@@ -26,7 +26,7 @@ export function BrandLogo({
       </span>
       {showWord && (
         <span className="text-[15px] font-semibold tracking-tight text-foreground">
-          Agentic<span className="text-muted-foreground"> Sales</span>
+          Maira<span className="text-muted-foreground"> Sales</span>
         </span>
       )}
     </span>

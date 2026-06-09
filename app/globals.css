@@ -12,7 +12,7 @@
     --card-foreground: 24 6% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 24 6% 10%;
-    --primary: 11 96% 61%; /* coral #FB5E3B */
+    --primary: 12 96% 67%; /* coral #FD7A5C — slightly lighter pastel-leaning */
     --primary-foreground: 0 0% 100%;
     --secondary: 24 16% 94%; /* warm neutral surface */
     --secondary-foreground: 24 10% 24%;
@@ -24,7 +24,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 24 24% 91%; /* warm light border */
     --input: 24 24% 91%;
-    --ring: 11 96% 61%; /* coral focus ring */
+    --ring: 12 96% 67%; /* coral focus ring */
     --tertiary: 173 80% 40%; /* teal accent #14B8A6 */
     --tertiary-foreground: 0 0% 100%;
     --highlight: 38 92% 50%; /* amber #F59E0B */
