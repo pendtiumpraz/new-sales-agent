@@ -189,26 +189,19 @@ export function SideNav() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="mx-auto flex border-primary/30 bg-primary/5 hover:bg-primary/10"
-                  >
-                    <Sparkles className="h-4 w-4 text-primary" />
-                  </Button>
+                  <button className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#3B82F6] to-[#6366F1] text-white shadow-[0_4px_12px_-4px_rgba(59,130,246,0.55)] transition-transform hover:scale-105">
+                    <Sparkles className="h-4 w-4" />
+                  </button>
                 </SheetTrigger>
               </TooltipTrigger>
               <TooltipContent side="right">Asisten Sales</TooltipContent>
             </Tooltip>
           ) : (
             <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2 border-primary/30 bg-primary/5 text-foreground hover:bg-primary/10"
-              >
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span>Asisten Sales</span>
-              </Button>
+              <button className="group flex w-full items-center gap-2 rounded-lg bg-gradient-to-r from-[#3B82F6] to-[#6366F1] px-3 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55)] transition-all hover:shadow-[0_6px_18px_-4px_rgba(59,130,246,0.7)] hover:brightness-110">
+                <Sparkles className="h-4 w-4" />
+                <span className="flex-1 text-left">Asisten Sales</span>
+              </button>
             </SheetTrigger>
           )}
           <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
@@ -337,14 +330,10 @@ export function TopBar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-primary/30 bg-primary/5 hover:bg-primary/10"
-              >
-                <Sparkles className="h-4 w-4 text-primary" />
+              <button className="inline-flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#3B82F6] to-[#6366F1] px-3 text-sm font-semibold text-white shadow-[0_4px_12px_-4px_rgba(59,130,246,0.5)] transition-all hover:shadow-[0_6px_18px_-4px_rgba(59,130,246,0.7)] hover:brightness-110">
+                <Sparkles className="h-4 w-4" />
                 <span className="hidden lg:inline">Asisten</span>
-              </Button>
+              </button>
             </SheetTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">Asisten Sales</TooltipContent>
