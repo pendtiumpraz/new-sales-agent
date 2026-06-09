@@ -107,12 +107,53 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        // Autopilot — soft coral aura that breathes around the idle CTA
+        "ap-aura": {
+          "0%, 100%": {
+            boxShadow: "0 0 0 0 rgba(251,94,59,0.35), 0 10px 30px -10px rgba(251,94,59,0.45)",
+          },
+          "50%": {
+            boxShadow: "0 0 0 14px rgba(251,94,59,0), 0 18px 40px -10px rgba(251,94,59,0.55)",
+          },
+        },
+        // Autopilot — running step card ring pulse (coral)
+        "ap-ring-pulse": {
+          "0%, 100%": {
+            boxShadow: "0 0 0 0 rgba(251,94,59,0.45)",
+            borderColor: "rgba(251,94,59,0.55)",
+          },
+          "50%": {
+            boxShadow: "0 0 0 6px rgba(251,94,59,0)",
+            borderColor: "rgba(251,94,59,1)",
+          },
+        },
+        // Autopilot — three thinking dots after "AI menulis..."
+        "ap-dot-bounce": {
+          "0%, 80%, 100%": { transform: "translateY(0)", opacity: "0.4" },
+          "40%": { transform: "translateY(-4px)", opacity: "1" },
+        },
+        // Autopilot — celebration sparkle radiating outward
+        "ap-sparkle": {
+          "0%": {
+            transform: "translate(-50%, -50%) translate(0, 0) scale(0.4)",
+            opacity: "1",
+          },
+          "100%": {
+            transform:
+              "translate(-50%, -50%) translate(var(--ap-x, 40px), var(--ap-y, -40px)) scale(1)",
+            opacity: "0",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.2s ease-out",
         "slide-up": "slide-up 0.25s ease-out",
+        "ap-aura": "ap-aura 3s ease-in-out infinite",
+        "ap-ring-pulse": "ap-ring-pulse 1.4s ease-in-out infinite",
+        "ap-dot-bounce": "ap-dot-bounce 1.2s ease-in-out infinite",
+        "ap-sparkle": "ap-sparkle 700ms ease-out forwards",
       },
     },
   },

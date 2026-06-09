@@ -18,7 +18,18 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useState, type ComponentType, type SVGProps } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "framer-motion";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type SVGProps,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
@@ -191,6 +202,13 @@ function formatDuration(ms: number): string {
  * done). Surfaces two badges side-by-side (kind + source) plus the
  * end-to-end latency so the operator can tell at a glance whether AI
  * actually ran or fell back to the template.
+ *
+ * Motion choreography:
+ *  - running  → coral ring pulses (CSS keyframe, 1.4s)
+ *  - ai-text  → three bouncing dots after "AI menulis…" while running
+ *  - done     → 500ms emerald ring fade (CSS transition on a one-shot class)
+ *  - failed   → quick horizontal shake (framer one-shot animate)
+ *  - time pill → spring scale-in once finished
  */
 export function StepCard({
   event,
@@ -206,6 +224,7 @@ export function StepCard({
   const ts = event.finishedAt ?? event.startedAt;
   const relative = secondsAgoLabel(ts);
   const kind = STEP_KIND[event.step];
+  const reduce = useReducedMotion();
 
   // Response time — only meaningful once a finishedAt exists.
   const durationMs =
@@ -222,8 +241,38 @@ export function StepCard({
   const expandable = kind === "ai-text" && !!event.detail && event.detail.length > 200;
   const [expanded, setExpanded] = useState(false);
 
+  // One-shot transition flashes when status flips.
+  // - flashDone (emerald ring, ~500ms) right after running → done
+  // - shakeKey  bumps to retrigger framer shake on running → failed
+  const prevStatus = useRef<AutopilotStepStatus>(event.status);
+  const [flashDone, setFlashDone] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+  useEffect(() => {
+    const prev = prevStatus.current;
+    if (prev !== event.status) {
+      if (event.status === "done") {
+        setFlashDone(true);
+        const t = setTimeout(() => setFlashDone(false), 520);
+        prevStatus.current = event.status;
+        return () => clearTimeout(t);
+      }
+      if (event.status === "failed") {
+        setShakeKey((k) => k + 1);
+      }
+      prevStatus.current = event.status;
+    }
+  }, [event.status]);
+
+  // Strip the trailing ellipsis from ai-text running titles so we can drop
+  // animated dots in their place. e.g. "AI menulis catatan untuk Andi…"
+  // becomes "AI menulis catatan untuk Andi" + <BouncingDots/>.
+  const isAiRunning = kind === "ai-text" && event.status === "running";
+  const titleSansEllipsis = isAiRunning
+    ? event.title.replace(/[…\.\s]+$/, "")
+    : event.title;
+
   return (
-    <li className="relative flex gap-3 pl-1">
+    <div className="relative flex gap-3 pl-1">
       {/* Spine */}
       <div className="relative flex w-8 shrink-0 flex-col items-center">
         {!isFirst && <span className="absolute top-0 h-3 w-px bg-border" />}
@@ -231,28 +280,47 @@ export function StepCard({
           className={cn(
             "relative z-10 mt-3 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-background",
             meta.iconWrap,
-            event.status === "running" &&
-              "shadow-[0_0_0_4px_rgba(251,94,59,0.18)] animate-pulse",
           )}
         >
-          <Icon className="h-4 w-4" />
+          {event.status === "running" && !reduce ? (
+            <motion.span
+              animate={{ scale: [1, 1.12, 1] }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              className="inline-flex"
+            >
+              <Icon className="h-4 w-4" />
+            </motion.span>
+          ) : (
+            <Icon className="h-4 w-4" />
+          )}
         </span>
         {!isLast && <span className="mt-1 w-px flex-1 bg-border" />}
       </div>
 
       {/* Body */}
       <div className="min-w-0 flex-1 pb-4">
-        <div
+        <motion.div
+          key={`shake-${shakeKey}`}
+          animate={
+            shakeKey > 0 && event.status === "failed" && !reduce
+              ? { x: [0, -4, 4, -4, 4, 0] }
+              : undefined
+          }
+          transition={{ duration: 0.4, ease: "easeInOut" }}
           className={cn(
-            "rounded-2xl border bg-card px-4 py-3 transition-colors",
+            "rounded-2xl border bg-card px-4 py-3 transition-[box-shadow,border-color] duration-500",
             meta.cls,
+            event.status === "running" && !reduce && "animate-ap-ring-pulse",
+            flashDone &&
+              "border-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]",
           )}
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-semibold text-foreground">
-                  {event.title}
+                  {titleSansEllipsis}
+                  {isAiRunning && <BouncingDots reduce={!!reduce} />}
                 </p>
                 <Badge variant={meta.badgeVariant} className="gap-1">
                   <StatusIcon status={event.status} />
@@ -274,27 +342,49 @@ export function StepCard({
           </div>
 
           {event.detail && (
-            <>
-              {expandable && expanded ? (
-                <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-foreground">
-                  {event.detail}
-                </pre>
-              ) : (
-                <p className="mt-2 whitespace-pre-line text-xs text-muted-foreground">
-                  {event.detail}
-                </p>
-              )}
-            </>
+            <AnimatePresence initial={false} mode="wait">
+              <motion.div
+                key={expandable && expanded ? "expanded" : "collapsed"}
+                initial={reduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduce ? undefined : { opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                {expandable && expanded ? (
+                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-foreground">
+                    {event.detail}
+                  </pre>
+                ) : (
+                  <p className="mt-2 whitespace-pre-line text-xs text-muted-foreground">
+                    {event.detail}
+                  </p>
+                )}
+              </motion.div>
+            </AnimatePresence>
           )}
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <StepKindBadge kind={kind} />
             {showSourceBadge && <SourceBadge source={event.source} />}
-            {durationMs !== null && (
-              <Badge variant="muted" className="gap-1 tnum text-[10px]">
-                {formatDuration(durationMs)}
-              </Badge>
-            )}
+            <AnimatePresence>
+              {durationMs !== null && (
+                <motion.span
+                  key="dur"
+                  initial={reduce ? false : { scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={reduce ? undefined : { scale: 0, opacity: 0 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 360,
+                    damping: 20,
+                  }}
+                >
+                  <Badge variant="muted" className="gap-1 tnum text-[10px]">
+                    {formatDuration(durationMs)}
+                  </Badge>
+                </motion.span>
+              )}
+            </AnimatePresence>
             {expandable && (
               <button
                 type="button"
@@ -315,9 +405,29 @@ export function StepCard({
               </button>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
-    </li>
+    </div>
+  );
+}
+
+/**
+ * Three coral dots bouncing in sequence — used inline to convey the
+ * "AI is thinking" streaming feel during the ~1–3s Deepseek round-trip.
+ * Reduced motion: render a single static ellipsis.
+ */
+function BouncingDots({ reduce }: { reduce: boolean }) {
+  if (reduce) return <span className="text-muted-foreground">…</span>;
+  return (
+    <span className="ml-1 inline-flex items-end gap-0.5 align-middle">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="inline-block h-1 w-1 rounded-full bg-primary animate-ap-dot-bounce"
+          style={{ animationDelay: `${i * 140}ms` }}
+        />
+      ))}
+    </span>
   );
 }
 

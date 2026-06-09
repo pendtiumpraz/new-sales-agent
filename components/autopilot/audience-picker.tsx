@@ -11,6 +11,7 @@ import { useProspectingStore } from "@/lib/stores/prospecting-store";
 import type { AutopilotRunConfig } from "@/lib/types/autopilot";
 import type { ProspectLead } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useAnimatedNumber } from "@/components/autopilot/use-animated-number";
 
 type Segment = NonNullable<AutopilotRunConfig["audienceSegment"]>;
 
@@ -60,6 +61,11 @@ export function AudiencePicker({ disabled }: { disabled?: boolean }) {
   const cap = config.audienceCap ?? 0;
   const effective = cap > 0 ? Math.min(matches.length, cap) : matches.length;
 
+  // Smoothly interpolate between consecutive matched-count values as the
+  // operator nudges the segment chips / score slider / city filter / cap.
+  const animatedEffective = useAnimatedNumber(effective, 400);
+  const animatedTotal = useAnimatedNumber(matches.length, 400);
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -69,7 +75,7 @@ export function AudiencePicker({ disabled }: { disabled?: boolean }) {
         </CardTitle>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-tertiary/10 px-2.5 py-1 text-xs font-medium text-tertiary">
           <Sparkles className="h-3 w-3" />
-          <span className="tnum">{effective}</span> prospek cocok
+          <span className="tnum">{Math.round(animatedEffective)}</span> prospek cocok
         </span>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -185,12 +191,14 @@ export function AudiencePicker({ disabled }: { disabled?: boolean }) {
           <div className="flex items-center justify-between">
             <span>Total cocok di basis prospek</span>
             <span className="tnum font-semibold text-foreground">
-              {matches.length}
+              {Math.round(animatedTotal)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
             <span>Akan dihubungi pada run ini</span>
-            <span className="tnum font-semibold text-primary">{effective}</span>
+            <span className="tnum font-semibold text-primary">
+              {Math.round(animatedEffective)}
+            </span>
           </div>
         </div>
       </CardContent>

@@ -8,10 +8,12 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { ComponentType, SVGProps } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { useAutopilotStore } from "@/lib/stores/autopilot-store";
+import { useCountUp } from "@/components/dashboard/use-count-up";
 import type { AutopilotRun } from "@/lib/types/autopilot";
 import { cn } from "@/lib/utils";
 
@@ -34,25 +36,38 @@ const TILES: {
 
 /**
  * Six-tile KPI grid for the active run. Renders only when a run exists.
- * Uses an inline StatTile style (intentionally not importing private helpers
- * from app/(app)/dashboard).
+ *
+ * Each tile slides up with a 60ms stagger and animates its number from
+ * 0 → target with `useCountUp` (600ms ease-out). Both behaviors respect
+ * `prefers-reduced-motion` via the underlying primitives.
  */
 export function RunSummary() {
   const run = useAutopilotStore((s) => s.currentRun);
+  const reduce = useReducedMotion();
   if (!run) return null;
 
   return (
     <Card>
       <CardContent className="p-4 sm:p-5">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {TILES.map((t) => (
-            <KpiTile
+          {TILES.map((t, i) => (
+            <motion.div
               key={t.key}
-              icon={<t.icon className="h-4 w-4" />}
-              label={t.label}
-              value={run.metrics[t.key]}
-              accent={t.accent}
-            />
+              initial={reduce ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.35,
+                ease: "easeOut",
+                delay: reduce ? 0 : i * 0.06,
+              }}
+            >
+              <KpiTile
+                icon={<t.icon className="h-4 w-4" />}
+                label={t.label}
+                value={run.metrics[t.key]}
+                accent={t.accent}
+              />
+            </motion.div>
           ))}
         </div>
       </CardContent>
@@ -71,6 +86,7 @@ function KpiTile({
   value: number;
   accent: string;
 }) {
+  const animated = useCountUp(value, 600);
   return (
     <div
       className={cn(
@@ -86,7 +102,9 @@ function KpiTile({
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="tnum text-2xl font-semibold tracking-tight">{value}</p>
+      <p className="tnum text-2xl font-semibold tracking-tight">
+        {Math.round(animated)}
+      </p>
     </div>
   );
 }

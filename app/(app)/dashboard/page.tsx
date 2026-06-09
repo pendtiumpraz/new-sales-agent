@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -16,12 +17,13 @@ import {
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { IDRAmount } from "@/components/shared/idr-amount";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedHeroBg } from "@/components/dashboard/animated-hero-bg";
+import { useCountUp } from "@/components/dashboard/use-count-up";
 import {
   useActivity,
   useCadences,
@@ -87,6 +89,8 @@ export default function DashboardPage() {
   const { data: tasks } = useTasks();
   const { data: activity } = useActivity();
   const [done, setDone] = useState<Set<string>>(new Set());
+  // Tracks tasks just-completed so the row can briefly flash success-green.
+  const [flashing, setFlashing] = useState<Set<string>>(new Set());
   const [channel, setChannel] = useState<ChannelKey>("all");
 
   // ── Channel-filtered slices ────────────────────────────────────────────
@@ -194,6 +198,16 @@ export default function DashboardPage() {
             ? "#03AC0E"
             : "#14B8A6";
 
+  // Animated counters — drive every KPI number on the page.
+  const pipelineCount = useCountUp(kpi.pipelineValue, 900);
+  const closingValueCount = useCountUp(kpi.closingValue, 900);
+  const closingCountAnim = useCountUp(kpi.closingCount);
+  const responseRateAnim = useCountUp(kpi.responseRate);
+  const totalConvosAnim = useCountUp(kpi.totalConvos);
+  const unansweredAnim = useCountUp(kpi.unanswered);
+  const activeCadencesAnim = useCountUp(kpi.activeCadences);
+  const enrolledAnim = useCountUp(kpi.enrolled);
+
   return (
     <div>
       <PageHeader title="Dasbor" description="Ringkasan performa sales tim Anda hari ini.">
@@ -208,27 +222,48 @@ export default function DashboardPage() {
       <div className="space-y-4 p-6">
         {/* Channel quick filters */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {CHANNEL_FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setChannel(f.key)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                channel === f.key
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {f.key !== "all" && <ChannelDot channel={f.key} size={8} />}
-              {f.label}
-            </button>
-          ))}
-          {!isAll && (
-            <Badge variant="secondary" className="ml-1 gap-1.5 text-[11px]">
-              <ChannelDot channel={channel} size={7} />
-              Memfilter semua kartu di bawah ke {activeLabel}
-            </Badge>
-          )}
+          {CHANNEL_FILTERS.map((f) => {
+            const isActive = channel === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setChannel(f.key)}
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
+                  isActive
+                    ? "border-primary bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)]"
+                    : "bg-card text-muted-foreground hover:-translate-y-px hover:text-foreground hover:shadow-sm",
+                )}
+              >
+                {/* Soft coral pulse ring on the active chip. */}
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 -z-0 rounded-full ring-2 ring-primary/40 animate-[pulse_2.4s_ease-in-out_infinite]"
+                  />
+                )}
+                {f.key !== "all" && <ChannelDot channel={f.key} size={8} />}
+                <span className="relative z-10">{f.label}</span>
+              </button>
+            );
+          })}
+          <AnimatePresence initial={false}>
+            {!isAll && (
+              <motion.span
+                key={channel}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="ml-1"
+              >
+                <Badge variant="secondary" className="gap-1.5 text-[11px]">
+                  <ChannelDot channel={channel} size={7} />
+                  Memfilter ke {activeLabel}
+                </Badge>
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Autopilot AI hero CTA — the headline feature, surfaced front-and-center */}
@@ -263,9 +298,10 @@ export default function DashboardPage() {
 
         {/* Band 1: hero + stat cluster */}
         <div className="grid gap-4 lg:grid-cols-12">
-          {/* Pipeline hero */}
-          <Card className="overflow-hidden lg:col-span-5">
-            <CardContent className="flex h-full flex-col p-6">
+          {/* Pipeline hero — animated mesh gradient backdrop */}
+          <Card className="relative overflow-hidden lg:col-span-5">
+            <AnimatedHeroBg />
+            <CardContent className="relative z-10 flex h-full flex-col p-6">
               <div className="flex items-center justify-between">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <TrendingUp className="h-5 w-5" />
@@ -282,15 +318,15 @@ export default function DashboardPage() {
                 <Skeleton className="mt-1 h-10 w-44" />
               ) : (
                 <p className="tnum mt-1 text-4xl font-semibold tracking-tight">
-                  {formatIDRCompact(kpi.pipelineValue)}
+                  {formatIDRCompact(Math.round(pipelineCount))}
                 </p>
               )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                {kpi.closingCount} deal closing minggu ini ·{" "}
-                {formatIDR(kpi.closingValue)}
+              <p className="tnum mt-1 text-xs text-muted-foreground">
+                {Math.round(closingCountAnim)} deal closing minggu ini ·{" "}
+                {formatIDR(Math.round(closingValueCount))}
               </p>
 
-              {/* Stage distribution mini-bar */}
+              {/* Stage distribution mini-bar — segments grow in from 0 width. */}
               <div className="mt-auto pt-6">
                 {totalDeals === 0 ? (
                   <p className="text-xs text-muted-foreground">
@@ -298,17 +334,19 @@ export default function DashboardPage() {
                   </p>
                 ) : (
                   <>
-                    <div className="flex h-2.5 w-full overflow-hidden rounded-full">
-                      {funnelData.map((f, i) => (
-                        <div
-                          key={i}
-                          title={`${f.label}: ${f.value}`}
-                          style={{
-                            width: `${(f.value / totalDeals) * 100}%`,
-                            backgroundColor: f.fill,
-                          }}
-                        />
-                      ))}
+                    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/40">
+                      {funnelData.map((f, i) => {
+                        const pct = (f.value / totalDeals) * 100;
+                        return (
+                          <StageSegment
+                            key={`${channel}-${i}-${f.label}`}
+                            pct={pct}
+                            fill={f.fill}
+                            title={`${f.label}: ${f.value}`}
+                            delay={i * 0.08}
+                          />
+                        );
+                      })}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                       {funnelData.map((f, i) => (
@@ -334,13 +372,13 @@ export default function DashboardPage() {
               value={
                 kpi.totalConvos > 0
                   ? channel === "tokopedia"
-                    ? `${kpi.totalConvos}`
-                    : `${kpi.responseRate}%`
+                    ? `${Math.round(totalConvosAnim)}`
+                    : `${Math.round(responseRateAnim)}%`
                   : "—"
               }
               sub={
                 kpi.totalConvos > 0
-                  ? `${kpi.unanswered} belum dibalas`
+                  ? `${Math.round(unansweredAnim)} belum dibalas`
                   : "Tidak ada percakapan di channel ini"
               }
             />
@@ -349,23 +387,23 @@ export default function DashboardPage() {
               icon={<CheckCircle2 className="h-5 w-5" />}
               accent="#14B8A6"
               label={isAll ? "Closing minggu ini" : `Closing · ${activeLabel}`}
-              value={`${kpi.closingCount}`}
-              sub={formatIDR(kpi.closingValue)}
+              value={`${Math.round(closingCountAnim)}`}
+              sub={formatIDR(Math.round(closingValueCount))}
             />
             <StatTile
               loading={dealsLoading}
               icon={<Workflow className="h-5 w-5" />}
               accent="#F59E0B"
               label={isAll ? "Cadence aktif" : `Cadence · ${activeLabel}`}
-              value={`${kpi.activeCadences}`}
-              sub={`${kpi.enrolled} kontak terdaftar`}
+              value={`${Math.round(activeCadencesAnim)}`}
+              sub={`${Math.round(enrolledAnim)} kontak terdaftar`}
             />
             <StatTile
               loading={dealsLoading}
               icon={<Users className="h-5 w-5" />}
               accent="#FB5E3B"
               label="Kontak dalam cadence"
-              value={`${kpi.enrolled}`}
+              value={`${Math.round(enrolledAnim)}`}
               sub={isAll ? "lintas semua channel" : `via ${activeLabel}`}
             />
           </div>
@@ -391,26 +429,56 @@ export default function DashboardPage() {
                 <ul className="divide-y">
                   {filtered.tasks.map((task) => {
                     const isDone = done.has(task.id);
+                    const isFlashing = flashing.has(task.id);
                     return (
                       <li
                         key={task.id}
-                        className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/40"
+                        className={cn(
+                          "flex items-center gap-3 px-6 py-3 transition-colors duration-500",
+                          isFlashing
+                            ? "bg-emerald-100/70"
+                            : "hover:bg-muted/40",
+                        )}
                       >
-                        <Checkbox
-                          checked={isDone}
-                          onCheckedChange={() =>
-                            setDone((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(task.id)) next.delete(task.id);
-                              else next.add(task.id);
-                              return next;
-                            })
-                          }
-                        />
+                        <motion.div whileTap={{ scale: 0.86 }} className="flex">
+                          <Checkbox
+                            checked={isDone}
+                            onCheckedChange={() => {
+                              setDone((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(task.id)) {
+                                  next.delete(task.id);
+                                } else {
+                                  next.add(task.id);
+                                  // Trigger the success-green flash; clear it
+                                  // after the CSS fade-out completes.
+                                  setFlashing((fprev) => {
+                                    const fnext = new Set(fprev);
+                                    fnext.add(task.id);
+                                    return fnext;
+                                  });
+                                  window.setTimeout(() => {
+                                    setFlashing((fprev) => {
+                                      const fnext = new Set(fprev);
+                                      fnext.delete(task.id);
+                                      return fnext;
+                                    });
+                                  }, 600);
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                        </motion.div>
                         <Link href={taskHref(task.channel)} className="flex min-w-0 flex-1 items-center gap-3">
                           <ChannelDot channel={task.channel} size={8} />
                           <div className="min-w-0 flex-1">
-                            <p className={cn("truncate text-sm font-medium", isDone && "text-muted-foreground line-through")}>
+                            <p
+                              className={cn(
+                                "truncate text-sm font-medium transition-colors duration-300",
+                                isDone && "text-muted-foreground line-through",
+                              )}
+                            >
                               {task.title}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">{task.contactName}</p>
@@ -442,7 +510,8 @@ export default function DashboardPage() {
                   Tidak ada deal aktif di channel ini.
                 </div>
               ) : (
-                <PipelineStageChart data={funnelData} />
+                // key forces a fresh entrance animation when the filter changes
+                <PipelineStageChart key={channel} data={funnelData} />
               )}
             </CardContent>
           </Card>
@@ -467,22 +536,33 @@ export default function DashboardPage() {
                 Tidak ada aktivitas untuk channel ini.
               </p>
             ) : (
-              <ul className="divide-y">
-                {filtered.activity.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3 px-6 py-3">
-                    <UserAvatar name={a.actor} className="h-8 w-8" />
-                    <p className="flex-1 text-sm">
-                      <span className="font-medium">{a.actor}</span>{" "}
-                      <span className="text-muted-foreground">{a.action}</span>{" "}
-                      <span className="font-medium">{a.target}</span>
-                    </p>
-                    {a.channel && <ChannelDot channel={a.channel} size={8} />}
-                    <span className="w-24 text-right text-xs text-muted-foreground">
-                      {formatRelativeID(a.timestamp)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.ul
+                  key={channel}
+                  className="divide-y"
+                  initial="hidden"
+                  animate="show"
+                  exit="hidden"
+                >
+                  {filtered.activity.map((a, i) => (
+                    <ActivityRow key={a.id} index={i}>
+                      <UserAvatar
+                        name={a.actor}
+                        className="h-8 w-8 ring-0 ring-primary/0 transition-shadow duration-300 hover:ring-2 hover:ring-primary/40 hover:animate-[pulse_2s_ease-in-out_infinite]"
+                      />
+                      <p className="flex-1 text-sm">
+                        <span className="font-medium">{a.actor}</span>{" "}
+                        <span className="text-muted-foreground">{a.action}</span>{" "}
+                        <span className="font-medium">{a.target}</span>
+                      </p>
+                      {a.channel && <ChannelDot channel={a.channel} size={8} />}
+                      <span className="w-24 text-right text-xs text-muted-foreground">
+                        {formatRelativeID(a.timestamp)}
+                      </span>
+                    </ActivityRow>
+                  ))}
+                </motion.ul>
+              </AnimatePresence>
             )}
           </CardContent>
         </Card>
@@ -491,6 +571,68 @@ export default function DashboardPage() {
   );
 }
 
+// ── Pieces ──────────────────────────────────────────────────────────────
+
+/**
+ * Single segment of the pipeline stage distribution bar. Width animates from
+ * 0% → `pct`% on mount with a tasteful stagger driven by `delay`.
+ */
+function StageSegment({
+  pct,
+  fill,
+  title,
+  delay,
+}: {
+  pct: number;
+  fill: string;
+  title: string;
+  delay: number;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      title={title}
+      initial={reduce ? false : { width: 0 }}
+      animate={{ width: `${pct}%` }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay }}
+      style={{ backgroundColor: fill }}
+    />
+  );
+}
+
+/**
+ * Activity feed row — fades + slides in from the right with a per-index
+ * stagger. Skips animation for reduced-motion users.
+ */
+function ActivityRow({
+  children,
+  index,
+}: {
+  children: React.ReactNode;
+  index: number;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.li
+      className="flex items-center gap-3 px-6 py-3"
+      initial={reduce ? false : { opacity: 0, x: 18 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{
+        duration: 0.32,
+        ease: "easeOut",
+        delay: reduce ? 0 : Math.min(index * 0.06, 0.6),
+      }}
+    >
+      {children}
+    </motion.li>
+  );
+}
+
+/**
+ * KPI tile — hover lifts ~4px with a coral glow, taps gently spring, the
+ * accent icon swatch scales 1.05x on hover. All pure Tailwind transitions
+ * so we don't pay a runtime motion cost on idle.
+ */
 function StatTile({
   icon,
   accent,
@@ -507,16 +649,22 @@ function StatTile({
   loading?: boolean;
 }) {
   return (
-    <Card className="transition-shadow hover:shadow-md">
+    <Card
+      className={cn(
+        "group cursor-default transition-all duration-200 ease-out",
+        "hover:-translate-y-1 hover:shadow-[0_8px_24px_-12px_rgba(251,94,59,0.45)] hover:ring-1 hover:ring-primary/15",
+        "active:translate-y-0 active:scale-[0.98]",
+      )}
+    >
       <CardContent className="flex h-full flex-col p-5">
         <div className="flex items-center justify-between">
           <span
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
+            className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105"
             style={{ backgroundColor: `${accent}1A`, color: accent }}
           >
             {icon}
           </span>
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground/30" />
+          <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 transition-colors group-hover:text-primary/60" />
         </div>
         <p className="mt-4 text-sm text-muted-foreground">{label}</p>
         {loading ? (
@@ -529,3 +677,4 @@ function StatTile({
     </Card>
   );
 }
+
