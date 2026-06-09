@@ -7,6 +7,7 @@ import { ArrowLeft, MessagesSquare, Users } from "lucide-react";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
+import { CardErrorBoundary } from "@/components/workspace/card-error-boundary";
 import { ProspectCard } from "@/components/workspace/prospect-card";
 import { EnrichmentStageCard } from "@/components/workspace/enrichment-stage-card";
 import { NextBestActionCard } from "@/components/workspace/next-best-action-card";
@@ -157,18 +158,22 @@ export function UnifiedWorkspace({
     <div className="grid h-[calc(100vh-3.5rem)] min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_360px]">
       {/* ── Left rail: contact header + conversation list ─────────────── */}
       <aside className="hidden min-h-0 flex-col border-r bg-card md:flex">
-        <WorkspaceConversationList
-          contact={contact}
-          conversations={myConversations}
-          activeId={activeConversationId}
-          onSelect={setActiveConversationId}
-        />
+        <CardErrorBoundary name="Daftar percakapan">
+          <WorkspaceConversationList
+            contact={contact}
+            conversations={myConversations}
+            activeId={activeConversationId}
+            onSelect={setActiveConversationId}
+          />
+        </CardErrorBoundary>
       </aside>
 
       {/* ── Center: message thread ─────────────────────────────────── */}
       <section className="flex min-h-0 min-w-0 flex-col">
         {activeConversationId && (
-          <MessageThread conversationId={activeConversationId} />
+          <CardErrorBoundary name="Message thread">
+            <MessageThread conversationId={activeConversationId} />
+          </CardErrorBoundary>
         )}
       </section>
 
@@ -176,14 +181,22 @@ export function UnifiedWorkspace({
       <aside className="scrollbar-thin hidden min-h-0 overflow-y-auto border-l bg-muted/20 xl:block">
         <div className="space-y-3 p-3">
           {/* Visual hero — Next Best Action goes first to dominate the eye */}
-          <NextBestActionCard
-            contact={contact}
-            deal={deal}
-            conversationId={activeConversationId}
-          />
-          <ProspectCard contact={contact} />
-          <EnrichmentStageCard deal={deal} />
-          <WorkspaceHandoffCard conversationId={activeConversationId} />
+          <CardErrorBoundary name="Next Best Action">
+            <NextBestActionCard
+              contact={contact}
+              deal={deal}
+              conversationId={activeConversationId}
+            />
+          </CardErrorBoundary>
+          <CardErrorBoundary name="Prospek">
+            <ProspectCard contact={contact} />
+          </CardErrorBoundary>
+          <CardErrorBoundary name="Tahap Enrichment">
+            <EnrichmentStageCard deal={deal} />
+          </CardErrorBoundary>
+          <CardErrorBoundary name="Handoff & sentimen">
+            <WorkspaceHandoffCard conversationId={activeConversationId} />
+          </CardErrorBoundary>
           <p className="px-1 pb-4 text-center text-[10px] text-muted-foreground">
             <Users className="mr-1 inline h-3 w-3" />
             Workspace terpadu — chat + prospek + enrichment dalam satu tampilan.
