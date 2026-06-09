@@ -149,7 +149,7 @@ export default function DiagnosticsPage() {
     <div>
       <PageHeader
         title="Status sistem"
-        description="Verifikasi koneksi AI Gateway, database, dan endpoint runtime di lingkungan terdeploy."
+        description="Verifikasi koneksi Deepseek API, database, dan endpoint runtime di lingkungan terdeploy."
       >
         <Button variant="outline" onClick={() => router.push("/settings")}>
           <ArrowLeft className="h-4 w-4" />
@@ -201,14 +201,14 @@ function SystemStatusCard({
             <StatusRow
               icon={Sparkles}
               tone="primary"
-              title="Deepseek AI Gateway"
+              title="Deepseek API"
               subtitle={
                 status.ai.ready
-                  ? "Kredensial Gateway terdeteksi dan flag aktif — panggilan AI berjalan secara real."
+                  ? "DEEPSEEK_API_KEY terdeteksi dan flag aktif — panggilan AI berjalan secara real."
                   : !status.ai.gatewayCredentialPresent && !status.ai.realAiFlagOn
-                    ? "Kredensial Gateway tidak ditemukan dan NEXT_PUBLIC_AI_PROVIDER ≠ 'deepseek'."
+                    ? "DEEPSEEK_API_KEY tidak ditemukan dan NEXT_PUBLIC_AI_PROVIDER ≠ 'deepseek'."
                     : !status.ai.gatewayCredentialPresent
-                      ? "Kredensial Gateway (AI_GATEWAY_API_KEY / VERCEL_OIDC_TOKEN) tidak tersedia di runtime."
+                      ? "DEEPSEEK_API_KEY tidak tersedia di runtime."
                       : "Flag NEXT_PUBLIC_AI_PROVIDER ≠ 'deepseek' — semua route menggunakan mock."
               }
               right={
@@ -356,8 +356,8 @@ function LiveAiPingCard() {
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Mengirim prompt singkat ke{" "}
-          <span className="font-mono text-[12px]">deepseek/deepseek-v4-flash</span>{" "}
-          via Vercel AI Gateway dan menampilkan respons mentahnya. Bila gagal,
+          <span className="font-mono text-[12px]">deepseek-chat</span>{" "}
+          via Deepseek API dan menampilkan respons mentahnya. Bila gagal,
           status code dan pesan error ditampilkan inline.
         </p>
 
@@ -370,7 +370,7 @@ function LiveAiPingCard() {
         {state === "loading" && (
           <div className="flex items-center gap-3 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            Menunggu respons dari AI Gateway...
+            Menunggu respons dari Deepseek...
           </div>
         )}
 
@@ -427,7 +427,7 @@ function LiveAiPingCard() {
             ) : (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                 <p className="text-sm font-medium text-destructive">
-                  AI Gateway error
+                  Deepseek API error
                 </p>
                 <dl className="mt-2 space-y-1 text-xs">
                   <div className="flex gap-2">

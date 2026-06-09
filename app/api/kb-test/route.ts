@@ -15,7 +15,7 @@
 // sub-2s responses matter more than chain-of-thought depth here.
 
 import { NextResponse } from "next/server";
-import { gateway, generateText } from "ai";
+import { generateText } from "ai";
 
 import {
   GATEWAY_MODEL_FAST,
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     });
 
     const { text } = await generateText({
-      model: gateway(GATEWAY_MODEL_FAST),
+      model: GATEWAY_MODEL_FAST,
       system,
       prompt,
       temperature: 0.3,

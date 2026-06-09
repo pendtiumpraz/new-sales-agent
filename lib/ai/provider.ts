@@ -1,22 +1,40 @@
-// Vercel AI Gateway provider configuration for Deepseek models.
+// Deepseek API provider configuration (direct, no Vercel AI Gateway).
 //
-// This is the foundation contract consumed by Agents B–E. The signatures here
-// are STABLE — sibling agents wire chat / auto-reply / analysis surfaces
-// against the constants and helpers below. Do not rename without coordination.
+// Routes consume the exported `MODEL_*` constants as LanguageModel objects.
+// `GATEWAY_MODEL_*` aliases are kept so existing route handlers don't need to
+// change — the constant name is misleading now but the value works the same.
 //
-// Why the Gateway?
-// - One key gives access to Deepseek + 100+ models (`vercel env pull`).
-// - Built-in observability + cost tracking in the Vercel dashboard.
-// - In production, OIDC tokens are auto-issued — no API key needs to be set.
+// Why direct Deepseek?
+// - You already have credits at platform.deepseek.com — no Vercel margin
+// - Lower per-call latency (one less hop)
+// - Same model lineup: deepseek-chat (V3) for chat/fast surfaces,
+//   deepseek-reasoner (R1) for analysis tasks that benefit from CoT
+//
+// Setup:
+// 1. Get an API key at https://platform.deepseek.com → API Keys
+// 2. Set DEEPSEEK_API_KEY in Vercel (Settings → Environment Variables)
+// 3. Set NEXT_PUBLIC_AI_PROVIDER=deepseek
+// 4. Redeploy
 
-/** Model used for assistant conversations (multi-turn chat surface). */
-export const GATEWAY_MODEL_CHAT = "deepseek/deepseek-v4-pro";
+import { deepseek } from "@ai-sdk/deepseek";
 
-/** Model used for one-shot drafts and auto-reply suggestions (latency-sensitive). */
-export const GATEWAY_MODEL_FAST = "deepseek/deepseek-v4-flash";
+/** Chat surface — multi-turn assistant. Deepseek V3 (general-purpose). */
+export const DEEPSEEK_MODEL_CHAT = deepseek("deepseek-chat");
 
-/** Model used for analysis tasks — segment insights, deal coaching, RAG synthesis. */
-export const GATEWAY_MODEL_REASONING = "deepseek/deepseek-v3.2-thinking";
+/** One-shot drafts + autopilot text — latency-sensitive. Same as chat (no
+ *  "flash" variant exists in the direct API; V3 is already fast enough). */
+export const DEEPSEEK_MODEL_FAST = deepseek("deepseek-chat");
+
+/** Analysis tasks — uses R1 reasoner for deep chain-of-thought. Slower (~5-15s)
+ *  but better grounded for KB synthesis and per-segment insights. */
+export const DEEPSEEK_MODEL_REASONING = deepseek("deepseek-reasoner");
+
+// ── Backward-compat aliases ─────────────────────────────────────────────────
+// The previous AI Gateway implementation exported these names. Routes still
+// import them — keep the names so we don't have to touch every route handler.
+export const GATEWAY_MODEL_CHAT = DEEPSEEK_MODEL_CHAT;
+export const GATEWAY_MODEL_FAST = DEEPSEEK_MODEL_FAST;
+export const GATEWAY_MODEL_REASONING = DEEPSEEK_MODEL_REASONING;
 
 /**
  * Is the real Deepseek backend wired?
@@ -26,24 +44,20 @@ export const GATEWAY_MODEL_REASONING = "deepseek/deepseek-v3.2-thinking";
  * it only reads a `NEXT_PUBLIC_*` variable.
  */
 export function isRealAiEnabled(): boolean {
-  // `NEXT_PUBLIC_*` vars are inlined at build time and available everywhere.
   return process.env.NEXT_PUBLIC_AI_PROVIDER === "deepseek";
 }
 
 /**
- * True when running server-side AND a Gateway credential is available.
+ * True when running server-side AND a Deepseek API key is available.
  *
- * The Vercel AI Gateway accepts either:
- *  - `AI_GATEWAY_API_KEY` — manual key pulled from the dashboard (dev), OR
- *  - `VERCEL_OIDC_TOKEN`  — auto-issued in Vercel runtimes (prod / preview).
- *
- * Client-side always returns false because neither credential should ever be
- * shipped to the browser.
+ * Client-side always returns false because the key should never be shipped
+ * to the browser.
  */
-export function hasGatewayCredentials(): boolean {
+export function hasDeepseekKey(): boolean {
   if (typeof window !== "undefined") return false;
   if (typeof process === "undefined" || !process.env) return false;
-  const hasKey = Boolean(process.env.AI_GATEWAY_API_KEY);
-  const hasOidc = Boolean(process.env.VERCEL_OIDC_TOKEN);
-  return hasKey || hasOidc;
+  return Boolean(process.env.DEEPSEEK_API_KEY);
 }
+
+/** Backward-compat alias — old name still imported by routes. */
+export const hasGatewayCredentials = hasDeepseekKey;

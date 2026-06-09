@@ -30,7 +30,7 @@ export async function POST() {
     return NextResponse.json({
       ok: false,
       reason: !hasGatewayCredentials()
-        ? "AI_GATEWAY_API_KEY tidak tersedia di runtime."
+        ? "DEEPSEEK_API_KEY tidak tersedia di runtime."
         : "NEXT_PUBLIC_AI_PROVIDER ≠ 'deepseek'.",
       source: "mock",
     });
