@@ -15,6 +15,7 @@ import {
   UserCog,
 } from "lucide-react";
 
+import { RequireSuperadmin } from "@/components/auth/require-superadmin";
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { ConsentBadge } from "@/components/shared/consent-badge";
@@ -91,6 +92,14 @@ const GENERATED_REPORTS = [
 ];
 
 export default function CompliancePage() {
+  return (
+    <RequireSuperadmin>
+      <CompliancePageInner />
+    </RequireSuperadmin>
+  );
+}
+
+function CompliancePageInner() {
   const { data: consentLog, isLoading } = useConsentLog();
   const { data: dpia } = useDpia();
   const { data: vendors } = useVendors();

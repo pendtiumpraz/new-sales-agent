@@ -30,7 +30,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKbStore } from "@/lib/stores/kb-store";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 
+import { RequireSuperadmin } from "@/components/auth/require-superadmin";
+
 export default function KnowledgeBasePage() {
+  return (
+    <RequireSuperadmin>
+      <KnowledgeBasePageInner />
+    </RequireSuperadmin>
+  );
+}
+
+function KnowledgeBasePageInner() {
   const router = useRouter();
   const kb = useKbStore((s) => s.kb);
 

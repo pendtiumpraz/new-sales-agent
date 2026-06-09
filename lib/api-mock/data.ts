@@ -41,11 +41,26 @@ import type {
   Visit,
 } from "@/lib/types";
 
+import {
+  firstTenConversations,
+  firstTenMessages,
+} from "./first-ten-conversations";
+
 export const companies = companiesJson as unknown as Company[];
 export const contacts = contactsJson as unknown as Contact[];
 export const deals = dealsJson as unknown as Deal[];
-export const conversations = conversationsJson as unknown as Conversation[];
-export const messages = messagesJson as unknown as Message[];
+
+// Backfill conversations + messages for ct_0001…ct_0010 so the workspace
+// demo flow works for the top of the contacts list. See
+// lib/api-mock/first-ten-conversations.ts.
+export const conversations = [
+  ...(conversationsJson as unknown as Conversation[]),
+  ...firstTenConversations,
+];
+export const messages = [
+  ...(messagesJson as unknown as Message[]),
+  ...firstTenMessages,
+];
 // The mock JSON for cadences stores `steps` as a numeric count and the actual
 // step bodies live in a separate `sequences.json` keyed by cadence id. The
 // canonical Cadence type now embeds the steps array directly (matches the

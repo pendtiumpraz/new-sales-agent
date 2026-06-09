@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEMO_ACCOUNTS, type DemoRole } from "@/lib/auth/demo-accounts";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,10 @@ const INTEGRATIONS: {
 ];
 
 export default function SettingsPage() {
+  // Only Superadmins see the admin tabs + admin entry cards. Other roles
+  // get a leaner Settings page focused on workspace info + their profile.
+  const isSuperadmin = useAuthStore((s) => s.currentUser.role === "Superadmin");
+
   return (
     <div>
       <PageHeader title="Pengaturan" description="Kelola workspace, tim, dan integrasi." />
@@ -126,9 +131,13 @@ export default function SettingsPage() {
         <Tabs defaultValue="umum">
           <TabsList>
             <TabsTrigger value="umum">Umum</TabsTrigger>
-            <TabsTrigger value="pengguna">Pengguna</TabsTrigger>
-            <TabsTrigger value="integrasi">Integrasi</TabsTrigger>
-            <TabsTrigger value="tagihan">Tagihan</TabsTrigger>
+            {isSuperadmin && (
+              <>
+                <TabsTrigger value="pengguna">Pengguna</TabsTrigger>
+                <TabsTrigger value="integrasi">Integrasi</TabsTrigger>
+                <TabsTrigger value="tagihan">Tagihan</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* ── Umum ───────────────────────────────────────────────── */}
@@ -175,41 +184,61 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Entry cards — vivid icon backgrounds + accent borders */}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <EntryCard
-                href="/settings/knowledge-base"
-                icon={BrainCircuit}
-                title="Basis Pengetahuan AI"
-                description="Produk, harga, segmen & alur retensi — sumber data Advanced RAG"
-                tone="coral"
-                badge="RAG"
-              />
-              <EntryCard
-                href="/settings/compliance"
-                icon={ShieldCheck}
-                title="Kepatuhan UU PDP"
-                description="Skor 94/100 · log persetujuan & jejak audit"
-                tone="green"
-                badge="94 / 100"
-              />
-              <EntryCard
-                href="/settings/diagnostics"
-                icon={Activity}
-                title="Status sistem"
-                description="Status koneksi AI Gateway, database, dan endpoint runtime."
-                tone="blue"
-                badge="Live"
-              />
-              <EntryCard
-                href="/settings/handoff"
-                icon={Sparkles}
-                title="Handoff ke Manusia"
-                description="Atur kapan AI menyerahkan percakapan ke agen."
-                tone="teal"
-                badge="Otomasi"
-              />
-            </div>
+            {/* Admin entry cards — Superadmin only. Hidden from other roles
+                so non-admins don't see admin surface area. Direct-URL access
+                to each route is also blocked by <RequireSuperadmin> guard. */}
+            {isSuperadmin ? (
+              <>
+                <div className="flex items-center gap-2 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  Hanya untuk Superadmin
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <EntryCard
+                    href="/settings/knowledge-base"
+                    icon={BrainCircuit}
+                    title="Basis Pengetahuan AI"
+                    description="Produk, harga, segmen & alur retensi — sumber data Advanced RAG"
+                    tone="coral"
+                    badge="RAG"
+                  />
+                  <EntryCard
+                    href="/settings/compliance"
+                    icon={ShieldCheck}
+                    title="Kepatuhan UU PDP"
+                    description="Skor 94/100 · log persetujuan & jejak audit"
+                    tone="green"
+                    badge="94 / 100"
+                  />
+                  <EntryCard
+                    href="/settings/diagnostics"
+                    icon={Activity}
+                    title="Tes API & AI"
+                    description="Status koneksi Deepseek, database, dan probe semua endpoint AI."
+                    tone="blue"
+                    badge="Live"
+                  />
+                  <EntryCard
+                    href="/settings/handoff"
+                    icon={Sparkles}
+                    title="Handoff ke Manusia"
+                    description="Atur kapan AI menyerahkan percakapan ke agen."
+                    tone="teal"
+                    badge="Otomasi"
+                  />
+                </div>
+              </>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
+                  <ShieldCheck className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <span>
+                    Pengaturan lanjutan (Basis Pengetahuan, Kepatuhan, Tes
+                    API/AI, Handoff) hanya tersedia untuk peran Superadmin.
+                  </span>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* ── Pengguna ───────────────────────────────────────────── */}

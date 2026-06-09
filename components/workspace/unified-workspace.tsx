@@ -112,6 +112,47 @@ export function UnifiedWorkspace({
     );
   }
 
+  // Workspace requires at least one conversation — that's what binds the
+  // chat, prospect, enrichment, and AI rails together. Block early with a
+  // clear error + back button when the contact has nothing to show.
+  if (myConversations.length === 0) {
+    return (
+      <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center p-8">
+        <div className="mx-auto max-w-md rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-50 via-card to-amber-50/40 p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+            <MessagesSquare className="h-7 w-7" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Workspace memerlukan percakapan
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Kontak <span className="font-medium text-foreground">{contact.name}</span>{" "}
+            ({contact.company}) belum memiliki percakapan aktif. Workspace
+            terpadu membutuhkan minimal satu pesan untuk menyatukan chat,
+            data prospek, dan rekomendasi AI dalam satu tampilan.
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Mulai percakapan via {contact.channelPreference} lalu kembali lagi
+            ke sini, atau pilih kontak lain yang sudah memiliki riwayat chat.
+          </p>
+          <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <Button asChild variant="outline">
+              <Link href="/contacts">
+                <ArrowLeft className="h-4 w-4" />
+                Kembali ke Kontak
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/contacts?focus=${contact.id}`}>
+                Lihat profil kontak
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid h-[calc(100vh-3.5rem)] min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_360px]">
       {/* ── Left rail: contact header + conversation list ─────────────── */}
@@ -124,27 +165,10 @@ export function UnifiedWorkspace({
         />
       </aside>
 
-      {/* ── Center: message thread (or friendly empty state) ──────────── */}
+      {/* ── Center: message thread ─────────────────────────────────── */}
       <section className="flex min-h-0 min-w-0 flex-col">
-        {activeConversationId ? (
+        {activeConversationId && (
           <MessageThread conversationId={activeConversationId} />
-        ) : (
-          <div className="flex flex-1 items-center justify-center p-8">
-            <EmptyState
-              icon={MessagesSquare}
-              title="Belum ada percakapan"
-              description={`Kontak ${contact.name} belum punya pesan masuk. Konteks AI di sebelah kanan tetap aktif berdasarkan data prospek + enrichment.`}
-              className="border-0 bg-transparent"
-              action={
-                <Button asChild variant="outline">
-                  <Link href="/contacts">
-                    <ArrowLeft className="h-4 w-4" />
-                    Kembali ke Kontak
-                  </Link>
-                </Button>
-              }
-            />
-          </div>
         )}
       </section>
 

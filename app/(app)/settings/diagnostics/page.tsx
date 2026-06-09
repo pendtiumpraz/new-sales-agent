@@ -21,6 +21,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { RequireSuperadmin } from "@/components/auth/require-superadmin";
 import {
   Activity,
   AlertCircle,
@@ -123,6 +125,14 @@ function SourceBadge({ source }: { source: RouteSource }) {
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default function DiagnosticsPage() {
+  return (
+    <RequireSuperadmin>
+      <DiagnosticsPageInner />
+    </RequireSuperadmin>
+  );
+}
+
+function DiagnosticsPageInner() {
   const router = useRouter();
   const [status, setStatus] = useState<DiagnosticsStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);

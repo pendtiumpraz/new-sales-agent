@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { RequireSuperadmin } from "@/components/auth/require-superadmin";
 import { SentimentMap } from "@/components/inbox/sentiment-map";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,14 @@ const TRIGGER_STYLE: Record<string, string> = {
 };
 
 export default function HandoffSettingsPage() {
+  return (
+    <RequireSuperadmin>
+      <HandoffSettingsPageInner />
+    </RequireSuperadmin>
+  );
+}
+
+function HandoffSettingsPageInner() {
   const config = useHandoffStore((s) => s.config);
   const setSentimentThreshold = useHandoffStore((s) => s.setSentimentThreshold);
   const setTimeoutMinutes = useHandoffStore((s) => s.setTimeoutMinutes);
