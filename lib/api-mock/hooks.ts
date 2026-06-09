@@ -20,6 +20,13 @@ function settle<T>(data: T, ms = 160): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms));
 }
 
+// staleTime: Infinity on all the workspace-feeding hooks. React Query
+// otherwise refetches on focus/mount which, combined with non-pure renders
+// downstream, was the prime suspect behind the React #185 cascade on
+// /workspace/[contactId]. The data is single-tenant mock — it doesn't
+// change behind our back, so no reason to ever auto-refetch.
+const STABLE = { staleTime: Infinity, refetchOnWindowFocus: false } as const;
+
 export function useContacts() {
   return useQuery({
     queryKey: ["contacts"],
@@ -28,11 +35,16 @@ export function useContacts() {
       const json = (await res.json()) as { data: Contact[] };
       return json.data;
     },
+    ...STABLE,
   });
 }
 
 export function useDeals() {
-  return useQuery({ queryKey: ["deals"], queryFn: () => settle(db.deals) });
+  return useQuery({
+    queryKey: ["deals"],
+    queryFn: () => settle(db.deals),
+    ...STABLE,
+  });
 }
 
 export function useConversations() {
@@ -43,6 +55,7 @@ export function useConversations() {
       const json = (await res.json()) as { data: Conversation[] };
       return json.data;
     },
+    ...STABLE,
   });
 }
 
@@ -64,6 +77,7 @@ export function useConversation(id: string) {
         ),
       };
     },
+    ...STABLE,
   });
 }
 
@@ -142,6 +156,7 @@ export function useContact(id: string) {
   return useQuery({
     queryKey: ["contact", id],
     queryFn: () => settle(db.contacts.find((c) => c.id === id) ?? null),
+    ...STABLE,
   });
 }
 
