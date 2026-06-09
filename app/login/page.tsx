@@ -26,7 +26,6 @@ export default function LoginPage() {
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const login = useAuthStore((s) => s.login);
   const authenticated = useAuthStore((s) => s.authenticated);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,20 +54,37 @@ function LoginPageInner() {
     }
   }, [authenticated, nextHref, router]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    setTimeout(() => {
-      const account = login(email, password);
-      if (!account) {
-        setError("Email atau kata sandi salah.");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = (await res.json()) as
+        | { ok: true; source: string; user: import("@/lib/auth/demo-accounts").DemoAccount }
+        | { ok: false; error: string };
+
+      if (!res.ok || !data.ok) {
+        setError(
+          (data as { error?: string }).error ?? "Email atau kata sandi salah.",
+        );
         setLoading(false);
         return;
       }
-      toast.success(`Selamat datang, ${account.name}`);
+
+      // Hydrate the zustand store with the authenticated user.
+      useAuthStore.getState().setUser(data.user);
+      toast.success(`Selamat datang, ${data.user.name}`);
       router.push(nextHref);
-    }, 400);
+    } catch (err) {
+      console.error("[login]", err);
+      setError("Tidak dapat terhubung ke server. Coba lagi.");
+      setLoading(false);
+    }
   }
 
   return (

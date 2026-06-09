@@ -19,7 +19,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: "u_superadmin",
     name: "Almira Rana",
-    email: "superadmin@agentic.co.id",
+    email: "superadmin@mairasales.com",
     password: "super1234",
     role: "Superadmin",
     avatarColor: "#FB5E3B",
@@ -29,7 +29,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: "u_admin",
     name: "Andi Hidayat",
-    email: "admin@agentic.co.id",
+    email: "admin@mairasales.com",
     password: "admin1234",
     role: "Admin",
     avatarColor: "#14B8A6",
@@ -39,7 +39,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: "u_manager",
     name: "Rina Permata",
-    email: "rina@agentic.co.id",
+    email: "rina@mairasales.com",
     password: "rina1234",
     role: "Sales Manager",
     avatarColor: "#F59E0B",
@@ -49,7 +49,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: "u_rep",
     name: "Teguh Saputra",
-    email: "teguh@agentic.co.id",
+    email: "teguh@mairasales.com",
     password: "teguh1234",
     role: "Sales Rep",
     avatarColor: "#3B82F6",

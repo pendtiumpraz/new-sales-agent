@@ -42,6 +42,7 @@ import contactsJson from "../lib/mock-data/contacts.json";
 import conversationsJson from "../lib/mock-data/conversations.json";
 import messagesJson from "../lib/mock-data/messages.json";
 import { seedKnowledgeBase } from "../lib/api-mock/kb";
+import { DEMO_ACCOUNTS } from "../lib/auth/demo-accounts";
 
 import { db } from "../lib/db/client";
 import {
@@ -50,6 +51,7 @@ import {
   contactsTable,
   conversationsTable,
   messagesTable,
+  usersTable,
 } from "../lib/db/schema";
 
 type DealRow = (typeof dealsJson)[number];
@@ -261,6 +263,38 @@ function hasAnyPostgresUrl(): boolean {
   );
 }
 
+async function seedUsers() {
+  // Upsert each demo account into the `users` table. Idempotent on email
+  // (the unique constraint), so re-running the seed refreshes credentials
+  // without erroring.
+  for (const a of DEMO_ACCOUNTS) {
+    await db
+      .insert(usersTable)
+      .values({
+        id: a.id,
+        name: a.name,
+        email: a.email.toLowerCase(),
+        password: a.password,
+        role: a.role,
+        avatarColor: a.avatarColor,
+        scope: a.scope,
+      })
+      .onConflictDoUpdate({
+        target: usersTable.email,
+        set: {
+          id: a.id,
+          name: a.name,
+          password: a.password,
+          role: a.role,
+          avatarColor: a.avatarColor,
+          scope: a.scope,
+          updatedAt: new Date(),
+        },
+      });
+  }
+  console.log(`  users: ${DEMO_ACCOUNTS.length} rows`);
+}
+
 async function main() {
   if (!hasAnyPostgresUrl()) {
     console.error(
@@ -276,6 +310,7 @@ async function main() {
   await seedContacts();
   await seedConversations();
   await seedMessages();
+  await seedUsers();
   console.log("Done.");
 }
 

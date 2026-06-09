@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { Calendar, CheckCircle2, History, Users, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  History,
+  Sparkles,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -10,6 +18,7 @@ import { AudiencePicker } from "@/components/autopilot/audience-picker";
 import { GuardrailsPanel } from "@/components/autopilot/guardrails-panel";
 import { HeroBanner } from "@/components/autopilot/hero-banner";
 import { RunSummary } from "@/components/autopilot/run-summary";
+import { STEP_KIND } from "@/components/autopilot/step-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { runAutopilot } from "@/lib/autopilot/orchestrator";
@@ -18,6 +27,7 @@ import { useKbStore } from "@/lib/stores/kb-store";
 import { useProspectingStore } from "@/lib/stores/prospecting-store";
 import type { AutopilotRun, AutopilotRunConfig } from "@/lib/types/autopilot";
 import type { ProspectLead } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /** Same heuristic the AudiencePicker uses — keep in sync. */
 function classify(p: ProspectLead): AutopilotRunConfig["audienceSegment"] {
@@ -86,6 +96,28 @@ export default function AutopilotPage() {
     config.audienceCap,
   ]);
 
+  // AI usage summary — counts ai-text events on the current run so the
+  // operator can see at a glance whether Deepseek really ran or the
+  // template fallback kicked in. Recomputes on every events.length change.
+  const aiStatus = useMemo(() => {
+    const events = currentRun?.events ?? [];
+    let realCount = 0;
+    let mockCount = 0;
+    let totalMs = 0;
+    for (const e of events) {
+      if (STEP_KIND[e.step] !== "ai-text") continue;
+      if (e.status !== "done") continue;
+      if (e.source === "real") realCount += 1;
+      else mockCount += 1;
+      if (e.startedAt && e.finishedAt) {
+        totalMs += +new Date(e.finishedAt) - +new Date(e.startedAt);
+      }
+    }
+    const total = realCount + mockCount;
+    const avgMs = total > 0 ? totalMs / total : 0;
+    return { realCount, mockCount, total, avgMs };
+  }, [currentRun?.events]);
+
   // Toast on completion — fires the moment status flips to "done".
   const lastNotifiedRunId = useRef<string | null>(null);
   useEffect(() => {
@@ -145,6 +177,8 @@ export default function AutopilotPage() {
       />
 
       <div className="space-y-4 p-6">
+        <AiStatusLine status={aiStatus} />
+
         <HeroBanner
           config={config}
           onChangeGoal={(goal) => setConfig({ goal })}
@@ -237,6 +271,68 @@ function HistoryRow({ run }: { run: AutopilotRun }) {
           {run.metrics.meetingsBooked}
         </span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Compact one-line summary of AI usage for the current run. Hidden until at
+ * least one ai-text step has finished. Green when every Deepseek call
+ * succeeded, amber when at least one fell back to the template.
+ */
+function AiStatusLine({
+  status,
+}: {
+  status: { realCount: number; mockCount: number; total: number; avgMs: number };
+}) {
+  if (status.total === 0) return null;
+
+  const avgSec = (status.avgMs / 1000).toFixed(1);
+  const allReal = status.mockCount === 0;
+  const allMock = status.realCount === 0;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-2 text-sm",
+        allReal
+          ? "border-emerald-200 bg-emerald-50/60 text-emerald-800"
+          : allMock
+            ? "border-destructive/30 bg-destructive/5 text-destructive"
+            : "border-amber-200 bg-amber-50/60 text-amber-800",
+      )}
+    >
+      {allReal ? (
+        <Sparkles className="h-4 w-4 shrink-0" />
+      ) : (
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+      )}
+      <span className="font-medium">
+        {allReal
+          ? "AI Deepseek aktif"
+          : allMock
+            ? "AI fallback aktif"
+            : "AI sebagian fallback"}
+      </span>
+      <span className="text-xs opacity-80">
+        {allReal ? (
+          <>
+            <span className="tnum">{status.realCount}</span> panggilan berhasil ·
+            rata-rata <span className="tnum">{avgSec}s</span>
+          </>
+        ) : allMock ? (
+          <>
+            <span className="tnum">{status.mockCount}</span> panggilan ke Deepseek
+            gagal, memakai template
+          </>
+        ) : (
+          <>
+            <span className="tnum">{status.realCount}</span> live ·{" "}
+            <span className="tnum">{status.mockCount}</span> fallback · rata-rata{" "}
+            <span className="tnum">{avgSec}s</span>
+          </>
+        )}
+      </span>
     </div>
   );
 }

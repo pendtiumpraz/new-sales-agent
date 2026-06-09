@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BrainCircuit, ChevronRight, ShieldCheck } from "lucide-react";
+import { Activity, BrainCircuit, ChevronRight, ShieldCheck } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -28,7 +28,7 @@ const USERS = [
   })),
   {
     name: "Maya Kusuma",
-    email: "maya@agentic.co.id",
+    email: "maya@mairasales.com",
     role: "Sales Rep",
     avatarColor: "#A855F7",
   },
@@ -69,7 +69,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ws-domain">Domain</Label>
-                  <Input id="ws-domain" defaultValue="agentic.co.id" />
+                  <Input id="ws-domain" defaultValue="mairasales.com" />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
@@ -108,6 +108,23 @@ export default function SettingsPage() {
                     <p className="font-medium">Kepatuhan UU PDP</p>
                     <p className="text-xs text-muted-foreground">
                       Skor 94/100 · log persetujuan & jejak audit
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/settings/diagnostics">
+              <Card className="transition-shadow hover:shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10 text-info">
+                    <Activity className="h-5 w-5" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-medium">Status sistem</p>
+                    <p className="text-xs text-muted-foreground">
+                      Status koneksi AI Gateway, database, dan endpoint runtime.
                     </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />

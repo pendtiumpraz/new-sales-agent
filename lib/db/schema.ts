@@ -84,3 +84,18 @@ export const autopilotRunsTable = pgTable("autopilot_runs", {
   metrics: jsonb("metrics").$type<AutopilotRun["metrics"]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const usersTable = pgTable("users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  // Plain-text password — this is a DEMO app, no PII risk. Real prod would
+  // bcrypt-hash this. Storing plain so the existing /login form keeps working
+  // without introducing a hash dependency.
+  password: text("password").notNull(),
+  role: text("role").notNull(),               // Superadmin | Admin | Sales Manager | Sales Rep
+  avatarColor: text("avatar_color").notNull(),
+  scope: text("scope"),                       // human-readable description
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

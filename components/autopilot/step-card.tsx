@@ -4,15 +4,21 @@ import {
   Bot,
   Calendar,
   Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   CircleDashed,
+  Cpu,
   Loader2,
   Network,
   MessageSquare,
+  Plug,
   Sparkles,
   Users,
   X,
+  XCircle,
 } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+import { useState, type ComponentType, type SVGProps } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
@@ -36,6 +42,31 @@ const STEP_ICONS: Record<AutopilotStep, IconCmp> = {
   "propose-meetings": Calendar,
   "book-meetings": Calendar,
   "deploy-cos": Bot,
+};
+
+/**
+ * Classifies each pipeline step by the kind of work it performs:
+ *  - "ai-text" — should call Deepseek for text generation (linkedin-note,
+ *    intro-dm, meeting-agenda, cos-summary). When green it's real AI; when
+ *    red it's the template fallback that runs if the Gateway is unreachable.
+ *  - "mock-integration" — intentional third-party stub (LinkedIn send,
+ *    Calendar book, etc). Always mock by design — no source badge needed.
+ *  - "local" — pure local computation (filter/cap audiences).
+ */
+export const STEP_KIND: Record<
+  AutopilotStep,
+  "ai-text" | "mock-integration" | "local"
+> = {
+  "select-audience": "local",
+  "generate-li-notes": "ai-text",
+  "send-li-requests": "mock-integration",
+  "track-acceptances": "mock-integration",
+  "generate-intro-dms": "ai-text",
+  "send-intro-dms": "mock-integration",
+  "track-replies": "mock-integration",
+  "propose-meetings": "ai-text",
+  "book-meetings": "mock-integration",
+  "deploy-cos": "ai-text",
 };
 
 const STATUS_META: Record<
@@ -100,11 +131,66 @@ function StatusIcon({ status }: { status: AutopilotStepStatus }) {
   return <CircleDashed className="h-3.5 w-3.5" />;
 }
 
+/** Always-visible badge advertising what KIND of step this is. */
+function StepKindBadge({ kind }: { kind: "ai-text" | "mock-integration" | "local" }) {
+  if (kind === "ai-text") {
+    return (
+      <Badge
+        variant="default"
+        className="gap-1 bg-primary text-primary-foreground text-[10px]"
+      >
+        <Sparkles className="h-3 w-3" />
+        AI Deepseek
+      </Badge>
+    );
+  }
+  if (kind === "mock-integration") {
+    return (
+      <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+        <Plug className="h-3 w-3" />
+        Integrasi (mock)
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="gap-1 text-[10px]">
+      <Cpu className="h-3 w-3" />
+      Lokal
+    </Badge>
+  );
+}
+
+/** Only shown for ai-text steps that are done/failed — proves which path ran. */
+function SourceBadge({ source }: { source: "real" | "mock" }) {
+  if (source === "real") {
+    return (
+      <Badge variant="success" className="gap-1 text-[10px]">
+        <CheckCircle2 className="h-3 w-3" />
+        Live
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="destructive" className="gap-1 text-[10px]">
+      <XCircle className="h-3 w-3" />
+      Fallback (mock)
+    </Badge>
+  );
+}
+
+/** Format milliseconds as a compact pill string: "42ms", "1.2s", "12.4s". */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
+  const s = ms / 1000;
+  return `${s.toFixed(s < 10 ? 1 : 0)}s`;
+}
+
 /**
  * One activity timeline entry. Icon is keyed off the pipeline step; status
  * styling lights the card up (coral pulse while running, emerald check on
- * done). Shows prospect identity, AI vs. mock source, and a relative
- * timestamp ("baru saja", "2 menit lalu").
+ * done). Surfaces two badges side-by-side (kind + source) plus the
+ * end-to-end latency so the operator can tell at a glance whether AI
+ * actually ran or fell back to the template.
  */
 export function StepCard({
   event,
@@ -119,6 +205,22 @@ export function StepCard({
   const meta = STATUS_META[event.status];
   const ts = event.finishedAt ?? event.startedAt;
   const relative = secondsAgoLabel(ts);
+  const kind = STEP_KIND[event.step];
+
+  // Response time — only meaningful once a finishedAt exists.
+  const durationMs =
+    event.finishedAt && event.startedAt
+      ? +new Date(event.finishedAt) - +new Date(event.startedAt)
+      : null;
+
+  // Source badge only renders for ai-text once the call concluded.
+  const showSourceBadge =
+    kind === "ai-text" && (event.status === "done" || event.status === "failed");
+
+  // Expandable full-text drawer only available for ai-text steps with content
+  // that is actually longer than the inline preview.
+  const expandable = kind === "ai-text" && !!event.detail && event.detail.length > 200;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <li className="relative flex gap-3 pl-1">
@@ -172,22 +274,45 @@ export function StepCard({
           </div>
 
           {event.detail && (
-            <p className="mt-2 whitespace-pre-line text-xs text-muted-foreground">
-              {event.detail}
-            </p>
+            <>
+              {expandable && expanded ? (
+                <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-foreground">
+                  {event.detail}
+                </pre>
+              ) : (
+                <p className="mt-2 whitespace-pre-line text-xs text-muted-foreground">
+                  {event.detail}
+                </p>
+              )}
+            </>
           )}
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {event.source === "real" ? (
-              <Badge variant="secondary" className="gap-1 text-[10px]">
-                <Sparkles className="h-3 w-3 text-tertiary" />
-                Live · Deepseek
+            <StepKindBadge kind={kind} />
+            {showSourceBadge && <SourceBadge source={event.source} />}
+            {durationMs !== null && (
+              <Badge variant="muted" className="gap-1 tnum text-[10px]">
+                {formatDuration(durationMs)}
               </Badge>
-            ) : (
-              <Badge variant="muted" className="gap-1 text-[10px]">
-                <CircleDashed className="h-3 w-3" />
-                Demo · mock
-              </Badge>
+            )}
+            {expandable && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+              >
+                {expanded ? (
+                  <>
+                    <ChevronUp className="h-3 w-3" />
+                    Tutup
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3 w-3" />
+                    Lihat selengkapnya
+                  </>
+                )}
+              </button>
             )}
           </div>
         </div>
