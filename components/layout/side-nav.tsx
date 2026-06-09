@@ -99,7 +99,7 @@ export function SideNav() {
   return (
     <aside
       className={cn(
-        "glass sticky top-0 z-40 hidden h-screen shrink-0 flex-col border-r transition-[width] duration-200 md:flex",
+        "chrome sticky top-0 z-40 hidden h-screen shrink-0 flex-col border-r transition-[width] duration-200 md:flex",
         collapsed ? "w-16" : "w-60",
       )}
     >
@@ -239,7 +239,7 @@ export function TopBar() {
   const currentUser = useAuthStore((s) => s.currentUser);
 
   return (
-    <header className="glass sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b px-3 sm:px-4">
+    <header className="chrome sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b px-3 sm:px-4">
       {/* Desktop sidebar toggle */}
       <Tooltip>
         <TooltipTrigger asChild>
