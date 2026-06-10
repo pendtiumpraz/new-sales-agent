@@ -523,7 +523,7 @@ function ContactsPageInner() {
               value="contacts"
               className="group h-10 gap-2 rounded-lg border border-transparent bg-transparent px-4 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-primary/30 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
             >
-              <Contact className="h-4 w-4" />
+              <ContactIcon className="h-4 w-4" />
               <span>Kontak</span>
               <span className="tnum rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground group-data-[state=active]:bg-primary/15 group-data-[state=active]:text-primary">
                 {(contacts ?? []).length}
@@ -546,7 +546,7 @@ function ContactsPageInner() {
           <p className="-mt-1 pb-2 pl-1 text-[11px] text-muted-foreground">
             {activeTab === "contacts" ? (
               <>
-                <Contact className="mr-1 inline h-3 w-3" />
+                <ContactIcon className="mr-1 inline h-3 w-3" />
                 Database kontak Anda — sudah divalidasi dan masuk pipeline
               </>
             ) : (
