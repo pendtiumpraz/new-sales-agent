@@ -16,6 +16,7 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  Contact as ContactIcon,
   Download,
   Eye,
   Flame,
@@ -23,9 +24,11 @@ import {
   MessagesSquare,
   MoreHorizontal,
   Plus,
+  Radar,
   Search,
   Sparkles,
   Trash2,
+  Wand2,
   Users,
 } from "lucide-react";
 
@@ -76,6 +79,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { ProspectingPanel } from "@/components/prospecting/prospecting-panel";
+import { useProspectingStore } from "@/lib/stores/prospecting-store";
 import { useCadences, useContacts, useConversations } from "@/lib/api-mock/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { channelMeta } from "@/lib/utils/channel-config";
@@ -108,6 +112,12 @@ function ContactsPageInner() {
   const { data: contacts, isLoading } = useContacts();
   const { data: conversations } = useConversations();
   const { data: cadences } = useCadences();
+  // Live counts from the prospecting store so the Penemuan Lead tab can
+  // expose how many candidate leads + how many fresh inbound need attention.
+  const prospectsCount = useProspectingStore((s) => s.prospects.length);
+  const newInboundCount = useProspectingStore(
+    (s) => s.inbound.filter((i) => i.status === "baru").length,
+  );
   const [search, setSearch] = useState("");
   const [industries, setIndustries] = useState<Set<string>>(new Set());
   const [cities, setCities] = useState<Set<string>>(new Set());
@@ -507,11 +517,50 @@ function ContactsPageInner() {
         value={activeTab}
         onValueChange={(v) => setTab(v as "contacts" | "discovery")}
       >
-        <div className="border-b px-6 pt-2">
-          <TabsList>
-            <TabsTrigger value="contacts">Kontak</TabsTrigger>
-            <TabsTrigger value="discovery">Penemuan Lead</TabsTrigger>
+        <div className="border-b bg-gradient-to-r from-primary/5 via-card to-tertiary/5 px-6 pt-3">
+          <TabsList className="h-11 gap-2 bg-transparent p-0">
+            <TabsTrigger
+              value="contacts"
+              className="group h-10 gap-2 rounded-lg border border-transparent bg-transparent px-4 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-primary/30 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            >
+              <Contact className="h-4 w-4" />
+              <span>Kontak</span>
+              <span className="tnum rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground group-data-[state=active]:bg-primary/15 group-data-[state=active]:text-primary">
+                {(contacts ?? []).length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="discovery"
+              className="group h-10 gap-2 rounded-lg border border-transparent bg-transparent px-4 text-sm font-medium text-muted-foreground transition-all hover:border-tertiary/30 hover:bg-tertiary/8 hover:text-tertiary data-[state=active]:border-tertiary/40 data-[state=active]:bg-gradient-to-r data-[state=active]:from-tertiary/15 data-[state=active]:to-primary/8 data-[state=active]:text-tertiary data-[state=active]:shadow-sm"
+            >
+              <Radar className="h-4 w-4" />
+              <span>Penemuan Lead</span>
+              <span className="tnum rounded-full bg-tertiary/15 px-1.5 py-0.5 text-[10px] font-semibold text-tertiary group-data-[state=active]:bg-tertiary group-data-[state=active]:text-white">
+                {prospectsCount}
+              </span>
+              {newInboundCount > 0 && (
+                <span className="ml-0.5 inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]" />
+              )}
+            </TabsTrigger>
           </TabsList>
+          <p className="-mt-1 pb-2 pl-1 text-[11px] text-muted-foreground">
+            {activeTab === "contacts" ? (
+              <>
+                <Contact className="mr-1 inline h-3 w-3" />
+                Database kontak Anda — sudah divalidasi dan masuk pipeline
+              </>
+            ) : (
+              <>
+                <Wand2 className="mr-1 inline h-3 w-3 text-tertiary" />
+                <span className="font-medium text-tertiary">Crawl web · Validasi · Perkaya · Promosikan ke CRM</span>
+                {newInboundCount > 0 && (
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                    {newInboundCount} inbound baru
+                  </span>
+                )}
+              </>
+            )}
+          </p>
         </div>
 
         <TabsContent value="discovery" className="m-0">

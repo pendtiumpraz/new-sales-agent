@@ -115,3 +115,94 @@
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Print styles — drives the "Ekspor PDF" button on /reports.                  */
+/* Strategy: hide the app chrome (sidebar, top bar, action buttons), expand   */
+/* every hidden Tabs panel so the printed PDF contains all 4 sections at once,*/
+/* flatten shadows/rounded corners that print poorly, and force a clean white */
+/* background regardless of the Coral Sunset canvas.                          */
+/* -------------------------------------------------------------------------- */
+.print-only-title {
+  display: none;
+}
+@media print {
+  /* Layout — drop the chrome and let main flow full-width. */
+  aside.chrome,
+  header.chrome,
+  .print-hide {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+    color: #1B1A19 !important;
+  }
+  body {
+    font-size: 11pt;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .min-h-screen {
+    min-height: 0 !important;
+  }
+
+  /* Strip soft elevation and rounded chrome that look noisy in print. */
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .hover\\:shadow-md:hover {
+    box-shadow: none !important;
+  }
+  [class*="rounded-2xl"],
+  [class*="rounded-xl"] {
+    border-radius: 6px !important;
+  }
+  .border-dashed {
+    border-style: solid !important;
+  }
+
+  /* Reveal every tab panel so the PDF includes ALL four sections, not just
+     whichever the user happened to be looking at when they clicked print.
+     Radix tabs use [role=tabpanel][hidden] for the inactive panels. */
+  .print-show-all [role="tabpanel"][hidden] {
+    display: block !important;
+  }
+  .print-show-all [role="tabpanel"] {
+    margin-top: 0 !important;
+    page-break-before: always;
+  }
+  .print-show-all [role="tabpanel"]:first-of-type {
+    page-break-before: auto;
+  }
+  .print-only-title {
+    display: block !important;
+    font-size: 18pt;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #1B1A19;
+  }
+
+  /* Avoid breaking individual cards across pages where possible. */
+  .grid,
+  .space-y-6 > * {
+    page-break-inside: avoid;
+  }
+
+  /* Recharts — clip to a print-friendly height so the funnel + trend chart
+     don't blow up the page. */
+  .recharts-responsive-container {
+    max-height: 280px !important;
+  }
+
+  /* Print sizing — A4 portrait with comfortable margins. */
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm;
+  }
+}
