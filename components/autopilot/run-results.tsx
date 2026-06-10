@@ -125,9 +125,13 @@ export function RunResults() {
 
 function RunResultsInner({ run }: { run: AutopilotRun }) {
   const journeys = useMemo(() => deriveJourneys(run.events), [run.events]);
-  const [expanded, setExpanded] = useState<Set<string>>(
-    new Set(journeys.slice(0, 1).map((j) => j.prospectId)),
-  );
+  // Lazy initializer — only runs ONCE on first mount. Computing it eagerly on
+  // every render was creating a fresh Set per render which, while not itself
+  // a loop, multiplied work when run.events was being appended rapidly.
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    const initial = deriveJourneys(run.events);
+    return new Set(initial.slice(0, 1).map((j) => j.prospectId));
+  });
 
   function toggle(id: string) {
     setExpanded((prev) => {

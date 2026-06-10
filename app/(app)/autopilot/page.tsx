@@ -17,6 +17,7 @@ import { ActivityTimeline } from "@/components/autopilot/activity-timeline";
 import { AudiencePicker } from "@/components/autopilot/audience-picker";
 import { GuardrailsPanel } from "@/components/autopilot/guardrails-panel";
 import { HeroBanner } from "@/components/autopilot/hero-banner";
+import { CardErrorBoundary } from "@/components/workspace/card-error-boundary";
 import { RunResults } from "@/components/autopilot/run-results";
 import { RunSummary } from "@/components/autopilot/run-summary";
 import { STEP_KIND } from "@/components/autopilot/step-card";
@@ -200,10 +201,18 @@ export default function AutopilotPage() {
 
           {/* Right column — live activity + KPIs */}
           <div className="space-y-4 lg:col-span-8">
-            <ActivityTimeline />
-            <RunSummary />
-            <RunResults />
-            <HistoryCard history={history} currentRunId={currentRun?.id} />
+            <CardErrorBoundary name="Aktivitas">
+              <ActivityTimeline />
+            </CardErrorBoundary>
+            <CardErrorBoundary name="Ringkasan run">
+              <RunSummary />
+            </CardErrorBoundary>
+            <CardErrorBoundary name="Hasil per prospek">
+              <RunResults />
+            </CardErrorBoundary>
+            <CardErrorBoundary name="Riwayat">
+              <HistoryCard history={history} currentRunId={currentRun?.id} />
+            </CardErrorBoundary>
           </div>
         </div>
       </div>
