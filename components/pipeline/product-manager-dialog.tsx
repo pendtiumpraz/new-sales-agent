@@ -98,9 +98,9 @@ export function ProductManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl overflow-hidden p-0">
-        {/* Gradient header strip */}
-        <div className="relative overflow-hidden border-b border-primary/10 bg-gradient-to-r from-primary/12 via-tertiary/8 to-amber-500/8 px-6 pb-4 pt-5">
+      <DialogContent className="flex max-h-[min(85vh,720px)] max-w-2xl flex-col overflow-hidden p-0">
+        {/* Gradient header strip — sticky at the top of the dialog */}
+        <div className="relative shrink-0 overflow-hidden border-b border-primary/10 bg-gradient-to-r from-primary/12 via-tertiary/8 to-amber-500/8 px-6 pb-4 pt-5">
           <div
             aria-hidden
             className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/15 blur-3xl"
@@ -123,7 +123,9 @@ export function ProductManagerDialog({
           </div>
         </div>
 
-        <div className="space-y-5 px-6 pb-2 pt-4">
+        {/* Scrollable body — flex-1 + overflow-y-auto so even a long product
+            list fits inside the viewport without the whole dialog overflowing. */}
+        <div className="scrollbar-thin flex-1 space-y-5 overflow-y-auto px-6 pb-2 pt-4">
           {/* Existing products list */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -262,7 +264,7 @@ export function ProductManagerDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-primary/10 bg-muted/20 px-6 py-3">
+        <DialogFooter className="shrink-0 border-t border-primary/10 bg-muted/20 px-6 py-3">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Tutup
           </Button>

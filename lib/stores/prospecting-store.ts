@@ -73,6 +73,7 @@ interface ProspectingState {
   crawl: (n: number) => void;
   enrich: (id: string) => void;
   enrichMany: (ids: string[]) => void;
+  validateMany: (ids: string[]) => void;
   addToCrm: (id: string) => void;
   addManyToCrm: (ids: string[]) => void;
   replyInbound: (id: string) => void;
@@ -97,6 +98,25 @@ export const useProspectingStore = create<ProspectingState>((set) => ({
   enrichMany: (ids) =>
     set((s) => ({
       prospects: s.prospects.map((p) => (ids.includes(p.id) ? enrichOne(p) : p)),
+    })),
+  // Lightweight validation pass — flips emailVerified to true and ensures
+  // each selected prospect has a phone number. Mock impl of an MX-record /
+  // phone-existence check (in production this'd hit a verification API like
+  // Hunter / Snov / NeverBounce).
+  validateMany: (ids) =>
+    set((s) => ({
+      prospects: s.prospects.map((p) =>
+        ids.includes(p.id)
+          ? {
+              ...p,
+              emailVerified: true,
+              phone:
+                p.phone && p.phone.length > 4
+                  ? p.phone
+                  : `+62 81${rndInt(20000000, 99999999)}`,
+            }
+          : p,
+      ),
     })),
   addToCrm: (id) =>
     set((s) => ({

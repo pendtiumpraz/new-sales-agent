@@ -2,13 +2,22 @@
 
 import { useMemo, useState } from "react";
 import {
+  AtSign,
   Check,
   Globe,
+  Phone,
   Plus,
   Search,
+  ShieldCheck,
   Sparkles,
   Wand2,
 } from "lucide-react";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -61,6 +70,7 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
   const crawl = useProspectingStore((s) => s.crawl);
   const enrich = useProspectingStore((s) => s.enrich);
   const enrichMany = useProspectingStore((s) => s.enrichMany);
+  const validateMany = useProspectingStore((s) => s.validateMany);
   const addManyToCrm = useProspectingStore((s) => s.addManyToCrm);
   const replyInbound = useProspectingStore((s) => s.replyInbound);
   const routeInbound = useProspectingStore((s) => s.routeInbound);
@@ -205,12 +215,26 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           {selected.size > 0 && (
-            <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-tertiary/5 px-4 py-2.5 text-sm shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-tertiary/5 px-4 py-2.5 text-sm shadow-sm">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
                 <Sparkles className="h-3 w-3" />
                 {selected.size} dipilih
               </span>
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700"
+                  onClick={() => {
+                    validateMany(Array.from(selected));
+                    toast.success(
+                      `${selected.size} prospek divalidasi — email + nomor telepon diverifikasi.`,
+                    );
+                  }}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Validasi data
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -245,7 +269,7 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
                   <TableHead>Prospek</TableHead>
                   <TableHead>Perusahaan</TableHead>
                   <TableHead>Skor AI</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Validasi data</TableHead>
                   <TableHead>Sumber</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -277,22 +301,7 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
                       <TempBadge score={p.aiScore} temp={p.aiTemp} />
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      {p.enriched ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          <Check className="h-3.5 w-3.5" />
-                          Terverifikasi
-                        </span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
-                          onClick={() => { enrich(p.id); toast.success(`Data ${p.name} diperkaya.`); }}
-                        >
-                          <Wand2 className="h-3.5 w-3.5" />
-                          Perkaya
-                        </Button>
-                      )}
+                      <ValidationSignal lead={p} onEnrich={() => { enrich(p.id); toast.success(`Data ${p.name} diperkaya.`); }} />
                     </TableCell>
                     <TableCell>
                       <SourcePill source={p.source} />
@@ -381,6 +390,102 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
 
       <ProspectSheet prospect={detail} open={sheetOpen} onOpenChange={setSheetOpen} />
     </div>
+  );
+}
+
+// Data-quality dot row — surfaces 3 validation signals (email verified,
+// phone present, profile enriched) with a tooltip explaining each, and
+// shows an inline "Validasi" CTA when any signal is missing. Replaces the
+// single 'Terverifikasi'/'Perkaya' chip column.
+function ValidationSignal({
+  lead,
+  onEnrich,
+}: {
+  lead: ProspectLead;
+  onEnrich: () => void;
+}) {
+  const signals = [
+    {
+      label: "Email terverifikasi",
+      ok: lead.emailVerified,
+      icon: AtSign,
+    },
+    {
+      label: "Nomor telepon tersedia",
+      ok: Boolean(lead.phone && lead.phone.length > 4),
+      icon: Phone,
+    },
+    {
+      label: "Data profil diperkaya AI",
+      ok: lead.enriched,
+      icon: Sparkles,
+    },
+  ];
+  const okCount = signals.filter((s) => s.ok).length;
+  const allOk = okCount === signals.length;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!allOk) onEnrich();
+          }}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border px-2 py-1 transition-colors",
+            allOk
+              ? "border-emerald-300 bg-emerald-50 hover:bg-emerald-100"
+              : "border-amber-300 bg-amber-50 hover:bg-amber-100",
+          )}
+          aria-label={`${okCount} dari ${signals.length} sinyal data terverifikasi`}
+        >
+          {signals.map(({ ok, icon: Icon }, i) => (
+            <span
+              key={i}
+              className={cn(
+                "flex h-4 w-4 items-center justify-center rounded-full",
+                ok ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground/60",
+              )}
+            >
+              <Icon className="h-2.5 w-2.5" />
+            </span>
+          ))}
+          <span className={cn("tnum ml-0.5 text-[10px] font-semibold", allOk ? "text-emerald-700" : "text-amber-700")}>
+            {okCount}/{signals.length}
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[220px] space-y-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+          Kualitas data
+        </p>
+        <ul className="space-y-1 text-xs">
+          {signals.map(({ label, ok, icon: Icon }, i) => (
+            <li key={i} className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "flex h-4 w-4 items-center justify-center rounded-full",
+                  ok ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground/60",
+                )}
+              >
+                <Icon className="h-2.5 w-2.5" />
+              </span>
+              <span className={cn(ok ? "text-foreground" : "text-muted-foreground")}>
+                {label}
+              </span>
+              {ok && <Check className="ml-auto h-3 w-3 text-emerald-600" />}
+            </li>
+          ))}
+        </ul>
+        {!allOk && (
+          <p className="pt-1 text-[10px] italic text-muted-foreground">
+            Klik untuk perkaya + validasi data ini
+          </p>
+        )}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
