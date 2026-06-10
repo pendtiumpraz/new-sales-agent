@@ -7,7 +7,7 @@ import {
   ChevronDown,
   Copy,
   Download,
-  Linkedin,
+  Network as Linkedin,
   MessageCircle,
   Sparkles,
   Users,
