@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useProspectingStore } from "@/lib/stores/prospecting-store";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { cn } from "@/lib/utils";
 import type { AiTemp, ProspectLead } from "@/lib/types";
@@ -69,6 +70,8 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<ProspectLead | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   const filtered = useMemo(() => {
     let list = prospects;
@@ -248,7 +251,7 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.slice(0, 40).map((p) => (
+                {filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((p) => (
                   <TableRow
                     key={p.id}
                     className="cursor-pointer transition-colors even:bg-muted/30 hover:bg-primary/[0.06]"
@@ -308,6 +311,15 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
               </TableBody>
             </Table>
           </div>
+
+          <TablePagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={filtered.length}
+            onPrev={() => setPage((p) => Math.max(0, p - 1))}
+            onNext={() => setPage((p) => p + 1)}
+            label="prospek"
+          />
         </TabsContent>
 
         {/* ── Inbound ──────────────────────────────────────────────── */}

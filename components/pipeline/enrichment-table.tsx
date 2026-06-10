@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Sparkles } from "lucide-react";
 
 import { TempBadge } from "@/components/shared/temp-badge";
@@ -16,6 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { STAGES, usePipelineStore } from "@/lib/stores/pipeline-store";
 import { productById } from "@/lib/api-mock/enrichment";
 import { cn } from "@/lib/utils";
@@ -61,6 +67,8 @@ export function EnrichmentTable() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   // Join deals with their analyses, then filter/sort.
   const rows = useMemo(() => {
@@ -87,6 +95,17 @@ export function EnrichmentTable() {
     }
     return list.sort((a, b) => b.analysis.priorityScore - a.analysis.priorityScore);
   }, [deals, analyses, status, search]);
+
+  // Reset to the first page whenever the filter/search shrinks the result
+  // set — otherwise the user can land on an empty page.
+  const totalRows = rows.length;
+  const visibleRows = useMemo(
+    () => rows.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
+    [rows, page],
+  );
+  useEffect(() => {
+    if (page > 0 && page * PAGE_SIZE >= totalRows) setPage(0);
+  }, [page, totalRows]);
 
   function open(deal: Deal) {
     setOpenDeal(deal);
@@ -156,7 +175,7 @@ export function EnrichmentTable() {
                 </TableCell>
               </TableRow>
             )}
-            {rows.map(({ deal, analysis }) => (
+            {visibleRows.map(({ deal, analysis }) => (
               <TableRow
                 key={deal.id}
                 className="group cursor-pointer transition-all duration-150 even:bg-muted/20 hover:bg-primary/5 hover:shadow-[inset_3px_0_0_0_rgba(251,94,59,0.7)] active:scale-[0.998]"
@@ -225,44 +244,92 @@ export function EnrichmentTable() {
                   </p>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {analysis.matchedProducts.map((pid, idx) => {
-                      const p = productById(pid, products);
-                      if (!p) return null;
-                      const accent =
-                        p.accent ??
-                        PRODUCT_ACCENT_FALLBACK[
-                          idx % PRODUCT_ACCENT_FALLBACK.length
-                        ];
-                      return (
-                        <span
-                          key={pid}
-                          title={p.description}
-                          className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-shadow hover:shadow-sm"
-                          style={{
-                            borderColor: `${accent}55`,
-                            backgroundColor: `${accent}12`,
-                            color: accent,
+                  {/* Colored dots only — hover to see the product names.
+                      Cleaner than chips when a deal matches 2-3 products. */}
+                  {analysis.matchedProducts.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground">—</span>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 transition-all hover:border-primary/30 hover:bg-primary/5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            open(deal);
                           }}
+                          aria-label={`${analysis.matchedProducts.length} produk cocok`}
                         >
-                          <span
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: accent }}
-                          />
-                          {p.name}
-                        </span>
-                      );
-                    })}
-                    {analysis.matchedProducts.length === 0 && (
-                      <span className="text-[11px] text-muted-foreground">—</span>
-                    )}
-                  </div>
+                          {analysis.matchedProducts.slice(0, 4).map((pid, idx) => {
+                            const p = productById(pid, products);
+                            const accent =
+                              p?.accent ??
+                              PRODUCT_ACCENT_FALLBACK[
+                                idx % PRODUCT_ACCENT_FALLBACK.length
+                              ];
+                            return (
+                              <span
+                                key={pid}
+                                className="h-2.5 w-2.5 rounded-full ring-2 ring-card"
+                                style={{ backgroundColor: accent }}
+                              />
+                            );
+                          })}
+                          {analysis.matchedProducts.length > 4 && (
+                            <span className="ml-1 tnum text-[10px] font-medium text-muted-foreground">
+                              +{analysis.matchedProducts.length - 4}
+                            </span>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                          Produk cocok
+                        </p>
+                        <ul className="space-y-0.5 text-xs">
+                          {analysis.matchedProducts.map((pid, idx) => {
+                            const p = productById(pid, products);
+                            if (!p) return null;
+                            const accent =
+                              p.accent ??
+                              PRODUCT_ACCENT_FALLBACK[
+                                idx % PRODUCT_ACCENT_FALLBACK.length
+                              ];
+                            return (
+                              <li
+                                key={pid}
+                                className="flex items-center gap-1.5"
+                              >
+                                <span
+                                  className="h-2 w-2 shrink-0 rounded-full"
+                                  style={{ backgroundColor: accent }}
+                                />
+                                <span className="font-medium">{p.name}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <p className="pt-1 text-[10px] italic text-muted-foreground">
+                          Klik untuk lihat detail deal
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <TablePagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={totalRows}
+        onPrev={() => setPage((p) => Math.max(0, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+        label="prospek"
+      />
 
       <DealDetailSheet
         deal={openDeal}

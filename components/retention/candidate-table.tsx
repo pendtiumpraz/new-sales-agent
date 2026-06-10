@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { HeartHandshake, Repeat2, Sparkles, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +49,9 @@ function flowAccent(
 export function CandidateTable() {
   const candidates = useRetentionStore((s) => s.candidates);
   const enroll = useRetentionStore((s) => s.enrollCandidate);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 8;
+  const visible = candidates.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   if (candidates.length === 0) {
     return (
@@ -85,7 +90,7 @@ export function CandidateTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {candidates.map((c, i) => {
+          {visible.map((c, i) => {
             const accent = flowAccent(c.recommendedFlowId, c.recommendedFlowName);
             const FlowIcon = accent.Icon;
             return (
@@ -158,6 +163,16 @@ export function CandidateTable() {
           })}
         </TableBody>
       </Table>
+      <div className="border-t bg-card px-4 pb-3 pt-1">
+        <TablePagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={candidates.length}
+          onPrev={() => setPage((p) => Math.max(0, p - 1))}
+          onNext={() => setPage((p) => p + 1)}
+          label="kandidat"
+        />
+      </div>
     </div>
   );
 }
