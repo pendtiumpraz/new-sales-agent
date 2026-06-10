@@ -1,9 +1,19 @@
 "use client";
 
-import { Building2, CalendarClock, Sparkles, Trophy, UserRound } from "lucide-react";
+import {
+  Activity,
+  Building2,
+  CalendarClock,
+  Flame,
+  Package,
+  Sparkles,
+  Trophy,
+  UserRound,
+} from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { IDRAmount } from "@/components/shared/idr-amount";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -20,10 +30,28 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { STAGES, usePipelineStore } from "@/lib/stores/pipeline-store";
+import { productById } from "@/lib/api-mock/enrichment";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatDateID } from "@/lib/utils/format-date-id";
+import { formatIDR } from "@/lib/utils/format-idr";
+import { cn } from "@/lib/utils";
 import type { Deal, DealStage } from "@/lib/types";
 import { toast } from "sonner";
+
+const TEMP_PILL: Record<string, { label: string; cls: string }> = {
+  panas: {
+    label: "Panas",
+    cls: "bg-primary/10 text-primary border-primary/30",
+  },
+  hangat: {
+    label: "Hangat",
+    cls: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  dingin: {
+    label: "Dingin",
+    cls: "bg-sky-100 text-sky-700 border-sky-200",
+  },
+};
 
 const ACTIVITY = [
   { label: "Deal dibuat", when: "12 hari lalu" },
@@ -50,6 +78,22 @@ export function DealDetailSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const moveDeal = usePipelineStore((s) => s.moveDeal);
+  const analyses = usePipelineStore((s) => s.analyses);
+  const products = usePipelineStore((s) => s.products);
+
+  // Pull the enrichment analysis for the open deal — exposes the same
+  // matched products + AI priority that the Enrichment table column shows,
+  // but with full product detail (description + price + target segment) so
+  // the user has everything in one card.
+  const analysis = deal
+    ? analyses.find((a) => a.dealId === deal.id) ?? null
+    : null;
+  const matchedProducts = analysis
+    ? analysis.matchedProducts
+        .map((pid) => productById(pid, products))
+        .filter((p): p is NonNullable<ReturnType<typeof productById>> => Boolean(p))
+    : [];
+  const tempMeta = analysis ? TEMP_PILL[analysis.temperature] ?? null : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -112,6 +156,109 @@ export function DealDetailSheet({
                 </p>
                 <p className="mt-1 text-sm">{AI_ACTION[deal.stage]}</p>
               </div>
+
+              {/* Enrichment summary — matched products + AI priority. Mirrors
+                  the dot column in the Enrichment table, expanded here so the
+                  user sees the full pitch context for the deal. */}
+              {analysis && (
+                <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-tertiary/5 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <Package className="h-3.5 w-3.5" />
+                      Produk direkomendasikan AI
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {tempMeta && (
+                        <Badge
+                          variant="outline"
+                          className={cn("gap-1 text-[10px]", tempMeta.cls)}
+                        >
+                          {analysis.temperature === "panas" && (
+                            <Flame className="h-3 w-3" />
+                          )}
+                          {tempMeta.label}
+                        </Badge>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className="tnum gap-1 border-tertiary/30 bg-tertiary/10 text-[10px] text-tertiary"
+                      >
+                        <Activity className="h-3 w-3" />
+                        Skor {analysis.priorityScore}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {matchedProducts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Belum ada produk yang cocok dengan profil prospek ini.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {matchedProducts.map((p, idx) => {
+                        const accent =
+                          p.accent ??
+                          ["#FB5E3B", "#14B8A6", "#F59E0B", "#0EA5E9"][idx % 4];
+                        return (
+                          <li
+                            key={p.id}
+                            className="flex items-start gap-2 rounded-lg border bg-card p-2.5"
+                            style={{ borderColor: `${accent}40` }}
+                          >
+                            <span
+                              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white"
+                              style={{ backgroundColor: accent }}
+                            >
+                              <Package className="h-3.5 w-3.5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className="truncate text-sm font-semibold">
+                                  {p.name}
+                                </p>
+                                <span
+                                  className="tnum shrink-0 text-xs font-medium"
+                                  style={{ color: accent }}
+                                >
+                                  {formatIDR(p.priceIDR)}
+                                </span>
+                              </div>
+                              <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                                {p.description}
+                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1">
+                                <Badge variant="muted" className="text-[10px]">
+                                  {p.targetSegment}
+                                </Badge>
+                                {p.targetCompanySize?.slice(0, 2).map((band) => (
+                                  <span
+                                    key={band}
+                                    className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                  >
+                                    {band} karyawan
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {analysis.aiSuggestion && (
+                    <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-tertiary/8 p-2 text-[11px] leading-snug text-foreground/85">
+                      <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-tertiary" />
+                      <span>
+                        <span className="font-semibold text-tertiary">
+                          Saran AI:
+                        </span>{" "}
+                        {analysis.aiSuggestion}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
 
               <Separator />
 
