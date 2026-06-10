@@ -179,38 +179,46 @@ export default function AutopilotPage() {
       />
 
       <div className="space-y-4 p-6">
-        <AiStatusLine status={aiStatus} />
+        <CardErrorBoundary name="AI Status">
+          <AiStatusLine status={aiStatus} />
+        </CardErrorBoundary>
 
-        <HeroBanner
-          config={config}
-          onChangeGoal={(goal) => setConfig({ goal })}
-          onStart={startAutopilot}
-          onStop={stopAutopilot}
-          running={running}
-          done={done}
-          estimatedProspects={estimatedProspects}
-          meetingsBooked={currentRun?.metrics.meetingsBooked ?? 0}
-        />
+        <CardErrorBoundary name="Hero Banner (CTA)">
+          <HeroBanner
+            config={config}
+            onChangeGoal={(goal) => setConfig({ goal })}
+            onStart={startAutopilot}
+            onStop={stopAutopilot}
+            running={running}
+            done={done}
+            estimatedProspects={estimatedProspects}
+            meetingsBooked={currentRun?.metrics.meetingsBooked ?? 0}
+          />
+        </CardErrorBoundary>
 
         <div className="grid gap-4 lg:grid-cols-12">
           {/* Left column — config */}
           <div className="space-y-4 lg:col-span-4">
-            <AudiencePicker disabled={running} />
-            <GuardrailsPanel disabled={running} />
+            <CardErrorBoundary name="Audience Picker">
+              <AudiencePicker disabled={running} />
+            </CardErrorBoundary>
+            <CardErrorBoundary name="Guardrails Panel">
+              <GuardrailsPanel disabled={running} />
+            </CardErrorBoundary>
           </div>
 
           {/* Right column — live activity + KPIs */}
           <div className="space-y-4 lg:col-span-8">
-            <CardErrorBoundary name="Aktivitas">
+            <CardErrorBoundary name="Aktivitas (timeline)">
               <ActivityTimeline />
             </CardErrorBoundary>
-            <CardErrorBoundary name="Ringkasan run">
+            <CardErrorBoundary name="Ringkasan run (KPI)">
               <RunSummary />
             </CardErrorBoundary>
-            <CardErrorBoundary name="Hasil per prospek">
+            <CardErrorBoundary name="Hasil per prospek (RunResults)">
               <RunResults />
             </CardErrorBoundary>
-            <CardErrorBoundary name="Riwayat">
+            <CardErrorBoundary name="Riwayat run">
               <HistoryCard history={history} currentRunId={currentRun?.id} />
             </CardErrorBoundary>
           </div>
