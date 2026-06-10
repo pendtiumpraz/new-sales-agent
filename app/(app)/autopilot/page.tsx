@@ -17,6 +17,7 @@ import { ActivityTimeline } from "@/components/autopilot/activity-timeline";
 import { AudiencePicker } from "@/components/autopilot/audience-picker";
 import { GuardrailsPanel } from "@/components/autopilot/guardrails-panel";
 import { HeroBanner } from "@/components/autopilot/hero-banner";
+import { RunResults } from "@/components/autopilot/run-results";
 import { RunSummary } from "@/components/autopilot/run-summary";
 import { STEP_KIND } from "@/components/autopilot/step-card";
 import { Badge } from "@/components/ui/badge";
@@ -201,6 +202,7 @@ export default function AutopilotPage() {
           <div className="space-y-4 lg:col-span-8">
             <ActivityTimeline />
             <RunSummary />
+            <RunResults />
             <HistoryCard history={history} currentRunId={currentRun?.id} />
           </div>
         </div>
