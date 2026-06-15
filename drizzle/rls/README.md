@@ -28,3 +28,16 @@ that context, so applying RLS now would break the running app.
 - Superadmin bypass is a **policy predicate**, not a DB superuser — auditable.
 - `memberships` policy also allows `user_id = app.user_id` so login can resolve a
   user's tenants before a tenant is chosen.
+
+## Enforcement role (important)
+
+RLS is **not enforced for `neondb_owner`** — Neon gives that role `BYPASSRLS`.
+So the app must connect as a dedicated role WITHOUT bypass for policies to apply.
+
+1. Create it: `create-app-role.sql` (run as `neondb_owner`; replace the password).
+2. Add `app_user`'s **pooled** connection string to `.env.local` as
+   `APP_POSTGRES_URL` (and optionally `APP_POSTGRES_URL_NON_POOLING` for the
+   direct/test endpoint). `lib/db/client.ts` prefers these for runtime queries.
+3. `neondb_owner` (BYPASSRLS) stays for migrations / drizzle-kit / studio.
+4. Verify: connect as `app_user`, set `app.tenant_id`, confirm cross-tenant rows
+   are hidden and `app.role='superadmin'` sees all.

@@ -21,6 +21,12 @@ import * as schema from "./schema";
  *  4. Any *_POSTGRES_URL_NON_POOLING prefixed variant
  */
 function findConnectionString(): string | undefined {
+  // Prefer a dedicated runtime role that RESPECTS RLS (no BYPASSRLS) so tenant
+  // isolation policies actually apply (doc 19). neondb_owner has BYPASSRLS, so
+  // using it would skip RLS. Falls back to the owner credential if unset.
+  if (process.env.APP_POSTGRES_URL) return process.env.APP_POSTGRES_URL;
+  if (process.env.APP_POSTGRES_URL_NON_POOLING)
+    return process.env.APP_POSTGRES_URL_NON_POOLING;
   if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL;
   for (const [key, value] of Object.entries(process.env)) {
     if (typeof value !== "string" || value.length === 0) continue;

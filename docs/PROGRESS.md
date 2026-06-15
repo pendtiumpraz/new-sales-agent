@@ -52,7 +52,7 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ `tenant_id` SET NOT NULL di 8 tabel tenant-scoped — applied
 - ✅ Refactor 10 route `app/api/db/*` pakai `getTenantContext` + `withTenant` (read scoped, write stamp tenant_id) — helper `lib/auth/session-context.ts`
 - ✅ RLS ENABLE + FORCE + policy `tenant_isolation` di 11 tabel — applied
-- ⛔ **BLOCKER enforcement**: role Neon `neondb_owner` punya `BYPASSRLS` → policy di-skip (terbukti via tes isolasi). Session-config & policy benar; tinggal pilih role non-bypass. **Butuh keputusan user** (3 opsi).
+- 🟡 **Enforcement**: dipilih **dedicated app role tanpa BYPASSRLS**. Disiapkan: `lib/db/client.ts` prefer `APP_POSTGRES_URL`, SQL `drizzle/rls/create-app-role.sql`, README. **Nunggu user**: bikin role `app_user` + paste connection string ke `.env.local` → lalu tes isolasi sebagai app_user. (Penyebab: `neondb_owner` punya `BYPASSRLS` → skip RLS, terbukti via tes.)
 - ⬜ RBAC guard di route + UI member/invite (slice 2b-2)
 
 ### Fase 2–8
