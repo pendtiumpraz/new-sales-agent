@@ -1,9 +1,21 @@
-import { generateText, type ModelMessage } from "ai";
+import { generateText, streamText, type ModelMessage } from "ai";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { aiUsageTable } from "@/lib/db/schema";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { resolveActiveModel } from "./registry";
+
+/** Compute cost (USD) from token counts + the model's snapshotted per-1M pricing. */
+function costOf(
+  resolved: { priceInPer1m?: number | null; priceOutPer1m?: number | null },
+  tokensIn: number,
+  tokensOut: number,
+): number {
+  return (
+    (tokensIn / 1_000_000) * (resolved.priceInPer1m ?? 0) +
+    (tokensOut / 1_000_000) * (resolved.priceOutPer1m ?? 0)
+  );
+}
 
 interface MeterOpts {
   feature: string; // chat | draft | autopilot | …
@@ -48,9 +60,7 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
   const u = (result.usage ?? {}) as unknown as Record<string, number | undefined>;
   const tokensIn = u.inputTokens ?? u.promptTokens ?? 0;
   const tokensOut = u.outputTokens ?? u.completionTokens ?? 0;
-  const cost =
-    (tokensIn / 1_000_000) * (resolved.priceInPer1m ?? 0) +
-    (tokensOut / 1_000_000) * (resolved.priceOutPer1m ?? 0);
+  const cost = costOf(resolved, tokensIn, tokensOut);
 
   await withTenant(ctx, (tx) =>
     tx.insert(aiUsageTable).values({
@@ -72,4 +82,61 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
     keySource: resolved.keySource,
     usage: { tokensIn, tokensOut, cost },
   };
+}
+
+interface MeterStreamOpts {
+  feature: string;
+  system?: string;
+  messages: ModelMessage[];
+  // NB: no temperature — sampling params 400 on Anthropic Opus, and the
+  // registry is provider-agnostic, so we let the model default.
+}
+
+/**
+ * Streaming sibling of meteredGenerateText (doc 24). Resolves the tenant's
+ * active model and returns the streamText result so the caller can pipe it
+ * straight to the client (e.g. `result.toUIMessageStreamResponse()`); token
+ * usage + cost are recorded to ai_usage in `onFinish` once the stream
+ * completes. The usage write is wrapped so it can never break the stream.
+ *
+ * Throws synchronously (before any streaming) when the tenant is suspended or
+ * has no usable model — callers catch this to fall back gracefully.
+ */
+export async function meteredStreamText(ctx: TenantContext, opts: MeterStreamOpts) {
+  if (!(await isTenantActive(ctx))) {
+    throw new Error("Tenant suspended (kill-switch) — AI disabled");
+  }
+  const resolved = await resolveActiveModel(ctx);
+  if (!resolved) {
+    throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");
+  }
+
+  const start = Date.now();
+  return streamText({
+    model: resolved.model,
+    system: opts.system,
+    messages: opts.messages,
+    onFinish: async (event) => {
+      try {
+        const u = (event.usage ?? {}) as unknown as Record<string, number | undefined>;
+        const tokensIn = u.inputTokens ?? u.promptTokens ?? 0;
+        const tokensOut = u.outputTokens ?? u.completionTokens ?? 0;
+        await withTenant(ctx, (tx) =>
+          tx.insert(aiUsageTable).values({
+            id: "use_" + crypto.randomUUID(),
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            modelId: resolved.aiModelId,
+            feature: opts.feature,
+            tokensIn,
+            tokensOut,
+            cost: costOf(resolved, tokensIn, tokensOut),
+            latencyMs: Date.now() - start,
+          }),
+        );
+      } catch (err) {
+        console.error("[meter] stream usage record failed:", err);
+      }
+    },
+  });
 }

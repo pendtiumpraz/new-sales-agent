@@ -29,6 +29,9 @@ import {
   hasGatewayCredentials,
   isRealAiEnabled,
 } from "@/lib/ai/provider";
+import { hasDb } from "@/lib/db/client";
+import { getTenantContext } from "@/lib/auth/session-context";
+import { meteredStreamText } from "@/lib/ai/meter";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
 import type { KnowledgeBase } from "@/lib/types/kb";
@@ -119,18 +122,37 @@ export async function POST(request: Request) {
 
   const lastUserText = extractLastUserText(messages);
 
-  // Offline / demo path — no Gateway credential or feature flag is off.
+  const system = buildKbSystemPrompt(kb, {
+    surface: "chat",
+    includeSources: true,
+    userPrompt: lastUserText,
+  });
+
+  // Prefer the per-tenant AI registry (metered; tenant BYOK or platform key)
+  // when logged in + DB wired — streamed, with usage recorded on finish. (doc 24)
+  const ctx = await getTenantContext();
+  if (ctx && hasDb()) {
+    try {
+      const modelMessages = await convertToModelMessages(messages);
+      const result = await meteredStreamText(ctx, {
+        feature: "chat",
+        system,
+        messages: modelMessages,
+      });
+      return result.toUIMessageStreamResponse({ headers: headersFor("real") });
+    } catch (error) {
+      // No active model / suspended / setup error — fall through to the legacy
+      // Gateway stream, then the deterministic mock.
+      console.error("[chat] registry stream failed, trying gateway/mock:", error);
+    }
+  }
+
+  // Legacy Gateway fallback — only when no per-tenant model resolved.
   if (!hasGatewayCredentials() || !isRealAiEnabled()) {
     return mockResponse(lastUserText, kb);
   }
 
   try {
-    const system = buildKbSystemPrompt(kb, {
-      surface: "chat",
-      includeSources: true,
-      userPrompt: lastUserText,
-    });
-
     // AI SDK v6: `convertToModelMessages` is async (returns Promise<ModelMessage[]>),
     // so we await it before handing the array to `streamText`.
     const modelMessages = await convertToModelMessages(messages);
