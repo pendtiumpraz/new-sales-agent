@@ -5,7 +5,11 @@ Laporan progres hidup. Di-update tiap ada kemajuan. Rencana penuh di
 
 **Legenda:** ✅ selesai · 🟡 jalan · ⬜ belum · ⛔ keblok
 
-_Terakhir diperbarui: 2026-06-15_
+_Terakhir diperbarui: 2026-06-16_
+
+> **Build-health:** seluruh repo lulus `tsc --noEmit` (strict) + ESLint bersih.
+> 12 type-error sisa dari fase awal (cuma diuji via curl; `next dev` pakai SWC
+> jadi nggak ketahuan) sudah diberesin — proyek sekarang `next build`-able.
 
 ## Ringkasan
 
@@ -80,8 +84,9 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ API `/api/tenant/ai` (GET katalog+active+BYOK status+usage rollup; PATCH set active) + `/api/tenant/ai/credentials` (POST/DELETE BYOK terenkripsi) — RBAC-guarded
 - ✅ UI `/settings/ai` — pilih model aktif per provider, input BYOK key, kartu pemakaian (panggilan/token/biaya); dilink dari Settings
 - ✅ `draft-message` di-wire ke `meteredGenerateText` (per-tenant model + metering), fallback template
+- ✅ **`autopilot/text` + `auto-reply` di-wire ke `meteredGenerateText`** (registry-first; AI Gateway legacy jadi fallback; lalu template) — diuji end-to-end di `:3000` (registry reachable + fallback degrade benar)
 - ✅ Diuji: GET (8 model/4 provider), set active opus48↔deepseek, BYOK save/verify/delete, rep PATCH 403, page 200, draft fallback 200
-- ⬜ Wire route AI lain (chat streaming, autopilot) + admin cost dashboard lintas-tenant → Fase 8
+- ⬜ Wire `chat` (streaming `streamText` — perlu jalur metering streaming) + admin cost dashboard lintas-tenant → Fase 8
 
 ### Fase 4 — Acquisition + positioning 🟡
 **Slice 1 (ingest + positioning engine) — selesai:**
@@ -103,7 +108,12 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Diuji: connect, unsubscribe→suppression, kirim ke suppressed→**skipped**, ke normal→**failed** (no delivery), page 200
 - ⚠️ **Kirim NYATA butuh creds SMTP valid** — `GMAIL_USER`/`GMAIL_APP_PASSWORD` di `.env.local` masih kosong; isi atau connect mailbox via UI
 
-**Slice 2 — belum:** OAuth Gmail/MS connect + platform ESP; Inngest worker (gantiin proses inline); deliverability (SPF/DKIM/warmup/bounce webhook); cadence multi-channel pakai mailbox + AI personalize
+**Slice 2 — sebagian:**
+- ✅ **Cadence multi-channel** `lib/cadence/processor.ts` — `processCadences(ctx)` cari enrollment `aktif` jatuh tempo, **personalisasi tiap step via model aktif (metered, feature "cadence")** + fallback template `{nama}`/`{perusahaan}`, dispatch per-channel, lalu majukan enrollment (`currentStepIdx` + `nextStepDueAt` = +`delayDays`, atau `selesai`)
+- ✅ Step email → `send_job` (worker SMTP yang kirim); channel non-email (wa/linkedin/ig/sms/call) → di-queue + dicatat jujur di tabel baru `cadence_step_run` (integrasi live keblok creds)
+- ✅ API `/api/cadences/process` (GET log + POST jalankan; guard `campaign.manage`) + tombol **"Jalankan sekarang"** di halaman Cadence; migrasi `0006` applied + masuk daftar RLS
+- ✅ Diuji di DB live: cadence 3-step → step 0 (whatsapp) dipersonalisasi model nyata (`aiSource=real`), di-queue, enrollment maju ke step 1 due +2 hari
+- ⛔ **belum (keblok creds/infra):** OAuth Gmail/MS + platform ESP; Inngest worker + cron (gantiin proses inline + auto-jalan terjadwal); deliverability (SPF/DKIM/warmup/bounce webhook); pengiriman live channel non-email
 
 ### Fase 6 — Chrome extension RPA 🟡
 **Slice 1 (extension scaffold + token-ingest seam) — selesai:**
