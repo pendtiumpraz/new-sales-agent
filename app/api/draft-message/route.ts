@@ -7,13 +7,10 @@
 // so the demo never breaks.
 
 import { NextResponse } from "next/server";
-import { generateText } from "ai";
 
-import {
-  GATEWAY_MODEL_FAST,
-  hasGatewayCredentials,
-  isRealAiEnabled,
-} from "@/lib/ai/provider";
+import { hasDb } from "@/lib/db/client";
+import { getTenantContext } from "@/lib/auth/session-context";
+import { meteredGenerateText } from "@/lib/ai/meter";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { formatIDR } from "@/lib/utils/format-idr";
 import type { KnowledgeBase } from "@/lib/types/kb";
@@ -94,42 +91,32 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fall back to the template draft when real AI isn't wired up.
-  if (!hasGatewayCredentials() || !isRealAiEnabled()) {
-    const draft = templateDraft(body);
-    const payload: DraftMessageResponse = { draft, source: "mock" };
-    return NextResponse.json(payload);
-  }
-
-  try {
-    const system = buildKbSystemPrompt(body.kbSnapshot, {
-      surface: "analysis",
-      segmentHint: body.segment,
-    });
-    const prompt = buildUserPrompt(body);
-
-    const { text } = await generateText({
-      model: GATEWAY_MODEL_FAST,
-      system,
-      prompt,
-      temperature: body.regenerate ? 0.85 : 0.55,
-      maxOutputTokens: 400,
-    });
-
-    const trimmed = (text ?? "").trim();
-    if (!trimmed) {
-      const draft = templateDraft(body);
-      const payload: DraftMessageResponse = { draft, source: "mock" };
-      return NextResponse.json(payload);
+  // Prefer the per-tenant AI registry (metered; tenant BYOK or platform key) when
+  // logged in and the DB is wired. Falls back to the template draft otherwise or
+  // on any error, so the demo never breaks. (Fase 3, doc 24)
+  const ctx = await getTenantContext();
+  if (ctx && hasDb()) {
+    try {
+      const system = buildKbSystemPrompt(body.kbSnapshot, {
+        surface: "analysis",
+        segmentHint: body.segment,
+      });
+      const { text } = await meteredGenerateText(ctx, {
+        feature: "draft",
+        system,
+        prompt: buildUserPrompt(body),
+        maxOutputTokens: 400,
+      });
+      const trimmed = (text ?? "").trim();
+      if (trimmed) {
+        const payload: DraftMessageResponse = { draft: trimmed, source: "real" };
+        return NextResponse.json(payload);
+      }
+    } catch (err) {
+      console.error("[draft-message] registry call failed:", err);
     }
-
-    const payload: DraftMessageResponse = { draft: trimmed, source: "real" };
-    return NextResponse.json(payload);
-  } catch (err) {
-    // Soft-fail to the template so the demo never breaks.
-    console.error("[draft-message] LLM call failed:", err);
-    const draft = templateDraft(body);
-    const payload: DraftMessageResponse = { draft, source: "mock" };
-    return NextResponse.json(payload);
   }
+
+  const payload: DraftMessageResponse = { draft: templateDraft(body), source: "mock" };
+  return NextResponse.json(payload);
 }

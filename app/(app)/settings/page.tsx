@@ -235,6 +235,14 @@ export default function SettingsPage() {
                     tone="coral"
                     badge="Live"
                   />
+                  <EntryCard
+                    href="/settings/ai"
+                    icon={BrainCircuit}
+                    title="AI & Model"
+                    description="Pilih model aktif, kelola API key (BYOK), dan pantau pemakaian token & biaya."
+                    tone="green"
+                    badge="Registry"
+                  />
                 </div>
               </>
             ) : (

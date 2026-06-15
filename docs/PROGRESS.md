@@ -14,7 +14,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 0 | Persiapan & docs + spike auth/queue | ✅ |
 | 1 | Fondasi tenant (RLS + RBAC + auth) | 🟡 |
 | 2 | Data model Company/Person/ContactPoint | ✅ |
-| 3 | AI registry + metering | 🟡 |
+| 3 | AI registry + metering | ✅ |
 | 4 | Acquisition MVP + positioning | ⬜ |
 | 5 | Engagement: mailbox + send worker + cadence | ⬜ |
 | 6 | Chrome extension RPA | ⬜ |
@@ -76,7 +76,12 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Registry code: `lib/ai/registry.ts` (resolve active→credential→adapter), `adapters.ts` (deepseek+anthropic via Vercel AI SDK), `crypto.ts` (BYOK AES-256-GCM pakai AUTH_SECRET), `meter.ts` (`generateText` + catat `ai_usage` + hitung cost)
 - ✅ `@ai-sdk/anthropic@3` terpasang; diuji: resolution→deepseek-chat/platform, ai_usage write, cost formula ($0.0175), crypto roundtrip, makeModel instance
 
-**Slice 2 — belum:** wire registry ke route AI existing (chat/draft/autopilot); UI Settings→AI (pilih model + BYOK key) + admin katalog/cost dashboard
+**Slice 2 — selesai:**
+- ✅ API `/api/tenant/ai` (GET katalog+active+BYOK status+usage rollup; PATCH set active) + `/api/tenant/ai/credentials` (POST/DELETE BYOK terenkripsi) — RBAC-guarded
+- ✅ UI `/settings/ai` — pilih model aktif per provider, input BYOK key, kartu pemakaian (panggilan/token/biaya); dilink dari Settings
+- ✅ `draft-message` di-wire ke `meteredGenerateText` (per-tenant model + metering), fallback template
+- ✅ Diuji: GET (8 model/4 provider), set active opus48↔deepseek, BYOK save/verify/delete, rep PATCH 403, page 200, draft fallback 200
+- ⬜ Wire route AI lain (chat streaming, autopilot) + admin cost dashboard lintas-tenant → Fase 8
 
 ### Fase 4–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.

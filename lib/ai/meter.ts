@@ -9,6 +9,9 @@ interface MeterOpts {
   system?: string;
   prompt?: string;
   messages?: ModelMessage[];
+  maxOutputTokens?: number;
+  // NB: no temperature — sampling params 400 on Anthropic Opus 4.7/4.8, and the
+  // registry is provider-agnostic, so we let the model default.
 }
 
 /**
@@ -28,6 +31,7 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
     system: opts.system,
     prompt: opts.prompt,
     messages: opts.messages,
+    ...(opts.maxOutputTokens ? { maxOutputTokens: opts.maxOutputTokens } : {}),
   });
   const latencyMs = Date.now() - start;
 
