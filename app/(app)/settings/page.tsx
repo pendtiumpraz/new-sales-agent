@@ -9,6 +9,7 @@ import {
   Globe2,
   ShieldCheck,
   Sparkles,
+  Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -225,6 +226,14 @@ export default function SettingsPage() {
                     description="Atur kapan AI menyerahkan percakapan ke agen."
                     tone="teal"
                     badge="Otomasi"
+                  />
+                  <EntryCard
+                    href="/settings/team"
+                    icon={Users}
+                    title="Tim & Akses (RBAC)"
+                    description="Anggota workspace, peran, dan undangan — tersimpan di database."
+                    tone="coral"
+                    badge="Live"
                   />
                 </div>
               </>
