@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Maira Sales — LinkedIn Lead Collector",
+  "version": "0.1.0",
+  "description": "Collect leads from LinkedIn search results into your Maira Sales workspace — runs in YOUR logged-in session, rate-limited, consent-gated. No credentials stored.",
+  "permissions": ["storage", "activeTab", "scripting", "alarms"],
+  "host_permissions": ["https://www.linkedin.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Maira Sales Collector"
+  },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/search/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

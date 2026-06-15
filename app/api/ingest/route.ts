@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { hasDb } from "@/lib/db/client";
-import { withTenant } from "@/lib/db/tenant-context";
-import { getTenantContext } from "@/lib/auth/session-context";
+import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
 import { companyTable, personTable, contactPointTable, ingestBatchTable } from "@/lib/db/schema";
 import {
@@ -64,9 +63,21 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const guard = await requirePermission("data.write");
-  if ("error" in guard) return guard.error;
-  const { ctx } = guard;
+  // Auth: an ingest token (Chrome extension / MCP — no session) OR a logged-in
+  // session with data.write. The token maps to a configured tenant (doc 21).
+  const token = req.headers.get("x-ingest-token");
+  let ctx: TenantContext;
+  if (token && process.env.LINKEDIN_INGEST_TOKEN && token === process.env.LINKEDIN_INGEST_TOKEN) {
+    ctx = {
+      tenantId: process.env.LINKEDIN_INGEST_TENANT || "t_default",
+      userId: "extension",
+      role: "member",
+    };
+  } else {
+    const guard = await requirePermission("data.write");
+    if ("error" in guard) return guard.error;
+    ctx = guard.ctx;
+  }
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

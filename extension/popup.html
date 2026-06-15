@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font: 13px/1.4 system-ui, sans-serif; width: 320px; margin: 0; padding: 12px; color: #1f2937; }
+      h1 { font-size: 14px; margin: 0 0 8px; }
+      label { display: block; font-size: 11px; color: #6b7280; margin-top: 8px; }
+      input, select { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+      .row { display: flex; gap: 8px; }
+      .row > * { flex: 1; }
+      button { margin-top: 10px; width: 100%; padding: 8px; border: 0; border-radius: 999px; background: #FB5E3B; color: #fff; font-weight: 600; cursor: pointer; }
+      button.secondary { background: #fff; color: #FB5E3B; border: 1px solid #FB5E3B; }
+      .muted { color: #6b7280; font-size: 11px; }
+      .warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 8px; border-radius: 6px; font-size: 11px; margin-top: 8px; }
+      .stat { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; }
+      .chk { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; }
+      .chk input { width: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>Maira Sales — LinkedIn Collector</h1>
+    <p class="muted">Buka halaman LinkedIn search, lalu "Scan visible". Lead masuk buffer & disinkron rate-limited ke workspace.</p>
+
+    <label>API base URL</label>
+    <input id="apiBase" placeholder="https://app.mairasales.com" />
+    <label>Ingest token</label>
+    <input id="token" type="password" placeholder="LINKEDIN_INGEST_TOKEN" />
+
+    <div class="row">
+      <div>
+        <label>Posture</label>
+        <select id="postureMode">
+          <option value="compliant">compliant</option>
+          <option value="balanced">balanced</option>
+          <option value="aggressive">aggressive</option>
+        </select>
+      </div>
+      <div>
+        <label>Daily cap</label>
+        <input id="dailyCap" type="number" value="200" />
+      </div>
+    </div>
+
+    <div id="consentBox" class="warn" hidden>
+      Mode <b>aggressive</b> mungkin melanggar ToS LinkedIn dan berisiko ban akun. Pakai akunmu sendiri, rate-limited.
+      <label class="chk"><input type="checkbox" id="consent" /> Saya paham risikonya & setuju.</label>
+    </div>
+
+    <label class="chk"><input type="checkbox" id="paused" /> Pause sync</label>
+
+    <button id="scan">Scan visible results</button>
+    <button id="flush" class="secondary">Flush buffer sekarang</button>
+
+    <div class="stat"><span class="muted">Buffer</span><b id="bufCount">0</b></div>
+    <div class="stat"><span class="muted">Terkirim hari ini</span><b id="sentCount">0</b></div>
+    <p id="msg" class="muted"></p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

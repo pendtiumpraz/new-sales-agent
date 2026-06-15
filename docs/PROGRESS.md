@@ -17,7 +17,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 3 | AI registry + metering | ✅ |
 | 4 | Acquisition MVP + positioning | 🟡 |
 | 5 | Engagement: mailbox + send worker + cadence | 🟡 |
-| 6 | Chrome extension RPA | ⬜ |
+| 6 | Chrome extension RPA | 🟡 |
 | 7 | Compliance hardening | ⬜ |
 | 8 | Superadmin + observability + billing | ⬜ |
 
@@ -103,7 +103,16 @@ _Terakhir diperbarui: 2026-06-15_
 
 **Slice 2 — belum:** OAuth Gmail/MS connect + platform ESP; Inngest worker (gantiin proses inline); deliverability (SPF/DKIM/warmup/bounce webhook); cadence multi-channel pakai mailbox + AI personalize
 
-### Fase 6–8
+### Fase 6 — Chrome extension RPA 🟡
+**Slice 1 (extension scaffold + token-ingest seam) — selesai:**
+- ✅ Token-auth di `/api/ingest`: header `x-ingest-token` (= `LINKEDIN_INGEST_TOKEN`, map ke `LINKEDIN_INGEST_TENANT`) → sync tanpa session; selain itu butuh session + `data.write`
+- ✅ Extension MV3 di `extension/`: `content.js` (scrape LinkedIn search DOM → leads), `background.js` (buffer chrome.storage + flush rate-limited/jitter 60–120s + daily cap + consent gate `aggressive`), popup (config/posture/consent/scan/flush/status), README
+- ✅ Diuji seam: sync via token (no session) → ok count 2; token salah/no-token → 401; data landing deduped (PT Linked Test `source=extension`, Siti Aminah)
+- ⚠️ DOM scraping LinkedIn nyata belum diuji (butuh browser + sesi LinkedIn); selector best-effort, perlu tuning live. `LINKEDIN_INGEST_TOKEN` di-generate ke `.env.local` (set juga di Vercel)
+
+**Slice 2 — belum:** MCP server crawl server-side; discovery entry-points UI (URL/bidang/bulk/auto) + cascade; posture enforcement per-tenant + audit_log konsen
+
+### Fase 7–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)
