@@ -11,6 +11,11 @@ shippable & demoable di atas prototype existing.
 > Konvensi: kerjakan di branch `new-main`, push ke `new-main` (lihat `CLAUDE.md`).
 > Tiap fitur = satu commit + explainer doc (konvensi `docs/` existing).
 
+> Catatan fleksibilitas: platform ini mesin umum (doc 29) — **use-case playbooks**
+> (sales luar negeri, recruiting, event, dll) itu layer config di atas fondasi yang
+> sama, jadi **gak mengubah urutan fase ini**. Generalisasi `product → offer/objective`
+> + tabel `playbook` masuk natural di Fase 2 & 4.
+
 ---
 
 ## Fase 0 — Persiapan ✅

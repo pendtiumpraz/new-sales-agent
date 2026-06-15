@@ -8,9 +8,14 @@
 
 ## Positioning
 
-Satu kalimat: **crawl & profil target B2B → AI bikin angle "cara produk tenant
+Satu kalimat: **crawl & profil target → AI bikin angle "cara produk tenant
 masuk ke prospek" → outreach multi-channel dari identitas email user sendiri**,
 semuanya terisolasi per tenant dengan RBAC, observability, dan cost metering.
+
+**Lebih luas dari "B2B sales":** mesin yang sama (discover → profil → angle →
+outreach) fleksibel buat banyak use-case lewat **playbook** — sales domestik &
+luar negeri, recruiting/cari talent, sebar lowongan, undangan event, partnership,
+dll. B2B sales cuma playbook unggulan. Katalog & cara kerjanya di doc [29].
 
 Yang bikin orang bayar bukan crawling-nya (itu komoditas), tapi **positioning
 insight** (doc [22]) + **deliverability + identitas pengirim yang rapi** (doc
@@ -85,3 +90,4 @@ bukan tempelan — karena risiko mati di kategori ini adalah **ban akun** &
 [25]: ./25-compliance-and-data-governance.md
 [26]: ./26-superadmin-and-observability.md
 [27]: ./27-pricing-and-billing.md
+[29]: ./29-use-cases-and-flexibility.md
