@@ -344,3 +344,50 @@ export const aiUsageTable = pgTable("ai_usage", {
   tenantIdx: index("ai_usage_tenant_idx").on(t.tenantId),
   tenantAtIdx: index("ai_usage_tenant_at_idx").on(t.tenantId, t.at),
 }));
+
+// ── Acquisition + positioning (Fase 4, doc 21/22) ─────────────────────────
+// All tenant-scoped + RLS. crawl_job is the discovery queue (MCP/extension fill
+// it in Fase 6); ingest_batch records each sync; positioning_insight is the
+// value-prop output (company × product → angle).
+
+export const crawlJobTable = pgTable("crawl_job", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  kind: text("kind").notNull(),                        // url | industry | bulk | auto | cascade
+  input: jsonb("input").$type<Record<string, unknown>>(),
+  status: text("status").notNull().default("pending"), // pending | running | done | error
+  posture: text("posture").notNull().default("compliant"),
+  result: jsonb("result").$type<Record<string, unknown>>(),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+}, (t) => ({ tenantIdx: index("crawl_job_tenant_idx").on(t.tenantId) }));
+
+export const ingestBatchTable = pgTable("ingest_batch", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  origin: text("origin").notNull(),                    // mcp | extension | manual
+  count: integer("count").notNull().default(0),
+  dedupHits: integer("dedup_hits").notNull().default(0),
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ tenantIdx: index("ingest_batch_tenant_idx").on(t.tenantId) }));
+
+export const positioningInsightTable = pgTable("positioning_insight", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  companyId: text("company_id").notNull(),
+  productId: text("product_id").notNull(),
+  fitScore: integer("fit_score"),                      // 0..100
+  angle: text("angle"),
+  rationale: jsonb("rationale").$type<string[]>().notNull().default([]),
+  objections: jsonb("objections").$type<string[]>().notNull().default([]),
+  recommendedChannel: text("recommended_channel"),     // email | whatsapp | linkedin
+  draftOpener: text("draft_opener"),
+  source: text("source"),                              // ai | heuristic
+  generatedBy: text("generated_by"),                   // model string
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("positioning_insight_tenant_idx").on(t.tenantId),
+  uq: uniqueIndex("positioning_insight_uq").on(t.tenantId, t.companyId, t.productId),
+}));

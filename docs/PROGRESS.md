@@ -15,7 +15,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 1 | Fondasi tenant (RLS + RBAC + auth) | 🟡 |
 | 2 | Data model Company/Person/ContactPoint | ✅ |
 | 3 | AI registry + metering | ✅ |
-| 4 | Acquisition MVP + positioning | ⬜ |
+| 4 | Acquisition MVP + positioning | 🟡 |
 | 5 | Engagement: mailbox + send worker + cadence | ⬜ |
 | 6 | Chrome extension RPA | ⬜ |
 | 7 | Compliance hardening | ⬜ |
@@ -83,7 +83,16 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Diuji: GET (8 model/4 provider), set active opus48↔deepseek, BYOK save/verify/delete, rep PATCH 403, page 200, draft fallback 200
 - ⬜ Wire route AI lain (chat streaming, autopilot) + admin cost dashboard lintas-tenant → Fase 8
 
-### Fase 4–8
+### Fase 4 — Acquisition + positioning 🟡
+**Slice 1 (ingest + positioning engine) — selesai:**
+- ✅ Schema: `crawl_job`, `ingest_batch`, `positioning_insight` (tenant-scoped + RLS); sample product `prod_maira` di-seed
+- ✅ `/api/ingest` (zod, **idempotent** dedup via stable-id → upsert company/person/contact_point + ingest_batch) — RBAC `data.write`
+- ✅ Positioning engine `lib/positioning/engine.ts`: AI via registry (`meteredGenerateText`, JSON terstruktur + grounded) **+ heuristic fallback**; `/api/db/positioning` POST(generate)+GET(read)
+- ✅ Diuji: ingest count 3 + idempotent (re-ingest tetap 1 company), positioning `fitScore 83` grounded (Logistik∈ICP), stored & read
+
+**Slice 2 / Fase 6 — belum:** MCP server crawl nyata + Chrome extension RPA + discovery entry-points UI (URL/bidang/bulk/auto) + posture enforcement + cascade; wire `ProspectSheet` ke insight tersimpan
+
+### Fase 5–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)

@@ -1,7 +1,15 @@
 // Identity resolution / dedup (Fase 2, doc 20). Pure helpers used by the ingest
 // pipeline (doc 21) to avoid duplicate companies/people/contact points across
 // crawl sources. Per-tenant keys.
+import { createHash } from "node:crypto";
+
 import type { Company, ContactPoint, Person } from "@/lib/types/profiling";
+
+/** Deterministic id from a dedup key → idempotent ingest (re-ingest hits the
+ *  same id and upserts instead of duplicating). */
+export function stableId(prefix: string, key: string): string {
+  return `${prefix}_${createHash("sha1").update(key).digest("hex").slice(0, 20)}`;
+}
 
 /** Strip scheme, path, query and leading www. → bare host, lowercased. */
 export function normalizeDomain(input?: string | null): string | null {
