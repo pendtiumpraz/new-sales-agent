@@ -13,7 +13,7 @@ _Terakhir diperbarui: 2026-06-15_
 |------|-------|--------|
 | 0 | Persiapan & docs + spike auth/queue | ✅ |
 | 1 | Fondasi tenant (RLS + RBAC + auth) | 🟡 |
-| 2 | Data model Company/Person/ContactPoint | ⬜ |
+| 2 | Data model Company/Person/ContactPoint | 🟡 |
 | 3 | AI registry + metering | ⬜ |
 | 4 | Acquisition MVP + positioning | ⬜ |
 | 5 | Engagement: mailbox + send worker + cadence | ⬜ |
@@ -55,7 +55,16 @@ _Terakhir diperbarui: 2026-06-15_
 - 🟡 **Enforcement**: dipilih **dedicated app role tanpa BYPASSRLS**. Disiapkan: `lib/db/client.ts` prefer `APP_POSTGRES_URL`, SQL `drizzle/rls/create-app-role.sql`, README. **Nunggu user**: bikin role `app_user` + paste connection string ke `.env.local` → lalu tes isolasi sebagai app_user. (Penyebab: `neondb_owner` punya `BYPASSRLS` → skip RLS, terbukti via tes.)
 - ✅ **Slice 2b-2**: RBAC guard `requirePermission` + API `/api/tenant/members` (list/invite/role/remove) + `/api/tenant/invites/:id` revoke + UI `/settings/team` (live, withTenant-scoped) + link dari Settings. Diuji: list/invite/patch/revoke OK; rep diblok **403**, view 200; page render 200.
 
-### Fase 2–8
+### Fase 2 — Data model Company/Person 🟡
+**Slice 1 (schema + dedup) — selesai:**
+- ✅ Tabel `company`, `person`, `contact_point` (polymorphic + provenance/consent), `product` (target_market/icp) — `lib/db/schema.ts`; tenant-scoped + RLS+FORCE+policy, **applied ke DB live**
+- ✅ Types `lib/types/profiling.ts` (Company/Person/ContactPoint/Product + enums)
+- ✅ Dedup `lib/profiling/dedup.ts` (normalize domain/name/contact + dedup key per tenant)
+- ✅ Migration `0001_profiling.sql`; `drizzle/rls/enable-rls.sql` diperluas ke 4 tabel baru
+
+**Slice 2 — belum:** UI contacts tab "Perusahaan" vs "Orang"; migrasi `ProspectLead` → view (person ⨝ company)
+
+### Fase 3–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)

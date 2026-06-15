@@ -20,7 +20,8 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'kb','deals','contacts','conversations','messages',
-    'autopilot_runs','cadences','cadence_enrollments'
+    'autopilot_runs','cadences','cadence_enrollments',
+    'company','person','contact_point','product'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

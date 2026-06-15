@@ -186,3 +186,94 @@ export const auditLogTable = pgTable("audit_log", {
 }, (t) => ({
   tenantIdx: index("audit_log_tenant_idx").on(t.tenantId),
 }));
+
+// ── Profiling: Company vs Human + Product (Fase 2, doc 20) ─────────────────
+// All tenant-scoped (tenant_id NOT NULL) + RLS from the start. Provenance &
+// consent are first-class so crawled data is auditable (doc 25).
+
+export const companyTable = pgTable("company", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  domain: text("domain"),                          // dedup key (normalized)
+  industry: text("industry"),
+  size: text("size"),
+  hqCountry: text("hq_country"),
+  summary: text("summary"),
+  techStack: jsonb("tech_stack").$type<string[]>().notNull().default([]),
+  products: jsonb("products").$type<string[]>().notNull().default([]), // their products
+  socials: jsonb("socials").$type<Record<string, string>>().notNull().default({}),
+  status: text("status").notNull().default("active"),
+  source: text("source"),                          // provenance (doc 21/25)
+  sourceUrl: text("source_url"),
+  capturedAt: timestamp("captured_at", { withTimezone: true }),
+  capturedMode: text("captured_mode"),             // compliant | balanced | aggressive
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("company_tenant_idx").on(t.tenantId),
+  domainIdx: index("company_domain_idx").on(t.tenantId, t.domain),
+}));
+
+export const personTable = pgTable("person", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  companyId: text("company_id"),                   // soft ref → company.id
+  fullName: text("full_name").notNull(),
+  title: text("title"),
+  department: text("department"),
+  seniority: text("seniority"),
+  location: text("location"),
+  socials: jsonb("socials").$type<Record<string, string>>().notNull().default({}),
+  status: text("status").notNull().default("active"),
+  source: text("source"),
+  sourceUrl: text("source_url"),
+  capturedAt: timestamp("captured_at", { withTimezone: true }),
+  capturedMode: text("captured_mode"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("person_tenant_idx").on(t.tenantId),
+  companyIdx: index("person_company_idx").on(t.companyId),
+}));
+
+// Polymorphic contact channel for a company OR a person, with provenance + consent.
+export const contactPointTable = pgTable("contact_point", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  ownerType: text("owner_type").notNull(),         // 'company' | 'person'
+  ownerId: text("owner_id").notNull(),
+  channel: text("channel").notNull(),              // email|phone|whatsapp|linkedin|instagram|web|other
+  value: text("value").notNull(),
+  label: text("label"),
+  source: text("source"),
+  sourceUrl: text("source_url"),
+  capturedAt: timestamp("captured_at", { withTimezone: true }),
+  capturedMode: text("captured_mode"),
+  consentStatus: text("consent_status").notNull().default("unknown"), // unknown|legitimate_interest|opted_in|opted_out
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("contact_point_tenant_idx").on(t.tenantId),
+  ownerIdx: index("contact_point_owner_idx").on(t.ownerType, t.ownerId),
+  dedupUq: uniqueIndex("contact_point_dedup_uq").on(t.tenantId, t.ownerType, t.ownerId, t.channel, t.value),
+}));
+
+// Tenant's own product/offer used for positioning (doc 22). target_market + icp
+// are AI-derived (doc 22 Tahap 0) and drive discovery (doc 21).
+export const productTable = pgTable("product", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  category: text("category"),
+  valueProps: jsonb("value_props").$type<string[]>().notNull().default([]),
+  pricingNotes: text("pricing_notes"),
+  targetMarket: text("target_market"),             // B2B | B2C | both
+  icp: jsonb("icp").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("product_tenant_idx").on(t.tenantId),
+}));
