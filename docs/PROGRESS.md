@@ -14,7 +14,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 0 | Persiapan & docs + spike auth/queue | ✅ |
 | 1 | Fondasi tenant (RLS + RBAC + auth) | 🟡 |
 | 2 | Data model Company/Person/ContactPoint | ✅ |
-| 3 | AI registry + metering | ⬜ |
+| 3 | AI registry + metering | 🟡 |
 | 4 | Acquisition MVP + positioning | ⬜ |
 | 5 | Engagement: mailbox + send worker + cadence | ⬜ |
 | 6 | Chrome extension RPA | ⬜ |
@@ -68,7 +68,17 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Seed kurasi (6 perusahaan / 10 orang / 21 contact point) di DB live; diuji end-to-end (API source=db, page 200)
 - ⬜ Migrasi `ProspectLead` → view (person ⨝ company) — ditunda ke Fase 4 (saat ingest crawl nyata)
 
-### Fase 3–8
+### Fase 3 — AI registry + metering 🟡
+**Slice 1 (registry + katalog) — selesai:**
+- ✅ Schema: `ai_provider`/`ai_model` (katalog global, no-RLS) + `ai_credential`/`tenant_active_model`/`ai_usage` (tenant-scoped + RLS) — applied ke DB live
+- ✅ Katalog di-seed: **4 provider + 8 model** — Anthropic (Fable 5/Opus 4.8–4.6/Sonnet 4.6/Haiku 4.5) dengan **ID + harga akurat dari referensi resmi**; DeepSeek chat/reasoner (harga null → diisi superadmin, nggak dikarang)
+- ✅ Per-tenant **1 model aktif** (`tenant_active_model.tenant_id` = PK); `t_default` → deepseek-chat (platform key)
+- ✅ Registry code: `lib/ai/registry.ts` (resolve active→credential→adapter), `adapters.ts` (deepseek+anthropic via Vercel AI SDK), `crypto.ts` (BYOK AES-256-GCM pakai AUTH_SECRET), `meter.ts` (`generateText` + catat `ai_usage` + hitung cost)
+- ✅ `@ai-sdk/anthropic@3` terpasang; diuji: resolution→deepseek-chat/platform, ai_usage write, cost formula ($0.0175), crypto roundtrip, makeModel instance
+
+**Slice 2 — belum:** wire registry ke route AI existing (chat/draft/autopilot); UI Settings→AI (pilih model + BYOK key) + admin katalog/cost dashboard
+
+### Fase 4–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)

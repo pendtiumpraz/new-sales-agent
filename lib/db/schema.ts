@@ -277,3 +277,70 @@ export const productTable = pgTable("product", {
 }, (t) => ({
   tenantIdx: index("product_tenant_idx").on(t.tenantId),
 }));
+
+// ── AI provider/model registry + metering (Fase 3, doc 24) ─────────────────
+// ai_provider + ai_model are a GLOBAL catalog (superadmin-managed, no tenant_id,
+// no RLS — like users/tenants). ai_credential / tenant_active_model / ai_usage
+// are tenant-scoped (RLS).
+
+export const aiProviderTable = pgTable("ai_provider", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),                 // deepseek | anthropic | openai | google
+  displayName: text("display_name").notNull(),
+  baseUrl: text("base_url"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const aiModelTable = pgTable("ai_model", {
+  id: text("id").primaryKey(),
+  providerId: text("provider_id").notNull(),
+  modelId: text("model_id").notNull(),                 // API string, e.g. claude-opus-4-8
+  displayName: text("display_name").notNull(),
+  contextWindow: integer("context_window"),
+  priceInPer1m: real("price_in_per_1m"),               // USD / 1M input tokens
+  priceOutPer1m: real("price_out_per_1m"),             // USD / 1M output tokens
+  capabilities: jsonb("capabilities").$type<string[]>().notNull().default([]),
+  isAvailable: boolean("is_available").notNull().default(true), // superadmin platform-wide toggle
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  providerModelUq: uniqueIndex("ai_model_provider_model_uq").on(t.providerId, t.modelId),
+}));
+
+// Tenant BYOK key (encrypted). Platform keys come from env, not here.
+export const aiCredentialTable = pgTable("ai_credential", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  apiKeyEnc: text("api_key_enc").notNull(),            // AES-256-GCM, lib/ai/crypto
+  label: text("label"),
+  source: text("source").notNull().default("tenant"), // tenant | platform
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("ai_credential_tenant_idx").on(t.tenantId),
+  tenantProviderUq: uniqueIndex("ai_credential_tenant_provider_uq").on(t.tenantId, t.providerId),
+}));
+
+// Exactly one active model per tenant — tenant_id is the PK.
+export const tenantActiveModelTable = pgTable("tenant_active_model", {
+  tenantId: text("tenant_id").primaryKey(),
+  modelId: text("model_id").notNull(),                 // → ai_model.id
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const aiUsageTable = pgTable("ai_usage", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  userId: text("user_id"),
+  modelId: text("model_id"),
+  feature: text("feature"),                            // chat | draft | autopilot | …
+  tokensIn: integer("tokens_in").notNull().default(0),
+  tokensOut: integer("tokens_out").notNull().default(0),
+  cost: real("cost").notNull().default(0),             // USD, computed at call time
+  latencyMs: integer("latency_ms"),
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("ai_usage_tenant_idx").on(t.tenantId),
+  tenantAtIdx: index("ai_usage_tenant_at_idx").on(t.tenantId, t.at),
+}));

@@ -21,7 +21,8 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'kb','deals','contacts','conversations','messages',
     'autopilot_runs','cadences','cadence_enrollments',
-    'company','person','contact_point','product'
+    'company','person','contact_point','product',
+    'ai_credential','tenant_active_model','ai_usage'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
