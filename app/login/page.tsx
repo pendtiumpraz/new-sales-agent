@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuthStore } from "@/lib/stores/auth-store";
+import { signIn, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -27,7 +27,7 @@ export default function LoginPage() {
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const authenticated = useAuthStore((s) => s.authenticated);
+  const { status: sessionStatus } = useSession();
   const reduceMotion = useReducedMotion();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,36 +55,30 @@ function LoginPageInner() {
   // If already authenticated, bounce straight to the destination — prevents
   // showing the login screen to a logged-in user who navigates here.
   useEffect(() => {
-    if (authenticated) {
+    if (sessionStatus === "authenticated") {
       router.replace(nextHref);
     }
-  }, [authenticated, nextHref, router]);
+  }, [sessionStatus, nextHref, router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
-      const data = (await res.json()) as
-        | { ok: true; source: string; user: import("@/lib/auth/demo-accounts").DemoAccount }
-        | { ok: false; error: string };
 
-      if (!res.ok || !data.ok) {
-        setError(
-          (data as { error?: string }).error ?? "Email atau kata sandi salah.",
-        );
+      if (!result || result.error) {
+        setError("Email atau kata sandi salah.");
         setLoading(false);
         return;
       }
 
-      // Hydrate the zustand store with the authenticated user.
-      useAuthStore.getState().setUser(data.user);
-      toast.success(`Selamat datang, ${data.user.name}`);
+      // Session cookie is set; AuthSync mirrors it into the store.
+      toast.success("Berhasil masuk");
       // Brief checkmark moment, then fade-out the page before route change.
       setSuccess(true);
       const fadeMs = reduceMotion ? 0 : 320;

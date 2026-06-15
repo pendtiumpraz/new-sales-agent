@@ -50,6 +50,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { signOut } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { cn } from "@/lib/utils";
@@ -75,14 +76,15 @@ const NOTIFS = [
   { ch: "email", text: "PT Astra membuka penawaran Anda", time: "1 jam" },
 ];
 
-function handleLogout(router: ReturnType<typeof useRouter>) {
-  // Resets volatile UI state, clears the auth session back to the default
-  // Superadmin shell, then bounces to the marketing landing page.
+async function handleLogout(router: ReturnType<typeof useRouter>) {
+  // Clears the Auth.js session cookie, resets volatile UI state and the store
+  // mirror, then bounces to the marketing landing page.
   useUiStore.setState({
     sidebarCollapsed: false,
     aiPanelOpen: false,
     inboxPanelOpen: true,
   });
+  await signOut({ redirect: false });
   useAuthStore.getState().logout();
   toast.success("Anda telah keluar dari sesi");
   router.push("/");

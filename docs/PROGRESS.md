@@ -40,10 +40,11 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Connection wrapper `withTenant()` (set_config `app.*`, injection-safe) — `lib/db/tenant-context.ts`
 - ✅ RLS policies (FORCE + superadmin bypass) **siap tapi belum di-apply** — `drizzle/rls/`
 
-**Slice 2a — Auth.js Credentials (jalan):**
+**Slice 2a — Auth.js Credentials ✅ (selesai & diuji):**
 - ✅ `next-auth@5` terpasang + `AUTH_SECRET` di `.env.local`
-- ✅ Server foundation: config `lib/auth/auth.ts` (Credentials → demo accounts, JWT bawa role+tenantId), route `app/api/auth/[...nextauth]`, type augmentation — `/api/auth/session` live (200)
-- ⬜ Wiring UI: SessionProvider + middleware proteksi `(app)` + login pakai `signIn` + bridge ke Zustand, **hapus auto-Superadmin**
+- ✅ Server foundation: config `lib/auth/auth.ts` (Credentials → demo accounts, JWT bawa role+tenantId), route `app/api/auth/[...nextauth]`, type augmentation
+- ✅ Wiring UI: `SessionProvider` + `middleware.ts` proteksi server-side + login `signIn` + bridge `AuthSync` (useSession→Zustand) + gating layout via session. **Auto-Superadmin dihapus**, route login lama dibuang
+- ✅ Diuji end-to-end (curl): `/dashboard` tanpa sesi → redirect `/login`; login bener → session `role:superadmin tenantId:t_default`; `/dashboard` ber-sesi → 200; password salah → ditolak, no session
 - ⬜ OAuth Google/MS (butuh creds) + authorize lewat `usersTable`
 
 **Slice 2b (butuh setup eksternal) — belum:**
