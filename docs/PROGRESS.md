@@ -90,7 +90,9 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Positioning engine `lib/positioning/engine.ts`: AI via registry (`meteredGenerateText`, JSON terstruktur + grounded) **+ heuristic fallback**; `/api/db/positioning` POST(generate)+GET(read)
 - ✅ Diuji: ingest count 3 + idempotent (re-ingest tetap 1 company), positioning `fitScore 83` grounded (Logistik∈ICP), stored & read
 
-**Slice 2 / Fase 6 — belum:** MCP server crawl nyata + Chrome extension RPA + discovery entry-points UI (URL/bidang/bulk/auto) + posture enforcement + cascade; wire `ProspectSheet` ke insight tersimpan
+**Slice 2 — sebagian:**
+- ✅ Discovery entry-points UI `/contacts/discovery` (URL / bidang / bulk / auto) + `crawl_job` + posture; bulk-list langsung bikin company (dedup), URL/industri/auto antri `pending`; audit `discovery.start`
+- ⬜ MCP/extension fulfill job pending + cascade + wire `ProspectSheet` ke insight tersimpan
 
 ### Fase 5 — Engagement 🟡
 **Slice 1 (mailbox + send pipeline SMTP) — selesai:**
@@ -129,7 +131,8 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Admin API `/api/admin` (GET overview, POST suspend/activate) — gate `platform.manage`; superadmin lihat lintas-tenant via RLS escape (`app.role=superadmin`)
 - ✅ Kill-switch ditegakkan: `isTenantActive` dicek di `meteredGenerateText` + `processSendJobs` (suspended → AI & kirim diblok)
 - ✅ Diuji: overview (t_default Growth, 4 member), suspend → send worker `suspended:true`, activate restore, rep **403**, `/admin` 200
-- ⬜ Ditunda: usage→invoice + Stripe; tenant-facing billing page; structured logging/metrics/alert; observability dashboard
+- ✅ Tenant billing page `/settings/billing` (paket + usage vs kuota: token AI / email / kursi)
+- ⬜ Ditunda: usage→invoice + Stripe; structured logging/metrics/alert; observability dashboard
 
 ## Keputusan arsitektur (terkunci)
 - Isolasi tenant: shared DB + Postgres RLS (`tenant_id`)

@@ -6,6 +6,7 @@ import {
   BrainCircuit,
   Building2,
   ChevronRight,
+  CreditCard,
   Globe2,
   Mail,
   ShieldCheck,
@@ -259,6 +260,14 @@ export default function SettingsPage() {
                     description="Connect mailbox SMTP, kirim email dari identitas sendiri, suppression & unsubscribe."
                     tone="blue"
                     badge="Kirim"
+                  />
+                  <EntryCard
+                    href="/settings/billing"
+                    icon={CreditCard}
+                    title="Tagihan & Kuota"
+                    description="Paket aktif, kuota token AI / email / kursi, dan pemakaian berjalan."
+                    tone="coral"
+                    badge="Plan"
                   />
                 </div>
               </>
