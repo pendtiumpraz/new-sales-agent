@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   type ColumnDef,
@@ -465,6 +466,13 @@ function ContactsPageInner() {
   return (
     <div>
       <PageHeader title={headerTitle} description={headerDescription}>
+        <Link
+          href="/contacts/profiles"
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+        >
+          <Users className="h-4 w-4" />
+          Profil
+        </Link>
         {activeTab === "contacts" && (
           <>
             <Button variant="outline">

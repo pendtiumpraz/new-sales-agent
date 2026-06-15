@@ -13,7 +13,7 @@ _Terakhir diperbarui: 2026-06-15_
 |------|-------|--------|
 | 0 | Persiapan & docs + spike auth/queue | ✅ |
 | 1 | Fondasi tenant (RLS + RBAC + auth) | 🟡 |
-| 2 | Data model Company/Person/ContactPoint | 🟡 |
+| 2 | Data model Company/Person/ContactPoint | ✅ |
 | 3 | AI registry + metering | ⬜ |
 | 4 | Acquisition MVP + positioning | ⬜ |
 | 5 | Engagement: mailbox + send worker + cadence | ⬜ |
@@ -62,7 +62,11 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Dedup `lib/profiling/dedup.ts` (normalize domain/name/contact + dedup key per tenant)
 - ✅ Migration `0001_profiling.sql`; `drizzle/rls/enable-rls.sql` diperluas ke 4 tabel baru
 
-**Slice 2 — belum:** UI contacts tab "Perusahaan" vs "Orang"; migrasi `ProspectLead` → view (person ⨝ company)
+**Slice 2 — selesai:**
+- ✅ API `GET /api/db/companies` & `/api/db/people` (withTenant; contact points + people count + company name)
+- ✅ UI `/contacts/profiles` — tab **Perusahaan / Orang** dengan contact point, **consent badge**, & provenance; dilink dari header `/contacts`
+- ✅ Seed kurasi (6 perusahaan / 10 orang / 21 contact point) di DB live; diuji end-to-end (API source=db, page 200)
+- ⬜ Migrasi `ProspectLead` → view (person ⨝ company) — ditunda ke Fase 4 (saat ingest crawl nyata)
 
 ### Fase 3–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
