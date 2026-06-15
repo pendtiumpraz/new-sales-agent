@@ -13,14 +13,14 @@ shippable & demoable di atas prototype existing.
 
 ---
 
-## Fase 0 — Persiapan ✅ (sebagian sudah)
+## Fase 0 — Persiapan ✅
 
 - [x] `CLAUDE.md` + `CLAUDE.local.md` + skill `/ship`, `/db-refresh` + hook eslint
-- [x] Design docs `18`–`27`, `IMPLEMENTATION-PLAN`, `PROGRESS`
-- [ ] `npm install` & dev server jalan (sudah dijalankan; pastikan stabil)
-- [ ] Spike: konfirmasi auth provider (Auth.js vs Clerk/WorkOS) & queue (tabel vs Inngest/Trigger.dev)
+- [x] Design docs `18`–`28`, `IMPLEMENTATION-PLAN`, `PROGRESS`
+- [x] `npm install` & dev server jalan (`http://localhost:3001`)
+- [x] Spike **terkunci**: Auth.js v5 + Drizzle (auth) & Inngest (queue) — decision record [doc 28](./28-decisions-auth-and-queue.md)
 
-**Acceptance:** keputusan auth + queue terdokumentasi; repo siap dibangun di atasnya.
+**Acceptance:** ✅ keputusan auth + queue terdokumentasi; repo siap dibangun di atasnya.
 
 ---
 
@@ -28,7 +28,7 @@ shippable & demoable di atas prototype existing.
 
 - [ ] Schema: `tenant`, `user`, `membership`, `invite`, `audit_log`; tambah `tenant_id` ke tabel existing
 - [ ] Postgres RLS + wrapper koneksi (`SET LOCAL app.tenant_id/user_id/role`)
-- [ ] Auth nyata gantiin mock login → session isi `{tenant_id, role}`
+- [ ] Auth.js v5 + Drizzle adapter (doc 28) gantiin mock login → session isi `{tenant_id, user_id, role}`
 - [ ] RBAC guard (route + UI), matrix 4 role
 - [ ] UI kelola member + invite (extend settings)
 

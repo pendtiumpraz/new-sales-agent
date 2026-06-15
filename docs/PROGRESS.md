@@ -11,7 +11,7 @@ _Terakhir diperbarui: 2026-06-15_
 
 | Fase | Judul | Status |
 |------|-------|--------|
-| 0 | Persiapan & docs | 🟡 |
+| 0 | Persiapan & docs + spike auth/queue | ✅ |
 | 1 | Fondasi tenant (RLS + RBAC + auth) | ⬜ |
 | 2 | Data model Company/Person/ContactPoint | ⬜ |
 | 3 | AI registry + metering | ⬜ |
@@ -23,13 +23,13 @@ _Terakhir diperbarui: 2026-06-15_
 
 ## Detail terbaru
 
-### Fase 0 — Persiapan & docs 🟡
+### Fase 0 — Persiapan & docs + spike ✅
 - ✅ Setup Claude Code: `CLAUDE.md`, `CLAUDE.local.md`, skill `/ship` & `/db-refresh`, hook eslint-fix
 - ✅ Branch `new-main` dibuat
 - ✅ `npm install` (715 packages) + dev server jalan (`http://localhost:3001`)
 - ✅ Design docs `18`–`27` ditulis
 - ✅ `IMPLEMENTATION-PLAN.md` + `PROGRESS.md` ditulis
-- ⬜ Spike keputusan: auth provider (Auth.js vs Clerk/WorkOS) & queue (tabel vs Inngest/Trigger.dev)
+- ✅ Spike keputusan **terkunci**: Auth.js v5 + Drizzle & Inngest (decision record di [doc 28](./28-decisions-auth-and-queue.md))
 
 ### Fase 1–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
@@ -42,10 +42,10 @@ Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 - Active model: per-tenant (1 aktif)
 - Crawling: posture dipilih user (compliant ↔ aggressive) + Chrome extension RPA
 - Discovery: AI nentuin target market (B2B/B2C) + ICP dari product; entry point URL/bidang/bulk-list/auto + cascade ke company & orang terkait; semua hasil disimpan DB
+- **Auth: Auth.js v5 + Drizzle adapter** (Google/MS OAuth + magic-link); SSO enterprise bolt-on nanti — [doc 28](./28-decisions-auth-and-queue.md)
+- **Queue: Inngest** (durable steps + flow-control); baris `crawl_job`/`send_job` di Postgres = system-of-record; dispatch di-abstraksi — [doc 28](./28-decisions-auth-and-queue.md)
 
 ## Keputusan terbuka (perlu diputuskan)
-- ⬜ Auth provider final
-- ⬜ Queue/worker final
 - ⬜ Billing provider (asumsi Stripe)
 - ⬜ ID model AI + harga aktual (isi saat seed Fase 3, dari docs resmi provider)
 
