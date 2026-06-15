@@ -6,12 +6,14 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
   MessageCircle,
+  Play,
   Plus,
   Sparkles,
   TrendingUp,
   Users,
   Workflow,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -115,15 +117,18 @@ export default function CadencesPage() {
   return (
     <div>
       <PageHeader title="Cadence" description="Rangkaian otomatis lintas channel.">
-        <Button
-          asChild
-          className="shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)] transition-all hover:-translate-y-px hover:shadow-[0_6px_18px_-4px_rgba(251,94,59,0.7)]"
-        >
-          <Link href="/cadences/new">
-            <Plus className="h-4 w-4" />
-            Buat cadence
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <RunCadencesButton />
+          <Button
+            asChild
+            className="shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)] transition-all hover:-translate-y-px hover:shadow-[0_6px_18px_-4px_rgba(251,94,59,0.7)]"
+          >
+            <Link href="/cadences/new">
+              <Plus className="h-4 w-4" />
+              Buat cadence
+            </Link>
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="space-y-5 p-6">
@@ -395,6 +400,45 @@ export default function CadencesPage() {
 }
 
 // ── Pieces ───────────────────────────────────────────────────────────────
+
+// Runs all due enrollments now (Fase 5 slice 2): personalize → dispatch email
+// to the send queue / queue other channels → advance each enrollment.
+function RunCadencesButton() {
+  const [pending, setPending] = useState(false);
+  async function run() {
+    setPending(true);
+    try {
+      const r = await fetch("/api/cadences/process", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+      const s = j.summary as {
+        dueEnrollments: number;
+        emailQueued: number;
+        otherQueued: number;
+        completed: number;
+        skipped: number;
+        failed: number;
+      };
+      if (s.dueEnrollments === 0) {
+        toast.info("Tidak ada langkah cadence yang jatuh tempo saat ini.");
+      } else {
+        toast.success(
+          `Cadence dijalankan — ${s.emailQueued} email antri, ${s.otherQueued} channel lain antri, ${s.completed} selesai${s.skipped ? `, ${s.skipped} dilewati` : ""}.`,
+        );
+      }
+    } catch (e) {
+      toast.error(`Gagal menjalankan cadence (${e instanceof Error ? e.message : e})`);
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <Button variant="outline" onClick={run} disabled={pending}>
+      <Play className="h-4 w-4" />
+      {pending ? "Menjalankan…" : "Jalankan sekarang"}
+    </Button>
+  );
+}
 
 function SummaryPill({
   tone,

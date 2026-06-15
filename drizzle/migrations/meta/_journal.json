@@ -43,6 +43,13 @@
       "when": 1781540448069,
       "tag": "0005_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781542950166,
+      "tag": "0006_cadence_step_run",
+      "breakpoints": true
     }
   ]
 }

@@ -123,6 +123,32 @@ export const cadenceEnrollmentsTable = pgTable("cadence_enrollments", {
   nextStepDueAt: timestamp("next_step_due_at", { withTimezone: true }),
 });
 
+// Unified multi-channel outbound log for cadence steps (Fase 5 slice 2, doc 22/23).
+// The processor records one row per dispatched step. Email steps also create a
+// send_job (the SMTP worker actually sends them); non-email channels
+// (whatsapp/linkedin/instagram/sms/call) are queued here awaiting their live
+// integration (MCP/extension/WA Business API — cred-blocked for now), so the
+// pipeline is honest about what's sent vs merely scheduled. Tenant-scoped + RLS.
+export const cadenceStepRunTable = pgTable("cadence_step_run", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  enrollmentId: text("enrollment_id").notNull(),
+  cadenceId: text("cadence_id").notNull(),
+  contactId: text("contact_id").notNull(),
+  stepIdx: integer("step_idx").notNull(),
+  channel: text("channel").notNull(),                     // email | whatsapp | linkedin | instagram | sms | call
+  subject: text("subject"),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("queued"),     // queued | sent | skipped | failed
+  sendJobId: text("send_job_id"),                         // link to send_job (email channel only)
+  aiSource: text("ai_source"),                            // real | template
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("cadence_step_run_tenant_idx").on(t.tenantId),
+  enrollmentIdx: index("cadence_step_run_enrollment_idx").on(t.tenantId, t.enrollmentId),
+}));
+
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
