@@ -18,7 +18,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 4 | Acquisition MVP + positioning | 🟡 |
 | 5 | Engagement: mailbox + send worker + cadence | 🟡 |
 | 6 | Chrome extension RPA | 🟡 |
-| 7 | Compliance hardening | ⬜ |
+| 7 | Compliance hardening | ✅ |
 | 8 | Superadmin + observability + billing | ⬜ |
 
 ## Detail terbaru
@@ -112,8 +112,18 @@ _Terakhir diperbarui: 2026-06-15_
 
 **Slice 2 — belum:** MCP server crawl server-side; discovery entry-points UI (URL/bidang/bulk/auto) + cascade; posture enforcement per-tenant + audit_log konsen
 
-### Fase 7–8
-Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
+### Fase 7 — Compliance hardening ✅
+- ✅ DSAR `lib/compliance/dsar.ts`: export + erase subjek **lintas tabel** (person/contact_point/legacy contacts); opt-out tetap disimpan agar tak dihubungi lagi. API `/api/tenant/compliance` (gate `data.export`)
+- ✅ Consent propagation: opt-out (unsubscribe) → `contact_point.consent_status = opted_out` (ditegakkan di `addSuppression`)
+- ✅ Audit trail `lib/compliance/audit.ts` (recordAudit + recentAudit) — DSAR & retention tercatat
+- ✅ Retention purge `lib/compliance/retention.ts` (ai_usage/send_job/crawl_job > N hari)
+- ✅ PII masking `lib/compliance/pii.ts` (email/phone)
+- ✅ UI `/settings/compliance/dsar` (export JSON / hapus / retensi / jejak audit) + link Settings
+- ✅ Diuji: export (consent opted_out terbukti) → delete (lintas tabel, suppression kept) → audit (dsar.export+delete) → retention safe → rep **403**
+- ⬜ Ditunda: data residency, scheduled retention (Inngest cron), masking di listing UI
+
+### Fase 8
+Belum mulai — lihat rencana di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)
 - Isolasi tenant: shared DB + Postgres RLS (`tenant_id`)

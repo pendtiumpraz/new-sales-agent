@@ -213,6 +213,14 @@ export default function SettingsPage() {
                     badge="94 / 100"
                   />
                   <EntryCard
+                    href="/settings/compliance/dsar"
+                    icon={ShieldCheck}
+                    title="DSAR & Audit (live)"
+                    description="Export/hapus data subjek, retensi data, dan jejak audit tersimpan di database."
+                    tone="green"
+                    badge="UU PDP"
+                  />
+                  <EntryCard
                     href="/settings/diagnostics"
                     icon={Activity}
                     title="Tes API & AI"

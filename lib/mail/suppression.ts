@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
-import { suppressionTable } from "@/lib/db/schema";
+import { suppressionTable, contactPointTable } from "@/lib/db/schema";
 import { stableId } from "@/lib/profiling/dedup";
 
 // Compliance gate (doc 25): opted-out / bounced / complained addresses are never
@@ -20,10 +20,15 @@ export async function isSuppressed(tx: Tx, tenantId: string, email: string): Pro
 
 export async function addSuppression(ctx: TenantContext, email: string, reason = "opt_out"): Promise<void> {
   const e = email.trim().toLowerCase();
-  await withTenant(ctx, (tx) =>
-    tx
+  await withTenant(ctx, async (tx) => {
+    await tx
       .insert(suppressionTable)
       .values({ id: stableId("sup", `${ctx.tenantId}:${e}`), tenantId: ctx.tenantId, email: e, reason })
-      .onConflictDoNothing(),
-  );
+      .onConflictDoNothing();
+    // Propagate consent: mark matching contact points opted_out (doc 25).
+    await tx
+      .update(contactPointTable)
+      .set({ consentStatus: "opted_out" })
+      .where(and(eq(contactPointTable.tenantId, ctx.tenantId), eq(contactPointTable.value, e)));
+  });
 }
