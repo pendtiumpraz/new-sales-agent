@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { cadencesTable } from "@/lib/db/schema";
 import { cadences as seedCadences } from "@/lib/api-mock/data";
 import type { Cadence } from "@/lib/types";
@@ -20,12 +22,18 @@ export async function GET(
   if (!hasDb()) {
     return NextResponse.json({ data: seedHit, source: "mock" });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ data: seedHit, source: "mock" });
+  }
   try {
-    const rows = await db
-      .select()
-      .from(cadencesTable)
-      .where(eq(cadencesTable.id, id))
-      .limit(1);
+    const rows = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(cadencesTable)
+        .where(eq(cadencesTable.id, id))
+        .limit(1),
+    );
     if (!rows[0]) {
       return NextResponse.json({ data: seedHit, source: "seed" });
     }
@@ -48,8 +56,14 @@ export async function DELETE(
   if (!hasDb()) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
   try {
-    await db.delete(cadencesTable).where(eq(cadencesTable.id, params.id));
+    await withTenant(ctx, (tx) =>
+      tx.delete(cadencesTable).where(eq(cadencesTable.id, params.id)),
+    );
     return NextResponse.json({ ok: true, source: "db", id: params.id });
   } catch (err) {
     console.error("[api/db/cadences/[id] DELETE]", err);

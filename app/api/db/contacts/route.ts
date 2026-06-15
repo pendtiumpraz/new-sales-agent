@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { contactsTable } from "@/lib/db/schema";
 import { contacts as seedContacts } from "@/lib/api-mock/data";
 import type { Contact } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-// GET /api/db/contacts → returns saved contacts, falls back to seed when DB is
-// unconfigured, empty, or errors. Same pattern as the kb route + the deals
-// route Agent C is building in parallel.
+// GET /api/db/contacts → tenant-scoped contacts (RLS), falling back to seed when
+// DB is unconfigured, no session, empty, or errors. (doc 19 — slice 2b)
 export async function GET() {
   if (!hasDb()) {
     return NextResponse.json({ data: seedContacts, source: "mock" });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ data: seedContacts, source: "mock" });
+  }
   try {
-    const rows = await db.select().from(contactsTable);
+    const rows = await withTenant(ctx, (tx) => tx.select().from(contactsTable));
     if (!rows.length) {
       return NextResponse.json({ data: seedContacts, source: "seed" });
     }
@@ -26,9 +31,13 @@ export async function GET() {
   }
 }
 
-// PUT /api/db/contacts → upsert each contact by id. Body = { data: Contact[] }.
+// PUT /api/db/contacts → upsert each contact by id, stamped with the tenant.
 export async function PUT(req: Request) {
   if (!hasDb()) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
+  const ctx = await getTenantContext();
+  if (!ctx) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
   try {
@@ -36,15 +45,17 @@ export async function PUT(req: Request) {
     if (!body?.data || !Array.isArray(body.data)) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
-    for (const c of body.data) {
-      await db
-        .insert(contactsTable)
-        .values({ ...c, updatedAt: new Date() })
-        .onConflictDoUpdate({
-          target: contactsTable.id,
-          set: { ...c, updatedAt: new Date() },
-        });
-    }
+    await withTenant(ctx, async (tx) => {
+      for (const c of body.data) {
+        await tx
+          .insert(contactsTable)
+          .values({ ...c, tenantId: ctx.tenantId, updatedAt: new Date() })
+          .onConflictDoUpdate({
+            target: contactsTable.id,
+            set: { ...c, tenantId: ctx.tenantId, updatedAt: new Date() },
+          });
+      }
+    });
     return NextResponse.json({ ok: true, source: "db", count: body.data.length });
   } catch (err) {
     console.error("[api/db/contacts PUT]", err);

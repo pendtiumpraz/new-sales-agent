@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { conversationsTable } from "@/lib/db/schema";
 import { conversations as seedConversations } from "@/lib/api-mock/data";
 import type { Conversation } from "@/lib/types";
@@ -13,8 +15,14 @@ export async function GET() {
   if (!hasDb()) {
     return NextResponse.json({ data: seedConversations, source: "mock" });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ data: seedConversations, source: "mock" });
+  }
   try {
-    const rows = await db.select().from(conversationsTable);
+    const rows = await withTenant(ctx, (tx) =>
+      tx.select().from(conversationsTable),
+    );
     if (!rows.length) {
       return NextResponse.json({ data: seedConversations, source: "seed" });
     }
@@ -34,20 +42,26 @@ export async function PUT(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
   try {
     const body = (await req.json()) as { data: Conversation[] };
     if (!body?.data || !Array.isArray(body.data)) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
-    for (const c of body.data) {
-      await db
-        .insert(conversationsTable)
-        .values({ ...c, updatedAt: new Date() })
-        .onConflictDoUpdate({
-          target: conversationsTable.id,
-          set: { ...c, updatedAt: new Date() },
-        });
-    }
+    await withTenant(ctx, async (tx) => {
+      for (const c of body.data) {
+        await tx
+          .insert(conversationsTable)
+          .values({ ...c, tenantId: ctx.tenantId, updatedAt: new Date() })
+          .onConflictDoUpdate({
+            target: conversationsTable.id,
+            set: { ...c, tenantId: ctx.tenantId, updatedAt: new Date() },
+          });
+      }
+    });
     return NextResponse.json({ ok: true, source: "db", count: body.data.length });
   } catch (err) {
     console.error("[api/db/conversations PUT]", err);

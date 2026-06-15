@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { eq, sql } from "drizzle-orm";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { cadenceEnrollmentsTable, cadencesTable } from "@/lib/db/schema";
 import type { CadenceEnrollment } from "@/lib/types";
 
@@ -17,13 +19,19 @@ export async function GET(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ data: [], source: "mock" });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ data: [], source: "mock" });
+  }
   try {
-    const rows = cadenceId
-      ? await db
-          .select()
-          .from(cadenceEnrollmentsTable)
-          .where(eq(cadenceEnrollmentsTable.cadenceId, cadenceId))
-      : await db.select().from(cadenceEnrollmentsTable);
+    const rows = await withTenant(ctx, (tx) =>
+      cadenceId
+        ? tx
+            .select()
+            .from(cadenceEnrollmentsTable)
+            .where(eq(cadenceEnrollmentsTable.cadenceId, cadenceId))
+        : tx.select().from(cadenceEnrollmentsTable),
+    );
     return NextResponse.json({
       data: rows as unknown as CadenceEnrollment[],
       source: "db",
@@ -39,6 +47,10 @@ export async function GET(req: Request) {
 // row per contact (uuid id) and increments the cadence's `enrolled` count.
 export async function POST(req: Request) {
   if (!hasDb()) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
+  const ctx = await getTenantContext();
+  if (!ctx) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
   try {
@@ -62,24 +74,27 @@ export async function POST(req: Request) {
       contactId,
       currentStepIdx: 0,
       status: "aktif",
+      tenantId: ctx.tenantId,
     }));
 
-    // Insert enrollments. onConflictDoNothing on the random id is effectively
-    // a no-op (uuids don't collide); we use it as a safety net.
-    await db
-      .insert(cadenceEnrollmentsTable)
-      .values(rows)
-      .onConflictDoNothing();
+    await withTenant(ctx, async (tx) => {
+      // Insert enrollments. onConflictDoNothing on the random id is effectively
+      // a no-op (uuids don't collide); we use it as a safety net.
+      await tx
+        .insert(cadenceEnrollmentsTable)
+        .values(rows)
+        .onConflictDoNothing();
 
-    // Bump the cadence's `enrolled` counter so the list card reflects the
-    // new total immediately on the next GET /api/db/cadences.
-    await db
-      .update(cadencesTable)
-      .set({
-        enrolled: sql`${cadencesTable.enrolled} + ${rows.length}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(cadencesTable.id, body.cadenceId));
+      // Bump the cadence's `enrolled` counter so the list card reflects the
+      // new total immediately on the next GET /api/db/cadences.
+      await tx
+        .update(cadencesTable)
+        .set({
+          enrolled: sql`${cadencesTable.enrolled} + ${rows.length}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(cadencesTable.id, body.cadenceId));
+    });
 
     return NextResponse.json({
       ok: true,
@@ -102,6 +117,10 @@ export async function PUT(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
   try {
     const body = (await req.json()) as Partial<CadenceEnrollment> & {
       id: string;
@@ -120,10 +139,12 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: true, source: "db", noop: true });
     }
 
-    await db
-      .update(cadenceEnrollmentsTable)
-      .set(patch)
-      .where(eq(cadenceEnrollmentsTable.id, body.id));
+    await withTenant(ctx, (tx) =>
+      tx
+        .update(cadenceEnrollmentsTable)
+        .set(patch)
+        .where(eq(cadenceEnrollmentsTable.id, body.id)),
+    );
     return NextResponse.json({ ok: true, source: "db", id: body.id });
   } catch (err) {
     console.error("[api/db/cadence-enrollments PUT]", err);

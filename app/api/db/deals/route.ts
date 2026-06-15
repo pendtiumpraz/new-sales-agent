@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { dealsTable } from "@/lib/db/schema";
 // Mock module exports the canonical seed deals; alias as seedDeals so this
 // route reads naturally as "fall back to seed".
@@ -13,8 +15,12 @@ export async function GET() {
   if (!hasDb()) {
     return NextResponse.json({ data: seedDeals, source: "mock" });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ data: seedDeals, source: "mock" });
+  }
   try {
-    const rows = await db.select().from(dealsTable);
+    const rows = await withTenant(ctx, (tx) => tx.select().from(dealsTable));
     if (rows.length === 0) {
       return NextResponse.json({ data: seedDeals, source: "seed" });
     }
@@ -32,39 +38,47 @@ export async function PUT(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
   try {
     const body = (await req.json()) as { data: any[] };
     if (!Array.isArray(body?.data)) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
     // Upsert each — preserves history for rows not in the payload.
-    for (const d of body.data) {
-      await db
-        .insert(dealsTable)
-        .values({
-          id: d.id,
-          name: d.name,
-          contactId: d.contactId,
-          contactName: d.contactName,
-          company: d.company,
-          value: d.value,
-          stage: d.stage,
-          expectedClose: d.expectedClose,
-          sourceChannel: d.sourceChannel,
-          owner: d.owner,
-          avatarColor: d.avatarColor,
-          createdAt: d.createdAt,
-        })
-        .onConflictDoUpdate({
-          target: dealsTable.id,
-          set: {
-            stage: d.stage,
+    await withTenant(ctx, async (tx) => {
+      for (const d of body.data) {
+        await tx
+          .insert(dealsTable)
+          .values({
+            id: d.id,
+            name: d.name,
+            contactId: d.contactId,
+            contactName: d.contactName,
+            company: d.company,
             value: d.value,
+            stage: d.stage,
             expectedClose: d.expectedClose,
-            updatedAt: new Date(),
-          },
-        });
-    }
+            sourceChannel: d.sourceChannel,
+            owner: d.owner,
+            avatarColor: d.avatarColor,
+            createdAt: d.createdAt,
+            tenantId: ctx.tenantId,
+          })
+          .onConflictDoUpdate({
+            target: dealsTable.id,
+            set: {
+              stage: d.stage,
+              value: d.value,
+              expectedClose: d.expectedClose,
+              updatedAt: new Date(),
+              tenantId: ctx.tenantId,
+            },
+          });
+      }
+    });
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {
     console.error("[api/db/deals PUT]", err);

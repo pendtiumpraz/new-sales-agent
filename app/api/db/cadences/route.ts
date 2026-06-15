@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { cadencesTable } from "@/lib/db/schema";
 import { cadences as seedCadences } from "@/lib/api-mock/data";
 import type { Cadence } from "@/lib/types";
@@ -14,8 +16,12 @@ export async function GET() {
   if (!hasDb()) {
     return NextResponse.json({ data: seedCadences, source: "mock" });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ data: seedCadences, source: "mock" });
+  }
   try {
-    const rows = await db.select().from(cadencesTable);
+    const rows = await withTenant(ctx, (tx) => tx.select().from(cadencesTable));
     if (!rows.length) {
       return NextResponse.json({ data: seedCadences, source: "seed" });
     }
@@ -36,28 +42,21 @@ export async function PUT(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
   try {
     const body = (await req.json()) as { data: Cadence };
     if (!body?.data?.id) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
     const c = body.data;
-    await db
-      .insert(cadencesTable)
-      .values({
-        id: c.id,
-        name: c.name,
-        status: c.status,
-        steps: c.steps,
-        channelMix: c.channelMix,
-        enrolled: c.enrolled ?? 0,
-        replyRate: c.replyRate ?? 0,
-        owner: c.owner ?? null,
-        createdAt: c.createdAt ?? new Date().toISOString(),
-      })
-      .onConflictDoUpdate({
-        target: cadencesTable.id,
-        set: {
+    await withTenant(ctx, async (tx) => {
+      await tx
+        .insert(cadencesTable)
+        .values({
+          id: c.id,
           name: c.name,
           status: c.status,
           steps: c.steps,
@@ -65,9 +64,24 @@ export async function PUT(req: Request) {
           enrolled: c.enrolled ?? 0,
           replyRate: c.replyRate ?? 0,
           owner: c.owner ?? null,
-          updatedAt: new Date(),
-        },
-      });
+          createdAt: c.createdAt ?? new Date().toISOString(),
+          tenantId: ctx.tenantId,
+        })
+        .onConflictDoUpdate({
+          target: cadencesTable.id,
+          set: {
+            name: c.name,
+            status: c.status,
+            steps: c.steps,
+            channelMix: c.channelMix,
+            enrolled: c.enrolled ?? 0,
+            replyRate: c.replyRate ?? 0,
+            owner: c.owner ?? null,
+            updatedAt: new Date(),
+            tenantId: ctx.tenantId,
+          },
+        });
+    });
     return NextResponse.json({ ok: true, source: "db", id: c.id });
   } catch (err) {
     console.error("[api/db/cadences PUT]", err);

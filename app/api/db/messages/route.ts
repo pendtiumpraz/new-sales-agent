@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
-import { db, hasDb } from "@/lib/db/client";
+import { hasDb } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
+import { getTenantContext } from "@/lib/auth/session-context";
 import { messagesTable } from "@/lib/db/schema";
 import { messages as seedMessages } from "@/lib/api-mock/data";
 import type { Message } from "@/lib/types";
@@ -26,13 +28,22 @@ export async function GET(req: Request) {
       source: "mock",
     });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({
+      data: filterSeed(seedMessages),
+      source: "mock",
+    });
+  }
   try {
-    const rows = conversationId
-      ? await db
-          .select()
-          .from(messagesTable)
-          .where(eq(messagesTable.conversationId, conversationId))
-      : await db.select().from(messagesTable);
+    const rows = await withTenant(ctx, (tx) =>
+      conversationId
+        ? tx
+            .select()
+            .from(messagesTable)
+            .where(eq(messagesTable.conversationId, conversationId))
+        : tx.select().from(messagesTable),
+    );
     if (!rows.length) {
       return NextResponse.json({
         data: filterSeed(seedMessages),
@@ -58,14 +69,23 @@ export async function PUT(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
   }
+  const ctx = await getTenantContext();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, source: "mock" }, { status: 200 });
+  }
   try {
     const body = (await req.json()) as { data: Message[] };
     if (!body?.data || !Array.isArray(body.data)) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
-    for (const m of body.data) {
-      await db.insert(messagesTable).values(m).onConflictDoNothing();
-    }
+    await withTenant(ctx, async (tx) => {
+      for (const m of body.data) {
+        await tx
+          .insert(messagesTable)
+          .values({ ...m, tenantId: ctx.tenantId })
+          .onConflictDoNothing();
+      }
+    });
     return NextResponse.json({
       ok: true,
       source: "db",
