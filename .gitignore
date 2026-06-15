@@ -37,6 +37,7 @@ next-env.d.ts
 
 # Claude Code
 /.claude/
+CLAUDE.local.md
 
 # IDE / OS
 .idea/
