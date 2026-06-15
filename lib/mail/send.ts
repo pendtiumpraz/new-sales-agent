@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { sendJobTable, sendingAccountTable } from "@/lib/db/schema";
 import { decryptSecret } from "@/lib/ai/crypto";
+import { isTenantActive } from "@/lib/admin/kill-switch";
 import { sendViaSmtp, type SmtpConfig } from "./smtp";
 import { isSuppressed } from "./suppression";
 
@@ -47,6 +48,9 @@ async function setStatus(ctx: TenantContext, id: string, status: string, error?:
  * SMTP I/O happens outside the DB transaction (it's slow). Returns a summary.
  */
 export async function processSendJobs(ctx: TenantContext, limit = 20) {
+  if (!(await isTenantActive(ctx))) {
+    return { sent: 0, skipped: 0, failed: 0, picked: 0, suspended: true };
+  }
   let sent = 0,
     skipped = 0,
     failed = 0;

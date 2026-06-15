@@ -2,6 +2,7 @@ import { generateText, type ModelMessage } from "ai";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { aiUsageTable } from "@/lib/db/schema";
+import { isTenantActive } from "@/lib/admin/kill-switch";
 import { resolveActiveModel } from "./registry";
 
 interface MeterOpts {
@@ -20,6 +21,9 @@ interface MeterOpts {
  * meter. Cost is computed from the model's snapshotted per-1M pricing.
  */
 export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
+  if (!(await isTenantActive(ctx))) {
+    throw new Error("Tenant suspended (kill-switch) — AI disabled");
+  }
   const resolved = await resolveActiveModel(ctx);
   if (!resolved) {
     throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");

@@ -19,7 +19,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 5 | Engagement: mailbox + send worker + cadence | 🟡 |
 | 6 | Chrome extension RPA | 🟡 |
 | 7 | Compliance hardening | ✅ |
-| 8 | Superadmin + observability + billing | ⬜ |
+| 8 | Superadmin + observability + billing | 🟡 |
 
 ## Detail terbaru
 
@@ -122,8 +122,14 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Diuji: export (consent opted_out terbukti) → delete (lintas tabel, suppression kept) → audit (dsar.export+delete) → retention safe → rep **403**
 - ⬜ Ditunda: data residency, scheduled retention (Inngest cron), masking di listing UI
 
-### Fase 8
-Belum mulai — lihat rencana di `IMPLEMENTATION-PLAN.md`.
+### Fase 8 — Superadmin + billing 🟡
+**Slice 1 — selesai (lokal):**
+- ✅ Schema: `plan` (katalog global) + `subscription` (tenant, RLS); seed 3 plan + t_default → Growth
+- ✅ Superadmin console `/admin` (di luar app-shell, gate role superadmin): rollup lintas-tenant (members / AI cost / sends / plan) + totals + audit lintas-tenant + kill-switch suspend/activate
+- ✅ Admin API `/api/admin` (GET overview, POST suspend/activate) — gate `platform.manage`; superadmin lihat lintas-tenant via RLS escape (`app.role=superadmin`)
+- ✅ Kill-switch ditegakkan: `isTenantActive` dicek di `meteredGenerateText` + `processSendJobs` (suspended → AI & kirim diblok)
+- ✅ Diuji: overview (t_default Growth, 4 member), suspend → send worker `suspended:true`, activate restore, rep **403**, `/admin` 200
+- ⬜ Ditunda: usage→invoice + Stripe; tenant-facing billing page; structured logging/metrics/alert; observability dashboard
 
 ## Keputusan arsitektur (terkunci)
 - Isolasi tenant: shared DB + Postgres RLS (`tenant_id`)

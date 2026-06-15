@@ -447,3 +447,26 @@ export const suppressionTable = pgTable("suppression", {
   tenantEmailUq: uniqueIndex("suppression_tenant_email_uq").on(t.tenantId, t.email),
   tenantIdx: index("suppression_tenant_idx").on(t.tenantId),
 }));
+
+// ── Superadmin / billing (Fase 8, doc 26/27) ──────────────────────────────
+// plan is a GLOBAL catalog (no RLS). subscription is tenant-scoped (RLS).
+
+export const planTable = pgTable("plan", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),                 // starter | growth | enterprise
+  name: text("name").notNull(),
+  priceMonthIdr: integer("price_month_idr").notNull().default(0),
+  quotas: jsonb("quotas").$type<Record<string, number>>().notNull().default({}), // ai_tokens, emails, seats
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const subscriptionTable = pgTable("subscription", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  planId: text("plan_id").notNull(),
+  status: text("status").notNull().default("active"),  // active | past_due | canceled
+  seats: integer("seats").notNull().default(5),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantUq: uniqueIndex("subscription_tenant_uq").on(t.tenantId),
+}));
