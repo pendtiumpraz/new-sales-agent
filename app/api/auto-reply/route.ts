@@ -21,6 +21,9 @@ import {
   hasGatewayCredentials,
   isRealAiEnabled,
 } from "@/lib/ai/provider";
+import { hasDb } from "@/lib/db/client";
+import { getTenantContext } from "@/lib/auth/session-context";
+import { meteredGenerateText } from "@/lib/ai/meter";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import type { KnowledgeBase } from "@/lib/types/kb";
@@ -77,18 +80,38 @@ export async function POST(request: Request) {
     );
   }
 
-  // Offline / demo path — no Gateway credential or NEXT_PUBLIC_AI_PROVIDER flag.
+  const system = buildKbSystemPrompt(body.kbSnapshot, { surface: "auto-reply" });
+  const prompt =
+    `Tulis balasan WhatsApp singkat (max 3 paragraf) untuk percakapan berikut:\n\n${body.conversationContext}\n\n` +
+    "Gunakan Basis Pengetahuan di atas. Sopan, akurat, Bahasa Indonesia.";
+
+  // Prefer the per-tenant AI registry (metered; tenant BYOK or platform key)
+  // when logged in and the DB is wired. (Fase 3, doc 24)
+  const ctx = await getTenantContext();
+  if (ctx && hasDb()) {
+    try {
+      const { text } = await meteredGenerateText(ctx, {
+        feature: "auto-reply",
+        system,
+        prompt,
+        maxOutputTokens: 400,
+      });
+      const trimmed = (text ?? "").trim();
+      if (trimmed) {
+        return NextResponse.json({ draft: trimmed, source: "real" as const });
+      }
+    } catch (err) {
+      console.error("[auto-reply] registry call failed, trying gateway/mock:", err);
+    }
+  }
+
+  // Legacy Gateway fallback — only when no per-tenant model resolved.
   if (!hasGatewayCredentials() || !isRealAiEnabled()) {
     return NextResponse.json({
       draft: buildMockDraft(body),
       source: "mock" as const,
     });
   }
-
-  const system = buildKbSystemPrompt(body.kbSnapshot, { surface: "auto-reply" });
-  const prompt =
-    `Tulis balasan WhatsApp singkat (max 3 paragraf) untuk percakapan berikut:\n\n${body.conversationContext}\n\n` +
-    "Gunakan Basis Pengetahuan di atas. Sopan, akurat, Bahasa Indonesia.";
 
   try {
     // NOTE: AI SDK v6 uses `maxOutputTokens` (verified against

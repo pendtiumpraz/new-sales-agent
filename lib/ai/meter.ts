@@ -30,17 +30,22 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
   }
 
   const start = Date.now();
-  const result = await generateText({
+  // generateText's prompt is a discriminated union ({prompt} | {messages}) — pass
+  // exactly one, never `messages: undefined`, or the overload fails to resolve.
+  const base = {
     model: resolved.model,
     system: opts.system,
-    prompt: opts.prompt,
-    messages: opts.messages,
     ...(opts.maxOutputTokens ? { maxOutputTokens: opts.maxOutputTokens } : {}),
-  });
+  };
+  const result = await generateText(
+    opts.messages
+      ? { ...base, messages: opts.messages }
+      : { ...base, prompt: opts.prompt ?? "" },
+  );
   const latencyMs = Date.now() - start;
 
   // ai v6 usage: { inputTokens, outputTokens }. Tolerate older field names.
-  const u = (result.usage ?? {}) as Record<string, number | undefined>;
+  const u = (result.usage ?? {}) as unknown as Record<string, number | undefined>;
   const tokensIn = u.inputTokens ?? u.promptTokens ?? 0;
   const tokensOut = u.outputTokens ?? u.completionTokens ?? 0;
   const cost =

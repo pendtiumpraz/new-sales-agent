@@ -24,6 +24,9 @@ import {
   hasGatewayCredentials,
   isRealAiEnabled,
 } from "@/lib/ai/provider";
+import { hasDb } from "@/lib/db/client";
+import { getTenantContext } from "@/lib/auth/session-context";
+import { meteredGenerateText } from "@/lib/ai/meter";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import type { KnowledgeBase } from "@/lib/types/kb";
 
@@ -270,7 +273,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
-  // Offline / demo path — no Gateway credential or NEXT_PUBLIC_AI_PROVIDER flag.
+  const spec = buildPromptSpec(body);
+  const system = buildKbSystemPrompt(body.kbSnapshot, {
+    surface: spec.surface,
+    segmentHint: body.prospect.segment,
+  });
+
+  // Prefer the per-tenant AI registry (metered; tenant BYOK or platform key)
+  // when logged in and the DB is wired, so every autopilot draft is billed to
+  // the tenant's active model. (Fase 3, doc 24)
+  const ctx = await getTenantContext();
+  if (ctx && hasDb()) {
+    try {
+      const { text } = await meteredGenerateText(ctx, {
+        feature: "autopilot",
+        system,
+        prompt: spec.user,
+        maxOutputTokens: spec.maxOutputTokens,
+      });
+      const trimmed = (text ?? "").trim();
+      if (trimmed) {
+        const response: AutopilotTextResponse = { text: trimmed, source: "real" };
+        return NextResponse.json(response);
+      }
+    } catch (err) {
+      // No active model / suspended / provider error — fall through to the
+      // legacy Gateway path, then the deterministic template.
+      console.error("[autopilot/text] registry call failed, trying gateway/mock:", err);
+    }
+  }
+
+  // Legacy Gateway fallback — only when no per-tenant model resolved.
   if (!hasGatewayCredentials() || !isRealAiEnabled()) {
     const response: AutopilotTextResponse = {
       text: buildMockText(body),
@@ -278,12 +311,6 @@ export async function POST(request: Request) {
     };
     return NextResponse.json(response);
   }
-
-  const spec = buildPromptSpec(body);
-  const system = buildKbSystemPrompt(body.kbSnapshot, {
-    surface: spec.surface,
-    segmentHint: body.prospect.segment,
-  });
 
   try {
     // NOTE: AI SDK v6 uses `maxOutputTokens` (verified against

@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import { findAccount } from "./demo-accounts";
-import { mapDemoRole } from "@/lib/rbac/permissions";
+import { mapDemoRole, type Role } from "@/lib/rbac/permissions";
 
 // Auth.js v5 (doc 28). Credentials-first (slice 2a): authorize against the
 // existing demo accounts so login works offline with no external OAuth creds.
@@ -52,12 +52,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     session({ session, token }) {
       if (session.user) {
+        // token fields are typed `unknown` on the base JWT — cast back to the
+        // shapes we wrote in the jwt callback above.
         session.user.id = token.sub as string;
-        session.user.role = token.role;
-        session.user.tenantId = token.tenantId;
-        session.user.avatarColor = token.avatarColor;
-        session.user.demoRole = token.demoRole;
-        session.user.scope = token.scope;
+        session.user.role = token.role as Role;
+        session.user.tenantId = token.tenantId as string;
+        session.user.avatarColor = token.avatarColor as string | undefined;
+        session.user.demoRole = token.demoRole as string | undefined;
+        session.user.scope = token.scope as string | undefined;
       }
       return session;
     },

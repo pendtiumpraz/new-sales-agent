@@ -52,11 +52,16 @@ export async function GET() {
       hasPlatformKey: !!platformKey(p.key),
       hasTenantKey: tenantCredProviders.has(p.id),
     }));
-    const usage = data.usageRows.reduce(
+    const usage = data.usageRows.reduce<{
+      tokensIn: number;
+      tokensOut: number;
+      cost: number;
+      calls: number;
+    }>(
       (a, r) => ({
         tokensIn: a.tokensIn + r.tokensIn,
         tokensOut: a.tokensOut + r.tokensOut,
-        cost: a.cost + r.cost,
+        cost: a.cost + Number(r.cost),
         calls: a.calls + 1,
       }),
       { tokensIn: 0, tokensOut: 0, cost: 0, calls: 0 },

@@ -3,7 +3,7 @@
 // crawl sources. Per-tenant keys.
 import { createHash } from "node:crypto";
 
-import type { Company, ContactPoint, Person } from "@/lib/types/profiling";
+import type { Company, Person } from "@/lib/types/profiling";
 
 /** Deterministic id from a dedup key → idempotent ingest (re-ingest hits the
  *  same id and upserts instead of duplicating). */
@@ -52,9 +52,15 @@ export function personDedupKey(
   return `${p.tenantId}:${p.companyId ?? "_"}:${normalizeName(p.fullName)}`;
 }
 
-/** Contact point identity: owner + channel + normalized value. Scoped per tenant. */
-export function contactPointDedupKey(
-  cp: Pick<ContactPoint, "tenantId" | "ownerType" | "ownerId" | "channel" | "value">,
-): string {
+/** Contact point identity: owner + channel + normalized value. Scoped per tenant.
+ *  Channel is accepted as a plain string so crawl/ingest payloads (zod-validated
+ *  upstream) flow through without a cast — the key is just interpolation. */
+export function contactPointDedupKey(cp: {
+  tenantId: string;
+  ownerType: string;
+  ownerId: string;
+  channel: string;
+  value: string;
+}): string {
   return `${cp.tenantId}:${cp.ownerType}:${cp.ownerId}:${cp.channel}:${normalizeContactValue(cp.channel, cp.value)}`;
 }

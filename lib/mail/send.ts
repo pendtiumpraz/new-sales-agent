@@ -64,8 +64,15 @@ export async function processSendJobs(ctx: TenantContext, limit = 20) {
   );
 
   for (const job of jobs) {
+    if (!job.toEmail) {
+      await setStatus(ctx, job.id, "failed", "missing recipient");
+      failed++;
+      continue;
+    }
+    // const string local so the non-null narrowing survives awaits/closures below.
+    const toEmail: string = job.toEmail;
     const info = await withTenant(ctx, async (tx) => {
-      const supp = await isSuppressed(tx, ctx.tenantId, job.toEmail);
+      const supp = await isSuppressed(tx, ctx.tenantId, toEmail);
       const acc = job.sendingAccountId
         ? (await tx.select().from(sendingAccountTable).where(eq(sendingAccountTable.id, job.sendingAccountId)).limit(1))[0]
         : null;
@@ -87,21 +94,27 @@ export async function processSendJobs(ctx: TenantContext, limit = 20) {
       continue;
     }
 
+    // Capture into consts so the non-null narrowing survives inside the nested
+    // withTenant callback below (TS discards property narrowing across closures).
+    // configEnc is non-null here — guarded by the `!info.acc?.configEnc` check above.
+    const acc = info.acc;
+    const configEnc: string = info.acc.configEnc;
+
     try {
-      const cfg = JSON.parse(decryptSecret(info.acc.configEnc)) as SmtpConfig;
-      const from = info.acc.fromName ? `${info.acc.fromName} <${info.acc.fromEmail}>` : info.acc.fromEmail;
+      const cfg = JSON.parse(decryptSecret(configEnc)) as SmtpConfig;
+      const from = acc.fromName ? `${acc.fromName} <${acc.fromEmail}>` : acc.fromEmail;
       await sendViaSmtp(cfg, {
         from,
-        to: job.toEmail,
+        to: toEmail,
         subject: job.subject,
-        text: job.body + unsubscribeFooter(ctx.tenantId, job.toEmail),
+        text: job.body + unsubscribeFooter(ctx.tenantId, toEmail),
       });
       await withTenant(ctx, async (tx) => {
         await tx.update(sendJobTable).set({ status: "sent", sentAt: new Date() }).where(eq(sendJobTable.id, job.id));
         await tx
           .update(sendingAccountTable)
           .set({ sentToday: sql`${sendingAccountTable.sentToday} + 1` })
-          .where(eq(sendingAccountTable.id, info.acc.id));
+          .where(eq(sendingAccountTable.id, acc.id));
       });
       sent++;
     } catch (err) {
