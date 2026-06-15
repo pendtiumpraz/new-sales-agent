@@ -16,7 +16,7 @@ _Terakhir diperbarui: 2026-06-15_
 | 2 | Data model Company/Person/ContactPoint | ✅ |
 | 3 | AI registry + metering | ✅ |
 | 4 | Acquisition MVP + positioning | 🟡 |
-| 5 | Engagement: mailbox + send worker + cadence | ⬜ |
+| 5 | Engagement: mailbox + send worker + cadence | 🟡 |
 | 6 | Chrome extension RPA | ⬜ |
 | 7 | Compliance hardening | ⬜ |
 | 8 | Superadmin + observability + billing | ⬜ |
@@ -92,7 +92,18 @@ _Terakhir diperbarui: 2026-06-15_
 
 **Slice 2 / Fase 6 — belum:** MCP server crawl nyata + Chrome extension RPA + discovery entry-points UI (URL/bidang/bulk/auto) + posture enforcement + cascade; wire `ProspectSheet` ke insight tersimpan
 
-### Fase 5–8
+### Fase 5 — Engagement 🟡
+**Slice 1 (mailbox + send pipeline SMTP) — selesai:**
+- ✅ Schema: `sending_account` (config SMTP terenkripsi), `email_template`, `send_job` (queue), `suppression` — tenant-scoped + RLS
+- ✅ Pipeline `lib/mail/`: `smtp` (nodemailer) + send worker (DB-queue, suppression + daily-cap + footer unsubscribe) + suppression helper
+- ✅ API: `/api/tenant/mailboxes` (connect SMTP/list/delete), `/api/tenant/sends` (enqueue+process), `/api/unsubscribe` (public)
+- ✅ UI: `/settings/mailboxes` (connect SMTP + kirim test + riwayat) + halaman publik `/unsubscribe`; dilink dari Settings + middleware allow `/unsubscribe`
+- ✅ Diuji: connect, unsubscribe→suppression, kirim ke suppressed→**skipped**, ke normal→**failed** (no delivery), page 200
+- ⚠️ **Kirim NYATA butuh creds SMTP valid** — `GMAIL_USER`/`GMAIL_APP_PASSWORD` di `.env.local` masih kosong; isi atau connect mailbox via UI
+
+**Slice 2 — belum:** OAuth Gmail/MS connect + platform ESP; Inngest worker (gantiin proses inline); deliverability (SPF/DKIM/warmup/bounce webhook); cadence multi-channel pakai mailbox + AI personalize
+
+### Fase 6–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)

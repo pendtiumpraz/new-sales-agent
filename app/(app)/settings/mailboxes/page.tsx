@@ -1,0 +1,269 @@
+"use client";
+
+import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Mail, Send, Trash2 } from "lucide-react";
+
+import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { can, type Role } from "@/lib/rbac/permissions";
+
+interface Mailbox {
+  id: string;
+  type: string;
+  fromEmail: string;
+  fromName: string | null;
+  status: string;
+  dailyLimit: number;
+  sentToday: number;
+}
+interface SendRow {
+  id: string;
+  toEmail: string;
+  subject: string;
+  status: string;
+  error: string | null;
+}
+
+const STATUS_CLS: Record<string, string> = {
+  sent: "bg-success/10 text-emerald-700",
+  skipped: "bg-muted text-muted-foreground",
+  failed: "bg-destructive/10 text-destructive",
+  pending: "bg-info/10 text-info",
+};
+
+export default function MailboxesPage() {
+  const { data: session } = useSession();
+  const role = (session?.user?.role ?? "member") as Role;
+  const canManage = can(role, "mailbox.connect");
+  const qc = useQueryClient();
+
+  const mailboxes = useQuery({
+    queryKey: ["mailboxes"],
+    queryFn: async () => {
+      const r = await fetch("/api/tenant/mailboxes");
+      if (!r.ok) throw new Error();
+      return ((await r.json()).data ?? []) as Mailbox[];
+    },
+  });
+  const sends = useQuery({
+    queryKey: ["sends"],
+    queryFn: async () => {
+      const r = await fetch("/api/tenant/sends");
+      if (!r.ok) throw new Error();
+      return ((await r.json()).data ?? []) as SendRow[];
+    },
+  });
+
+  const [conn, setConn] = useState({ fromEmail: "", fromName: "", host: "smtp.gmail.com", port: 465, user: "", pass: "" });
+  const [msg, setMsg] = useState({ sendingAccountId: "", toEmail: "", subject: "", body: "" });
+
+  const connect = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/tenant/mailboxes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...conn, secure: conn.port === 465 }),
+      });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => {
+      toast.success("Mailbox terhubung");
+      setConn((c) => ({ ...c, pass: "" }));
+      qc.invalidateQueries({ queryKey: ["mailboxes"] });
+    },
+    onError: () => toast.error("Gagal connect mailbox"),
+  });
+
+  const removeMbx = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch("/api/tenant/mailboxes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!r.ok) throw new Error();
+    },
+    onSuccess: () => {
+      toast.success("Mailbox dihapus");
+      qc.invalidateQueries({ queryKey: ["mailboxes"] });
+    },
+  });
+
+  const send = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/tenant/sends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(msg),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error();
+      return j.result as { sent: number; skipped: number; failed: number };
+    },
+    onSuccess: (res) => {
+      toast.success(`Antrian diproses — terkirim ${res.sent}, skip ${res.skipped}, gagal ${res.failed}`);
+      setMsg((m) => ({ ...m, toEmail: "", subject: "", body: "" }));
+      qc.invalidateQueries({ queryKey: ["sends"] });
+      qc.invalidateQueries({ queryKey: ["mailboxes"] });
+    },
+    onError: () => toast.error("Gagal mengirim"),
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Mailbox & Outreach"
+        description="Kirim email dari identitas pengirim sendiri (SMTP), dengan suppression & unsubscribe (doc 23/25)."
+      />
+      <div className="max-w-3xl space-y-4 p-6">
+        {/* Mailboxes */}
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="h-4 w-4 text-primary" /> Mailbox
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 p-4">
+            <ul className="divide-y">
+              {(mailboxes.data ?? []).map((m) => (
+                <li key={m.id} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{m.fromName ? `${m.fromName} · ` : ""}{m.fromEmail}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {m.type.toUpperCase()} · {m.sentToday}/{m.dailyLimit} hari ini · {m.status}
+                    </p>
+                  </div>
+                  {canManage && (
+                    <Button variant="ghost" size="icon" onClick={() => removeMbx.mutate(m.id)} aria-label="Hapus">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </li>
+              ))}
+              {(mailboxes.data?.length ?? 0) === 0 && !mailboxes.isLoading && (
+                <li className="py-2.5 text-xs text-muted-foreground">Belum ada mailbox. Connect SMTP di bawah.</li>
+              )}
+            </ul>
+
+            {canManage && (
+              <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">From email</Label>
+                  <Input value={conn.fromEmail} onChange={(e) => setConn({ ...conn, fromEmail: e.target.value, user: conn.user || e.target.value })} placeholder="nama@gmail.com" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">From name</Label>
+                  <Input value={conn.fromName} onChange={(e) => setConn({ ...conn, fromName: e.target.value })} placeholder="Tim Sales" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">SMTP host</Label>
+                  <Input value={conn.host} onChange={(e) => setConn({ ...conn, host: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Port</Label>
+                  <Input type="number" value={conn.port} onChange={(e) => setConn({ ...conn, port: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">SMTP user</Label>
+                  <Input value={conn.user} onChange={(e) => setConn({ ...conn, user: e.target.value })} placeholder="nama@gmail.com" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">App password</Label>
+                  <Input type="password" value={conn.pass} onChange={(e) => setConn({ ...conn, pass: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <Button variant="outline" disabled={!conn.fromEmail || !conn.pass || connect.isPending} onClick={() => connect.mutate()}>
+                    Connect SMTP
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Test send */}
+        {canManage && (
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Send className="h-4 w-4 text-primary" /> Kirim email
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Dari mailbox</Label>
+                  <Select value={msg.sendingAccountId} onValueChange={(v) => setMsg({ ...msg, sendingAccountId: v })}>
+                    <SelectTrigger><SelectValue placeholder="Pilih mailbox" /></SelectTrigger>
+                    <SelectContent>
+                      {(mailboxes.data ?? []).map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.fromEmail}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Ke</Label>
+                  <Input type="email" value={msg.toEmail} onChange={(e) => setMsg({ ...msg, toEmail: e.target.value })} placeholder="prospek@perusahaan.co.id" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Subjek</Label>
+                <Input value={msg.subject} onChange={(e) => setMsg({ ...msg, subject: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Isi</Label>
+                <Textarea rows={5} value={msg.body} onChange={(e) => setMsg({ ...msg, body: e.target.value })} />
+              </div>
+              <Button
+                disabled={!msg.sendingAccountId || !msg.toEmail || !msg.subject || !msg.body || send.isPending}
+                onClick={() => send.mutate()}
+              >
+                {send.isPending ? "Mengirim…" : "Kirim"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">Footer unsubscribe otomatis ditambahkan; penerima yang opt-out di-skip.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent sends */}
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="text-base">Riwayat kirim</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y">
+              {(sends.data ?? []).slice(0, 15).map((s) => (
+                <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{s.toEmail}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{s.subject}{s.error ? ` · ${s.error}` : ""}</p>
+                  </div>
+                  <Badge className={STATUS_CLS[s.status] ?? ""}>{s.status}</Badge>
+                </li>
+              ))}
+              {(sends.data?.length ?? 0) === 0 && !sends.isLoading && (
+                <li className="p-3 text-xs text-muted-foreground">Belum ada email terkirim.</li>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

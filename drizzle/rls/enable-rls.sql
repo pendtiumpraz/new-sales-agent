@@ -23,7 +23,8 @@ BEGIN
     'autopilot_runs','cadences','cadence_enrollments',
     'company','person','contact_point','product',
     'ai_credential','tenant_active_model','ai_usage',
-    'crawl_job','ingest_batch','positioning_insight'
+    'crawl_job','ingest_batch','positioning_insight',
+    'sending_account','email_template','send_job','suppression'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

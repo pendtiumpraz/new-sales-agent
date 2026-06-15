@@ -391,3 +391,59 @@ export const positioningInsightTable = pgTable("positioning_insight", {
   tenantIdx: index("positioning_insight_tenant_idx").on(t.tenantId),
   uq: uniqueIndex("positioning_insight_uq").on(t.tenantId, t.companyId, t.productId),
 }));
+
+// ── Engagement: mailboxes + send pipeline (Fase 5, doc 23) ────────────────
+// Tenant-scoped + RLS. Per-user sending identity (not one env mailbox).
+
+export const sendingAccountTable = pgTable("sending_account", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  userId: text("user_id"),
+  type: text("type").notNull().default("smtp"),        // smtp | gmail_oauth | ms_oauth | platform_esp
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  status: text("status").notNull().default("active"),
+  configEnc: text("config_enc"),                        // encrypted JSON: SMTP host/port/user/pass
+  dailyLimit: integer("daily_limit").notNull().default(200),
+  sentToday: integer("sent_today").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ tenantIdx: index("sending_account_tenant_idx").on(t.tenantId) }));
+
+export const emailTemplateTable = pgTable("email_template", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  channel: text("channel").notNull().default("email"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ tenantIdx: index("email_template_tenant_idx").on(t.tenantId) }));
+
+export const sendJobTable = pgTable("send_job", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  sendingAccountId: text("sending_account_id"),
+  toEmail: text("to_email").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("pending"), // pending | sent | failed | skipped
+  error: text("error"),
+  feature: text("feature"),                             // cadence | manual | …
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+}, (t) => ({
+  tenantIdx: index("send_job_tenant_idx").on(t.tenantId),
+  statusIdx: index("send_job_status_idx").on(t.tenantId, t.status),
+}));
+
+export const suppressionTable = pgTable("suppression", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  email: text("email").notNull(),
+  reason: text("reason").notNull().default("opt_out"), // opt_out | bounce | complaint | manual
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantEmailUq: uniqueIndex("suppression_tenant_email_uq").on(t.tenantId, t.email),
+  tenantIdx: index("suppression_tenant_idx").on(t.tenantId),
+}));

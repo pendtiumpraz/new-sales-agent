@@ -29,6 +29,13 @@
       "when": 1781537612456,
       "tag": "0003_acquisition",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781538743813,
+      "tag": "0004_engagement",
+      "breakpoints": true
     }
   ]
 }

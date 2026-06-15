@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronRight,
   Globe2,
+  Mail,
   ShieldCheck,
   Sparkles,
   Users,
@@ -242,6 +243,14 @@ export default function SettingsPage() {
                     description="Pilih model aktif, kelola API key (BYOK), dan pantau pemakaian token & biaya."
                     tone="green"
                     badge="Registry"
+                  />
+                  <EntryCard
+                    href="/settings/mailboxes"
+                    icon={Mail}
+                    title="Mailbox & Outreach"
+                    description="Connect mailbox SMTP, kirim email dari identitas sendiri, suppression & unsubscribe."
+                    tone="blue"
+                    badge="Kirim"
                   />
                 </div>
               </>
