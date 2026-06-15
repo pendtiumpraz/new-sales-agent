@@ -40,8 +40,13 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ Connection wrapper `withTenant()` (set_config `app.*`, injection-safe) — `lib/db/tenant-context.ts`
 - ✅ RLS policies (FORCE + superadmin bypass) **siap tapi belum di-apply** — `drizzle/rls/`
 
-**Slice 2 (butuh setup eksternal) — belum:**
-- ⬜ Auth.js v5 + Drizzle adapter gantiin mock login — **butuh OAuth creds Google/MS**
+**Slice 2a — Auth.js Credentials (jalan):**
+- ✅ `next-auth@5` terpasang + `AUTH_SECRET` di `.env.local`
+- ✅ Server foundation: config `lib/auth/auth.ts` (Credentials → demo accounts, JWT bawa role+tenantId), route `app/api/auth/[...nextauth]`, type augmentation — `/api/auth/session` live (200)
+- ⬜ Wiring UI: SessionProvider + middleware proteksi `(app)` + login pakai `signIn` + bridge ke Zustand, **hapus auto-Superadmin**
+- ⬜ OAuth Google/MS (butuh creds) + authorize lewat `usersTable`
+
+**Slice 2b (butuh setup eksternal) — belum:**
 - ⬜ Backfill default tenant + `tenant_id` SET NOT NULL (tabel/kolom udah ke-apply; tinggal isi data + constraint)
 - ⬜ Refactor `app/api/db/*` pakai `withTenant`, lalu apply `drizzle/rls/enable-rls.sql`
 - ⬜ RBAC guard di route + UI; UI kelola member + invite
