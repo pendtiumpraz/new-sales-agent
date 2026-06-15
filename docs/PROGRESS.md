@@ -34,14 +34,15 @@ _Terakhir diperbarui: 2026-06-15_
 ### Fase 1 — Fondasi tenant 🟡
 **Slice 1 (additive, demo-safe) — selesai:**
 - ✅ Schema: `tenants`, `memberships`, `invites`, `audit_log` + `tenant_id` (nullable) di tabel tenant-scoped — `lib/db/schema.ts`
-- ✅ Migration baseline ke-generate & divalidasi **offline** (tanpa nyentuh DB): `drizzle/migrations/0000_tenant_foundation.sql`
+- ✅ Migration baseline ke-generate & divalidasi **offline**: `drizzle/migrations/0000_tenant_foundation.sql`
+- ✅ Schema **di-apply ke DB Neon live** (idempotent direct-client — `db:push` butuh TTY, jadi pakai script DDL setara dari migration)
 - ✅ RBAC matrix 4 role kanonik + `can()` + `mapDemoRole()` — `lib/rbac/permissions.ts`
 - ✅ Connection wrapper `withTenant()` (set_config `app.*`, injection-safe) — `lib/db/tenant-context.ts`
 - ✅ RLS policies (FORCE + superadmin bypass) **siap tapi belum di-apply** — `drizzle/rls/`
 
 **Slice 2 (butuh setup eksternal) — belum:**
 - ⬜ Auth.js v5 + Drizzle adapter gantiin mock login — **butuh OAuth creds Google/MS**
-- ⬜ Backfill default tenant + `tenant_id` SET NOT NULL; apply ke DB existing via `db:push`
+- ⬜ Backfill default tenant + `tenant_id` SET NOT NULL (tabel/kolom udah ke-apply; tinggal isi data + constraint)
 - ⬜ Refactor `app/api/db/*` pakai `withTenant`, lalu apply `drizzle/rls/enable-rls.sql`
 - ⬜ RBAC guard di route + UI; UI kelola member + invite
 
