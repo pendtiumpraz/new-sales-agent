@@ -12,7 +12,7 @@ _Terakhir diperbarui: 2026-06-15_
 | Fase | Judul | Status |
 |------|-------|--------|
 | 0 | Persiapan & docs + spike auth/queue | ✅ |
-| 1 | Fondasi tenant (RLS + RBAC + auth) | ⬜ |
+| 1 | Fondasi tenant (RLS + RBAC + auth) | 🟡 |
 | 2 | Data model Company/Person/ContactPoint | ⬜ |
 | 3 | AI registry + metering | ⬜ |
 | 4 | Acquisition MVP + positioning | ⬜ |
@@ -31,7 +31,21 @@ _Terakhir diperbarui: 2026-06-15_
 - ✅ `IMPLEMENTATION-PLAN.md` + `PROGRESS.md` ditulis
 - ✅ Spike keputusan **terkunci**: Auth.js v5 + Drizzle & Inngest (decision record di [doc 28](./28-decisions-auth-and-queue.md))
 
-### Fase 1–8
+### Fase 1 — Fondasi tenant 🟡
+**Slice 1 (additive, demo-safe) — selesai:**
+- ✅ Schema: `tenants`, `memberships`, `invites`, `audit_log` + `tenant_id` (nullable) di tabel tenant-scoped — `lib/db/schema.ts`
+- ✅ Migration baseline ke-generate & divalidasi **offline** (tanpa nyentuh DB): `drizzle/migrations/0000_tenant_foundation.sql`
+- ✅ RBAC matrix 4 role kanonik + `can()` + `mapDemoRole()` — `lib/rbac/permissions.ts`
+- ✅ Connection wrapper `withTenant()` (set_config `app.*`, injection-safe) — `lib/db/tenant-context.ts`
+- ✅ RLS policies (FORCE + superadmin bypass) **siap tapi belum di-apply** — `drizzle/rls/`
+
+**Slice 2 (butuh setup eksternal) — belum:**
+- ⬜ Auth.js v5 + Drizzle adapter gantiin mock login — **butuh OAuth creds Google/MS**
+- ⬜ Backfill default tenant + `tenant_id` SET NOT NULL; apply ke DB existing via `db:push`
+- ⬜ Refactor `app/api/db/*` pakai `withTenant`, lalu apply `drizzle/rls/enable-rls.sql`
+- ⬜ RBAC guard di route + UI; UI kelola member + invite
+
+### Fase 2–8
 Belum mulai — lihat rencana per fase di `IMPLEMENTATION-PLAN.md`.
 
 ## Keputusan arsitektur (terkunci)

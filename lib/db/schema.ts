@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, timestamp, real, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, timestamp, real, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 import type { KnowledgeBase } from "@/lib/types/kb";
 import type { CadenceStep } from "@/lib/types";
 import type {
@@ -7,14 +7,21 @@ import type {
   AutopilotRunConfig,
 } from "@/lib/types/autopilot";
 
+// NOTE (Fase 1, doc 19): `tenant_id` is added to tenant-scoped tables as a
+// NULLABLE column so existing seed/insert code keeps working. It gets backfilled
+// to a default tenant and made NOT NULL + RLS-enforced in slice 2 (see
+// drizzle/rls/). `users` stays GLOBAL (one user → many tenants via memberships).
+
 export const kbTable = pgTable("kb", {
   id: text("id").primaryKey(),                                  // client id
+  tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill
   data: jsonb("data").$type<KnowledgeBase>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const dealsTable = pgTable("deals", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill
   name: text("name").notNull(),
   contactId: text("contact_id"),
   contactName: text("contact_name"),
@@ -31,6 +38,7 @@ export const dealsTable = pgTable("deals", {
 
 export const contactsTable = pgTable("contacts", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill
   name: text("name").notNull(),
   title: text("title"),
   companyId: text("company_id"),
@@ -52,6 +60,7 @@ export const contactsTable = pgTable("contacts", {
 
 export const conversationsTable = pgTable("conversations", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill
   contactId: text("contact_id").notNull(),
   contactName: text("contact_name"),
   company: text("company"),
@@ -66,6 +75,7 @@ export const conversationsTable = pgTable("conversations", {
 
 export const messagesTable = pgTable("messages", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                                  // doc 19; denormalized for RLS
   conversationId: text("conversation_id").notNull(),
   direction: text("direction").notNull(),                       // "in" | "out"
   body: text("body").notNull(),
@@ -77,6 +87,7 @@ export const messagesTable = pgTable("messages", {
 
 export const autopilotRunsTable = pgTable("autopilot_runs", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill
   startedAt: text("started_at").notNull(),
   finishedAt: text("finished_at"),
   status: text("status").notNull(),
@@ -88,6 +99,7 @@ export const autopilotRunsTable = pgTable("autopilot_runs", {
 
 export const cadencesTable = pgTable("cadences", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                            // doc 19; nullable until backfill
   name: text("name").notNull(),
   status: text("status").notNull(),                       // active | draft | paused
   steps: jsonb("steps").$type<CadenceStep[]>().notNull(),
@@ -101,6 +113,7 @@ export const cadencesTable = pgTable("cadences", {
 
 export const cadenceEnrollmentsTable = pgTable("cadence_enrollments", {
   id: text("id").primaryKey(),                            // composite-like, e.g. cadenceId:contactId or uuid
+  tenantId: text("tenant_id"),                            // doc 19; nullable until backfill
   cadenceId: text("cadence_id").notNull(),
   contactId: text("contact_id").notNull(),
   currentStepIdx: integer("current_step_idx").notNull().default(0),  // 0-based
@@ -124,3 +137,52 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ── Multi-tenancy foundation (Fase 1, doc 19) ──────────────────────────────
+
+export const tenantsTable = pgTable("tenants", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  plan: text("plan").notNull().default("starter"),   // doc 27 tiers
+  status: text("status").notNull().default("active"), // active | suspended
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// One user can belong to many tenants; role lives HERE (per-tenant), not on users.
+export const membershipsTable = pgTable("memberships", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  userId: text("user_id").notNull(),
+  role: text("role").notNull(),                        // superadmin | tenant_owner | tenant_admin | member (doc 19)
+  status: text("status").notNull().default("active"),  // active | invited | disabled
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantUserUq: uniqueIndex("memberships_tenant_user_uq").on(t.tenantId, t.userId),
+  tenantIdx: index("memberships_tenant_idx").on(t.tenantId),
+  userIdx: index("memberships_user_idx").on(t.userId),
+}));
+
+export const invitesTable = pgTable("invites", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull(),
+  token: text("token").notNull().unique(),
+  status: text("status").notNull().default("pending"), // pending | accepted | revoked | expired
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("invites_tenant_idx").on(t.tenantId),
+}));
+
+export const auditLogTable = pgTable("audit_log", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id"),                         // nullable for platform-level events
+  actorUserId: text("actor_user_id"),
+  action: text("action").notNull(),                   // e.g. "member.invite", "mailbox.connect"
+  target: text("target"),
+  meta: jsonb("meta").$type<Record<string, unknown>>(),
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("audit_log_tenant_idx").on(t.tenantId),
+}));
