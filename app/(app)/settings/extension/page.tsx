@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, Download, Globe, Puzzle } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -62,26 +61,83 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+interface RepAccount {
+  token: string;
+  linkedinUrl: string | null;
+  instagram: string | null;
+  lastSeenAt: string | null;
+  connected: boolean;
+  version?: string | null;
+}
+
 export default function ExtensionPage() {
+  const qc = useQueryClient();
   const [appUrl] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
-  const tokenQ = useQuery({
-    queryKey: ["integration-token"],
+
+  // The rep's OWN account: per-rep ingest token + LinkedIn/IG + heartbeat (doc 41).
+  const repQ = useQuery({
+    queryKey: ["rep-account"],
     queryFn: async () => {
-      const r = await fetch("/api/tenant/integration-token");
-      if (!r.ok) return { token: "", configured: false };
-      return (await r.json()) as { token: string; configured: boolean };
+      const r = await fetch("/api/rep/account");
+      if (!r.ok) return null;
+      return (await r.json()) as RepAccount;
     },
+    refetchInterval: 15_000,
   });
-  const statusQ = useQuery({
-    queryKey: ["extension-status"],
-    queryFn: async () => {
-      const r = await fetch("/api/extension/status");
-      if (!r.ok) return { connected: false, ever: false } as ExtStatus;
-      return (await r.json()) as ExtStatus;
+  const rep = repQ.data;
+  const [li, setLi] = useState("");
+  const [ig, setIg] = useState("");
+  useEffect(() => {
+    if (rep) {
+      setLi(rep.linkedinUrl ?? "");
+      setIg(rep.instagram ?? "");
+    }
+  }, [rep?.linkedinUrl, rep?.instagram]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveAccounts = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/rep/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkedinUrl: li, instagram: ig }),
+      });
+      if (!r.ok) throw new Error();
+      return r.json();
     },
-    refetchInterval: 15_000, // live-ish: re-check every 15s
+    onSuccess: () => {
+      toast.success("Akun sales disimpan");
+      qc.invalidateQueries({ queryKey: ["rep-account"] });
+    },
+    onError: () => toast.error("Gagal menyimpan akun"),
   });
-  const st = statusQ.data;
+  const regen = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/rep/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate: true }),
+      });
+      if (!r.ok) throw new Error();
+      return r.json();
+    },
+    onSuccess: () => {
+      toast.success("Token baru dibuat — tempel ulang ke extension");
+      qc.invalidateQueries({ queryKey: ["rep-account"] });
+    },
+    onError: () => toast.error("Gagal regenerate token"),
+  });
+
+  // Banner state derived from the rep's heartbeat.
+  const st: ExtStatus | undefined = rep
+    ? {
+        connected: rep.connected,
+        ever: !!rep.lastSeenAt,
+        lastSeenAt: rep.lastSeenAt ?? undefined,
+        ageSeconds: rep.lastSeenAt ? Math.floor((Date.now() - new Date(rep.lastSeenAt).getTime()) / 1000) : undefined,
+        version: rep.version ?? undefined,
+        tokenConfigured: !!rep.token,
+      }
+    : undefined;
 
   // Layer 2 — is the extension installed in THIS browser? Handshake with the
   // extension's detect.js content script (doc 40). Independent of the token /
@@ -189,6 +245,41 @@ export default function ExtensionPage() {
           </CardContent>
         </Card>
 
+        {/* Sales account — register LinkedIn/IG + your per-rep token (doc 41) */}
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="text-base">Akun sales kamu</CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              Daftarkan akun LinkedIn/Instagram-mu. Lead hasil crawl pakai token ini otomatis jadi <b>milikmu</b>.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3 p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1 text-xs text-muted-foreground">
+                URL profil LinkedIn
+                <input
+                  value={li}
+                  onChange={(e) => setLi(e.target.value)}
+                  placeholder="https://www.linkedin.com/in/namamu"
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+              <label className="space-y-1 text-xs text-muted-foreground">
+                Username Instagram
+                <input
+                  value={ig}
+                  onChange={(e) => setIg(e.target.value)}
+                  placeholder="@namamu"
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+            </div>
+            <Button size="sm" onClick={() => saveAccounts.mutate()} disabled={saveAccounts.isPending}>
+              {saveAccounts.isPending ? "Menyimpan…" : "Simpan akun"}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Config to paste */}
         <Card>
           <CardHeader className="border-b">
@@ -196,13 +287,13 @@ export default function ExtensionPage() {
           </CardHeader>
           <CardContent className="space-y-3 p-4">
             <CopyField label="URL aplikasi" value={appUrl} />
-            <CopyField label="Ingest token" value={tokenQ.data?.token ?? ""} />
-            {tokenQ.data && !tokenQ.data.configured && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                <Badge variant="muted" className="mr-1 bg-amber-100 text-amber-700">belum diset</Badge>
-                Isi <code>LINKEDIN_INGEST_TOKEN</code> di <code>.env.local</code> / env Vercel, lalu reload.
-              </p>
-            )}
+            <CopyField label="Ingest token (khusus kamu)" value={rep?.token ?? ""} />
+            <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <span>Token ini menandai lead crawl sebagai milikmu. Jangan dibagikan.</span>
+              <Button size="sm" variant="ghost" className="h-7 shrink-0 text-xs" onClick={() => regen.mutate()} disabled={regen.isPending}>
+                Regenerate
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

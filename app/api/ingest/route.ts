@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { hasDb } from "@/lib/db/client";
@@ -11,6 +12,7 @@ import {
   personDedupKey,
   contactPointDedupKey,
 } from "@/lib/profiling/dedup";
+import { resolveRepByToken } from "@/lib/team/rep-account";
 
 export const runtime = "nodejs";
 
@@ -73,7 +75,14 @@ export async function POST(req: Request) {
   // session with data.write. The token maps to a configured tenant (doc 21).
   const token = req.headers.get("x-ingest-token");
   let ctx: TenantContext;
-  if (token && process.env.LINKEDIN_INGEST_TOKEN && token === process.env.LINKEDIN_INGEST_TOKEN) {
+  // assignTo: when a PER-REP token is used, crawled leads auto-assign to that rep
+  // (doc 41 §4). Tenant-level token / session ingest leaves them unassigned.
+  let assignTo: string | null = null;
+  const rep = token ? await resolveRepByToken(token) : null;
+  if (rep) {
+    ctx = { tenantId: rep.tenantId, userId: rep.userId, role: "member" };
+    assignTo = rep.userId;
+  } else if (token && process.env.LINKEDIN_INGEST_TOKEN && token === process.env.LINKEDIN_INGEST_TOKEN) {
     ctx = {
       tenantId: process.env.LINKEDIN_INGEST_TENANT || "t_default",
       userId: "extension",
@@ -137,6 +146,7 @@ export async function POST(req: Request) {
             linkedinUrl: p.linkedinUrl ?? null,
             about: p.about ?? null,
             experience: p.experience ?? [],
+            ...(assignTo ? { assignedTo: assignTo } : {}), // per-rep attribution (doc 41)
             source: p.source ?? b.origin,
             sourceUrl: p.linkedinUrl ?? null,
             capturedAt: new Date(), // crawl date (doc 40) — drives the >1yr stale warning
@@ -152,6 +162,8 @@ export async function POST(req: Request) {
               about: p.about ?? null,
               // only overwrite experience when the new payload actually has it
               ...(p.experience && p.experience.length ? { experience: p.experience } : {}),
+              // claim ownership only if the lead is still unassigned (don't steal)
+              ...(assignTo ? { assignedTo: sql`coalesce(${personTable.assignedTo}, ${assignTo})` } : {}),
               capturedAt: new Date(), // refresh crawl date on re-crawl
               updatedAt: new Date(),
             },

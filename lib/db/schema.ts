@@ -486,6 +486,25 @@ export const extensionConnectionTable = pgTable("extension_connection", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Per-sales account (doc 41 §4) — each rep registers their LinkedIn/IG and gets
+// their OWN ingest token. Leads crawled with that token auto-assign to the rep
+// (attribution). last_seen_at is the rep's extension heartbeat.
+export const repAccountTable = pgTable("rep_account", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  userId: text("user_id").notNull(),
+  token: text("token").notNull(),                  // per-rep ingest token
+  linkedinUrl: text("linkedin_url"),
+  instagram: text("instagram"),
+  extVersion: text("ext_version"),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantUserUq: uniqueIndex("rep_account_tenant_user_uq").on(t.tenantId, t.userId),
+  tokenUq: uniqueIndex("rep_account_token_uq").on(t.token),
+}));
+
 export const positioningInsightTable = pgTable("positioning_insight", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id").notNull(),
