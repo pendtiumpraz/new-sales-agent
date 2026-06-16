@@ -5,6 +5,7 @@ import { sendJobTable, sendingAccountTable } from "@/lib/db/schema";
 import { decryptSecret } from "@/lib/ai/crypto";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { sendViaSmtp, type SmtpConfig } from "./smtp";
+import { espConfigured, sendViaEsp } from "./esp";
 import { isSuppressed } from "./suppression";
 
 // DB-backed send queue (doc 23). Dispatch is intentionally abstracted here so it
@@ -84,31 +85,41 @@ export async function processSendJobs(ctx: TenantContext, limit = 20) {
       skipped++;
       continue;
     }
-    if (!info.acc?.configEnc) {
+    const acc = info.acc;
+    if (!acc) {
+      await setStatus(ctx, job.id, "failed", "no sending account");
+      failed++;
+      continue;
+    }
+    const isEsp = acc.type === "platform_esp";
+    // SMTP/OAuth mailboxes need an encrypted config; platform ESP uses the
+    // platform key instead (no per-account config).
+    if (!isEsp && !acc.configEnc) {
       await setStatus(ctx, job.id, "failed", "no sending account / config");
       failed++;
       continue;
     }
-    if (info.acc.sentToday >= info.acc.dailyLimit) {
+    if (isEsp && !espConfigured()) {
+      await setStatus(ctx, job.id, "failed", "platform ESP belum dikonfigurasi (RESEND_API_KEY)");
+      failed++;
+      continue;
+    }
+    if (acc.sentToday >= acc.dailyLimit) {
       // Daily cap reached — leave pending for the next run.
       continue;
     }
 
-    // Capture into consts so the non-null narrowing survives inside the nested
-    // withTenant callback below (TS discards property narrowing across closures).
-    // configEnc is non-null here — guarded by the `!info.acc?.configEnc` check above.
-    const acc = info.acc;
-    const configEnc: string = info.acc.configEnc;
+    const from = acc.fromName ? `${acc.fromName} <${acc.fromEmail}>` : acc.fromEmail;
+    const text = job.body + unsubscribeFooter(ctx.tenantId, toEmail);
 
     try {
-      const cfg = JSON.parse(decryptSecret(configEnc)) as SmtpConfig;
-      const from = acc.fromName ? `${acc.fromName} <${acc.fromEmail}>` : acc.fromEmail;
-      await sendViaSmtp(cfg, {
-        from,
-        to: toEmail,
-        subject: job.subject,
-        text: job.body + unsubscribeFooter(ctx.tenantId, toEmail),
-      });
+      if (isEsp) {
+        await sendViaEsp({ from, to: toEmail, subject: job.subject, text, tenantId: ctx.tenantId });
+      } else {
+        // Non-ESP → configEnc guaranteed non-null by the guard above.
+        const cfg = JSON.parse(decryptSecret(acc.configEnc as string)) as SmtpConfig;
+        await sendViaSmtp(cfg, { from, to: toEmail, subject: job.subject, text });
+      }
       await withTenant(ctx, async (tx) => {
         await tx.update(sendJobTable).set({ status: "sent", sentAt: new Date() }).where(eq(sendJobTable.id, job.id));
         await tx

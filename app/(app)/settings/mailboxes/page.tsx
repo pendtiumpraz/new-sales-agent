@@ -60,9 +60,10 @@ export default function MailboxesPage() {
       const j = await r.json();
       return {
         rows: (j.data ?? []) as Mailbox[],
-        oauth: (j.oauth ?? { google: false, microsoft: false }) as {
+        oauth: (j.oauth ?? { google: false, microsoft: false, esp: false }) as {
           google: boolean;
           microsoft: boolean;
+          esp: boolean;
         },
       };
     },
@@ -105,6 +106,24 @@ export default function MailboxesPage() {
       qc.invalidateQueries({ queryKey: ["mailboxes"] });
     },
     onError: () => toast.error("Gagal connect mailbox"),
+  });
+
+  // Platform ESP (doc 33) — uses the From fields from the SMTP form below.
+  const connectEsp = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/tenant/mailboxes/esp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromEmail: conn.fromEmail, fromName: conn.fromName }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+    },
+    onSuccess: () => {
+      toast.success("Mailbox platform (ESP) terhubung");
+      qc.invalidateQueries({ queryKey: ["mailboxes"] });
+    },
+    onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
   });
 
   const removeMbx = useMutation({
@@ -180,10 +199,10 @@ export default function MailboxesPage() {
 
             {/* OAuth connect (doc 32) — buttons show only when the provider's
                 client id/secret are configured; otherwise a setup hint. */}
-            {canManage && (mailboxes.data?.oauth.google || mailboxes.data?.oauth.microsoft) && (
+            {canManage && (mailboxes.data?.oauth.google || mailboxes.data?.oauth.microsoft || mailboxes.data?.oauth.esp) && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-primary/5 p-3">
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Hubungkan via OAuth
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Hubungkan cepat
                 </span>
                 {mailboxes.data?.oauth.google && (
                   <Button variant="outline" size="sm" onClick={() => { window.location.href = "/api/mailboxes/oauth/google/start"; }}>
@@ -195,12 +214,23 @@ export default function MailboxesPage() {
                     Connect Outlook
                   </Button>
                 )}
+                {mailboxes.data?.oauth.esp && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!conn.fromEmail || connectEsp.isPending}
+                    title="Pakai From email di form bawah (harus di domain terverifikasi ESP)"
+                    onClick={() => connectEsp.mutate()}
+                  >
+                    {connectEsp.isPending ? "Menghubungkan…" : "Pakai email platform (ESP)"}
+                  </Button>
+                )}
               </div>
             )}
-            {canManage && !mailboxes.data?.oauth.google && !mailboxes.data?.oauth.microsoft && (
+            {canManage && !mailboxes.data?.oauth.google && !mailboxes.data?.oauth.microsoft && !mailboxes.data?.oauth.esp && (
               <p className="rounded-lg border border-dashed p-3 text-[11px] text-muted-foreground">
-                Connect via OAuth (Gmail/Outlook) belum aktif — isi <code>GOOGLE_OAUTH_CLIENT_ID/SECRET</code> atau{" "}
-                <code>MICROSOFT_OAUTH_CLIENT_ID/SECRET</code> di <code>.env.local</code> (lihat <code>docs/32</code>). SMTP app-password di bawah tetap jalan.
+                Connect cepat (Gmail/Outlook OAuth atau platform ESP) belum aktif — isi <code>GOOGLE_OAUTH_*</code>,{" "}
+                <code>MICROSOFT_OAUTH_*</code>, atau <code>RESEND_API_KEY</code> di <code>.env.local</code> (lihat <code>docs/32</code>, <code>docs/33</code>). SMTP app-password di bawah tetap jalan.
               </p>
             )}
 

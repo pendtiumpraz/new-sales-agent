@@ -8,15 +8,17 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { sendingAccountTable } from "@/lib/db/schema";
 import { encryptSecret } from "@/lib/ai/crypto";
 import { mailProviderConfigured } from "@/lib/mail/oauth";
+import { espConfigured } from "@/lib/mail/esp";
 
 export const runtime = "nodejs";
 
-// Which OAuth providers are wired (client id+secret in env) — drives the connect
-// buttons in the UI. Inert when unset.
+// Which OAuth providers + platform ESP are wired (keys in env) — drives the
+// connect buttons in the UI. Inert when unset.
 function oauthFlags() {
   return {
     google: mailProviderConfigured("google"),
     microsoft: mailProviderConfigured("microsoft"),
+    esp: espConfigured(),
   };
 }
 
