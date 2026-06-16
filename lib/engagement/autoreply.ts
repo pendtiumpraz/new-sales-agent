@@ -270,3 +270,92 @@ export async function recentAutoReplyEvents(ctx: TenantContext, limit = 30) {
     tx.select().from(autoReplyEventTable).orderBy(desc(autoReplyEventTable.createdAt)).limit(limit),
   );
 }
+
+/**
+ * Resolve an escalated auto-reply from the review queue: send the (optionally
+ * edited) reply via the conversation's channel, or dismiss it. One-click human
+ * handoff for the escalation UI (doc 36).
+ */
+export async function resolveEscalation(
+  ctx: TenantContext,
+  eventId: string,
+  action: "send" | "dismiss",
+  replyOverride?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const [ev] = await withTenant(ctx, (tx) =>
+    tx
+      .select()
+      .from(autoReplyEventTable)
+      .where(and(eq(autoReplyEventTable.id, eventId), eq(autoReplyEventTable.tenantId, ctx.tenantId)))
+      .limit(1),
+  );
+  if (!ev) return { ok: false, error: "tidak ditemukan" };
+
+  if (action === "dismiss") {
+    await withTenant(ctx, (tx) =>
+      tx.update(autoReplyEventTable).set({ decision: "dismissed" }).where(eq(autoReplyEventTable.id, eventId)),
+    );
+    return { ok: true };
+  }
+
+  const reply = (replyOverride ?? ev.reply ?? "").trim();
+  if (!reply) return { ok: false, error: "balasan kosong" };
+  if (!ev.conversationId) return { ok: false, error: "tanpa percakapan" };
+
+  const [convo] = await withTenant(ctx, (tx) =>
+    tx.select().from(conversationsTable).where(eq(conversationsTable.id, ev.conversationId as string)).limit(1),
+  );
+  if (!convo) return { ok: false, error: "percakapan tidak ditemukan" };
+
+  const [contact] = convo.contactId
+    ? await withTenant(ctx, (tx) =>
+        tx.select().from(contactsTable).where(eq(contactsTable.id, convo.contactId as string)).limit(1),
+      )
+    : [undefined];
+
+  const channel = convo.channel === "email" ? "email" : "whatsapp";
+  try {
+    if (channel === "whatsapp") {
+      if (!contact?.phone || !wahaConfigured()) return { ok: false, error: "WhatsApp belum siap (WAHA/nomor)" };
+      await sendWhatsApp({ to: contact.phone, text: reply });
+    } else {
+      if (!contact?.email) return { ok: false, error: "kontak tanpa email" };
+      const accs = await withTenant(ctx, (tx) =>
+        tx.select({ id: sendingAccountTable.id }).from(sendingAccountTable).limit(1),
+      );
+      await withTenant(ctx, (tx) =>
+        tx.insert(sendJobTable).values({
+          id: "send_" + crypto.randomUUID(),
+          tenantId: ctx.tenantId,
+          sendingAccountId: accs[0]?.id ?? null,
+          toEmail: (contact.email as string).toLowerCase(),
+          subject: convo.company ? `Re: ${convo.company}` : "Balasan",
+          body: reply,
+          feature: "auto-reply",
+        }),
+      );
+    }
+    await withTenant(ctx, async (tx) => {
+      await tx.insert(messagesTable).values({
+        id: "msg_" + crypto.randomUUID(),
+        tenantId: ctx.tenantId,
+        conversationId: convo.id,
+        direction: "out",
+        body: reply,
+        timestamp: new Date().toISOString(),
+        status: "sent",
+      });
+      await tx
+        .update(conversationsTable)
+        .set({ lastMessage: reply.slice(0, 200), lastTimestamp: new Date().toISOString(), unread: 0, updatedAt: new Date() })
+        .where(eq(conversationsTable.id, convo.id));
+      await tx
+        .update(autoReplyEventTable)
+        .set({ decision: "sent", reply })
+        .where(eq(autoReplyEventTable.id, eventId));
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e).slice(0, 200) };
+  }
+}
