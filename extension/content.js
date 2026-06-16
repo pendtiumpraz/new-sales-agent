@@ -18,6 +18,10 @@ try { console.log("[Maira] content.js v0.8.2 loaded →", location.href); } catc
 function clean(s) {
   return (s || "").trim().replace(/\s+/g, " ");
 }
+// alnum-only lowercase key — for comparing a line against the person's name.
+function norm(s) {
+  return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 function pick(el, selectors) {
   for (const sel of selectors) {
     const n = el.querySelector(sel);
@@ -136,10 +140,24 @@ function scrapePeople() {
         seen.add(t);
         summaryLines.push(t);
       }
-      headline = summaryLines[0] || "";
+      // The headline is the JOB line. LinkedIn search cards ALSO contain the name +
+      // "• 2nd" (degree), "X and N other mutual connections", follower counts, and
+      // action buttons — none of which are the jabatan. Skip all of those.
+      const nameKey = norm(fullName);
+      const isNoise = (t) => {
+        if (/mutual connection|\band \d+ other\b/i.test(t)) return true; // "X and 2 other mutual connections"
+        if (/[•·|]\s*(1st|2nd|3rd|\d+(?:st|nd|rd|th))\b/i.test(t) || /^\d+(?:st|nd|rd|th)\b/i.test(t)) return true; // degree
+        if (/\b(followers?|pengikut|connections?|koneksi)\b/i.test(t)) return true;
+        if (/^(connect|follow|message|pesan|ikuti|hubungkan|lihat profil(?:nya)?|view profile|kirim pesan|selengkapnya|more)$/i.test(t)) return true;
+        if (/\bopen to work\b|\bstatus is\b|sedang mencari/i.test(t)) return true;
+        const stripped = t.replace(/\s*[•·|].*$/, "").trim(); // "Name • 2nd" → "Name"
+        return norm(stripped) === nameKey || norm(t) === nameKey || norm(t) === nameKey + nameKey;
+      };
+      const jobLines = summaryLines.filter((t) => !isNoise(t));
+      headline = jobLines[0] || "";
       location =
-        summaryLines.find(
-          (t) => t !== headline && /(,|Indonesia|Jakarta|Surabaya|Bandung|Medan|Bali|Yogyakarta|Area|Greater)/i.test(t) && t.length < 60,
+        jobLines.find(
+          (t) => t !== headline && /(,|Indonesia|Jakarta|Surabaya|Bandung|Medan|Bali|Yogyakarta|Area|Greater|Regency|Kabupaten|Kota)/i.test(t) && t.length < 60,
         ) || "";
     }
 

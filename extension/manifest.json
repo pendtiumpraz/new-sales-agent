@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Maira Sales — Multi-Platform Lead Collector",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Collect + enrich leads from LinkedIn, Google, Tokopedia, Shopee, Instagram, TikTok + DuckDuckGo internet search — RPA + AI run in YOUR browser, buffered locally, sent to the platform. Rate-limited, consent-gated.",
   "permissions": ["storage", "tabs", "scripting", "alarms"],
   "host_permissions": [
