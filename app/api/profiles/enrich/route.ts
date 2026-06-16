@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, and, or, isNull } from "drizzle-orm";
+import { eq, and, or, isNull, sql } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -7,17 +7,18 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { companyTable, personTable, contactPointTable } from "@/lib/db/schema";
 import { classifyLead, type ClassifyInput } from "@/lib/engagement/classify";
 import { salutationFor } from "@/lib/profiling/salutation";
-import { discoverContact } from "@/lib/websearch/discover";
-import { stableId, contactPointDedupKey } from "@/lib/profiling/dedup";
+import { discoverContact, discoverCompany } from "@/lib/websearch/discover";
+import { stableId, companyDedupKey, contactPointDedupKey } from "@/lib/profiling/dedup";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // websearch + AI per person is slow
+export const maxDuration = 60; // websearch (person + company page fetches) + AI is slow
 
 // POST /api/profiles/enrich (doc 46) — REAL platform-side enrichment:
-//   - gender/honorific from the name (rule-based, no LinkedIn needed)
-//   - web discovery (DuckDuckGo + GitHub API) → email / phone / github / website
-//   - lead classification + 1-line summary
-// Persists onto person + person contact points. { personId } one, { all:true } bulk.
+//   person: gender/honorific (name) + web discovery (DDG reads page-1 results +
+//           GitHub) → email/phone/github/website/company + classify + summary.
+//   company (PT): the discovered/linked company is enriched too — official site,
+//           domain, email/phone, ADDRESS, social media, industry, summary.
+// { personId } one, { all:true } bulk (capped — deep websearch is slow).
 export async function POST(req: Request) {
   const guard = await requirePermission("data.write");
   if ("error" in guard) return guard.error;
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   const body = (await req.json().catch(() => ({}))) as { personId?: string; all?: boolean };
   const T = ctx.tenantId;
+
+  const cpId = (ownerType: "person" | "company", ownerId: string, channel: string, value: string) =>
+    stableId("cp", contactPointDedupKey({ tenantId: T, ownerType, ownerId, channel, value }));
 
   try {
     const { companies, targets } = await withTenant(ctx, async (tx) => {
@@ -36,27 +40,73 @@ export async function POST(req: Request) {
         : await tx
             .select()
             .from(personTable)
-            // bulk: people not yet enriched (no gender or no summary). Capped — websearch is slow.
             .where(or(isNull(personTable.gender), isNull(personTable.profileSummary)))
-            .limit(8);
+            .limit(3);
       return { companies, targets };
     });
-    const coName = new Map(companies.map((c) => [c.id, c]));
+    const coById = new Map(companies.map((c) => [c.id, c]));
 
-    const results: { id: string; emails: number; phones: number; github: boolean }[] = [];
+    const results: { id: string; emails: number; phones: number; github: boolean; company: string | null }[] = [];
     for (const p of targets) {
-      const co = p.companyId ? coName.get(p.companyId) : undefined;
+      const existingCo = p.companyId ? coById.get(p.companyId) : undefined;
       const sal = salutationFor(p.fullName);
-      const disc = await discoverContact(ctx, { fullName: p.fullName, company: co?.name ?? null, title: p.title });
+      const disc = await discoverContact(ctx, { fullName: p.fullName, company: existingCo?.name ?? null, title: p.title });
       const input: ClassifyInput = {
         fullName: p.fullName,
         title: p.title,
-        company: co?.name ?? null,
-        industry: co?.industry ?? null,
+        company: existingCo?.name ?? disc.company ?? null,
+        industry: existingCo?.industry ?? null,
         experience: (p.experience as ClassifyInput["experience"]) ?? [],
       };
       const cls = await classifyLead(ctx, input);
 
+      // ── Enrich the company (PT) the person belongs to ──────────────────────
+      const companyName = existingCo?.name ?? disc.company ?? null;
+      let companyId = p.companyId ?? null;
+      if (companyName) {
+        const dc = await discoverCompany(ctx, { name: companyName, website: disc.website ?? null });
+        if (!companyId) companyId = stableId("co", companyDedupKey({ tenantId: T, name: companyName, domain: dc.domain ?? null }));
+        await withTenant(ctx, async (tx) => {
+          await tx
+            .insert(companyTable)
+            .values({
+              id: companyId as string,
+              tenantId: T,
+              name: companyName,
+              domain: dc.domain ?? null,
+              industry: dc.industry ?? null,
+              summary: dc.summary ?? null,
+              source: "websearch",
+              sourceUrl: dc.website ?? null,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: companyTable.id,
+              set: {
+                domain: sql`coalesce(${companyTable.domain}, ${dc.domain ?? null})`,
+                industry: dc.industry ?? sql`${companyTable.industry}`,
+                summary: dc.summary ?? sql`${companyTable.summary}`,
+                sourceUrl: sql`coalesce(${companyTable.sourceUrl}, ${dc.website ?? null})`,
+                updatedAt: new Date(),
+              },
+            });
+          // Company contact points: email / phone / website / ADDRESS / socials.
+          const cps: { channel: string; value: string }[] = [];
+          for (const e of dc.emails) cps.push({ channel: "email", value: e });
+          for (const ph of dc.phones) cps.push({ channel: "phone", value: ph });
+          if (dc.website) cps.push({ channel: "website", value: dc.website });
+          if (dc.address) cps.push({ channel: "address", value: dc.address });
+          for (const [k, v] of Object.entries(dc.socials)) cps.push({ channel: k, value: v });
+          for (const pt of cps) {
+            await tx
+              .insert(contactPointTable)
+              .values({ id: cpId("company", companyId as string, pt.channel, pt.value), tenantId: T, ownerType: "company", ownerId: companyId as string, channel: pt.channel, value: pt.value, consentStatus: "unknown", source: "websearch", updatedAt: new Date() })
+              .onConflictDoNothing();
+          }
+        });
+      }
+
+      // ── Persist the person ─────────────────────────────────────────────────
       const socials: Record<string, string> = { ...((p.socials as Record<string, string>) ?? {}) };
       if (disc.github) socials.github = disc.github;
       if (disc.website) socials.website = disc.website;
@@ -69,6 +119,7 @@ export async function POST(req: Request) {
           .set({
             gender: sal.gender,
             honorific: sal.honorific,
+            ...(companyId ? { companyId } : {}),
             leadType: cls.leadType,
             leadReason: cls.reason,
             leadScore: cls.score,
@@ -86,14 +137,14 @@ export async function POST(req: Request) {
         if (disc.github) points.push({ channel: "github", value: disc.github });
         if (disc.twitter) points.push({ channel: "twitter", value: disc.twitter });
         for (const pt of points) {
-          const id = stableId("cp", contactPointDedupKey({ tenantId: T, ownerType: "person", ownerId: p.id, channel: pt.channel, value: pt.value }));
           await tx
             .insert(contactPointTable)
-            .values({ id, tenantId: T, ownerType: "person", ownerId: p.id, channel: pt.channel, value: pt.value, consentStatus: "unknown", source: "websearch", updatedAt: new Date() })
+            .values({ id: cpId("person", p.id, pt.channel, pt.value), tenantId: T, ownerType: "person", ownerId: p.id, channel: pt.channel, value: pt.value, consentStatus: "unknown", source: "websearch", updatedAt: new Date() })
             .onConflictDoNothing();
         }
       });
-      results.push({ id: p.id, emails: disc.emails.length, phones: disc.phones.length, github: !!disc.github });
+
+      results.push({ id: p.id, emails: disc.emails.length, phones: disc.phones.length, github: !!disc.github, company: companyName });
     }
 
     return NextResponse.json({ ok: true, count: results.length, results, source: "db" });
