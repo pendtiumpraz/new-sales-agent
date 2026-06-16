@@ -152,7 +152,7 @@ export function DealDetailSheet({
               <div className="rounded-xl border border-tertiary/30 bg-tertiary/5 p-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-tertiary">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Aksi terbaik (AI)
+                  Saran aksi per tahap
                 </p>
                 <p className="mt-1 text-sm">{AI_ACTION[deal.stage]}</p>
               </div>
@@ -264,7 +264,7 @@ export function DealDetailSheet({
 
               <div>
                 <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Log aktivitas
+                  Log aktivitas <span className="normal-case text-muted-foreground/60">(contoh)</span>
                 </p>
                 <ol className="space-y-3">
                   {ACTIVITY.map((a, i) => (
@@ -296,9 +296,6 @@ export function DealDetailSheet({
               >
                 <Trophy className="h-4 w-4" />
                 Tandai menang
-              </Button>
-              <Button variant="outline" className="flex-1">
-                Kirim follow-up
               </Button>
             </div>
           </>

@@ -6,7 +6,6 @@ import {
   Copy,
   Flame,
   Package,
-  Send,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -353,17 +352,6 @@ export function AiAnalysisPanel() {
                 </span>
               </>
             }
-            sub={
-              <span className="inline-flex items-center gap-1">
-                <Badge
-                  variant={insights.avgDaysInPenawaranDelta < 0 ? "success" : "warning"}
-                  className="gap-1"
-                >
-                  {insights.avgDaysInPenawaranDelta < 0 ? "−" : "+"}
-                  {Math.abs(insights.avgDaysInPenawaranDelta)} hari vs minggu lalu
-                </Badge>
-              </span>
-            }
           />
         </ul>
       </CardContent>
@@ -400,7 +388,7 @@ export function AiAnalysisPanel() {
             >
               <Sparkles className="h-3 w-3" />
               {draftSource === "real"
-                ? "Live · Deepseek-flash"
+                ? "Live · AI"
                 : draftSource === "mock"
                 ? "Demo · template"
                 : loadingDraft
@@ -458,17 +446,8 @@ export function AiAnalysisPanel() {
               <Wand2 className="h-4 w-4" />
               Generate ulang
             </Button>
-            <Button
-              disabled={loadingDraft || !draft}
-              onClick={() => {
-                toast.success(
-                  `Pesan ditambahkan ke cadence ${drafting?.segment}.`,
-                );
-                closeDraft();
-              }}
-            >
-              <Send className="h-4 w-4" />
-              Kirim ke cadence
+            <Button disabled={loadingDraft || !draft} onClick={() => closeDraft()}>
+              Selesai
             </Button>
           </DialogFooter>
         </DialogContent>

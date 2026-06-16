@@ -92,7 +92,7 @@ function LeadTypeBadge({ leadType }: { leadType?: string | null }) {
 }
 
 const CONSENT: Record<string, { cls: string; label: string }> = {
-  opted_in: { cls: "bg-success/10 text-emerald-700", label: "Opt-in" },
+  opted_in: { cls: "bg-success/10 text-success", label: "Opt-in" },
   opted_out: { cls: "bg-destructive/10 text-destructive", label: "Opt-out" },
   legitimate_interest: { cls: "bg-info/10 text-info", label: "Legit. interest" },
   unknown: { cls: "bg-muted text-muted-foreground", label: "Unknown" },

@@ -25,7 +25,7 @@ interface AutoReplyEvent {
 
 const DECISION_CLS: Record<string, string> = {
   escalated: "bg-amber-100 text-amber-700",
-  sent: "bg-success/10 text-emerald-700",
+  sent: "bg-success/10 text-success",
   dismissed: "bg-muted text-muted-foreground",
   failed: "bg-destructive/10 text-destructive",
 };

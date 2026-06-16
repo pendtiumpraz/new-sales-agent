@@ -40,7 +40,7 @@ interface SendRow {
 }
 
 const STATUS_CLS: Record<string, string> = {
-  sent: "bg-success/10 text-emerald-700",
+  sent: "bg-success/10 text-success",
   skipped: "bg-muted text-muted-foreground",
   failed: "bg-destructive/10 text-destructive",
   pending: "bg-info/10 text-info",
@@ -388,7 +388,7 @@ function WhatsAppCard() {
         <CardTitle className="flex items-center gap-2 text-base">
           <MessageCircle className="h-4 w-4 text-primary" /> WhatsApp (WAHA)
           {s?.configured && (
-            <Badge className={s.status === "WORKING" ? "bg-success/10 text-emerald-700" : "bg-muted text-muted-foreground"}>
+            <Badge className={s.status === "WORKING" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
               {s.status ?? s.error ?? "?"}
             </Badge>
           )}

@@ -63,7 +63,7 @@ const ROLE_STYLE: Record<
   },
   Admin: {
     ring: "ring-amber-400/50",
-    pill: "bg-warning/15 text-amber-700 border border-warning/30",
+    pill: "bg-warning/15 text-warning border border-warning/30",
     label: "Admin",
   },
   "Sales Manager": {
@@ -495,7 +495,7 @@ function EntryCard({
       border: "hover:border-success/40",
       grad: "from-success/10 via-success/5 to-transparent",
       iconBg: "bg-success text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.55)]",
-      badge: "bg-success/10 text-emerald-700 border-success/20",
+      badge: "bg-success/10 text-success border-success/20",
       arrow: "text-emerald-600",
     },
     blue: {

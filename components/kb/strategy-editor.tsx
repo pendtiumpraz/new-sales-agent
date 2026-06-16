@@ -104,7 +104,7 @@ export function StrategyEditor() {
                 <CardContent className="space-y-3 p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-amber-700">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
                         <Lightbulb className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">

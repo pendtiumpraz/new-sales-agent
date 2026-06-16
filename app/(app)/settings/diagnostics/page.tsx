@@ -760,7 +760,7 @@ function StatusRow({
       : tone === "tertiary"
         ? "bg-tertiary/10 text-tertiary"
         : tone === "warning"
-          ? "bg-warning/15 text-amber-700"
+          ? "bg-warning/15 text-warning"
           : "bg-muted text-muted-foreground";
   return (
     <div className="rounded-lg border p-3">

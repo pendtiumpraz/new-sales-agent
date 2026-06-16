@@ -34,7 +34,7 @@ const TRIGGER_LABEL: Record<string, string> = {
 
 const TRIGGER_STYLE: Record<string, string> = {
   sentiment: "border-primary/30 bg-primary/10 text-primary",
-  timeout: "border-warning/30 bg-warning/15 text-amber-700",
+  timeout: "border-warning/30 bg-warning/15 text-warning",
   complexity: "border-tertiary/30 bg-tertiary/10 text-tertiary",
 };
 
@@ -169,7 +169,7 @@ function HandoffSettingsPageInner() {
             <Card className="overflow-hidden border-l-4 border-l-warning">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/15 text-amber-700">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/15 text-warning">
                     <AlarmClock className="h-4 w-4" />
                   </span>
                   Batas waktu tanpa resolusi
@@ -246,7 +246,7 @@ function HandoffSettingsPageInner() {
                       const tones = [
                         "border-primary/30 bg-primary/10 text-primary",
                         "border-tertiary/30 bg-tertiary/10 text-tertiary",
-                        "border-warning/30 bg-warning/15 text-amber-700",
+                        "border-warning/30 bg-warning/15 text-warning",
                         "border-info/30 bg-info/10 text-info",
                         "border-violet-300/40 bg-violet-50 text-violet-700",
                       ];

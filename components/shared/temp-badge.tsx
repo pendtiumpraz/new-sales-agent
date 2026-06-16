@@ -3,7 +3,7 @@ import type { AiTemp } from "@/lib/types";
 
 const TEMP: Record<AiTemp, { label: string; cls: string }> = {
   panas: { label: "Panas", cls: "bg-primary/10 text-primary" },
-  hangat: { label: "Hangat", cls: "bg-warning/15 text-amber-700" },
+  hangat: { label: "Hangat", cls: "bg-warning/15 text-warning" },
   dingin: { label: "Dingin", cls: "bg-sky-500/10 text-sky-700" },
 };
 

@@ -74,7 +74,7 @@ function relTime(iso: string): string {
 }
 
 const STATUS_CLS: Record<string, string> = {
-  done: "bg-success/10 text-emerald-700",
+  done: "bg-success/10 text-success",
   pending: "bg-info/10 text-info",
   error: "bg-destructive/10 text-destructive",
 };

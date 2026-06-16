@@ -135,9 +135,9 @@ function KnowledgeBasePageInner() {
               s.tone === "primary"
                 ? "bg-primary/10 text-primary"
                 : s.tone === "warning"
-                  ? "bg-warning/15 text-amber-700"
+                  ? "bg-warning/15 text-warning"
                   : s.tone === "success"
-                    ? "bg-success/10 text-emerald-700"
+                    ? "bg-success/10 text-success"
                     : "bg-tertiary/10 text-tertiary";
             return (
               <Card key={s.label}>

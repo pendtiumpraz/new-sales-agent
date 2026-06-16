@@ -24,7 +24,7 @@ interface EnrichmentStageCardProps {
 
 const TEMP_META: Record<AiTemp, { label: string; cls: string; icon: typeof Flame }> = {
   panas: { label: "Panas", cls: "bg-primary/10 text-primary", icon: Flame },
-  hangat: { label: "Hangat", cls: "bg-warning/15 text-amber-700", icon: TrendingUp },
+  hangat: { label: "Hangat", cls: "bg-warning/15 text-warning", icon: TrendingUp },
   dingin: { label: "Dingin", cls: "bg-sky-500/10 text-sky-700", icon: Snowflake },
 };
 
