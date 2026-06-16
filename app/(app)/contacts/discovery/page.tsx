@@ -22,14 +22,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CrawlProgressDialog, type CrawlStatus } from "@/components/contacts/crawl-progress-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface Job {
   id: string;
   kind: string;
   status: string;
   posture: string;
-  result: { created?: number } | null;
+  input?: Record<string, unknown> | null;
+  result:
+    | (Record<string, unknown> & {
+        created?: number;
+        contactsCreated?: number;
+        peopleCreated?: number;
+        name?: string;
+        note?: string;
+        crawled?: { name: string; domain: string | null; contacts: number }[];
+        linkedinQueries?: string[];
+      })
+    | null;
+  error?: string | null;
   createdAt: string;
+  finishedAt?: string | null;
 }
 
 interface DiscoveryCompany {
@@ -128,6 +142,8 @@ export default function DiscoveryPage() {
     },
     onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
   });
+
+  const [detailJob, setDetailJob] = useState<Job | null>(null);
 
   // Crawl progress modal (URL tab + AI candidate-company crawl)
   const [crawlModalOpen, setCrawlModalOpen] = useState(false);
@@ -341,16 +357,23 @@ export default function DiscoveryPage() {
         </Card>
 
         <Card>
-          <CardHeader className="border-b"><CardTitle className="text-base">Antrian crawl</CardTitle></CardHeader>
+          <CardHeader className="border-b">
+            <CardTitle className="text-base">Antrian crawl</CardTitle>
+            <p className="text-[11px] text-muted-foreground">Semua job jalan langsung di server (tanpa cron). Klik baris untuk detail.</p>
+          </CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y">
               {(jobs.data ?? []).map((j) => (
-                <li key={j.id} className="flex items-center gap-3 p-3 text-sm">
-                  <Badge variant="muted">{j.kind}</Badge>
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    posture {j.posture}{j.result?.created != null ? ` · ${j.result.created} dibuat` : ""}
-                  </span>
-                  <Badge className={STATUS_CLS[j.status] ?? ""}>{j.status}</Badge>
+                <li key={j.id}>
+                  <button onClick={() => setDetailJob(j)} className="flex w-full items-center gap-3 p-3 text-left text-sm transition-colors hover:bg-accent">
+                    <Badge variant="muted">{j.kind}</Badge>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                      posture {j.posture}
+                      {typeof j.result?.created === "number" ? ` · ${j.result.created} dibuat` : ""}
+                      {typeof j.result?.contactsCreated === "number" ? ` · ${j.result.contactsCreated} kontak` : ""}
+                    </span>
+                    <Badge className={STATUS_CLS[j.status] ?? ""}>{j.status}</Badge>
+                  </button>
                 </li>
               ))}
               {(jobs.data?.length ?? 0) === 0 && !jobs.isLoading && (
@@ -360,6 +383,78 @@ export default function DiscoveryPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Job detail */}
+      <Dialog open={!!detailJob} onOpenChange={(v) => !v && setDetailJob(null)}>
+        <DialogContent className="max-h-[80vh] overflow-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Badge variant="muted">{detailJob?.kind}</Badge>
+              <Badge className={STATUS_CLS[detailJob?.status ?? ""] ?? ""}>{detailJob?.status}</Badge>
+            </DialogTitle>
+            <DialogDescription>
+              Mulai {detailJob ? new Date(detailJob.createdAt).toLocaleString("id-ID") : ""}
+              {detailJob?.finishedAt ? ` · selesai ${new Date(detailJob.finishedAt).toLocaleString("id-ID")}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {detailJob && (
+            <div className="space-y-3 text-sm">
+              {detailJob.input && Object.keys(detailJob.input).length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Input</p>
+                  <pre className="overflow-auto rounded bg-muted p-2 text-[11px]">{JSON.stringify(detailJob.input, null, 2)}</pre>
+                </div>
+              )}
+              {detailJob.result?.note && (
+                <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs">{detailJob.result.note}</p>
+              )}
+              {(typeof detailJob.result?.contactsCreated === "number" || typeof detailJob.result?.created === "number") && (
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    ["Perusahaan", detailJob.result?.created],
+                    ["Kontak", detailJob.result?.contactsCreated],
+                    ["Orang", detailJob.result?.peopleCreated],
+                  ].map(([label, val]) =>
+                    typeof val === "number" ? (
+                      <div key={label as string} className="rounded-md border p-2 text-center">
+                        <p className="text-lg font-semibold">{val as number}</p>
+                        <p className="text-[10px] text-muted-foreground">{label as string}</p>
+                      </div>
+                    ) : null,
+                  )}
+                </div>
+              )}
+              {detailJob.result?.crawled && detailJob.result.crawled.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Perusahaan di-crawl</p>
+                  <ul className="space-y-1">
+                    {detailJob.result.crawled.map((c, i) => (
+                      <li key={i} className="flex items-center justify-between rounded border px-2 py-1 text-xs">
+                        <span className="truncate">{c.name}{c.domain ? ` · ${c.domain}` : ""}</span>
+                        <b>{c.contacts} kontak</b>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {detailJob.result?.linkedinQueries && detailJob.result.linkedinQueries.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Query LinkedIn (pakai extension)</p>
+                  <div className="space-y-1">
+                    {detailJob.result.linkedinQueries.map((q) => (
+                      <div key={q} className="flex items-center gap-2 rounded border px-2 py-1 text-xs">
+                        <span className="min-w-0 flex-1 truncate">{q}</span>
+                        <a href={linkedinSearchUrl(q)} target="_blank" rel="noreferrer" className="text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" /></a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detailJob.error && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{detailJob.error}</p>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <CrawlProgressDialog
         open={crawlModalOpen}

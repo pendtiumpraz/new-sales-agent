@@ -3,21 +3,23 @@ import { desc } from "drizzle-orm";
 import { z } from "zod";
 
 import { hasDb } from "@/lib/db/client";
-import { withTenant } from "@/lib/db/tenant-context";
+import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { crawlJobTable, companyTable, contactPointTable, personTable } from "@/lib/db/schema";
+import { crawlJobTable, companyTable, contactPointTable, personTable, productTable } from "@/lib/db/schema";
 import { companyDedupKey, contactPointDedupKey, personDedupKey, stableId } from "@/lib/profiling/dedup";
 import { crawlWebsite } from "@/lib/crawl/web";
 import { hunterConfigured, hunterDomainSearch } from "@/lib/crawl/hunter";
+import { planDiscovery } from "@/lib/discovery/plan";
 import { recordAudit } from "@/lib/compliance/audit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Discovery entry-points (doc 21). The URL kind does a REAL server-side crawl of
-// the target site (homepage + /contact + /about) and writes the company + its
-// real contact points (emails/phones/socials). bulk creates company shells from
-// names. industry/auto still need the MCP server / extension (Fase 6).
+// Discovery entry-points (doc 21/40). Everything runs SYNCHRONOUSLY in this
+// request — there is NO background cron/worker. url crawls one site; bulk makes
+// company shells; industry/auto use the AI planner to pick candidate companies
+// then crawl the top few. So a job is "done" by the time the POST returns
+// (pending only ever appears transiently / on error).
 const Body = z.object({
   kind: z.enum(["bulk", "url", "industry", "auto"]),
   names: z.array(z.string().min(1)).optional(),
@@ -25,6 +27,148 @@ const Body = z.object({
   industry: z.string().optional(),
   posture: z.enum(["compliant", "balanced", "aggressive"]).default("compliant"),
 });
+
+interface CrawlOutcome {
+  name: string;
+  domain: string | null;
+  contactsCreated: number;
+  peopleCreated: number;
+  emails: number;
+  phones: number;
+  socials: number;
+  pagesTried: number;
+}
+
+// Crawl one website + persist the company, its contact points, and (if Hunter is
+// configured) its people. Returns a summary. Shared by the url + industry/auto paths.
+async function crawlAndPersist(ctx: TenantContext, url: string, posture: string): Promise<CrawlOutcome> {
+  const crawl = await crawlWebsite(url);
+  const coName = crawl.name || crawl.domain || url;
+  const coId = stableId("co", companyDedupKey({ tenantId: ctx.tenantId, name: coName, domain: crawl.domain }));
+  const socialsMap = Object.fromEntries(Object.entries(crawl.socials).filter(([, v]) => Boolean(v))) as Record<string, string>;
+
+  const cps = [
+    ...crawl.emails.map((v) => ({ channel: "email", value: v })),
+    ...crawl.phones.map((v) => ({ channel: /^(\+?62|0)/.test(v) ? "whatsapp" : "phone", value: v })),
+    ...(crawl.socials.linkedin ? [{ channel: "linkedin", value: crawl.socials.linkedin }] : []),
+    ...(crawl.socials.instagram ? [{ channel: "instagram", value: crawl.socials.instagram }] : []),
+  ];
+
+  let contactsCreated = 0;
+  await withTenant(ctx, async (tx) => {
+    await tx
+      .insert(companyTable)
+      .values({
+        id: coId,
+        tenantId: ctx.tenantId,
+        name: coName,
+        domain: crawl.domain,
+        summary: crawl.description,
+        socials: socialsMap,
+        source: "crawl:web",
+        sourceUrl: crawl.url,
+        capturedAt: new Date(),
+        capturedMode: posture,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: companyTable.id,
+        set: { name: coName, domain: crawl.domain, summary: crawl.description, socials: socialsMap, sourceUrl: crawl.url, updatedAt: new Date() },
+      });
+
+    for (const cp of cps) {
+      await tx
+        .insert(contactPointTable)
+        .values({
+          id: stableId("cp", contactPointDedupKey({ tenantId: ctx.tenantId, ownerType: "company", ownerId: coId, channel: cp.channel, value: cp.value })),
+          tenantId: ctx.tenantId,
+          ownerType: "company",
+          ownerId: coId,
+          channel: cp.channel,
+          value: cp.value,
+          source: "crawl:web",
+          sourceUrl: crawl.url,
+          capturedAt: new Date(),
+          capturedMode: posture,
+          consentStatus: "unknown",
+          updatedAt: new Date(),
+        })
+        .onConflictDoNothing();
+      contactsCreated++;
+    }
+  });
+
+  // Real PEOPLE per company via Hunter.io, if configured.
+  let peopleCreated = 0;
+  if (hunterConfigured() && crawl.domain) {
+    try {
+      const h = await hunterDomainSearch(crawl.domain);
+      await withTenant(ctx, async (tx) => {
+        for (const p of h.people) {
+          const fullName = [p.firstName, p.lastName].filter(Boolean).join(" ").trim() || p.email;
+          const personId = stableId("pe", personDedupKey({ tenantId: ctx.tenantId, companyId: coId, fullName }));
+          await tx
+            .insert(personTable)
+            .values({
+              id: personId,
+              tenantId: ctx.tenantId,
+              companyId: coId,
+              fullName,
+              title: p.position,
+              department: p.department,
+              seniority: p.seniority,
+              socials: p.linkedin ? { linkedin: p.linkedin } : {},
+              source: "hunter",
+              sourceUrl: `https://${crawl.domain}`,
+              capturedAt: new Date(),
+              capturedMode: posture,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({ target: personTable.id, set: { title: p.position, department: p.department, updatedAt: new Date() } });
+          peopleCreated++;
+
+          const pcps = [
+            { channel: "email", value: p.email },
+            ...(p.phone ? [{ channel: "whatsapp", value: p.phone }] : []),
+            ...(p.linkedin ? [{ channel: "linkedin", value: p.linkedin }] : []),
+          ];
+          for (const cp of pcps) {
+            await tx
+              .insert(contactPointTable)
+              .values({
+                id: stableId("cp", contactPointDedupKey({ tenantId: ctx.tenantId, ownerType: "person", ownerId: personId, channel: cp.channel, value: cp.value })),
+                tenantId: ctx.tenantId,
+                ownerType: "person",
+                ownerId: personId,
+                channel: cp.channel,
+                value: cp.value,
+                source: "hunter",
+                sourceUrl: `https://${crawl.domain}`,
+                capturedAt: new Date(),
+                consentStatus: "unknown",
+                updatedAt: new Date(),
+              })
+              .onConflictDoNothing();
+            contactsCreated++;
+          }
+        }
+      });
+    } catch (e) {
+      console.error("[discovery hunter]", e);
+    }
+  }
+
+  return {
+    name: coName,
+    domain: crawl.domain,
+    contactsCreated,
+    peopleCreated,
+    emails: crawl.emails.length,
+    phones: crawl.phones.length,
+    socials: Object.keys(socialsMap).length,
+    pagesTried: crawl.pagesTried.length,
+  };
+}
 
 export async function GET() {
   const guard = await requirePermission("data.read");
@@ -57,6 +201,7 @@ export async function POST(req: Request) {
     let contactsCreated = 0;
     let peopleCreated = 0;
     let status = "pending";
+    const error: string | null = null;
     const input: Record<string, unknown> = { kind: b.kind };
     let result: Record<string, unknown> | null = null;
 
@@ -80,179 +225,62 @@ export async function POST(req: Request) {
         }
       });
       status = "done";
-      result = { created };
+      result = { created, note: `${created} perusahaan dibuat sebagai shell — crawl URL-nya untuk dapat kontak.` };
     } else if (b.kind === "url" && b.url) {
       input.url = b.url;
-      // REAL crawl (network I/O outside the tx).
-      const crawl = await crawlWebsite(b.url);
-      const coName = crawl.name || crawl.domain || b.url;
-      const coId = stableId(
-        "co",
-        companyDedupKey({ tenantId: ctx.tenantId, name: coName, domain: crawl.domain }),
-      );
-      const socialsMap = Object.fromEntries(
-        Object.entries(crawl.socials).filter(([, v]) => Boolean(v)),
-      ) as Record<string, string>;
-
-      // Build real contact points from what the site exposed.
-      const cps = [
-        ...crawl.emails.map((v) => ({ channel: "email", value: v })),
-        ...crawl.phones.map((v) => ({ channel: /^(\+?62|0)/.test(v) ? "whatsapp" : "phone", value: v })),
-        ...(crawl.socials.linkedin ? [{ channel: "linkedin", value: crawl.socials.linkedin }] : []),
-        ...(crawl.socials.instagram ? [{ channel: "instagram", value: crawl.socials.instagram }] : []),
-      ];
-
-      await withTenant(ctx, async (tx) => {
-        await tx
-          .insert(companyTable)
-          .values({
-            id: coId,
-            tenantId: ctx.tenantId,
-            name: coName,
-            domain: crawl.domain,
-            summary: crawl.description,
-            socials: socialsMap,
-            source: "crawl:web",
-            sourceUrl: crawl.url,
-            capturedAt: new Date(),
-            capturedMode: b.posture,
-            updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: companyTable.id,
-            set: {
-              name: coName,
-              domain: crawl.domain,
-              summary: crawl.description,
-              socials: socialsMap,
-              sourceUrl: crawl.url,
-              updatedAt: new Date(),
-            },
-          });
-        created = 1;
-
-        for (const cp of cps) {
-          await tx
-            .insert(contactPointTable)
-            .values({
-              id: stableId(
-                "cp",
-                contactPointDedupKey({
-                  tenantId: ctx.tenantId,
-                  ownerType: "company",
-                  ownerId: coId,
-                  channel: cp.channel,
-                  value: cp.value,
-                }),
-              ),
-              tenantId: ctx.tenantId,
-              ownerType: "company",
-              ownerId: coId,
-              channel: cp.channel,
-              value: cp.value,
-              source: "crawl:web",
-              sourceUrl: crawl.url,
-              capturedAt: new Date(),
-              capturedMode: b.posture,
-              consentStatus: "unknown",
-              updatedAt: new Date(),
-            })
-            .onConflictDoNothing();
-          contactsCreated++;
-        }
-      });
-
-      // Real PEOPLE per company via Hunter.io (name + position + email), if
-      // configured. This is the human-contact layer the website crawl can't get.
-      if (hunterConfigured() && crawl.domain) {
-        try {
-          const h = await hunterDomainSearch(crawl.domain);
-          await withTenant(ctx, async (tx) => {
-            for (const p of h.people) {
-              const fullName = [p.firstName, p.lastName].filter(Boolean).join(" ").trim() || p.email;
-              const personId = stableId(
-                "pe",
-                personDedupKey({ tenantId: ctx.tenantId, companyId: coId, fullName }),
-              );
-              await tx
-                .insert(personTable)
-                .values({
-                  id: personId,
-                  tenantId: ctx.tenantId,
-                  companyId: coId,
-                  fullName,
-                  title: p.position,
-                  department: p.department,
-                  seniority: p.seniority,
-                  socials: p.linkedin ? { linkedin: p.linkedin } : {},
-                  source: "hunter",
-                  sourceUrl: `https://${crawl.domain}`,
-                  capturedAt: new Date(),
-                  capturedMode: b.posture,
-                  updatedAt: new Date(),
-                })
-                .onConflictDoUpdate({
-                  target: personTable.id,
-                  set: { title: p.position, department: p.department, updatedAt: new Date() },
-                });
-              peopleCreated++;
-
-              const pcps = [
-                { channel: "email", value: p.email },
-                ...(p.phone ? [{ channel: "whatsapp", value: p.phone }] : []),
-                ...(p.linkedin ? [{ channel: "linkedin", value: p.linkedin }] : []),
-              ];
-              for (const cp of pcps) {
-                await tx
-                  .insert(contactPointTable)
-                  .values({
-                    id: stableId(
-                      "cp",
-                      contactPointDedupKey({
-                        tenantId: ctx.tenantId,
-                        ownerType: "person",
-                        ownerId: personId,
-                        channel: cp.channel,
-                        value: cp.value,
-                      }),
-                    ),
-                    tenantId: ctx.tenantId,
-                    ownerType: "person",
-                    ownerId: personId,
-                    channel: cp.channel,
-                    value: cp.value,
-                    source: "hunter",
-                    sourceUrl: `https://${crawl.domain}`,
-                    capturedAt: new Date(),
-                    consentStatus: "unknown",
-                    updatedAt: new Date(),
-                  })
-                  .onConflictDoNothing();
-                contactsCreated++;
-              }
-            }
-          });
-        } catch (e) {
-          console.error("[discovery hunter]", e);
-        }
-      }
-
+      const r = await crawlAndPersist(ctx, b.url, b.posture);
+      created = 1;
+      contactsCreated = r.contactsCreated;
+      peopleCreated = r.peopleCreated;
       status = "done";
-      result = {
-        created,
-        contactsCreated,
-        peopleCreated,
-        name: coName,
-        domain: crawl.domain,
-        emails: crawl.emails.length,
-        phones: crawl.phones.length,
-        socials: Object.keys(socialsMap).length,
-        pagesTried: crawl.pagesTried.length,
-        hunter: hunterConfigured(),
-      };
+      result = { created, contactsCreated, peopleCreated, name: r.name, domain: r.domain, emails: r.emails, phones: r.phones, socials: r.socials, pagesTried: r.pagesTried, hunter: hunterConfigured() };
     } else {
-      // industry / auto — still need the MCP server / extension (Fase 6).
-      if (b.industry) input.industry = b.industry;
+      // industry / auto — AI planner picks candidate companies, then we crawl the
+      // top few SYNCHRONOUSLY (no cron). auto derives the field from the tenant's
+      // product if no industry was given.
+      let field = b.industry?.trim() || "";
+      if (b.kind === "auto" && !field) {
+        const products = await withTenant(ctx, (tx) =>
+          tx.select({ name: productTable.name, category: productTable.category }).from(productTable).limit(1),
+        );
+        field = products[0]?.category || products[0]?.name || "";
+      }
+      input.industry = field;
+
+      if (!field) {
+        status = "done";
+        result = { note: "Belum ada produk/target. Set produk di Pengaturan, atau isi tab Bidang / AI Orang." };
+      } else {
+        const plan = await planDiscovery(ctx, { field, location: "Indonesia" });
+        const domains = plan.companies.map((c) => c.domainGuess).filter((d): d is string => Boolean(d)).slice(0, 3);
+        const crawled: { name: string; domain: string | null; contacts: number }[] = [];
+        for (const d of domains) {
+          try {
+            const r = await crawlAndPersist(ctx, d.startsWith("http") ? d : `https://${d}`, b.posture);
+            created++;
+            contactsCreated += r.contactsCreated;
+            peopleCreated += r.peopleCreated;
+            crawled.push({ name: r.name, domain: r.domain, contacts: r.contactsCreated });
+          } catch (e) {
+            console.error("[discovery plan-crawl]", d, e);
+          }
+        }
+        status = "done";
+        result = {
+          field,
+          created,
+          contactsCreated,
+          peopleCreated,
+          plannedCompanies: plan.companies.length,
+          crawled,
+          linkedinQueries: plan.linkedinQueries,
+          roles: plan.roles,
+          note:
+            domains.length === 0
+              ? "AI tak menebak domain yang bisa di-crawl — pakai query LinkedIn (extension) di hasil ini."
+              : `${created} perusahaan di-crawl dari ${plan.companies.length} kandidat. Lanjut query LinkedIn di extension untuk orangnya.`,
+        };
+      }
     }
 
     await withTenant(ctx, (tx) =>
@@ -264,6 +292,7 @@ export async function POST(req: Request) {
         posture: b.posture,
         status,
         result,
+        error,
         finishedAt: status === "done" ? new Date() : null,
       }),
     );
