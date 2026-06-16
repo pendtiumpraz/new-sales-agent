@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Copy, Download, Globe, Puzzle } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { WaConnectCard } from "@/components/wa/wa-connect-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -279,6 +280,9 @@ export default function ExtensionPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* WhatsApp — connect by QR (doc 41) */}
+        <WaConnectCard />
 
         {/* Config to paste */}
         <Card>

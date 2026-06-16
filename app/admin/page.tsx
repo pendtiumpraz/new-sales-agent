@@ -10,6 +10,7 @@ import { ArrowLeft, CalendarClock, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { WaModeToggle } from "@/components/admin/wa-mode-toggle";
 import {
   Dialog,
   DialogContent,
@@ -178,6 +179,9 @@ export default function AdminConsole() {
             </div>
           ))}
         </div>
+
+        {/* WhatsApp mode (doc 41) */}
+        <WaModeToggle />
 
         {/* Tenants */}
         <div className="overflow-hidden rounded-xl border bg-card">

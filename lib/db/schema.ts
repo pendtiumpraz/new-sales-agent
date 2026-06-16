@@ -486,6 +486,41 @@ export const extensionConnectionTable = pgTable("extension_connection", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Platform-level settings (doc 41) — superadmin-managed key/value, e.g.
+// wa_mode (per_sales | per_platform), deployment_mode (saas | on_prem).
+export const platformSettingTable = pgTable("platform_setting", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// WhatsApp session per owner (doc 41) — a rep (per_sales) or the tenant
+// (per_platform). The gateway (Baileys/openclaw on a VPS, outbound-only) relays
+// its QR + status here; the browser polls. No domain needed on the gateway.
+export const waSessionTable = pgTable("wa_session", {
+  id: text("id").primaryKey(),                      // sessionId — "rep:<userId>" or "platform:<tenantId>"
+  tenantId: text("tenant_id").notNull(),
+  ownerType: text("owner_type").notNull(),          // rep | platform
+  ownerId: text("owner_id").notNull(),              // userId or tenantId
+  status: text("status").notNull().default("idle"), // idle | pending | qr | connected | disconnected
+  qr: text("qr"),                                   // latest QR string (cleared once connected)
+  waNumber: text("wa_number"),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ tenantIdx: index("wa_session_tenant_idx").on(t.tenantId) }));
+
+// Outbound queue the gateway POLLS (start_session | send | logout) — so the VPS
+// needs zero inbound/domain; it pulls work + acks done.
+export const waOutboxTable = pgTable("wa_outbox", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  sessionId: text("session_id").notNull(),
+  action: text("action").notNull(),                 // start_session | send | logout
+  payload: jsonb("payload").$type<Record<string, unknown>>(),
+  status: text("status").notNull().default("pending"), // pending | done
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ pendingIdx: index("wa_outbox_pending_idx").on(t.status) }));
+
 // Per-sales account (doc 41 §4) — each rep registers their LinkedIn/IG and gets
 // their OWN ingest token. Leads crawled with that token auto-assign to the rep
 // (attribution). last_seen_at is the rep's extension heartbeat.

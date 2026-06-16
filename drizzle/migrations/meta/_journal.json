@@ -127,6 +127,13 @@
       "when": 1781592309683,
       "tag": "0017_rep_account",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781593999040,
+      "tag": "0018_wa_session_outbox_settings",
+      "breakpoints": true
     }
   ]
 }
