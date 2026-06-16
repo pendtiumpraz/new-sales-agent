@@ -5,9 +5,10 @@ import { z } from "zod";
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { crawlJobTable, companyTable, contactPointTable } from "@/lib/db/schema";
-import { companyDedupKey, contactPointDedupKey, stableId } from "@/lib/profiling/dedup";
+import { crawlJobTable, companyTable, contactPointTable, personTable } from "@/lib/db/schema";
+import { companyDedupKey, contactPointDedupKey, personDedupKey, stableId } from "@/lib/profiling/dedup";
 import { crawlWebsite } from "@/lib/crawl/web";
+import { hunterConfigured, hunterDomainSearch } from "@/lib/crawl/hunter";
 import { recordAudit } from "@/lib/compliance/audit";
 
 export const runtime = "nodejs";
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
   try {
     let created = 0;
     let contactsCreated = 0;
+    let peopleCreated = 0;
     let status = "pending";
     const input: Record<string, unknown> = { kind: b.kind };
     let result: Record<string, unknown> | null = null;
@@ -159,16 +161,94 @@ export async function POST(req: Request) {
           contactsCreated++;
         }
       });
+
+      // Real PEOPLE per company via Hunter.io (name + position + email), if
+      // configured. This is the human-contact layer the website crawl can't get.
+      if (hunterConfigured() && crawl.domain) {
+        try {
+          const h = await hunterDomainSearch(crawl.domain);
+          await withTenant(ctx, async (tx) => {
+            for (const p of h.people) {
+              const fullName = [p.firstName, p.lastName].filter(Boolean).join(" ").trim() || p.email;
+              const personId = stableId(
+                "pe",
+                personDedupKey({ tenantId: ctx.tenantId, companyId: coId, fullName }),
+              );
+              await tx
+                .insert(personTable)
+                .values({
+                  id: personId,
+                  tenantId: ctx.tenantId,
+                  companyId: coId,
+                  fullName,
+                  title: p.position,
+                  department: p.department,
+                  seniority: p.seniority,
+                  socials: p.linkedin ? { linkedin: p.linkedin } : {},
+                  source: "hunter",
+                  sourceUrl: `https://${crawl.domain}`,
+                  capturedAt: new Date(),
+                  capturedMode: b.posture,
+                  updatedAt: new Date(),
+                })
+                .onConflictDoUpdate({
+                  target: personTable.id,
+                  set: { title: p.position, department: p.department, updatedAt: new Date() },
+                });
+              peopleCreated++;
+
+              const pcps = [
+                { channel: "email", value: p.email },
+                ...(p.phone ? [{ channel: "whatsapp", value: p.phone }] : []),
+                ...(p.linkedin ? [{ channel: "linkedin", value: p.linkedin }] : []),
+              ];
+              for (const cp of pcps) {
+                await tx
+                  .insert(contactPointTable)
+                  .values({
+                    id: stableId(
+                      "cp",
+                      contactPointDedupKey({
+                        tenantId: ctx.tenantId,
+                        ownerType: "person",
+                        ownerId: personId,
+                        channel: cp.channel,
+                        value: cp.value,
+                      }),
+                    ),
+                    tenantId: ctx.tenantId,
+                    ownerType: "person",
+                    ownerId: personId,
+                    channel: cp.channel,
+                    value: cp.value,
+                    source: "hunter",
+                    sourceUrl: `https://${crawl.domain}`,
+                    capturedAt: new Date(),
+                    consentStatus: "unknown",
+                    updatedAt: new Date(),
+                  })
+                  .onConflictDoNothing();
+                contactsCreated++;
+              }
+            }
+          });
+        } catch (e) {
+          console.error("[discovery hunter]", e);
+        }
+      }
+
       status = "done";
       result = {
         created,
         contactsCreated,
+        peopleCreated,
         name: coName,
         domain: crawl.domain,
         emails: crawl.emails.length,
         phones: crawl.phones.length,
         socials: Object.keys(socialsMap).length,
         pagesTried: crawl.pagesTried.length,
+        hunter: hunterConfigured(),
       };
     } else {
       // industry / auto — still need the MCP server / extension (Fase 6).
@@ -188,8 +268,8 @@ export async function POST(req: Request) {
       }),
     );
 
-    await recordAudit(ctx, "discovery.start", b.kind, { posture: b.posture, created, contactsCreated });
-    return NextResponse.json({ ok: true, jobId, status, created, contactsCreated, result });
+    await recordAudit(ctx, "discovery.start", b.kind, { posture: b.posture, created, contactsCreated, peopleCreated });
+    return NextResponse.json({ ok: true, jobId, status, created, contactsCreated, peopleCreated, result });
   } catch (err) {
     console.error("[api/discovery POST]", err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });

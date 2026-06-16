@@ -66,15 +66,17 @@ export default function DiscoveryPage() {
         status: string;
         created: number;
         contactsCreated?: number;
-        result?: { emails?: number; phones?: number; socials?: number; name?: string } | null;
+        peopleCreated?: number;
+        result?: { emails?: number; phones?: number; socials?: number; name?: string; hunter?: boolean } | null;
       };
     },
     onSuccess: (j) => {
       if (j.status !== "done") {
         toast.success("Job antri (menunggu crawler)");
-      } else if ((j.contactsCreated ?? 0) > 0) {
+      } else if ((j.contactsCreated ?? 0) > 0 || (j.peopleCreated ?? 0) > 0) {
+        const ppl = (j.peopleCreated ?? 0) > 0 ? `, ${j.peopleCreated} orang (Hunter)` : "";
         toast.success(
-          `Crawl selesai — ${j.result?.name ?? "perusahaan"}: ${j.contactsCreated} kontak (${j.result?.emails ?? 0} email, ${j.result?.phones ?? 0} telp, ${j.result?.socials ?? 0} sosmed)`,
+          `Crawl selesai — ${j.result?.name ?? "perusahaan"}: ${j.contactsCreated ?? 0} kontak (${j.result?.emails ?? 0} email, ${j.result?.phones ?? 0} telp)${ppl}`,
         );
       } else {
         toast.success(`Selesai — ${j.created} perusahaan dibuat`);
