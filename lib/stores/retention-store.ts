@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 import {
   seedCandidates,
@@ -44,7 +45,9 @@ interface RetentionState {
 
 const now = () => new Date().toISOString();
 
-export const useRetentionStore = create<RetentionState>((set) => ({
+export const useRetentionStore = create<RetentionState>()(
+  persist(
+    (set) => ({
   flows: seedFlows.map((f) => ({ ...f, steps: f.steps.map((s) => ({ ...s })) })),
   candidates: seedCandidates.map((c) => ({ ...c })),
   kpi: { ...seedKpi },
@@ -140,7 +143,14 @@ export const useRetentionStore = create<RetentionState>((set) => ({
       candidates: seedCandidates.map((c) => ({ ...c })),
       kpi: { ...seedKpi },
     })),
-}));
+    }),
+    {
+      name: "maira-retention-v1",
+      // only persist data, not the action fns
+      partialize: (s) => ({ flows: s.flows, candidates: s.candidates, kpi: s.kpi }),
+    },
+  ),
+);
 
 /** Convenience labels for type badges (Bahasa Indonesia). */
 export const FLOW_TYPE_LABEL: Record<
