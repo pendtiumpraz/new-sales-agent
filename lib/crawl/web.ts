@@ -25,7 +25,7 @@ function normalizeUrl(raw: string): string {
   return u.replace(/\/+$/, "");
 }
 
-async function fetchHtml(url: string, timeoutMs = 10000): Promise<string | null> {
+async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -131,8 +131,11 @@ function extract(html: string): Partial<CrawlResult> {
   };
 }
 
-/** Crawl a company website: homepage + common contact/about paths. */
-export async function crawlWebsite(rawUrl: string): Promise<CrawlResult> {
+/** Crawl a company website: homepage + common contact/about paths.
+ *  budgetMs caps the TOTAL time so it always returns within a serverless function
+ *  window (Vercel Hobby ~10s / Pro 60s) — returns partial results before timeout
+ *  instead of letting the whole function 504. */
+export async function crawlWebsite(rawUrl: string, budgetMs = 12000): Promise<CrawlResult> {
   const url = normalizeUrl(rawUrl);
   const domain = normalizeDomain(url);
   const result: CrawlResult = {
@@ -147,9 +150,12 @@ export async function crawlWebsite(rawUrl: string): Promise<CrawlResult> {
   };
   if (!url) return result;
 
-  const paths = ["", "/contact", "/contact-us", "/kontak", "/about", "/about-us", "/tentang-kami"];
+  const deadline = Date.now() + budgetMs;
+  const paths = ["", "/contact", "/kontak", "/about", "/tentang-kami", "/contact-us"];
   for (const p of paths) {
-    const html = await fetchHtml(url + p);
+    if (Date.now() > deadline) break; // stay inside the serverless budget
+    const remaining = deadline - Date.now();
+    const html = await fetchHtml(url + p, Math.min(7000, Math.max(2000, remaining)));
     if (!html) continue;
     result.pagesTried.push(url + p);
     const ex = extract(html);
