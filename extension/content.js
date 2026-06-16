@@ -130,7 +130,11 @@ function scrapePeople() {
     let location = "";
     const summaryLines = [];
     if (card) {
-      const lines = Array.from(card.querySelectorAll('span[aria-hidden="true"], .t-14, .t-12, p, [class*="subtitle"], [class*="summary"]'))
+      // The "mutual connections" block is a <p> whose names are <a> links; the real
+      // jabatan is a plain <p><span>AI Engineer</span></p> with NO anchor inside. So
+      // skip any node that contains an <a> — that drops the mutual + linked-name rows.
+      const lines = Array.from(card.querySelectorAll('p, span[aria-hidden="true"], .t-14, .t-12, [class*="subtitle"], [class*="summary"]'))
+        .filter((n) => !n.querySelector("a"))
         .map((n) => clean(n.textContent))
         .filter((t) => t && t !== fullName && !NAME_NOISE.test(t));
       // de-dupe consecutive repeats
