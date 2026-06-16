@@ -27,6 +27,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ArchitectureDiagram } from "@/components/docs/architecture-diagram";
 
 interface DocEntry {
   title: string;
@@ -322,6 +323,9 @@ export default function DocumentationPage() {
         description="Panduan fitur Maira Sales — cara pakai tiap modul, langkah demi langkah."
       />
       <div className="space-y-6 p-6">
+        {/* High-level architecture — roles, isolation, flow, marketplace (doc 41) */}
+        <ArchitectureDiagram />
+
         {/* Search + section jump */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-sm">

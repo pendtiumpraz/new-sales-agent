@@ -113,6 +113,13 @@
       "when": 1781587022313,
       "tag": "0015_extension_connection",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1781591145743,
+      "tag": "0016_person_assigned_to",
+      "breakpoints": true
     }
   ]
 }
