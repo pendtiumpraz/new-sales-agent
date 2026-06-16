@@ -9,6 +9,8 @@ import { AlertTriangle, Briefcase, Building2, Handshake, MapPin, Radar, Sparkles
 
 import { PageHeader } from "@/components/layout/page-header";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
+import { DataTable, type Column } from "@/components/profiles/data-table";
+import { ProfileDetailSheet } from "@/components/profiles/profile-detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -272,6 +274,38 @@ export default function ProfilesPage() {
     },
   });
 
+  const [selected, setSelected] = useState<{ kind: "person" | "company"; data: PersonRow | CompanyRow } | null>(null);
+  const openEnrich = (id: string) => { setClassifyingId(id); enrich.mutate({ personId: id }); };
+
+  const peopleRows = (people.data?.data ?? [])
+    .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
+    .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId);
+
+  const peopleCols: Column<PersonRow>[] = [
+    { key: "fullName", label: "Nama", sortable: true, sortValue: (p) => p.fullName, render: (p) => (
+      <span><span className="font-medium">{p.fullName}</span>{p.honorific ? <span className="ml-1 text-[10px] text-muted-foreground">({p.honorific})</span> : null}</span>
+    ) },
+    { key: "title", label: "Jabatan", sortable: true, sortValue: (p) => p.title ?? "", render: (p) => p.title ?? "—" },
+    { key: "companyName", label: "Perusahaan", sortable: true, sortValue: (p) => p.companyName ?? "", render: (p) => p.companyName ?? "—" },
+    { key: "leadType", label: "Tipe", sortable: true, sortValue: (p) => p.leadType ?? "", render: (p) => <LeadTypeBadge leadType={p.leadType} /> },
+    { key: "location", label: "Lokasi", sortable: true, sortValue: (p) => p.location ?? "", render: (p) => p.location ?? "—" },
+    { key: "contacts", label: "Kontak", sortValue: (p) => p.contacts.length, render: (p) => (p.contacts.length ? `${p.contacts.length}` : "—") },
+    { key: "source", label: "Sumber", sortValue: (p) => p.source ?? "", render: (p) => { const s = sourceBucket(p.source); return s ? <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", s.cls)}>{s.label}</span> : "—"; } },
+    { key: "assign", label: "Sales", render: (p) => (
+      <select onClick={(e) => e.stopPropagation()} value={p.assignedTo ?? ""} onChange={(e) => assign.mutate({ personId: p.id, assignedTo: e.target.value || null })} className="rounded border bg-background px-1 py-0.5 text-[11px]">
+        <option value="">—</option>
+        {(membersQ.data ?? []).map((m) => (<option key={m.userId} value={m.userId}>{m.name}</option>))}
+      </select>
+    ) },
+  ];
+  const companyCols: Column<CompanyRow>[] = [
+    { key: "name", label: "Nama", sortable: true, sortValue: (c) => c.name, render: (c) => <span className="font-medium">{c.name}</span> },
+    { key: "industry", label: "Industri", sortable: true, sortValue: (c) => c.industry ?? "", render: (c) => c.industry ?? "—" },
+    { key: "domain", label: "Domain", sortValue: (c) => c.domain ?? "", render: (c) => c.domain ?? "—" },
+    { key: "peopleCount", label: "Orang", sortable: true, align: "right", sortValue: (c) => c.peopleCount, render: (c) => String(c.peopleCount) },
+    { key: "contacts", label: "Kontak", sortValue: (c) => c.contacts.length, render: (c) => (c.contacts.length ? `${c.contacts.length}` : "—") },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -315,40 +349,12 @@ export default function ProfilesPage() {
                 }
               />
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
-                {companies.data?.data.map((c) => (
-                  <Card key={c.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-semibold">{c.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {[c.industry, c.domain].filter(Boolean).join(" · ")}
-                          </p>
-                        </div>
-                        <Badge variant="muted" className="shrink-0 gap-1">
-                          <Users className="h-3 w-3" />
-                          {c.peopleCount} orang
-                        </Badge>
-                      </div>
-                      {c.summary && (
-                        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{c.summary}</p>
-                      )}
-                      {c.contacts.length > 0 && (
-                        <div className="mt-3 space-y-1.5 border-t pt-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Kontak perusahaan
-                          </p>
-                          {c.contacts.map((cp) => (
-                            <ContactRow key={cp.id} cp={cp} />
-                          ))}
-                        </div>
-                      )}
-                      <Provenance source={c.source} mode={c.capturedMode} />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <DataTable
+                columns={companyCols}
+                rows={companies.data?.data ?? []}
+                getRowId={(c) => c.id}
+                onRowClick={(c) => setSelected({ kind: "company", data: c })}
+              />
             )}
           </TabsContent>
 
@@ -410,129 +416,25 @@ export default function ProfilesPage() {
                     {classifyingId === "__all__" && enrich.isPending ? "Mencari di web…" : "Cari kontak & profil (web)"}
                   </Button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {people.data?.data
-                    .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
-                    .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId)
-                    .map((p) => {
-                    const stale = staleInfo(p.capturedAt);
-                    const src = sourceBucket(p.source);
-                    return (
-                      <Card key={p.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-semibold">{p.fullName}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {[p.title, p.companyName].filter(Boolean).join(" · ")}
-                              </p>
-                              {(p.honorific || p.gender) && (
-                                <span className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                  {p.honorific ? `Sapaan: ${p.honorific}` : p.gender === "male" ? "Pria" : p.gender === "female" ? "Wanita" : ""}
-                                </span>
-                              )}
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 shrink-0 px-2 text-xs"
-                              onClick={() => {
-                                setClassifyingId(p.id);
-                                enrich.mutate({ personId: p.id });
-                              }}
-                              disabled={enrich.isPending && classifyingId === p.id}
-                              title="Cari email/HP/GitHub + gender + klasifikasi via websearch"
-                            >
-                              <Sparkles className="h-3.5 w-3.5" />
-                              {classifyingId === p.id && enrich.isPending ? "…" : "Enrich"}
-                            </Button>
-                          </div>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            <LeadTypeBadge leadType={p.leadType} />
-                            {src && (
-                              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", src.cls)}>{src.label}</span>
-                            )}
-                            {stale.stale && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                                <AlertTriangle className="h-3 w-3" /> {stale.label}
-                              </span>
-                            )}
-                          </div>
-                          {p.leadReason && <p className="mt-1.5 text-[11px] italic text-muted-foreground">“{p.leadReason}”</p>}
-
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                            {p.department && <span>{p.department}</span>}
-                            {p.location && (
-                              <span className="inline-flex items-center gap-0.5">
-                                <MapPin className="h-3 w-3" />
-                                {p.location}
-                              </span>
-                            )}
-                            <span className="inline-flex items-center gap-1">
-                              <UserCircle2 className="h-3 w-3" />
-                              <select
-                                value={p.assignedTo ?? ""}
-                                onChange={(e) => assign.mutate({ personId: p.id, assignedTo: e.target.value || null })}
-                                className="rounded border bg-background px-1 py-0.5 text-[11px] text-foreground"
-                                title="Assign lead ke sales"
-                              >
-                                <option value="">Belum di-assign</option>
-                                {(membersQ.data ?? []).length === 0 && <option disabled>(belum ada anggota tim)</option>}
-                                {(membersQ.data ?? []).map((m) => (
-                                  <option key={m.userId} value={m.userId}>
-                                    {m.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </span>
-                            {workspaceId && (
-                              <button
-                                onClick={() =>
-                                  tagWorkspace.mutate({ personId: p.id, workspaceId: p.workspaceId === workspaceId ? null : workspaceId })
-                                }
-                                disabled={tagWorkspace.isPending}
-                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] hover:bg-accent"
-                                title="Tambah/keluarkan dari workspace ini"
-                              >
-                                <Briefcase className="h-3 w-3" />
-                                {p.workspaceId === workspaceId ? "Di workspace ✓" : "+ workspace"}
-                              </button>
-                            )}
-                          </div>
-                          {(p.linkedinUrl || (p.socials && Object.keys(p.socials).length > 0) || p.profileSummary) && (
-                            <div className="mt-2 space-y-1.5">
-                              {p.profileSummary && <p className="text-[11px] text-muted-foreground">{p.profileSummary}</p>}
-                              <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                                {p.linkedinUrl && <a href={p.linkedinUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">LinkedIn ↗</a>}
-                                {p.socials?.github && <a href={p.socials.github} target="_blank" rel="noreferrer" className="text-primary hover:underline">GitHub ↗</a>}
-                                {p.socials?.website && <a href={p.socials.website} target="_blank" rel="noreferrer" className="text-primary hover:underline">Web ↗</a>}
-                                {p.socials?.twitter && <a href={p.socials.twitter} target="_blank" rel="noreferrer" className="text-primary hover:underline">X ↗</a>}
-                                {p.socials?.instagram && <a href={p.socials.instagram} target="_blank" rel="noreferrer" className="text-primary hover:underline">IG ↗</a>}
-                              </div>
-                            </div>
-                          )}
-                          {p.contacts.length > 0 && (
-                            <div className="mt-3 space-y-1.5 border-t pt-3">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Kontak orang
-                              </p>
-                              {p.contacts.map((cp) => (
-                                <ContactRow key={cp.id} cp={cp} />
-                              ))}
-                            </div>
-                          )}
-                          <Provenance source={p.source} mode={p.capturedMode} />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                <DataTable
+                  columns={peopleCols}
+                  rows={peopleRows}
+                  getRowId={(p) => p.id}
+                  onRowClick={(p) => setSelected({ kind: "person", data: p })}
+                />
               </>
             )}
           </TabsContent>
         </Tabs>
       </div>
+      <ProfileDetailSheet
+        kind={selected?.kind ?? null}
+        data={selected?.data ?? null}
+        open={!!selected}
+        onOpenChange={(o) => { if (!o) setSelected(null); }}
+        onEnrich={openEnrich}
+        enriching={enrich.isPending}
+      />
     </div>
   );
 }
