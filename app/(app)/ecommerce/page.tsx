@@ -62,7 +62,7 @@ export default function EcommercePage() {
   return (
     <div>
       <PageHeader
-        title="E-commerce"
+        title="E-Commerce"
         description="Pesanan dari Tokopedia, Shopee, dan TikTok Shop dalam satu tempat."
       />
 

@@ -47,7 +47,7 @@ export default function RetentionPage() {
   return (
     <div>
       <PageHeader
-        title="Retensi & After-Sales"
+        title="Retensi & Purna-Jual"
         description="Alur otomatis untuk pesanan berulang, upsell, dan tindak lanjut pasca-pembelian."
       >
         <Badge

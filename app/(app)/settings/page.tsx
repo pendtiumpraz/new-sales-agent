@@ -232,7 +232,7 @@ export default function SettingsPage() {
                   <EntryCard
                     href="/settings/handoff"
                     icon={Sparkles}
-                    title="Handoff ke Manusia"
+                    title="Alihkan ke Manusia"
                     description="Atur kapan AI menyerahkan percakapan ke agen."
                     tone="teal"
                     badge="Otomasi"
@@ -256,7 +256,7 @@ export default function SettingsPage() {
                   <EntryCard
                     href="/settings/mailboxes"
                     icon={Mail}
-                    title="Mailbox & Outreach"
+                    title="Email & Jangkauan"
                     description="Connect mailbox SMTP, kirim email dari identitas sendiri, suppression & unsubscribe."
                     tone="blue"
                     badge="Kirim"

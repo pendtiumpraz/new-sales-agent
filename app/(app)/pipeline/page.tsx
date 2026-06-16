@@ -49,7 +49,7 @@ export default function PipelinePage() {
   return (
     <div>
       <PageHeader
-        title="Data Enrichment"
+        title="Riset Prospek"
         description="Data prospek yang diperkaya AI — siapa yang masih aktif, siapa yang berhenti, dan langkah berikutnya."
       >
         <Button

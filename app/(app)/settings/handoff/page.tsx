@@ -67,7 +67,7 @@ function HandoffSettingsPageInner() {
   return (
     <div>
       <PageHeader
-        title="Handoff ke Manusia"
+        title="Alihkan ke Manusia"
         description="Atur kapan AI harus mengalihkan percakapan ke agen manusia."
       >
         <Button variant="outline" asChild>

@@ -154,7 +154,7 @@ const CATEGORIES: DocCategory[] = [
         keywords: "inbox pesan whatsapp email balas percakapan",
       },
       {
-        title: "Mailbox & Outreach",
+        title: "Email & Jangkauan",
         icon: Mail,
         href: "/settings/mailboxes",
         summary: "Hubungkan email pengirim Anda sendiri: SMTP app-password, OAuth Gmail/Outlook, atau email platform (ESP). Plus kirim WhatsApp via WAHA.",

@@ -164,7 +164,7 @@ export default function MailboxesPage() {
   return (
     <div>
       <PageHeader
-        title="Mailbox & Outreach"
+        title="Email & Jangkauan"
         description="Kirim email dari identitas pengirim sendiri (SMTP), dengan suppression & unsubscribe (doc 23/25)."
       />
       <div className="max-w-3xl space-y-4 p-6">
