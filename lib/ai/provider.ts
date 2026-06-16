@@ -18,15 +18,14 @@
 
 import { deepseek } from "@ai-sdk/deepseek";
 
-/** Chat surface — multi-turn assistant. Deepseek V3 (general-purpose). */
-export const DEEPSEEK_MODEL_CHAT = deepseek("deepseek-chat");
+/** Chat surface — multi-turn assistant. DeepSeek V4 Pro (general-purpose). */
+export const DEEPSEEK_MODEL_CHAT = deepseek("deepseek-v4-pro");
 
-/** One-shot drafts + autopilot text — latency-sensitive. Same as chat (no
- *  "flash" variant exists in the direct API; V3 is already fast enough). */
-export const DEEPSEEK_MODEL_FAST = deepseek("deepseek-chat");
+/** One-shot drafts + autopilot text — latency-sensitive. DeepSeek V4 Flash. */
+export const DEEPSEEK_MODEL_FAST = deepseek("deepseek-v4-flash");
 
-/** Analysis tasks — uses R1 reasoner for deep chain-of-thought. Slower (~5-15s)
- *  but better grounded for KB synthesis and per-segment insights. */
+/** Analysis tasks — R1 reasoner for deep chain-of-thought. Slower (~5-15s) but
+ *  better grounded for KB synthesis and per-segment insights. */
 export const DEEPSEEK_MODEL_REASONING = deepseek("deepseek-reasoner");
 
 // ── Backward-compat aliases ─────────────────────────────────────────────────
