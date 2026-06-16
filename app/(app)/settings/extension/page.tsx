@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, Download, Globe, Puzzle } from "lucide-react";
@@ -83,6 +83,29 @@ export default function ExtensionPage() {
   });
   const st = statusQ.data;
 
+  // Layer 2 — is the extension installed in THIS browser? Handshake with the
+  // extension's detect.js content script (doc 40). Independent of the token /
+  // server heartbeat: tells us "terpasang" even before "terhubung".
+  const [browserExt, setBrowserExt] = useState<{ installed: boolean; version?: string }>({ installed: false });
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      if (e.source !== window) return;
+      const d = e.data as { source?: string; type?: string; version?: string } | null;
+      if (d && d.source === "maira-ext" && (d.type === "PONG" || d.type === "HELLO")) {
+        setBrowserExt({ installed: true, version: d.version });
+      }
+    }
+    window.addEventListener("message", onMsg);
+    // ping a few times — the content script may load just after the page
+    const pings = [0, 400, 1200].map((ms) =>
+      setTimeout(() => window.postMessage({ source: "maira-app", type: "PING" }, "*"), ms),
+    );
+    return () => {
+      window.removeEventListener("message", onMsg);
+      pings.forEach(clearTimeout);
+    };
+  }, []);
+
   return (
     <div>
       <PageHeader
@@ -122,6 +145,21 @@ export default function ExtensionPage() {
               </>
             )}
           </div>
+        </div>
+
+        {/* Layer 2 — installed in this browser (client handshake) */}
+        <div className="-mt-2 flex items-center gap-2 px-1 text-xs">
+          <Puzzle className={"h-3.5 w-3.5 " + (browserExt.installed ? "text-emerald-600" : "text-slate-400")} />
+          {browserExt.installed ? (
+            <span className="text-emerald-700">
+              Extension terpasang di browser ini{browserExt.version ? ` (v${browserExt.version})` : ""}.
+              {!st?.connected && " Tinggal isi token & klik Hubungkan di popup."}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              Tidak terdeteksi di browser ini — pasang dari tombol di bawah, atau Anda sedang di browser/komputer lain.
+            </span>
+          )}
         </div>
 
         {/* Download */}

@@ -33,6 +33,10 @@ lalu klik **"🔌 Hubungkan & tes koneksi"**. Ini ping `/api/extension/heartbeat
 menandai **"Terhubung"** di *Pengaturan → Extension*. Extension juga heartbeat tiap 5 menit,
 jadi status hidup/mati terdeteksi otomatis.
 
+**Dua lapis deteksi:** (1) **Terpasang di browser ini** — `detect.js` menjawab handshake
+`postMessage` dari halaman app (tahu extension ada walau token belum diisi); (2)
+**Terhubung** — heartbeat server (bukti token valid + benar kirim ke workspace ini).
+
 ### Pasang
 1. `chrome://extensions` → **Developer mode** → **Load unpacked** → pilih folder `extension/`.
 2. Login ke **linkedin.com** di tab yang sama.
