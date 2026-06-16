@@ -50,6 +50,13 @@
       "when": 1781542950166,
       "tag": "0006_cadence_step_run",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781570486019,
+      "tag": "0007_stripe_subscription_cols",
+      "breakpoints": true
     }
   ]
 }

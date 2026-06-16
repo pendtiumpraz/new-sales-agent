@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 
-import { hasDb } from "@/lib/db/client";
+import { db, hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { getTenantContext } from "@/lib/auth/session-context";
 import {
@@ -11,6 +11,7 @@ import {
   sendJobTable,
   membershipsTable,
 } from "@/lib/db/schema";
+import { configuredPlanKeys, stripeConfigured } from "@/lib/billing/stripe";
 
 export const runtime = "nodejs";
 
@@ -36,9 +37,18 @@ export async function GET() {
 
     const aiTokens = data.usage.reduce((n, u) => n + u.tokensIn + u.tokensOut, 0);
     const quotas = (data.plan?.quotas ?? {}) as Record<string, number>;
+
+    // Plan catalog (global table, no RLS) + Stripe wiring flags for the upgrade UI.
+    const allPlans = await db
+      .select({ key: planTable.key, name: planTable.name, priceMonthIdr: planTable.priceMonthIdr })
+      .from(planTable)
+      .orderBy(planTable.priceMonthIdr);
+    const purchasable = configuredPlanKeys();
+
     return NextResponse.json({
       source: "db",
       plan: data.plan ? { name: data.plan.name, priceMonthIdr: data.plan.priceMonthIdr, quotas } : null,
+      currentPlanKey: data.plan?.key ?? null,
       seats: data.sub?.seats ?? null,
       status: data.sub?.status ?? null,
       usage: {
@@ -48,6 +58,12 @@ export async function GET() {
         emailsQuota: quotas.emails ?? null,
         members: data.members.length,
         seatsQuota: quotas.seats ?? data.sub?.seats ?? null,
+      },
+      billing: {
+        stripeConfigured: stripeConfigured(),
+        hasStripeSubscription: Boolean(data.sub?.stripeCustomerId),
+        purchasablePlanKeys: purchasable,
+        plans: allPlans,
       },
     });
   } catch (err) {

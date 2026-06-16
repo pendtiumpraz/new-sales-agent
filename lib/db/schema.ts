@@ -492,6 +492,11 @@ export const subscriptionTable = pgTable("subscription", {
   planId: text("plan_id").notNull(),
   status: text("status").notNull().default("active"),  // active | past_due | canceled
   seats: integer("seats").notNull().default(5),
+  // Stripe linkage (doc 30) — set by the checkout/webhook flow; null until a
+  // tenant actually subscribes through Stripe. Lets the webhook find the row and
+  // the billing portal open for the right customer.
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({
   tenantUq: uniqueIndex("subscription_tenant_uq").on(t.tenantId),
