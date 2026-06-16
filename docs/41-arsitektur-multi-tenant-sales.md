@@ -52,12 +52,15 @@ Menjual data pribadi (nama/email/HP individu) antar-perusahaan tanpa dasar hukum
 | Isolasi antar-tenant | ✅ ada |
 | `person.assigned_to` (kolom) | ✅ migrasi 0016 |
 | Diagram arsitektur in-app | ✅ Dokumentasi |
-| Isolasi antar-sales (enforce di query) | 🔜 |
-| Halaman Monitoring Sales (manajer) | 🔜 |
-| Assign lead → sales (UI) | 🔜 |
-| Token ingest per-sales + daftar akun LinkedIn/IG | 🔜 |
-| Marketplace (publish/browse/beli) + gate SaaS/on-prem | 🔜 |
-| Consent-gate + DSAR lintas pool | 🔜 |
+| Isolasi antar-sales (enforce di query) | ✅ /api/db/people scoped per role |
+| Halaman Monitoring Sales (manajer) | ✅ /team |
+| Assign lead → sales (UI) | ✅ Profil → Orang |
+| Token ingest per-sales + daftar akun LinkedIn/IG | ✅ rep_account + Settings → Extension |
+| WhatsApp per-sales/per-platform (QR) + gateway | ✅ doc 42 + gateway/ |
+| Superadmin user management + ganti password | ✅ Superadmin Console + Tim |
+| Marketplace (publish/browse/beli) + gate SaaS/on-prem | ✅ /marketplace + deployment_mode |
+| Consent-gate person listing | ✅ opt-in/legitimate-interest only |
+| DSAR/opt-out lintas pool | 🔜 |
 
 ## 9. Urutan build disarankan
 1. **Fondasi monitoring + isolasi**: enforce `assigned_to` di read query (member vs manajer) + halaman Monitoring + assign UI.
