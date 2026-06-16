@@ -15,6 +15,7 @@ import {
   Megaphone,
   Menu,
   PanelLeft,
+  Puzzle,
   Rocket,
   Search,
   Settings,
@@ -103,6 +104,14 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/reports", icon: BarChart3, label: "Laporan", desc: "Performa & analitik" },
       { href: "/documentation", icon: BookOpen, label: "Panduan", desc: "Cara pakai tiap fitur, langkah demi langkah" },
+    ],
+  },
+  {
+    label: "Pengaturan",
+    items: [
+      { href: "/settings/ai", icon: Bot, label: "AI & Model", desc: "Ganti provider & model AI aktif, BYOK, pemakaian token" },
+      { href: "/settings/extension", icon: Puzzle, label: "Extension LinkedIn", desc: "Unduh, hubungkan, & status collector" },
+      { href: "/settings", icon: Settings, label: "Pengaturan", desc: "Akun, tim, mailbox, billing, kepatuhan" },
     ],
   },
 ];

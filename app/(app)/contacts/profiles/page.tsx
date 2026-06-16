@@ -170,20 +170,7 @@ export default function ProfilesPage() {
       <PageHeader
         title="Profil"
         description="Profiling terpisah — Perusahaan vs Orang — dengan provenance & status consent (doc 20)."
-      >
-        <Link
-          href="/contacts/map"
-          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
-        >
-          <MapPin className="h-4 w-4" /> Peta sebaran
-        </Link>
-        <Link
-          href="/contacts/discovery"
-          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
-        >
-          <Building2 className="h-4 w-4" /> Discovery
-        </Link>
-      </PageHeader>
+      />
       <div className="p-6">
         <Tabs defaultValue="perusahaan">
           <TabsList>

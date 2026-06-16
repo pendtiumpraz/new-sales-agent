@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CrawlProgressDialog, type CrawlStatus } from "@/components/contacts/crawl-progress-dialog";
 
 interface Job {
   id: string;
@@ -128,6 +129,27 @@ export default function DiscoveryPage() {
     onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
   });
 
+  // Crawl progress modal (URL tab + AI candidate-company crawl)
+  const [crawlModalOpen, setCrawlModalOpen] = useState(false);
+  const [crawlTarget, setCrawlTarget] = useState("");
+  const startCrawl = (rawUrl: string) => {
+    const u = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    setCrawlTarget(u);
+    setCrawlModalOpen(true);
+    run.mutate({ kind: "url", url: u });
+  };
+  const crawlStatus: CrawlStatus = run.isPending ? "pending" : run.isError ? "error" : run.isSuccess ? "success" : "idle";
+  const crawlResult = run.data
+    ? {
+        name: run.data.result?.name,
+        emails: run.data.result?.emails,
+        phones: run.data.result?.phones,
+        socials: run.data.result?.socials,
+        contacts: run.data.contactsCreated,
+        people: run.data.peopleCreated,
+      }
+    : null;
+
   const PostureSelect = (
     <div className="space-y-1">
       <Label className="text-xs">Posture</Label>
@@ -227,7 +249,7 @@ export default function DiscoveryPage() {
                               </div>
                               {c.domainGuess && (
                                 <Button size="sm" variant="outline" className="h-7 shrink-0 text-xs" disabled={run.isPending}
-                                  onClick={() => run.mutate({ kind: "url", url: c.domainGuess!.startsWith("http") ? c.domainGuess! : `https://${c.domainGuess}` })}>
+                                  onClick={() => startCrawl(c.domainGuess!)}>
                                   <Radar className="h-3.5 w-3.5" /> Crawl
                                 </Button>
                               )}
@@ -292,7 +314,7 @@ export default function DiscoveryPage() {
                   <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.perusahaan.co.id" />
                 </div>
                 {PostureSelect}
-                <Button disabled={!url.trim() || run.isPending} onClick={() => run.mutate({ kind: "url", url })}>
+                <Button disabled={!url.trim() || run.isPending} onClick={() => startCrawl(url)}>
                   {run.isPending ? "Crawling…" : "Crawl sekarang"}
                 </Button>
                 <p className="text-[11px] text-muted-foreground">
@@ -338,6 +360,15 @@ export default function DiscoveryPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CrawlProgressDialog
+        open={crawlModalOpen}
+        onOpenChange={setCrawlModalOpen}
+        status={crawlStatus}
+        target={crawlTarget}
+        result={crawlResult}
+        error={run.error instanceof Error ? run.error.message : null}
+      />
     </div>
   );
 }
