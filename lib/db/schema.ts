@@ -37,6 +37,53 @@ export const dealsTable = pgTable("deals", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Penawaran / quote (doc 45) — quote-to-cash starts here. AI-composed, sent via the
+// existing mail queue (sendingAccount), tracked through a public token page
+// (/q/<token>): opened → viewed, accepted/rejected updates the linked deal.
+export interface QuoteItem {
+  desc: string;
+  qty: number;
+  unitPrice: number;
+}
+export const quoteTable = pgTable("quote", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  number: text("number").notNull(),                             // human ref, e.g. PNW-2026-0001
+  ownerUserId: text("owner_user_id"),                           // the sales rep who owns it
+  dealId: text("deal_id"),                                      // taut ke pipeline
+  personId: text("person_id"),
+  contactId: text("contact_id"),
+  workspaceId: text("workspace_id"),                            // doc 44 scope
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  customerCompany: text("customer_company"),
+  title: text("title").notNull(),
+  currency: text("currency").notNull().default("IDR"),
+  items: jsonb("items").$type<QuoteItem[]>().notNull().default([]),
+  subtotal: real("subtotal").notNull().default(0),
+  taxRate: real("tax_rate").notNull().default(0),               // e.g. 0.11 (PPN)
+  taxAmount: real("tax_amount").notNull().default(0),
+  total: real("total").notNull().default(0),
+  validUntil: text("valid_until"),                             // ISO date string
+  notes: text("notes"),                                        // syarat & ketentuan
+  coverSubject: text("cover_subject"),
+  coverBody: text("cover_body"),                               // plain-text email pengantar (doc 43)
+  status: text("status").notNull().default("draft"),          // draft|sent|viewed|accepted|rejected|expired
+  publicToken: text("public_token").notNull(),
+  sendingAccountId: text("sending_account_id"),
+  toEmail: text("to_email"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("quote_tenant_idx").on(t.tenantId),
+  tokenIdx: uniqueIndex("quote_token_idx").on(t.publicToken),
+  dealIdx: index("quote_deal_idx").on(t.tenantId, t.dealId),
+}));
+
 export const contactsTable = pgTable("contacts", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill

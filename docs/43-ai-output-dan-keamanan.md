@@ -38,3 +38,5 @@ Karena hasil internet paling rawan injection + halusinasi:
 | `SAFETY_RULES` + `wrapUntrusted` (anti-injection) | 🔜 lib/ai/safety.ts |
 | Websearch: untrusted-wrap + verifikasi pass-2 (platform) | 🔜 |
 | Extension DeepSeek: JSON-only + untrusted-wrap + verifikasi | 🔜 |
+| Extension enrich (analyzeProfile): JSON-only + untrusted-wrap + stripMd | ✅ extension/background.js |
+| Penawaran/quote AI (compose): JSON-only + untrusted-wrap + injection-scan + stripMarkdown; email klien plain-text | ✅ lib/quotes/store.ts |
