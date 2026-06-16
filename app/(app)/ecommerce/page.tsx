@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Plug, ShoppingCart } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -46,6 +47,7 @@ const CONNECTED: Record<Marketplace, boolean> = {
 };
 
 export default function EcommercePage() {
+  const router = useRouter();
   const { data: orders, isLoading } = useOrders();
   const [recover, setRecover] = useState<Order | null>(null);
   const [connState, setConnState] = useState(CONNECTED);
@@ -210,7 +212,7 @@ export default function EcommercePage() {
                   ))}
               {!isLoading && (orders ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
                     Belum ada pesanan.
                   </TableCell>
                 </TableRow>
@@ -229,7 +231,9 @@ export default function EcommercePage() {
               Pulihkan keranjang via WhatsApp
             </DialogTitle>
             <DialogDescription>
-              Draf pesan otomatis untuk {recover?.customer}.
+              Draf pesan otomatis untuk {recover?.customer}. Mode demo — pesan
+              belum benar-benar terkirim; buka percakapan di Inbox untuk
+              mengirim.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg p-3 text-sm leading-relaxed" style={{ backgroundColor: "#D9FDD3" }}>
@@ -246,11 +250,12 @@ export default function EcommercePage() {
               className="bg-channel-wa text-white hover:opacity-90"
               onClick={() => {
                 if (recover) setRecovered((s) => new Set(s).add(recover.id));
-                toast.success(`Pesan pemulihan dikirim ke ${recover?.customer}.`);
+                toast.success(`Draf disiapkan untuk ${recover?.customer}. Membuka Inbox…`);
                 setRecover(null);
+                router.push("/inbox?channel=whatsapp");
               }}
             >
-              Kirim WhatsApp
+              Buka di Inbox
             </Button>
           </DialogFooter>
         </DialogContent>

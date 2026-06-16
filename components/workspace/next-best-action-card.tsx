@@ -13,12 +13,14 @@ import {
   StickyNote,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IDRAmount } from "@/components/shared/idr-amount";
 import { useHandoffStore } from "@/lib/stores/handoff-store";
 import { useKbStore } from "@/lib/stores/kb-store";
+import { useRetentionStore } from "@/lib/stores/retention-store";
 import { usePipelineStore } from "@/lib/stores/pipeline-store";
 import { getSentiment } from "@/lib/api-mock/handoff";
 import { channelMeta } from "@/lib/utils/channel-config";
@@ -94,6 +96,8 @@ export function NextBestActionCard({
   const kb = useKbStore((s) => s.kb);
   const handoffStates = useHandoffStore((s) => s.states);
   const takeOver = useHandoffStore((s) => s.takeOver);
+  const enrollCandidate = useRetentionStore((s) => s.enrollCandidate);
+  const router = useRouter();
 
   const analysis = useMemo(
     () => (deal ? analyses.find((a) => a.dealId === deal.id) ?? null : null),
@@ -151,6 +155,23 @@ export function NextBestActionCard({
   // ── Compose actions ────────────────────────────────────────────────────
   const actions: Action[] = useMemo(() => {
     const list: Action[] = [];
+    // Reach out on the recommended channel: WhatsApp → wa.me, email → mailto,
+    // else open the inbox thread. Real deep-links, not a fake toast (doc 45).
+    const reachOut = (message: string) => {
+      const ch = contact.channelPreference;
+      if (ch === "whatsapp" && contact.phone) {
+        window.open(`https://wa.me/${contact.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+        toast.success(`Membuka WhatsApp untuk ${contact.name}.`);
+        return;
+      }
+      if (ch === "email" && contact.email) {
+        window.open(`mailto:${contact.email}?body=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+        toast.success(`Membuka draf email untuk ${contact.name}.`);
+        return;
+      }
+      router.push(conversationId ? `/inbox/${conversationId}` : "/inbox");
+      toast.info(`Lanjutkan di inbox — pesan ${channelLabel} disiapkan.`);
+    };
     const negative = sentiment ? sentiment.score < 0 : false;
     const positive = sentiment ? sentiment.score > 30 : false;
     const stage = deal?.stage;
@@ -196,9 +217,7 @@ export function NextBestActionCard({
         confidence: "panas",
         cta: "Kirim WA",
         onClick: () => {
-          toast.success(
-            `Pesan penawaran ${topProduct.name} disiapkan via ${channelLabel}.`,
-          );
+          reachOut(`Halo ${contact.name}, saya ingin menawarkan ${topProduct.name}${priceCopy}.`);
         },
       });
     }
@@ -213,9 +232,8 @@ export function NextBestActionCard({
         confidence: "hangat",
         cta: "Daftarkan",
         onClick: () => {
-          toast.success(
-            `${contact.name} didaftarkan ke alur "${retentionFlow.name}".`,
-          );
+          enrollCandidate(contact.id);
+          toast.success(`${contact.name} didaftarkan ke alur "${retentionFlow.name}".`);
         },
       });
     }
@@ -230,9 +248,8 @@ export function NextBestActionCard({
         confidence: analysis.daysInStage > 14 ? "panas" : "hangat",
         cta: "Tambah ke cadence",
         onClick: () => {
-          toast.success(
-            `${contact.name} ditambahkan ke cadence "Demo to Close".`,
-          );
+          router.push("/cadences");
+          toast.info(`Pilih cadence untuk mendaftarkan ${contact.name}.`);
         },
       });
     }
@@ -248,9 +265,7 @@ export function NextBestActionCard({
         confidence: "hangat",
         cta: "Kirim sapaan",
         onClick: () => {
-          toast.success(
-            `Pesan pembuka untuk ${contact.name} disiapkan via ${channelLabel}.`,
-          );
+          reachOut(`Halo ${contact.name}, boleh saya tanya beberapa hal singkat soal kebutuhan Anda?`);
         },
       });
     }
@@ -265,7 +280,7 @@ export function NextBestActionCard({
         confidence: "dingin",
         cta: "Catat",
         onClick: () => {
-          toast.success("Catatan AI tersimpan di linimasa kontak.");
+          toast.info("Mode demo — pencatatan ke linimasa CRM belum tersambung backend.");
         },
       });
     }
@@ -274,12 +289,18 @@ export function NextBestActionCard({
   }, [
     analysis,
     channelLabel,
+    contact.id,
     contact.name,
+    contact.phone,
+    contact.email,
+    contact.channelPreference,
     conversationId,
     deal?.stage,
+    enrollCandidate,
     handedOff,
     kbPriceTier,
     retentionFlow,
+    router,
     sentiment,
     takeOver,
     topProduct,

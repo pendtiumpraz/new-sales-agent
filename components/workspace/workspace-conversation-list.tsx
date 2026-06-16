@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { MessageCircle, Plus } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -108,9 +109,11 @@ export function WorkspaceConversationList({
             Mulai percakapan via {channelMeta(contact.channelPreference).label}
             .
           </p>
-          <Button size="sm" variant="outline" className="mt-1 h-7 text-xs">
-            <Plus className="h-3 w-3" />
-            Mulai percakapan
+          <Button asChild size="sm" variant="outline" className="mt-1 h-7 text-xs">
+            <Link href="/inbox">
+              <Plus className="h-3 w-3" />
+              Mulai percakapan
+            </Link>
           </Button>
         </Card>
       ) : (
