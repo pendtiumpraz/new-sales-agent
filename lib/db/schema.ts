@@ -505,6 +505,16 @@ export const marketplaceListingTable = pgTable("marketplace_listing", {
   statusIdx: index("marketplace_status_idx").on(t.status),
 }));
 
+// Cross-pool opt-out / DSAR registry (doc 41 §7) — a platform-wide do-not-contact
+// list keyed by contact value (email/phone). Honored by EVERY tenant: blocks
+// re-listing + flags acquired copies as opted_out, regardless of which tenant.
+export const poolOptOutTable = pgTable("pool_optout", {
+  value: text("value").primaryKey(),               // normalized email/phone
+  channel: text("channel"),                        // email | phone | whatsapp
+  reason: text("reason").notNull().default("opt_out"), // opt_out | dsar_erasure
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 // Platform-level settings (doc 41) — superadmin-managed key/value, e.g.
 // wa_mode (per_sales | per_platform), deployment_mode (saas | on_prem).
 export const platformSettingTable = pgTable("platform_setting", {

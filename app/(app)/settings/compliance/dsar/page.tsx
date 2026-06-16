@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PoolOptOutCard } from "@/components/compliance/pool-optout-card";
 import { can, type Role } from "@/lib/rbac/permissions";
 
 interface AuditRow {
@@ -115,6 +116,7 @@ export default function DsarPage() {
     <div>
       <PageHeader title="DSAR & Audit" description="Akses/hapus data subjek + retensi + jejak audit (UU PDP/GDPR, doc 25)." />
       <div className="max-w-3xl space-y-4 p-6">
+        {canPurge && <PoolOptOutCard />}
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="text-base">DSAR — Data Subject Request</CardTitle>

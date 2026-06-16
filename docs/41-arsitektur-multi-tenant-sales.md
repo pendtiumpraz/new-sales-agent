@@ -60,7 +60,7 @@ Menjual data pribadi (nama/email/HP individu) antar-perusahaan tanpa dasar hukum
 | Superadmin user management + ganti password | ✅ Superadmin Console + Tim |
 | Marketplace (publish/browse/beli) + gate SaaS/on-prem | ✅ /marketplace + deployment_mode |
 | Consent-gate person listing | ✅ opt-in/legitimate-interest only |
-| DSAR/opt-out lintas pool | 🔜 |
+| DSAR/opt-out lintas pool | ✅ pool_optout — flag kontak semua tenant + delist + blokir re-listing |
 
 ## 9. Urutan build disarankan
 1. **Fondasi monitoring + isolasi**: enforce `assigned_to` di read query (member vs manajer) + halaman Monitoring + assign UI.

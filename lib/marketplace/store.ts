@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { marketplaceListingTable, companyTable, personTable, contactPointTable } from "@/lib/db/schema";
 import { stableId, companyDedupKey, personDedupKey, contactPointDedupKey } from "@/lib/profiling/dedup";
 import { SHAREABLE_CONSENT } from "@/lib/platform/settings";
+import { filterOptedOut } from "@/lib/compliance/pool-optout";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 // Cross-tenant marketplace store (doc 41 §6). Cross-tenant reads use the raw
@@ -62,6 +63,11 @@ export async function publish(
     const consent = cps.find((c) => SHAREABLE_CONSENT.includes(c.consentStatus ?? ""));
     if (!consent) {
       throw new MarketplaceError("no_consent", "Data orang hanya bisa dijual jika ada consent (opt-in/legitimate interest)");
+    }
+    // Cross-pool opt-out/DSAR (doc 41 §7): never re-list someone who opted out.
+    const optedOut = await filterOptedOut(cps.map((c) => c.value));
+    if (optedOut.size) {
+      throw new MarketplaceError("opted_out", "Orang ini sudah opt-out/DSAR — tidak boleh dijual di pool");
     }
     consentStatus = consent.consentStatus;
     title = pe.fullName;

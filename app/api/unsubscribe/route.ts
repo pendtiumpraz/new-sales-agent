@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { hasDb } from "@/lib/db/client";
 import { addSuppression } from "@/lib/mail/suppression";
+import { recordPoolOptOut } from "@/lib/compliance/pool-optout";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ export async function POST(req: Request) {
     }
     if (!hasDb()) return NextResponse.json({ ok: true, source: "mock" });
     await addSuppression({ tenantId: b.tenant, userId: "unsubscribe", role: "member" }, b.email, "opt_out");
+    // Propagate cross-pool (doc 41 §7): honored by every tenant + delists listings.
+    await recordPoolOptOut(b.email, "email", "opt_out");
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[api/unsubscribe POST]", err);

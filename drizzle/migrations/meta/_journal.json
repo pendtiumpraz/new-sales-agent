@@ -141,6 +141,13 @@
       "when": 1781596371204,
       "tag": "0019_marketplace_listing",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781596928944,
+      "tag": "0020_pool_optout",
+      "breakpoints": true
     }
   ]
 }
