@@ -149,6 +149,27 @@ export const cadenceStepRunTable = pgTable("cadence_step_run", {
   enrollmentIdx: index("cadence_step_run_enrollment_idx").on(t.tenantId, t.enrollmentId),
 }));
 
+// Autonomous engagement loop (doc 35) — one row per upsell/close action the
+// engine takes, for idempotency (don't re-upsell the same contact+product within
+// the dedup window) + reporting. Tenant-scoped + RLS.
+export const engagementEventTable = pgTable("engagement_event", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  kind: text("kind").notNull(),                           // upsell | close
+  contactId: text("contact_id"),
+  productId: text("product_id"),
+  channel: text("channel"),                               // email | whatsapp | none
+  status: text("status").notNull().default("queued"),     // queued | sent | skipped | failed
+  checkoutUrl: text("checkout_url"),                      // Stripe close link, if any
+  sendJobId: text("send_job_id"),                         // link to send_job (email)
+  message: text("message"),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("engagement_event_tenant_idx").on(t.tenantId),
+  dedupIdx: index("engagement_event_dedup_idx").on(t.tenantId, t.contactId, t.productId, t.kind),
+}));
+
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

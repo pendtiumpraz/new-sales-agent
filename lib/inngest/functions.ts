@@ -9,6 +9,7 @@ import { db } from "@/lib/db/client";
 import { tenantsTable } from "@/lib/db/schema";
 import { processCadences } from "@/lib/cadence/processor";
 import { processSendJobs } from "@/lib/mail/send";
+import { runUpsell } from "@/lib/engagement/upsell";
 import { inngest } from "./client";
 
 // Per-tenant system context. superadmin role so the worker is allowed to act
@@ -73,4 +74,20 @@ export const cadenceOnDemand = inngest.createFunction(
   },
 );
 
-export const functions = [cadenceCron, sendQueueCron, cadenceOnDemand];
+// Cron: autonomous upsell + close across all active tenants (daily 09:00 UTC).
+// KB-driven offer + Stripe checkout link → email/WA, idempotent per contact+product.
+export const upsellCron = inngest.createFunction(
+  { id: "upsell-cron", name: "Autonomous upsell + close", triggers: [{ cron: "0 9 * * *" }] },
+  async ({ step }) => {
+    const tenantIds = await step.run("list-tenants", activeTenantIds);
+    const results: Record<string, unknown> = {};
+    for (const tenantId of tenantIds) {
+      results[tenantId] = await step.run(`upsell-${tenantId}`, () =>
+        runUpsell(systemCtx(tenantId)),
+      );
+    }
+    return { tenants: tenantIds.length, results };
+  },
+);
+
+export const functions = [cadenceCron, sendQueueCron, cadenceOnDemand, upsellCron];

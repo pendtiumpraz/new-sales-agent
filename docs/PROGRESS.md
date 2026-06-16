@@ -24,6 +24,7 @@ _Terakhir diperbarui: 2026-06-16_
 | 6 | Chrome extension RPA | 🟡 |
 | 7 | Compliance hardening | ✅ |
 | 8 | Superadmin + observability + billing | 🟡 |
+| 9 | Autonomous engagement (upsell + close) | 🟡 |
 
 ## Detail terbaru
 
@@ -150,6 +151,14 @@ _Terakhir diperbarui: 2026-06-16_
 **Slice 2 — sebagian (scaffold):**
 - ✅ **Stripe scaffold (doc 30)** — inert-but-wired: `lib/billing/stripe.ts` (client null-safe + plan→Price env map), `/api/billing/checkout` (hosted Checkout, guard `tenant.billing`) + `/webhook` (raw-body signature verify → sync `subscription`) + `/portal`; billing page dapat tombol upgrade per-plan + portal (atau hint setup); migrasi `0007` (`subscription.stripe_customer_id`/`stripe_subscription_id`) applied. **Tinggal isi `STRIPE_*` di `.env.local`** → aktif tanpa ubah kode. Diuji: webhook 503 (null-safe), checkout 401 (guarded), billing GET 200
 - ⬜ Ditunda (butuh key): live checkout/invoice end-to-end; structured logging/metrics/alert; observability dashboard
+
+### Fase 9 — Autonomous engagement loop 🟡
+**Slice 1 (upsell + close via Stripe) — selesai & terverifikasi (doc 35):**
+- ✅ Closing primitive `lib/billing/checkout-link.ts` — Stripe Checkout one-time, amount IDR ad-hoc (zero-decimal), metadata tenant+contact; null-safe
+- ✅ Engine `lib/engagement/upsell.ts` — `runUpsell`: deal `tutup` → produk upsell dari KB (`upsellMap`+`pricing`) → draft AI grounded + link checkout → kirim email (`send_job`)/WA (WAHA); **idempotent** (`engagement_event`, dedup 30 hari per contact+product)
+- ✅ API `/api/engagement/upsell` (GET log + POST run) + `/api/billing/payment-link` (close manual); Inngest **`upsell-cron` harian** (24 jam); tombol "Jalankan upsell" di Cadence; migrasi `0008` `engagement_event` (applied + RLS)
+- ✅ Diuji DB live: KB sementara → `candidates:1, sent:1`, pesan AI grounded, re-run `dedup:1`; routes 401, inngest function_count 4
+- ⬜ Berikutnya: auto-reply auto-send + gate confidence/escalation; pemicu upsell event-driven (post-purchase) + `deal.productId` buat target presisi; close high-ticket human-in-loop
 
 ## Keputusan arsitektur (terkunci)
 - Isolasi tenant: shared DB + Postgres RLS (`tenant_id`)

@@ -118,6 +118,7 @@ export default function CadencesPage() {
     <div>
       <PageHeader title="Cadence" description="Rangkaian otomatis lintas channel.">
         <div className="flex items-center gap-2">
+          <RunUpsellButton />
           <RunCadencesButton />
           <Button
             asChild
@@ -437,6 +438,44 @@ function RunCadencesButton() {
     <Button variant="outline" onClick={run} disabled={pending}>
       <Play className="h-4 w-4" />
       {pending ? "Menjalankan…" : "Jalankan sekarang"}
+    </Button>
+  );
+}
+
+// Autonomous upsell + close (doc 35): offer the KB upsell product to closed-won
+// customers with a Stripe checkout link, via email/WA. Idempotent per contact.
+function RunUpsellButton() {
+  const [pending, setPending] = useState(false);
+  async function run() {
+    setPending(true);
+    try {
+      const r = await fetch("/api/engagement/upsell", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+      const s = j.summary as {
+        candidates: number;
+        sent: number;
+        skipped: number;
+        failed: number;
+        dedup: number;
+      };
+      if (s.candidates === 0) {
+        toast.info("Belum ada customer closed-won untuk di-upsell.");
+      } else {
+        toast.success(
+          `Upsell jalan — ${s.sent} terkirim, ${s.dedup} sudah pernah, ${s.skipped} dilewati${s.failed ? `, ${s.failed} gagal` : ""}.`,
+        );
+      }
+    } catch (e) {
+      toast.error(`Gagal upsell (${e instanceof Error ? e.message : e})`);
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <Button variant="outline" onClick={run} disabled={pending}>
+      <Sparkles className="h-4 w-4" />
+      {pending ? "Memproses…" : "Jalankan upsell"}
     </Button>
   );
 }
