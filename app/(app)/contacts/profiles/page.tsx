@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, MapPin, Users } from "lucide-react";
+import { Building2, MapPin, Radar, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 import type { ContactPoint } from "@/lib/types/profiling";
 
@@ -131,6 +133,19 @@ export default function ProfilesPage() {
           <TabsContent value="perusahaan" className="mt-5">
             {companies.isLoading ? (
               <p className="text-sm text-muted-foreground">Memuat…</p>
+            ) : (companies.data?.data.length ?? 0) === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="Belum ada perusahaan"
+                description="Mulai dari Discovery untuk crawl prospek B2B — nama, domain, email, telepon, & sosmed perusahaan terekstrak otomatis dari websitenya."
+                action={
+                  <Button asChild>
+                    <Link href="/contacts/discovery">
+                      <Radar className="h-4 w-4" /> Mulai Discovery
+                    </Link>
+                  </Button>
+                }
+              />
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {companies.data?.data.map((c) => (
@@ -173,6 +188,19 @@ export default function ProfilesPage() {
           <TabsContent value="orang" className="mt-5">
             {people.isLoading ? (
               <p className="text-sm text-muted-foreground">Memuat…</p>
+            ) : (people.data?.data.length ?? 0) === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Belum ada kontak orang"
+                description="Kontak per-orang (nama, jabatan, email) didapat saat crawl URL + Hunter.io aktif. Mulai Discovery dengan URL perusahaan target."
+                action={
+                  <Button asChild>
+                    <Link href="/contacts/discovery">
+                      <Radar className="h-4 w-4" /> Mulai Discovery
+                    </Link>
+                  </Button>
+                }
+              />
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {people.data?.data.map((p) => (
