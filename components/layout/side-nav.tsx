@@ -64,6 +64,9 @@ import {
 import { signOut } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUiStore } from "@/lib/stores/ui-store";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { withWorkspace } from "@/lib/workspace/scope";
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { cn } from "@/lib/utils";
 
 // Grouped navigation with plain-Indonesian labels — sections make the menu
@@ -156,6 +159,7 @@ async function handleLogout(router: ReturnType<typeof useRouter>) {
 export function SideNav() {
   const pathname = usePathname();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const activeWs = useWorkspaceStore((s) => s.active); // doc 44 — carry scope into nav links
   const isRep = useAuthStore((s) => s.currentUser.role) === "Sales Rep";
   // Modules the superadmin disabled for this tenant are hidden (doc 44).
   const entQ = useQuery({
@@ -196,6 +200,13 @@ export function SideNav() {
         </Link>
       </div>
 
+      {/* Active-workspace switcher (doc 44 — workspace-first) */}
+      {!collapsed && (
+        <div className="border-b px-3 py-2">
+          <WorkspaceSwitcher />
+        </div>
+      )}
+
       {/* Primary nav — grouped + self-explanatory */}
       <nav className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2">
         {NAV_GROUPS.map((group, gi) => (
@@ -211,7 +222,7 @@ export function SideNav() {
                 const active = pathname === href || pathname.startsWith(href + "/");
                 const item = (
                   <Link
-                    href={href}
+                    href={withWorkspace(href, activeWs?.id)}
                     className={cn(
                       "flex items-center rounded-lg text-sm font-medium transition-colors",
                       collapsed ? "justify-center px-2 py-2" : "gap-2.5 px-3 py-2",
@@ -315,6 +326,7 @@ export function TopBar() {
   const pathname = usePathname();
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const activeWs = useWorkspaceStore((s) => s.active);
 
   return (
     <header className="chrome sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b px-3 sm:px-4">
@@ -359,7 +371,7 @@ export function TopBar() {
                   return (
                     <Link
                       key={href}
-                      href={href}
+                      href={withWorkspace(href, activeWs?.id)}
                       className={cn(
                         "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         active

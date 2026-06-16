@@ -58,11 +58,8 @@ export default function FieldPage() {
                 <TabsTrigger value="live" className="flex-1">
                   Live
                 </TabsTrigger>
-                <TabsTrigger value="today" className="flex-1">
-                  Hari ini
-                </TabsTrigger>
-                <TabsTrigger value="week" className="flex-1">
-                  Minggu ini
+                <TabsTrigger value="all" className="flex-1">
+                  Semua
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -121,7 +118,7 @@ export default function FieldPage() {
         </aside>
 
         <div className="order-1 h-[52vh] min-w-0 lg:order-none lg:h-auto lg:flex-1">
-          <FieldMap reps={reps ?? []} selectedId={selectedId} onSelect={setSelectedId} />
+          <FieldMap reps={list} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
       </div>
     </div>

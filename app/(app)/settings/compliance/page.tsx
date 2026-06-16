@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
-  Clock,
   Download,
   FileCheck2,
   FileText,
@@ -39,6 +40,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useConsentLog, useDpia, useVendors } from "@/lib/api-mock/hooks";
 import { channelMeta } from "@/lib/utils/channel-config";
 import {
@@ -48,7 +55,6 @@ import {
 } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 import type { RiskLevel } from "@/lib/types";
-import { toast } from "sonner";
 
 const SCORE = 94;
 
@@ -110,9 +116,11 @@ function CompliancePageInner() {
         title="Kepatuhan UU PDP"
         description="GRC untuk DPO — persetujuan, DPIA, risiko vendor, dan laporan siap-regulator."
       >
-        <Button onClick={() => toast.success("Laporan PDPA (PDF) sedang diunduh...")}>
-          <Download className="h-4 w-4" />
-          Export laporan PDPA
+        <Button asChild>
+          <Link href="/settings/compliance/dsar">
+            <Download className="h-4 w-4" />
+            Export data (DSAR)
+          </Link>
         </Button>
       </PageHeader>
 
@@ -220,18 +228,22 @@ function CompliancePageInner() {
                             {r.company} · diminta {r.requested} hari lalu
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toast.success(`Permintaan ${r.name} ditolak.`)}
-                        >
-                          Tolak
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => toast.success(`Data ${r.name} dihapus sesuai UU PDP.`)}
-                        >
-                          Proses
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span tabIndex={0}>
+                                <Button size="sm" variant="outline" disabled>
+                                  Tolak
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Mode demo — alur penolakan belum terhubung backend
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <Button size="sm" asChild>
+                          <Link href="/settings/compliance/dsar">Proses di DSAR</Link>
                         </Button>
                       </li>
                     ))}
@@ -340,13 +352,21 @@ function CompliancePageInner() {
               <p className="text-sm text-muted-foreground">
                 Data Protection Impact Assessment per proses bisnis yang mengolah data pribadi.
               </p>
-              <Button
-                variant="outline"
-                onClick={() => toast.success("DPIA baru dibuat — menunggu tinjauan DPO.")}
-              >
-                <Plus className="h-4 w-4" />
-                Buat DPIA
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
+                      <Button variant="outline" disabled>
+                        <Plus className="h-4 w-4" />
+                        Buat DPIA
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Mode demo — pembuatan DPIA belum terhubung backend
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <Card>
               <CardContent className="p-0">
@@ -474,13 +494,20 @@ function CompliancePageInner() {
                             {r.date} · {r.size}
                           </p>
                         </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toast.success(`Mengunduh "${r.name}"...`)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span tabIndex={0}>
+                                <Button size="icon" variant="ghost" disabled>
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Mode demo — berkas contoh, unduhan belum tersedia
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </li>
                     ))}
                   </ul>
@@ -505,7 +532,6 @@ function ReportGenerator({
 }) {
   const [type, setType] = useState("pdpa-audit");
   const [period, setPeriod] = useState("q2-2026");
-  const [state, setState] = useState<"idle" | "generating" | "ready">("idle");
 
   const TYPES: Record<string, { label: string; includes: string[] }> = {
     "pdpa-audit": {
@@ -531,14 +557,6 @@ function ReportGenerator({
     },
   };
 
-  function generate() {
-    setState("generating");
-    setTimeout(() => {
-      setState("ready");
-      toast.success("Laporan siap diunduh.");
-    }, 900);
-  }
-
   const t = TYPES[type];
 
   return (
@@ -550,7 +568,7 @@ function ReportGenerator({
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Jenis laporan</label>
-            <Select value={type} onValueChange={(v) => { setType(v); setState("idle"); }}>
+            <Select value={type} onValueChange={setType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -597,32 +615,19 @@ function ReportGenerator({
           Format siap-regulator — dapat diserahkan langsung ke KOMDIGI / Lembaga PDP.
         </div>
 
-        {state === "ready" ? (
-          <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/5 px-4 py-3">
-            <span className="flex items-center gap-2 text-sm">
-              <FileCheck2 className="h-4 w-4 text-success" />
-              {t.label} ({period.toUpperCase()}) siap.
-            </span>
-            <Button size="sm" onClick={() => toast.success("Mengunduh PDF...")}>
-              <Download className="h-4 w-4" />
-              Unduh PDF
-            </Button>
-          </div>
-        ) : (
-          <Button className="w-full" onClick={generate} disabled={state === "generating"}>
-            {state === "generating" ? (
-              <>
-                <Clock className="h-4 w-4 animate-spin" />
-                Menyusun laporan...
-              </>
-            ) : (
-              <>
-                <FileText className="h-4 w-4" />
-                Generate laporan
-              </>
-            )}
-          </Button>
-        )}
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <FileText className="h-3.5 w-3.5 shrink-0" />
+          Mode demo — penyusun PDF templat belum terhubung. Export data subjek
+          (JSON, live) tersedia di DSAR.
+        </p>
+
+        <Button className="w-full" asChild>
+          <Link href="/settings/compliance/dsar">
+            <Download className="h-4 w-4" />
+            Export data di DSAR
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );

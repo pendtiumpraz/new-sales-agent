@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowUpRight,
   MessageCircle,
   Play,
   Plus,
@@ -370,12 +369,6 @@ export default function CadencesPage() {
                               </span>
                             </span>
                           </div>
-
-                          {/* Hover-revealed arrow on the right edge */}
-                          <ArrowUpRight
-                            aria-hidden
-                            className="absolute right-4 top-4 h-4 w-4 text-muted-foreground/0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
-                          />
                         </CardContent>
                       </Card>
                     </div>
@@ -424,6 +417,10 @@ function RunCadencesButton() {
     try {
       const r = await fetch("/api/cadences/process", { method: "POST" });
       const j = await r.json();
+      if (j?.source === "mock") {
+        toast.info("Mode demo — sambungkan database untuk benar-benar menjalankan cadence.");
+        return;
+      }
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
       const s = j.summary as {
         dueEnrollments: number;
@@ -464,6 +461,10 @@ function RunAutoReplyButton() {
     try {
       const r = await fetch("/api/engagement/auto-reply", { method: "POST" });
       const j = await r.json();
+      if (j?.source === "mock") {
+        toast.info("Mode demo — sambungkan database untuk menjalankan auto-reply.");
+        return;
+      }
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
       const s = j.summary as {
         candidates: number;
@@ -503,6 +504,10 @@ function RunUpsellButton() {
     try {
       const r = await fetch("/api/engagement/upsell", { method: "POST" });
       const j = await r.json();
+      if (j?.source === "mock") {
+        toast.info("Mode demo — sambungkan database untuk menjalankan upsell.");
+        return;
+      }
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
       const s = j.summary as {
         candidates: number;

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CreditCard,
   Globe2,
+  Info,
   Mail,
   Puzzle,
   ShieldCheck,
@@ -170,12 +171,27 @@ export default function SettingsPage() {
               <CardContent className="space-y-4 p-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="ws-name">Nama workspace</Label>
-                  <Input id="ws-name" defaultValue="Maira Sales Indonesia" />
+                  <Input
+                    id="ws-name"
+                    defaultValue="Maira Sales Indonesia"
+                    readOnly
+                    className="cursor-not-allowed bg-muted/40"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ws-domain">Domain</Label>
-                  <Input id="ws-domain" defaultValue="mairasales.com" />
+                  <Input
+                    id="ws-domain"
+                    defaultValue="mairasales.com"
+                    readOnly
+                    className="cursor-not-allowed bg-muted/40"
+                  />
                 </div>
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Info className="h-3 w-3 shrink-0" />
+                  Mode demo — identitas workspace masih statis, belum tersambung
+                  ke penyimpanan.
+                </p>
                 <div className="flex items-center justify-between rounded-xl border border-primary/15 bg-primary/5 p-3">
                   <div>
                     <p className="text-sm font-medium">Zona waktu</p>
@@ -357,7 +373,12 @@ export default function SettingsPage() {
           </TabsContent>
 
           {/* ── Integrasi ──────────────────────────────────────────── */}
-          <TabsContent value="integrasi" className="mt-5">
+          <TabsContent value="integrasi" className="mt-5 space-y-3">
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Info className="h-3 w-3 shrink-0" />
+              Mode demo — status koneksi bersifat ilustratif; toggle dinonaktifkan
+              karena belum tersambung ke API channel.
+            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {INTEGRATIONS.map((it) => {
                 const meta = channelMeta(it.ch);
@@ -401,7 +422,12 @@ export default function SettingsPage() {
                           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                             {meta.label}
                           </span>
-                          <Switch defaultChecked={it.on} />
+                          <Switch
+                            defaultChecked={it.on}
+                            disabled
+                            aria-label={`${it.name} (mode demo)`}
+                            title="Mode demo — belum tersambung ke API channel"
+                          />
                         </div>
                       </div>
                     </CardContent>
@@ -454,8 +480,12 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">Total bulan ini</span>
                   <IDRAmount value={4490000} className="text-lg font-bold text-primary" />
                 </div>
-                <Button variant="outline" className="w-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary">
-                  Kelola paket
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                >
+                  <Link href="/settings/billing">Kelola paket</Link>
                 </Button>
               </CardContent>
             </Card>
