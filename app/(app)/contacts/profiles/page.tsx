@@ -347,7 +347,7 @@ export default function ProfilesPage() {
                                 setClassifyingId(p.id);
                                 classify.mutate({ personId: p.id });
                               }}
-                              disabled={classify.isPending}
+                              disabled={classify.isPending && classifyingId === p.id}
                             >
                               <Sparkles className="h-3.5 w-3.5" />
                               {classifyingId === p.id && classify.isPending ? "…" : "Klasifikasi"}
@@ -384,6 +384,7 @@ export default function ProfilesPage() {
                                 title="Assign lead ke sales"
                               >
                                 <option value="">Belum di-assign</option>
+                                {(membersQ.data ?? []).length === 0 && <option disabled>(belum ada anggota tim)</option>}
                                 {(membersQ.data ?? []).map((m) => (
                                   <option key={m.userId} value={m.userId}>
                                     {m.name}

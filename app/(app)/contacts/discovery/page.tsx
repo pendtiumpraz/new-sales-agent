@@ -63,6 +63,16 @@ interface DiscoveryPlan {
   note: string;
 }
 
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const s = Math.floor((Date.now() - t) / 1000);
+  if (s < 60) return "baru saja";
+  if (s < 3600) return `${Math.floor(s / 60)} mnt lalu`;
+  if (s < 86400) return `${Math.floor(s / 3600)} jam lalu`;
+  return `${Math.floor(s / 86400)} hr lalu`;
+}
+
 const STATUS_CLS: Record<string, string> = {
   done: "bg-success/10 text-emerald-700",
   pending: "bg-info/10 text-info",
@@ -358,26 +368,36 @@ export default function DiscoveryPage() {
 
         <Card>
           <CardHeader className="border-b">
-            <CardTitle className="text-base">Antrian crawl</CardTitle>
-            <p className="text-[11px] text-muted-foreground">Semua job jalan langsung di server (tanpa cron). Klik baris untuk detail.</p>
+            <CardTitle className="text-base">Riwayat crawl</CardTitle>
+            <p className="text-[11px] text-muted-foreground">Tiap job jalan langsung di server (tanpa antrian/cron). Klik baris untuk detail.</p>
           </CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y">
-              {(jobs.data ?? []).map((j) => (
-                <li key={j.id}>
-                  <button onClick={() => setDetailJob(j)} className="flex w-full items-center gap-3 p-3 text-left text-sm transition-colors hover:bg-accent">
-                    <Badge variant="muted">{j.kind}</Badge>
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                      posture {j.posture}
-                      {typeof j.result?.created === "number" ? ` · ${j.result.created} dibuat` : ""}
-                      {typeof j.result?.contactsCreated === "number" ? ` · ${j.result.contactsCreated} kontak` : ""}
-                    </span>
-                    <Badge className={STATUS_CLS[j.status] ?? ""}>{j.status}</Badge>
-                  </button>
-                </li>
-              ))}
-              {(jobs.data?.length ?? 0) === 0 && !jobs.isLoading && (
-                <li className="p-3 text-xs text-muted-foreground">Belum ada job discovery.</li>
+              {(jobs.data ?? []).map((j) => {
+                const target =
+                  (j.input?.url as string) ||
+                  (Array.isArray(j.input?.names) ? `${(j.input!.names as string[]).length} nama` : "") ||
+                  (j.input?.industry as string) ||
+                  j.kind;
+                return (
+                  <li key={j.id}>
+                    <button onClick={() => setDetailJob(j)} className="flex w-full items-center gap-3 p-3 text-left text-sm transition-colors hover:bg-accent">
+                      <Badge variant="muted">{j.kind}</Badge>
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="font-medium text-foreground">{target}</span>
+                        <span className="text-muted-foreground">
+                          {typeof j.result?.contactsCreated === "number" ? ` · ${j.result.contactsCreated} kontak` : typeof j.result?.created === "number" ? ` · ${j.result.created} dibuat` : ""}
+                          {j.createdAt ? ` · ${relTime(j.createdAt)}` : ""}
+                        </span>
+                      </span>
+                      <Badge className={STATUS_CLS[j.status] ?? "bg-muted text-muted-foreground"}>{j.status}</Badge>
+                    </button>
+                  </li>
+                );
+              })}
+              {jobs.isError && <li className="p-3 text-xs text-destructive">Gagal memuat riwayat crawl.</li>}
+              {(jobs.data?.length ?? 0) === 0 && !jobs.isLoading && !jobs.isError && (
+                <li className="p-3 text-xs text-muted-foreground">Belum ada crawl. Mulai dari tab di atas.</li>
               )}
             </ul>
           </CardContent>

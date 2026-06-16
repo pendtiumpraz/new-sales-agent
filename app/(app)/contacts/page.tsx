@@ -349,6 +349,10 @@ function ContactsPageInner() {
               setDetail(c);
               setSheetOpen(true);
             }}
+            onAddToCadence={(c) => {
+              setSelected(new Set([c.id]));
+              setCadencePickerOpen(true);
+            }}
           />
         ),
       },
@@ -476,10 +480,13 @@ function ContactsPageInner() {
         </Link>
         {activeTab === "contacts" && (
           <>
-            <Button variant="outline">
+            <Link
+              href="/contacts/discovery"
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            >
               <Plus className="h-4 w-4" />
               Tambah kontak
-            </Button>
+            </Link>
             <Button onClick={openHero}>
               <Sparkles className="h-4 w-4" />
               Buka workspace terpadu
@@ -952,9 +959,11 @@ function ContactsPageInner() {
 function RowActions({
   contact,
   onPreview,
+  onAddToCadence,
 }: {
   contact: Contact;
   onPreview: (c: Contact) => void;
+  onAddToCadence: (c: Contact) => void;
 }) {
   const router = useRouter();
   return (
@@ -979,11 +988,7 @@ function RowActions({
           Pratinjau cepat
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() =>
-            toast.success(`${contact.name} ditambahkan ke cadence.`)
-          }
-        >
+        <DropdownMenuItem onClick={() => onAddToCadence(contact)}>
           <Mail className="h-4 w-4" />
           Tambah ke cadence
         </DropdownMenuItem>
