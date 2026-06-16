@@ -26,6 +26,7 @@ import type { CadenceStep } from "@/lib/types";
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
+import { salutationFor } from "@/lib/profiling/salutation";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -36,10 +37,13 @@ interface ContactLite {
   phone: string | null;
 }
 
-/** Substitute the cadence placeholders the seed/UI use ({nama}, {perusahaan}). */
+/** Substitute the cadence placeholders ({nama}, {perusahaan}). {nama} becomes the
+ *  proper greeting (Pak/Bu/Mas/Mbak + first name), not a bare name. */
 function fillPlaceholders(text: string, c: ContactLite): string {
+  const greeting = c.name ? salutationFor(c.name).greeting : "Kak";
   return (text ?? "")
-    .replace(/\{nama\}/gi, c.name ?? "di sana")
+    .replace(/(?:bapak\/ibu|bapak ?\/ ?ibu)\s*\{nama\}/gi, greeting) // collapse "Bapak/Ibu {nama}" → greeting
+    .replace(/\{nama\}/gi, greeting)
     .replace(/\{perusahaan\}/gi, c.company ?? "perusahaan Anda");
 }
 
@@ -55,12 +59,14 @@ async function personalize(
 ): Promise<{ body: string; source: "real" | "template" }> {
   const template = fillPlaceholders(step.content, c);
   try {
-    const who = c.name ?? "prospek";
+    const sal = c.name ? salutationFor(c.name) : null;
     const where = c.company ? ` dari ${c.company}` : "";
     const prompt =
-      `Personalisasi pesan ${step.channel} berikut untuk ${who}${where}. ` +
-      `Pertahankan maksud dan ajakan (CTA), Bahasa Indonesia, ringkas, tanpa placeholder kurung kurawal.\n\n` +
-      `Pesan dasar:\n${template}`;
+      `Personalisasi pesan ${step.channel} berikut untuk ${sal?.greeting ?? "prospek"}${where}. ` +
+      (sal ? `Sapa dengan "${sal.greeting}". ` : "") +
+      `Tulis hangat, sopan, dan ber-empati — seperti manusia yang benar-benar peduli, BUKAN robot. ` +
+      `Jangan menyebut dirimu AI/asisten. Jangan ada placeholder kurung kurawal. Pertahankan maksud & ajakan (CTA). ` +
+      `Bahasa Indonesia, ringkas.\n\nPesan dasar:\n${template}`;
     const { text } = await meteredGenerateText(ctx, {
       feature: "cadence",
       prompt,

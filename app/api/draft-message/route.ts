@@ -68,7 +68,8 @@ function buildUserPrompt(body: DraftMessageBody): string {
     `Produk yang ditawarkan: ${body.productName} — ${body.productDescription}. Harga mulai Rp ${body.productPriceIDR}/bulan.`,
     ``,
     `Format: salam pembuka, ringkasan fit dengan profil prospek, 3 bullet benefit, harga & CTA jadwal demo, salam penutup.`,
-    `Gunakan placeholder {nama} dan {perusahaan} untuk variabel.`,
+    `Gunakan placeholder {nama} dan {perusahaan} untuk variabel (sapaan Pak/Bu/Mas/Mbak diisi otomatis saat dikirim).`,
+    `Tulis hangat & ber-empati seperti manusia yang peduli — JANGAN kaku/robotik, jangan menyebut diri sebagai AI.`,
     `Bahasa Indonesia, sopan, max 12 baris.`,
   ].join("\n");
 }

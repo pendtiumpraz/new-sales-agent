@@ -24,6 +24,7 @@ import { isTenantActive } from "@/lib/admin/kill-switch";
 import { createCheckoutLink } from "@/lib/billing/checkout-link";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
 import { formatIDR } from "@/lib/utils/format-idr";
+import { salutationFor } from "@/lib/profiling/salutation";
 
 const DEDUP_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -62,9 +63,10 @@ async function composeUpsellMessage(
   },
 ): Promise<string> {
   const { name, company, target, checkoutUrl } = args;
+  const sal = salutationFor(name);
   const priceStr = target.tier ? formatIDR(target.tier.priceIDR) : "";
   const template =
-    `Halo ${name}${company ? ` dari ${company}` : ""}, terima kasih sudah mempercayai kami. ` +
+    `Halo ${sal.greeting}${company ? ` dari ${company}` : ""}, terima kasih sudah mempercayai kami. ` +
     `Banyak pelanggan menaikkan hasil dengan ${target.product.name}. ${target.rationale}` +
     `${priceStr ? ` Mulai ${priceStr}.` : ""} Boleh kami bantu aktifkan sekarang?`;
 
@@ -72,11 +74,14 @@ async function composeUpsellMessage(
   try {
     const { text } = await meteredGenerateText(ctx, {
       feature: "upsell",
-      system: "Kamu asisten sales. Bahasa Indonesia, sopan, ringkas, tanpa placeholder kurung kurawal.",
+      system:
+        `Kamu sales yang hangat & ber-empati (bukan robot). Bahasa Indonesia, sopan, ringkas. ` +
+        `Sapa lawan bicara dengan "${sal.greeting}". Jangan menyebut dirimu AI. Tanpa placeholder kurung kurawal.`,
       prompt:
-        `Tulis pesan upsell singkat untuk ${name}${company ? ` (${company})` : ""} ` +
+        `Tulis pesan upsell singkat untuk ${sal.greeting}${company ? ` (${company})` : ""} ` +
         `menawarkan produk "${target.product.name}". Alasan: ${target.rationale}.` +
         `${priceStr ? ` Harga mulai ${priceStr}.` : ""} ` +
+        `Tunjukkan empati dulu (hargai mereka sebagai pelanggan), baru tawarkan. ` +
         `Jangan sertakan URL/link apa pun. Maksimal 4 kalimat, akhiri dengan ajakan checkout.`,
       maxOutputTokens: 300,
     });

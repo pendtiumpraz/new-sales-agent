@@ -25,6 +25,7 @@ import { meteredGenerateText } from "@/lib/ai/meter";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
+import { salutationFor } from "@/lib/profiling/salutation";
 
 // Topics that always go to a human regardless of AI confidence.
 const SENSITIVE =
@@ -150,10 +151,13 @@ export async function runAutoReply(
       let judgment: Judgment | null = null;
       if (kb) {
         try {
+          const sal = salutationFor(convo.contactName ?? "");
           const system =
             buildKbSystemPrompt(kb, { surface: "auto-reply" }) +
-            `\n\nBalas HANYA dengan JSON valid (tanpa markdown), skema persis:\n` +
-            `{"reply": string (balasan ke pelanggan, Bahasa Indonesia, akurat dari Basis Pengetahuan), ` +
+            `\n\nSapa pelanggan dengan "${sal.greeting}". Balas dengan hangat, sopan, & ber-empati — ` +
+            `seperti manusia yang peduli, BUKAN robot; jangan menyebut dirimu AI.\n` +
+            `Balas HANYA dengan JSON valid (tanpa markdown), skema persis:\n` +
+            `{"reply": string (balasan ke pelanggan, Bahasa Indonesia, akurat dari Basis Pengetahuan, sapa "${sal.greeting}"), ` +
             `"confidence": number 0..1 (yakin balasan benar & AMAN dikirim otomatis), ` +
             `"escalate": boolean (true bila perlu manusia: komplain/refund/negosiasi/hukum/marah/minta bicara orang, atau kamu ragu), ` +
             `"reason": string singkat, "category": string}.`;

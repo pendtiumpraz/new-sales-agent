@@ -89,7 +89,16 @@ function isFormal(opts?: HonorificOpts): boolean {
   return opts?.ageBand === "40+";
 }
 
-/** Honorific particle: Pak | Bu | Mas | Mbak | Kak. */
+/** Academic/professional title (overrides Pak/Bu) — Prof. for professors, Dr.
+ *  for doctorate (S3/PhD). Detected from the name or the title/seniority. */
+export function academicTitleFor(fullName: string, opts?: HonorificOpts): string | null {
+  const hay = ` ${(fullName ?? "")} ${opts?.title ?? ""} ${opts?.seniority ?? ""} `.toLowerCase();
+  if (/\b(prof|professor|profesor|guru besar)\b/.test(hay)) return "Prof.";
+  if (/(\bdr\b|\bdrs?\b|doktor|ph\.?\s?d|\bs-?3\b|doctorate)/.test(hay)) return "Dr.";
+  return null;
+}
+
+/** Honorific particle: Prof. | Dr. | Pak | Bu | Mas | Mbak | Kak. */
 export function honorificFor(gender: Gender, opts?: HonorificOpts): string {
   const formal = isFormal(opts);
   if (gender === "male") return formal ? "Pak" : "Mas";
@@ -99,16 +108,39 @@ export function honorificFor(gender: Gender, opts?: HonorificOpts): string {
 
 export interface Salutation {
   gender: Gender;
-  honorific: string; // Pak | Bu | Mas | Mbak | Kak
+  honorific: string; // Prof. | Dr. | Pak | Bu | Mas | Mbak | Kak
   firstName: string;
-  /** Ready-to-use greeting, e.g. "Bu Siti" or "Kak Andi". */
+  /** Ready-to-use greeting, e.g. "Bu Siti", "Dr. Budi", "Kak Andi". */
   greeting: string;
+  source: "academic" | "override" | "name" | "fallback";
 }
 
-/** One call → everything the messaging layer needs to address someone politely. */
-export function salutationFor(fullName: string, opts?: HonorificOpts): Salutation {
-  const gender = deriveGender(fullName);
-  const honorific = honorificFor(gender, opts);
+export interface SalutationOverride extends HonorificOpts {
+  /** Honorific the profiling layer derived from richer context (how people
+   *  address them in comments / their content style). Wins over name heuristics
+   *  but not an explicit academic title in the name. */
+  honorific?: string | null;
+  gender?: Gender | null;
+}
+
+/**
+ * One call → how to address someone politely. Hierarchy (strongest first):
+ *  1) academic title in the name (Prof./Dr.)
+ *  2) override from profiling (how people call them in social comments + style)
+ *  3) name→gender heuristic (Pak/Bu/Mas/Mbak)
+ *  4) "Kak" when unknown.
+ */
+export function salutationFor(fullName: string, opts?: SalutationOverride): Salutation {
   const firstName = firstNameOf(fullName);
-  return { gender, honorific, firstName, greeting: firstName ? `${honorific} ${firstName}` : honorific };
+  const academic = academicTitleFor(fullName, opts);
+  if (academic) {
+    return { gender: deriveGender(fullName), honorific: academic, firstName, greeting: firstName ? `${academic} ${firstName}` : academic, source: "academic" };
+  }
+  if (opts?.honorific) {
+    const g = opts.gender ?? deriveGender(fullName);
+    return { gender: g, honorific: opts.honorific, firstName, greeting: firstName ? `${opts.honorific} ${firstName}` : opts.honorific, source: "override" };
+  }
+  const gender = opts?.gender ?? deriveGender(fullName);
+  const honorific = honorificFor(gender, opts);
+  return { gender, honorific, firstName, greeting: firstName ? `${honorific} ${firstName}` : honorific, source: gender === "unknown" ? "fallback" : "name" };
 }
