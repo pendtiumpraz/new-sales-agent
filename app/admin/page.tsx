@@ -1,10 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft, CalendarClock, ShieldAlert } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface TenantRow {
   id: string;
@@ -91,15 +103,28 @@ export default function AdminConsole() {
     onError: (e) => toast.error(`Gagal aktivasi (${e instanceof Error ? e.message : e})`),
   });
 
-  function promptActivate(tenantId: string) {
-    const raw = window.prompt("Aktifkan sampai tanggal (YYYY-MM-DD). Kosongkan = tanpa batas waktu.");
-    if (raw == null) return;
-    const until = raw.trim() ? new Date(raw.trim()).toISOString() : null;
+  const [activateTarget, setActivateTarget] = useState<{ id: string; name: string } | null>(null);
+  const [activateDate, setActivateDate] = useState("");
+
+  function openActivate(tn: TenantRow) {
+    setActivateDate(
+      tn.activeUntil
+        ? tn.activeUntil.slice(0, 10)
+        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    );
+    setActivateTarget({ id: tn.id, name: tn.name });
+  }
+
+  function confirmActivate(until: string | null) {
+    if (!activateTarget) return;
     if (until && Number.isNaN(Date.parse(until))) {
-      toast.error("Format tanggal salah (YYYY-MM-DD)");
+      toast.error("Tanggal tidak valid");
       return;
     }
-    activate.mutate({ tenantId, until });
+    activate.mutate(
+      { tenantId: activateTarget.id, until: until ? new Date(until).toISOString() : null },
+      { onSettled: () => setActivateTarget(null) },
+    );
   }
 
   function promptGrant(tenantId: string) {
@@ -205,7 +230,7 @@ export default function AdminConsole() {
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-3">
-                        <button className="text-xs text-emerald-600 hover:underline" disabled={activate.isPending} onClick={() => promptActivate(tn.id)}>
+                        <button className="text-xs text-emerald-600 hover:underline" disabled={activate.isPending} onClick={() => openActivate(tn)}>
                           Aktifkan s/d…
                         </button>
                         <button className="text-xs text-primary hover:underline" disabled={grant.isPending} onClick={() => promptGrant(tn.id)}>
@@ -244,6 +269,41 @@ export default function AdminConsole() {
           </ul>
         </div>
       </div>
+
+      {/* Activation date picker (doc 38) */}
+      <Dialog open={!!activateTarget} onOpenChange={(o) => !o && setActivateTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-primary" /> Aktifkan tenant
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Aktifkan <span className="font-medium text-foreground">{activateTarget?.name}</span> sampai tanggal berikut.
+              Setelah tanggal ini, akses otomatis terkunci.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="activeUntil" className="text-xs">Aktif sampai</Label>
+              <Input
+                id="activeUntil"
+                type="date"
+                value={activateDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setActivateDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => confirmActivate(null)} disabled={activate.isPending}>
+              Tanpa batas waktu
+            </Button>
+            <Button onClick={() => confirmActivate(activateDate)} disabled={!activateDate || activate.isPending}>
+              {activate.isPending ? "Mengaktifkan…" : "Aktifkan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
