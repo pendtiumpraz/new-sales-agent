@@ -1,11 +1,7 @@
 import { create } from "zustand";
 
 import { deals as seed } from "@/lib/api-mock/data";
-import {
-  seedAnalyses,
-  seedProducts,
-  buildAnalyses,
-} from "@/lib/api-mock/enrichment";
+import { seedProducts, deriveAnalyses } from "@/lib/api-mock/enrichment";
 import type { Deal, DealStage } from "@/lib/types";
 import type {
   EnrichmentDealAnalysis,
@@ -54,7 +50,7 @@ let hydratePromise: Promise<void> | undefined;
 export const usePipelineStore = create<PipelineState>((set, get) => ({
   deals: seed.map((d) => ({ ...d })),
   products: seedProducts.map((p) => ({ ...p })),
-  analyses: seedAnalyses.map((a) => ({ ...a })),
+  analyses: deriveAnalyses(seed, seedProducts),
 
   dealsHydrated: false,
 
@@ -68,16 +64,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         if (!res.ok) throw new Error(`hydrate failed: ${res.status}`);
         const body = (await res.json()) as { data: Deal[] };
         if (Array.isArray(body?.data)) {
-          set((s) => {
-            // Keep analyses' stage in sync with whatever the DB says.
-            const stageById = new Map(body.data.map((d) => [d.id, d.stage]));
-            const analyses = s.analyses.map((a) =>
-              stageById.has(a.dealId)
-                ? { ...a, stage: stageById.get(a.dealId) as DealStage }
-                : a,
-            );
-            return { deals: body.data, analyses, dealsHydrated: true };
-          });
+          // Analyses derived from the REAL deals (no dummy) — value/stage/updatedAt.
+          set((s) => ({ deals: body.data, analyses: deriveAnalyses(body.data, s.products), dealsHydrated: true }));
         } else {
           set({ dealsHydrated: true });
         }
@@ -97,11 +85,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const deals = s.deals.map((d) =>
         d.id === id ? { ...d, stage } : d,
       );
-      // Keep analyses' stage in sync with the underlying deal for accurate filters.
-      const analyses = s.analyses.map((a) =>
-        a.dealId === id ? { ...a, stage } : a,
-      );
-      return { deals, analyses };
+      return { deals, analyses: deriveAnalyses(deals, s.products) };
     });
     persistDeals();
   },
@@ -111,7 +95,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const id = `pd_user_${Date.now().toString(36)}`;
       const products = [...s.products, { id, ...p }];
       // Rebuild analyses' matched products against the new product set.
-      const analyses = buildAnalyses(products);
+      const analyses = deriveAnalyses(s.deals, products);
       return { products, analyses };
     }),
 
@@ -120,21 +104,21 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const products = s.products.map((p) =>
         p.id === id ? { ...p, ...patch } : p,
       );
-      const analyses = buildAnalyses(products);
+      const analyses = deriveAnalyses(s.deals, products);
       return { products, analyses };
     }),
 
   removeProduct: (id) =>
     set((s) => {
       const products = s.products.filter((p) => p.id !== id);
-      const analyses = buildAnalyses(products);
+      const analyses = deriveAnalyses(s.deals, products);
       return { products, analyses };
     }),
 
   resetProducts: () =>
-    set(() => ({
+    set((s) => ({
       products: seedProducts.map((p) => ({ ...p })),
-      analyses: seedAnalyses.map((a) => ({ ...a })),
+      analyses: deriveAnalyses(s.deals, seedProducts),
     })),
 }));
 

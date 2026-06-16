@@ -212,6 +212,43 @@ export function buildAnalyses(
 // Pre-seeded analyses (immutable — store hydrates from this).
 export const seedAnalyses: EnrichmentDealAnalysis[] = buildAnalyses(seedProducts);
 
+/**
+ * REAL analyses derived from actual deals (no hash/dummy): priorityScore from the
+ * deal value (relative to the set) + stage progression; daysInStage from the deal's
+ * real updatedAt; status from staleness; aiSuggestion is the stage's first
+ * (deterministic) tip; matchedProducts from value→size product-fit. Used by the
+ * pipeline store once real deals hydrate from /api/db/deals.
+ */
+export function deriveAnalyses(
+  deals: { id: string; value: number; stage: DealStage; updatedAt?: string | Date | null }[],
+  products: EnrichmentProduct[] = seedProducts,
+): EnrichmentDealAnalysis[] {
+  const now = Date.now();
+  const maxValue = Math.max(1, ...deals.map((d) => d.value || 0));
+  return deals.map((d) => {
+    const stageBoost = d.stage === "tutup" ? 25 : d.stage === "negosiasi" ? 18 : d.stage === "penawaran" ? 12 : d.stage === "kualifikasi" ? 6 : 0;
+    const valueScore = Math.round(((d.value || 0) / maxValue) * 55); // 0..55 from REAL value
+    const priorityScore = Math.max(10, Math.min(98, 20 + valueScore + stageBoost));
+    const updated = d.updatedAt ? new Date(d.updatedAt).getTime() : now;
+    const daysInStage = Math.max(0, Math.round((now - updated) / 86_400_000));
+    const status = daysInStage > 14 ? "berhenti" : "aktif";
+    const size = sizeFromValue(d.value || 0);
+    const pool = status === "berhenti" ? DROPPED_SUGGESTIONS : SUGGESTIONS_BY_STAGE[d.stage];
+    return {
+      dealId: d.id,
+      priorityScore,
+      temperature: tempFromScore(priorityScore),
+      status,
+      lastActivity: new Date(updated).toISOString(),
+      daysInStage,
+      stage: d.stage,
+      aiSuggestion: pool[0], // deterministic, stage-appropriate — not random
+      matchedProducts: matchProducts(size, d.value || 0, products),
+      companySize: size,
+    };
+  });
+}
+
 // ---- Read-only helpers ----------------------------------------------------
 
 export function productById(
