@@ -14,8 +14,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60; // websearch (person + company page fetches) + AI is slow
 
 // POST /api/profiles/enrich (doc 46) — REAL platform-side enrichment:
-//   person: gender/honorific (name) + web discovery (DDG reads page-1 results +
-//           GitHub) → email/phone/github/website/company + classify + summary.
+//   person: gender/honorific (name) + web discovery (Startpage/Mojeek read page-1
+//           results + GitHub) → email/phone/github/website/socials/company +
+//           classify + summary.
 //   company (PT): the discovered/linked company is enriched too — official site,
 //           domain, email/phone, ADDRESS, social media, industry, summary.
 // { personId } one, { all:true } bulk (capped — deep websearch is slow).
@@ -146,7 +147,7 @@ export async function POST(req: Request) {
       }
 
       // ── Persist the person ─────────────────────────────────────────────────
-      const socials: Record<string, string> = { ...((p.socials as Record<string, string>) ?? {}) };
+      const socials: Record<string, string> = { ...((p.socials as Record<string, string>) ?? {}), ...disc.socials };
       if (disc.github) socials.github = disc.github;
       if (disc.website) socials.website = disc.website;
       if (disc.twitter) socials.twitter = disc.twitter;

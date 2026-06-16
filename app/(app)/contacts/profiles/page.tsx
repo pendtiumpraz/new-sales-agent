@@ -212,8 +212,8 @@ export default function ProfilesPage() {
     },
     onError: () => toast.error("Gagal ubah workspace lead"),
   });
-  // Real enrichment: gender from name + websearch (DuckDuckGo + GitHub) for
-  // email/phone/github/site + classify + summary (doc 46).
+  // Real enrichment: gender from name + websearch (Startpage/Mojeek + GitHub) for
+  // email/phone/website/socials + classify + summary (doc 46).
   const enrich = useMutation({
     mutationFn: async (body: { personId?: string; all?: boolean; companyId?: string; allCompanies?: boolean }) => {
       const r = await fetch("/api/profiles/enrich", {
@@ -225,8 +225,9 @@ export default function ProfilesPage() {
       return (await r.json()) as { ok: boolean; count: number };
     },
     onSuccess: (d) => {
-      toast.success(`Enrich selesai — ${d.count} kontak dicari di web (email/HP/GitHub)`);
+      toast.success(`Enrich selesai — ${d.count} dicari di web (email/HP/website/sosmed)`);
       qc.invalidateQueries({ queryKey: ["people"] });
+      qc.invalidateQueries({ queryKey: ["companies"] });
     },
     onError: () => toast.error("Enrich gagal (cek hak akses & DB)"),
     onSettled: () => setClassifyingId(null),
@@ -274,12 +275,23 @@ export default function ProfilesPage() {
     },
   });
 
-  const [selected, setSelected] = useState<{ kind: "person" | "company"; data: PersonRow | CompanyRow } | null>(null);
+  const [selected, setSelected] = useState<{ kind: "person" | "company"; id: string; data: PersonRow | CompanyRow } | null>(null);
   const openEnrich = (id: string) => {
     setClassifyingId(id);
     if (selected?.kind === "company") enrich.mutate({ companyId: id });
     else enrich.mutate({ personId: id });
   };
+  // The sheet reads LIVE query data (not the click-time snapshot) so it reflects
+  // enrich/edit results the moment the query refetches — otherwise it shows stale.
+  const liveSelected = selected
+    ? {
+        kind: selected.kind,
+        data:
+          selected.kind === "person"
+            ? (people.data?.data.find((p) => p.id === selected.id) ?? selected.data)
+            : (companies.data?.data.find((c) => c.id === selected.id) ?? selected.data),
+      }
+    : null;
 
   const peopleRows = (people.data?.data ?? [])
     .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
@@ -369,7 +381,7 @@ export default function ProfilesPage() {
                   columns={companyCols}
                   rows={companies.data?.data ?? []}
                   getRowId={(c) => c.id}
-                  onRowClick={(c) => setSelected({ kind: "company", data: c })}
+                  onRowClick={(c) => setSelected({ kind: "company", id: c.id, data: c })}
                 />
               </>
             )}
@@ -437,7 +449,7 @@ export default function ProfilesPage() {
                   columns={peopleCols}
                   rows={peopleRows}
                   getRowId={(p) => p.id}
-                  onRowClick={(p) => setSelected({ kind: "person", data: p })}
+                  onRowClick={(p) => setSelected({ kind: "person", id: p.id, data: p })}
                 />
               </>
             )}
@@ -445,8 +457,8 @@ export default function ProfilesPage() {
         </Tabs>
       </div>
       <ProfileDetailSheet
-        kind={selected?.kind ?? null}
-        data={selected?.data ?? null}
+        kind={liveSelected?.kind ?? null}
+        data={liveSelected?.data ?? null}
         open={!!selected}
         onOpenChange={(o) => { if (!o) setSelected(null); }}
         onEnrich={openEnrich}
