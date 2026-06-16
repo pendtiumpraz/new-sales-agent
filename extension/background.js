@@ -340,7 +340,12 @@ async function runSearch() {
       break;
     }
     if (!res.people || res.people.length === 0) {
-      await setStatus(`Stage 1 selesai — tidak ada hasil lagi di halaman ${page}.`);
+      // Diagnostic: distinguish "no results" from "DOM changed / wrong page".
+      if ((res.anchors ?? 0) > 0) {
+        await setStatus(`Halaman ${page}: ada ${res.anchors} link profil tapi 0 nama ke-ambil — DOM LinkedIn berubah, kabari developer (selector tuning).`);
+      } else {
+        await setStatus(`Halaman ${page}: gak ada link profil. Pastikan kamu di halaman People search (linkedin.com/search/results/people) & sudah login.`);
+      }
       break;
     }
     total = await addLeads(res.people, res.companies || []);

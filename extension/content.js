@@ -45,14 +45,21 @@ function profileUrl(href) {
 // Junk that shows up in a profile anchor's text but isn't the person's name.
 const NAME_NOISE = /^(View|Lihat|LinkedIn Member|Anggota LinkedIn|Status is|•|·|\d(?:st|nd|rd|th)\b|Koneksi|Connection|Mutual|tingkat)/i;
 function nameFromAnchor(a) {
-  // LinkedIn renders the visible name in a span[aria-hidden="true"] inside the link.
+  // 1) visible name span; 2) aria-label "View X's profile"; 3) first line of text.
   const span = a.querySelector('span[aria-hidden="true"]');
-  let name = clean(span ? span.textContent : a.textContent);
-  name = name.replace(/(’s|'s)\s+profile.*$/i, "").replace(/^View\s+|^Lihat\s+/i, "");
+  let name = clean(span ? span.textContent : "");
+  if (!name) {
+    const al = a.getAttribute("aria-label") || "";
+    name = clean(al);
+  }
+  if (!name) name = clean((a.textContent || "").split("\n")[0]);
+  name = name.replace(/^(View|Lihat)\s+/i, "").replace(/(’s|'s)\s+profile.*$/i, "");
+  // cut trailing degree/headline appended on the same line ("• 3rd", double-space)
+  name = name.split(/\s[•·|]\s|\s{2,}/)[0].trim();
   // collapse a duplicated name like "Budi SantosoBudi Santoso"
-  const half = name.length % 2 === 0 ? name.slice(0, name.length / 2) : "";
-  if (half && half === name.slice(name.length / 2)) name = half;
-  return name;
+  const half = name.length % 2 === 0 ? name.slice(0, name.length / 2).trim() : "";
+  if (half && half === name.slice(Math.ceil(name.length / 2)).trim()) name = half;
+  return name.slice(0, 80);
 }
 
 // ── Stage 1: search results ────────────────────────────────────────────────
@@ -61,8 +68,9 @@ function nameFromAnchor(a) {
 // container classes. Name from the anchor; headline/location/company from the
 // surrounding card text (best-effort).
 function scrapePeople() {
-  const root = document.querySelector("main") || document.body;
-  const anchors = root.querySelectorAll('a[href*="/in/"]');
+  // Prefer <main>; fall back to the whole document if results live outside it.
+  let anchors = (document.querySelector("main") || document.body).querySelectorAll('a[href*="/in/"]');
+  if (anchors.length === 0) anchors = document.querySelectorAll('a[href*="/in/"]');
 
   // url -> { fullName, anchor }
   const byUrl = new Map();
@@ -70,7 +78,7 @@ function scrapePeople() {
     const url = profileUrl(a.getAttribute("href"));
     if (!url) return;
     const name = nameFromAnchor(a);
-    const valid = name && !NAME_NOISE.test(name) && name.length <= 80;
+    const valid = name && !NAME_NOISE.test(name);
     const existing = byUrl.get(url);
     if (!existing) byUrl.set(url, { fullName: valid ? name : "", anchor: a });
     else if (valid && !existing.fullName) byUrl.set(url, { fullName: name, anchor: a });
@@ -141,6 +149,7 @@ function scrapePeople() {
   return {
     people,
     companies: [...companies.values()].map((name) => ({ name, source: "linkedin-extension" })),
+    anchors: anchors.length, // diagnostic: how many /in/ links were on the page
   };
 }
 
