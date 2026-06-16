@@ -3,7 +3,6 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { marketplaceListingTable, companyTable, personTable, contactPointTable } from "@/lib/db/schema";
 import { stableId, companyDedupKey, personDedupKey, contactPointDedupKey } from "@/lib/profiling/dedup";
-import { SHAREABLE_CONSENT } from "@/lib/platform/settings";
 import { filterOptedOut } from "@/lib/compliance/pool-optout";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
@@ -30,63 +29,107 @@ export class MarketplaceError extends Error {
   }
 }
 
-export async function publish(
-  ctx: TenantContext,
-  input: { entityType: "company" | "person"; entityId: string; priceIdr?: number },
-): Promise<Listing> {
-  const T = ctx.tenantId;
-  let title = "";
-  let summary: string | null = null;
-  let consentStatus: string | null = null;
-
-  if (input.entityType === "company") {
-    const [co] = await db
-      .select()
-      .from(companyTable)
-      .where(and(eq(companyTable.id, input.entityId), eq(companyTable.tenantId, T)))
-      .limit(1);
-    if (!co) throw new MarketplaceError("not_found", "Perusahaan tidak ditemukan di tenant Anda");
-    title = co.name;
-    summary = [co.industry, co.domain].filter(Boolean).join(" · ") || null;
-  } else {
-    const [pe] = await db
-      .select()
-      .from(personTable)
-      .where(and(eq(personTable.id, input.entityId), eq(personTable.tenantId, T)))
-      .limit(1);
-    if (!pe) throw new MarketplaceError("not_found", "Orang tidak ditemukan di tenant Anda");
-    // Consent gate (UU PDP): only opted_in / legitimate_interest persons may be listed.
-    const cps = await db
-      .select()
-      .from(contactPointTable)
-      .where(and(eq(contactPointTable.ownerType, "person"), eq(contactPointTable.ownerId, input.entityId), eq(contactPointTable.tenantId, T)));
-    const consent = cps.find((c) => SHAREABLE_CONSENT.includes(c.consentStatus ?? ""));
-    if (!consent) {
-      throw new MarketplaceError("no_consent", "Data orang hanya bisa dijual jika ada consent (opt-in/legitimate interest)");
+// Best consent across a person's contacts (opt-in > legit > unknown).
+const CONSENT_RANK = ["opted_in", "legitimate_interest", "unknown"];
+function bestConsent(cps: { consentStatus: string | null }[]): string {
+  let best = "unknown";
+  let rank = 99;
+  for (const c of cps) {
+    const i = CONSENT_RANK.indexOf(c.consentStatus ?? "unknown");
+    if (i >= 0 && i < rank) {
+      rank = i;
+      best = c.consentStatus ?? "unknown";
     }
-    // Cross-pool opt-out/DSAR (doc 41 §7): never re-list someone who opted out.
-    const optedOut = await filterOptedOut(cps.map((c) => c.value));
-    if (optedOut.size) {
-      throw new MarketplaceError("opted_out", "Orang ini sudah opt-out/DSAR — tidak boleh dijual di pool");
-    }
-    consentStatus = consent.consentStatus;
-    title = pe.fullName;
-    summary = [pe.title, pe.location].filter(Boolean).join(" · ") || null;
   }
+  return best;
+}
+function channelsOf(cps: { channel: string }[]): string[] {
+  return [...new Set(cps.map((c) => c.channel))];
+}
 
-  const id = "mkt_" + crypto.randomUUID();
-  await db.insert(marketplaceListingTable).values({
-    id,
-    sellerTenantId: T,
-    entityType: input.entityType,
-    entityId: input.entityId,
-    title,
-    summary,
-    priceIdr: input.priceIdr ?? 0,
-    consentStatus,
-  });
-  const [row] = await db.select().from(marketplaceListingTable).where(eq(marketplaceListingTable.id, id)).limit(1);
-  return row;
+interface PublishInput {
+  entityType: "company" | "person";
+  entityIds: string[]; // one or many (bulk)
+  category?: string | null;
+  priceIdr?: number;
+}
+export interface PublishResult {
+  published: number;
+  skipped: { id: string; reason: string }[];
+}
+
+export async function publishMany(ctx: TenantContext, input: PublishInput): Promise<PublishResult> {
+  const T = ctx.tenantId;
+  const out: PublishResult = { published: 0, skipped: [] };
+
+  for (const entityId of input.entityIds) {
+    try {
+      let title = "";
+      let summary: string | null = null;
+      let consentStatus: string | null = null;
+      let category = input.category?.trim() || null;
+      let channels: string[] = [];
+
+      if (input.entityType === "company") {
+        const [co] = await db
+          .select()
+          .from(companyTable)
+          .where(and(eq(companyTable.id, entityId), eq(companyTable.tenantId, T)))
+          .limit(1);
+        if (!co) { out.skipped.push({ id: entityId, reason: "tak ditemukan" }); continue; }
+        const cps = await db
+          .select()
+          .from(contactPointTable)
+          .where(and(eq(contactPointTable.ownerType, "company"), eq(contactPointTable.ownerId, entityId), eq(contactPointTable.tenantId, T)));
+        // Company listing = nama PT + website + email + HP (doc: "kalo perusahaan...")
+        channels = channelsOf(cps);
+        if (co.domain || co.sourceUrl) channels = [...new Set([...channels, "website"])];
+        title = co.name;
+        summary = [co.industry, co.domain ?? (co.sourceUrl || null)].filter(Boolean).join(" · ") || null;
+        category = category || co.industry || null;
+      } else {
+        const [pe] = await db
+          .select()
+          .from(personTable)
+          .where(and(eq(personTable.id, entityId), eq(personTable.tenantId, T)))
+          .limit(1);
+        if (!pe) { out.skipped.push({ id: entityId, reason: "tak ditemukan" }); continue; }
+        const cps = await db
+          .select()
+          .from(contactPointTable)
+          .where(and(eq(contactPointTable.ownerType, "person"), eq(contactPointTable.ownerId, entityId), eq(contactPointTable.tenantId, T)));
+        // Hard block: opted-out (explicit or cross-pool). Otherwise allow with consent shown.
+        if (cps.some((c) => c.consentStatus === "opted_out")) { out.skipped.push({ id: entityId, reason: "opted-out" }); continue; }
+        const optedOut = await filterOptedOut(cps.map((c) => c.value));
+        if (optedOut.size) { out.skipped.push({ id: entityId, reason: "opt-out lintas pool" }); continue; }
+        consentStatus = bestConsent(cps);
+        channels = channelsOf(cps); // sosmed + WA + email (doc: "link sosmed dan WA + email")
+        if (pe.linkedinUrl) channels = [...new Set([...channels, "linkedin"])];
+        if (pe.socials && Object.keys(pe.socials).length) channels = [...new Set([...channels, ...Object.keys(pe.socials)])];
+        title = pe.fullName;
+        summary = [pe.title, pe.location].filter(Boolean).join(" · ") || null;
+        category = category || pe.title || (pe.leadType === "b2b_partner" ? "B2B Partner" : pe.leadType === "b2c_customer" ? "B2C Customer" : null);
+      }
+
+      const id = "mkt_" + crypto.randomUUID();
+      await db.insert(marketplaceListingTable).values({
+        id,
+        sellerTenantId: T,
+        entityType: input.entityType,
+        entityId,
+        title,
+        summary,
+        category,
+        channels,
+        priceIdr: input.priceIdr ?? 0,
+        consentStatus,
+      });
+      out.published++;
+    } catch (e) {
+      out.skipped.push({ id: entityId, reason: String(e) });
+    }
+  }
+  return out;
 }
 
 // Copy the listed entity (+ its contact points) into the buyer's tenant.

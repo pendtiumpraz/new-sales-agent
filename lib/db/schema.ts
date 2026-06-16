@@ -496,8 +496,10 @@ export const marketplaceListingTable = pgTable("marketplace_listing", {
   entityId: text("entity_id").notNull(),            // company.id / person.id in seller tenant
   title: text("title").notNull(),
   summary: text("summary"),
+  category: text("category"),                        // jabatan/bidang, e.g. "AI Engineer" (doc 41 §6)
+  channels: jsonb("channels").$type<string[]>().notNull().default([]), // email|whatsapp|linkedin|instagram tersedia
   priceIdr: real("price_idr").notNull().default(0),
-  consentStatus: text("consent_status"),            // for person listings
+  consentStatus: text("consent_status"),            // shown to buyer; opted_out blocked
   status: text("status").notNull().default("active"), // active | delisted
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({

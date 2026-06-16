@@ -148,6 +148,13 @@
       "when": 1781596928944,
       "tag": "0020_pool_optout",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781597701418,
+      "tag": "0021_marketplace_category_channels",
+      "breakpoints": true
     }
   ]
 }
