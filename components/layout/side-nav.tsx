@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import {
   BarChart3,
   Bell,
@@ -60,21 +59,52 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { cn } from "@/lib/utils";
 
-// Active modules only — Inbox moved under Contacts, Sales Lapangan + E-Commerce
-// deferred (hidden but not removed; see feature-revisions.md §1, §8).
-const NAV: { href: string; icon: LucideIcon; key: string; label?: string }[] = [
-  { href: "/dashboard", icon: LayoutDashboard, key: "dashboard" },
-  // Lead discovery (Prospek) now lives as the "Penemuan Lead" tab inside Contacts.
-  { href: "/contacts", icon: Users, key: "contacts" },
-  { href: "/pipeline", icon: Database, key: "pipeline", label: "Enrichment" },
-  { href: "/cadences", icon: Workflow, key: "cadences" },
-  { href: "/escalations", icon: Bot, key: "escalations", label: "Eskalasi AI" },
-  { href: "/content", icon: Megaphone, key: "content" },
-  { href: "/retention", icon: Heart, key: "retention", label: "Retensi" },
-  { href: "/ecommerce", icon: ShoppingBag, key: "ecommerce", label: "E-Commerce" },
-  { href: "/field", icon: MapPin, key: "field", label: "Sales Lapangan" },
-  { href: "/reports", icon: BarChart3, key: "reports", label: "Laporan" },
-  { href: "/documentation", icon: BookOpen, key: "documentation", label: "Dokumentasi" },
+// Grouped navigation with plain-Indonesian labels — sections make the menu
+// scannable and self-explanatory (no jargon like "Enrichment"). The collapsed
+// sidebar hides the section headers.
+interface NavItem {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  desc: string; // shown as a tooltip — explains the menu in one line
+}
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Utama",
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", desc: "Ringkasan harian: KPI, tugas, funnel" },
+    ],
+  },
+  {
+    label: "Cari & Riset Lead",
+    items: [
+      { href: "/contacts", icon: Users, label: "Kontak & Lead", desc: "Kontak, penemuan lead, & profil" },
+      { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
+    ],
+  },
+  {
+    label: "Jangkau & Otomasi AI",
+    items: [
+      { href: "/cadences", icon: Workflow, label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
+      { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
+      { href: "/content", icon: Megaphone, label: "Konten", desc: "Buat & rencanakan konten" },
+    ],
+  },
+  {
+    label: "Pelanggan & Penjualan",
+    items: [
+      { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
+      { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
+      { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
+    ],
+  },
+  {
+    label: "Analitik & Bantuan",
+    items: [
+      { href: "/reports", icon: BarChart3, label: "Laporan", desc: "Performa & analitik" },
+      { href: "/documentation", icon: BookOpen, label: "Panduan", desc: "Cara pakai tiap fitur, langkah demi langkah" },
+    ],
+  },
 ];
 // Autopilot is intentionally NOT in NAV — it surfaces as a "special" coral
 // button in both the top bar and the bottom of the sidebar (above the AI dock).
@@ -104,7 +134,6 @@ async function handleLogout(router: ReturnType<typeof useRouter>) {
 /* -------------------------------------------------------------------------- */
 export function SideNav() {
   const pathname = usePathname();
-  const tn = useTranslations("nav");
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
 
   return (
@@ -132,36 +161,47 @@ export function SideNav() {
         </Link>
       </div>
 
-      {/* Primary nav */}
+      {/* Primary nav — grouped + self-explanatory */}
       <nav className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2">
-        {NAV.map(({ href, icon: Icon, key, label }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
-          const item = (
-            <Link
-              href={href}
-              className={cn(
-                "flex items-center rounded-lg text-sm font-medium transition-colors",
-                collapsed
-                  ? "justify-center px-2 py-2"
-                  : "gap-2.5 px-3 py-2",
-                active
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-foreground/75 hover:bg-accent hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{label ?? tn(key)}</span>}
-            </Link>
-          );
-          return collapsed ? (
-            <Tooltip key={href}>
-              <TooltipTrigger asChild>{item}</TooltipTrigger>
-              <TooltipContent side="right">{label ?? tn(key)}</TooltipContent>
-            </Tooltip>
-          ) : (
-            <div key={href}>{item}</div>
-          );
-        })}
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={group.label} className={cn(gi > 0 && (collapsed ? "mt-1.5" : "mt-3"))}>
+            {!collapsed && (
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                {group.label}
+              </p>
+            )}
+            {collapsed && gi > 0 && <div className="mx-2 mb-1.5 border-t border-border/60" />}
+            <div className="flex flex-col gap-0.5">
+              {group.items.map(({ href, icon: Icon, label, desc }) => {
+                const active = pathname === href || pathname.startsWith(href + "/");
+                const item = (
+                  <Link
+                    href={href}
+                    className={cn(
+                      "flex items-center rounded-lg text-sm font-medium transition-colors",
+                      collapsed ? "justify-center px-2 py-2" : "gap-2.5 px-3 py-2",
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-foreground/75 hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>{label}</span>}
+                  </Link>
+                );
+                return (
+                  <Tooltip key={href}>
+                    <TooltipTrigger asChild>{item}</TooltipTrigger>
+                    <TooltipContent side="right">
+                      <span className="font-medium">{label}</span>
+                      <span className="block text-xs text-muted-foreground">{desc}</span>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Special Autopilot button — coral primary, sits above the AI dock as
@@ -238,7 +278,6 @@ export function SideNav() {
 export function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const tn = useTranslations("nav");
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const currentUser = useAuthStore((s) => s.currentUser);
 
@@ -273,24 +312,31 @@ export function TopBar() {
             </SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col gap-0.5 p-2">
-            {NAV.map(({ href, icon: Icon, key, label }) => {
-              const active = pathname === href || pathname.startsWith(href + "/");
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground/75 hover:bg-accent hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{label ?? tn(key)}</span>
-                </Link>
-              );
-            })}
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="mt-2 first:mt-0">
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  {group.label}
+                </p>
+                {group.items.map(({ href, icon: Icon, label }) => {
+                  const active = pathname === href || pathname.startsWith(href + "/");
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground/75 hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </SheetContent>
       </Sheet>
