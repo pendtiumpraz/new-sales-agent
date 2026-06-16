@@ -64,28 +64,51 @@
     try { const u = new URL(href, location.origin); u.search = ""; return u.href.replace(/\/$/, ""); } catch { return ""; }
   }
 
+  // Link-anchored (resilient to LinkedIn class churn): walk every /in/ profile
+  // anchor in the results area; name from the anchor, headline/company from the
+  // surrounding card. Same logic as the extension's content.js.
+  const NAME_NOISE = /^(View|Lihat|LinkedIn Member|Anggota LinkedIn|Status is|•|·|\d(?:st|nd|rd|th)\b|Koneksi|Connection|Mutual|tingkat)/i;
+  function profileUrl(href) {
+    if (!href) return "";
+    try { const u = new URL(href, location.origin); const m = u.pathname.match(/\/in\/[^/?#]+/); return m ? "https://www.linkedin.com" + m[0] : ""; } catch { return ""; }
+  }
+  function nameFromAnchor(a) {
+    const span = a.querySelector('span[aria-hidden="true"]');
+    let name = clean(span ? span.textContent : a.textContent);
+    name = name.replace(/(’s|'s)\s+profile.*$/i, "").replace(/^View\s+|^Lihat\s+/i, "");
+    const half = name.length % 2 === 0 ? name.slice(0, name.length / 2) : "";
+    if (half && half === name.slice(name.length / 2)) name = half;
+    return name;
+  }
   function scrapePeople() {
-    const containers = document.querySelectorAll(
-      'li.reusable-search__result-container, div[data-view-name="search-entity-result-universal-template"], li.entity-result, div.entity-result',
-    );
+    const root = document.querySelector("main") || document.body;
+    const byUrl = new Map();
+    root.querySelectorAll('a[href*="/in/"]').forEach((a) => {
+      const url = profileUrl(a.getAttribute("href"));
+      if (!url) return;
+      const name = nameFromAnchor(a);
+      const valid = name && !NAME_NOISE.test(name) && name.length <= 80;
+      const existing = byUrl.get(url);
+      if (!existing) byUrl.set(url, { fullName: valid ? name : "", anchor: a });
+      else if (valid && !existing.fullName) byUrl.set(url, { fullName: name, anchor: a });
+    });
     const people = [];
     const companies = new Map();
-    containers.forEach((el) => {
-      const linkEl = el.querySelector('a[href*="/in/"]');
-      const linkedinUrl = absUrl(linkEl && linkEl.getAttribute("href"));
-      const fullName = pick(el, ['.entity-result__title-text a span[aria-hidden="true"]', '.entity-result__title-text a', 'a[href*="/in/"] span[aria-hidden="true"]', 'a[href*="/in/"]']);
-      if (!fullName || /^LinkedIn Member$/i.test(fullName)) return;
-      const headline = pick(el, ['.entity-result__primary-subtitle', '[class*="primary-subtitle"]']);
-      const location = pick(el, ['.entity-result__secondary-subtitle', '[class*="secondary-subtitle"]']);
+    byUrl.forEach(({ fullName, anchor }, url) => {
+      if (!fullName) return;
+      const card = anchor.closest("li") || anchor.closest('div[class*="entity-result"], div[data-chameleon-result-urn]') || anchor.parentElement;
+      let headline = "", location = "";
+      if (card) {
+        const lines = Array.from(card.querySelectorAll('span[aria-hidden="true"], .t-14, .t-12, p, [class*="subtitle"]'))
+          .map((n) => clean(n.textContent)).filter((t) => t && t !== fullName && !NAME_NOISE.test(t));
+        headline = lines[0] || "";
+        location = lines.find((t) => t !== headline && /(,|Indonesia|Jakarta|Surabaya|Bandung|Area)/i.test(t) && t.length < 60) || "";
+      }
       let title = headline, companyName = "";
       const m = headline.match(/^(.*?)\s+(?:at|@|di)\s+(.+)$/i);
       if (m) { title = clean(m[1]); companyName = clean(m[2]); }
-      // CURRENT/latest company from the highlighted summary line.
-      const summary = pick(el, ['.entity-result__summary', '[class*="entity-result__summary"]', '.entity-result__content-summary']);
-      const cm = summary.match(/(?:current|saat\s*ini)\s*:?\s*(.+)$/i);
-      if (cm) { const cur = clean(cm[1]); const cm2 = cur.match(/^.*?\s+(?:at|@|di)\s+(.+)$/i); const cc = cm2 ? clean(cm2[1]) : cur; if (cc) companyName = cc; }
       if (companyName) companies.set(companyName.toLowerCase(), companyName);
-      people.push({ fullName, title: title || undefined, companyName: companyName || undefined, location: location || undefined, linkedinUrl: linkedinUrl || undefined, source: "linkedin-userscript" });
+      people.push({ fullName, title: title || undefined, companyName: companyName || undefined, location: location || undefined, linkedinUrl: url, source: "linkedin-userscript" });
     });
     return { people, companies: [...companies.values()].map((name) => ({ name, source: "linkedin-userscript" })) };
   }

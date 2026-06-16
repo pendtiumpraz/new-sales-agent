@@ -30,34 +30,84 @@ function absUrl(href) {
     return "";
   }
 }
+// Normalize any /in/ href to the canonical profile URL, dropping sub-paths,
+// query, and the trailing slash — so the same person dedupes to one key.
+function profileUrl(href) {
+  if (!href) return "";
+  try {
+    const u = new URL(href, location.origin);
+    const m = u.pathname.match(/\/in\/[^/?#]+/);
+    return m ? "https://www.linkedin.com" + m[0] : "";
+  } catch {
+    return "";
+  }
+}
+// Junk that shows up in a profile anchor's text but isn't the person's name.
+const NAME_NOISE = /^(View|Lihat|LinkedIn Member|Anggota LinkedIn|Status is|•|·|\d(?:st|nd|rd|th)\b|Koneksi|Connection|Mutual|tingkat)/i;
+function nameFromAnchor(a) {
+  // LinkedIn renders the visible name in a span[aria-hidden="true"] inside the link.
+  const span = a.querySelector('span[aria-hidden="true"]');
+  let name = clean(span ? span.textContent : a.textContent);
+  name = name.replace(/(’s|'s)\s+profile.*$/i, "").replace(/^View\s+|^Lihat\s+/i, "");
+  // collapse a duplicated name like "Budi SantosoBudi Santoso"
+  const half = name.length % 2 === 0 ? name.slice(0, name.length / 2) : "";
+  if (half && half === name.slice(name.length / 2)) name = half;
+  return name;
+}
 
 // ── Stage 1: search results ────────────────────────────────────────────────
+// LINK-ANCHORED scrape (resilient to LinkedIn's class-name churn): walk every
+// profile (/in/) anchor inside the results area instead of relying on specific
+// container classes. Name from the anchor; headline/location/company from the
+// surrounding card text (best-effort).
 function scrapePeople() {
-  const containers = document.querySelectorAll(
-    [
-      'li.reusable-search__result-container',
-      'div[data-view-name="search-entity-result-universal-template"]',
-      'li.entity-result',
-      'div.entity-result',
-    ].join(","),
-  );
+  const root = document.querySelector("main") || document.body;
+  const anchors = root.querySelectorAll('a[href*="/in/"]');
+
+  // url -> { fullName, anchor }
+  const byUrl = new Map();
+  anchors.forEach((a) => {
+    const url = profileUrl(a.getAttribute("href"));
+    if (!url) return;
+    const name = nameFromAnchor(a);
+    const valid = name && !NAME_NOISE.test(name) && name.length <= 80;
+    const existing = byUrl.get(url);
+    if (!existing) byUrl.set(url, { fullName: valid ? name : "", anchor: a });
+    else if (valid && !existing.fullName) byUrl.set(url, { fullName: name, anchor: a });
+  });
 
   const people = [];
   const companies = new Map();
 
-  containers.forEach((el) => {
-    const linkEl = el.querySelector('a[href*="/in/"]');
-    const linkedinUrl = absUrl(linkEl && linkEl.getAttribute("href"));
-    const fullName = pick(el, [
-      '.entity-result__title-text a span[aria-hidden="true"]',
-      '.entity-result__title-text a',
-      'a[href*="/in/"] span[aria-hidden="true"]',
-      'a[href*="/in/"]',
-    ]);
-    if (!fullName || /^LinkedIn Member$/i.test(fullName)) return;
+  byUrl.forEach(({ fullName, anchor }, url) => {
+    if (!fullName) return; // photo-only / nameless link → skip
 
-    const headline = pick(el, ['.entity-result__primary-subtitle', '[class*="primary-subtitle"]']);
-    const location = pick(el, ['.entity-result__secondary-subtitle', '[class*="secondary-subtitle"]']);
+    // Climb to the result card to read the headline + location text lines.
+    const card =
+      anchor.closest("li") ||
+      anchor.closest('div[data-chameleon-result-urn], div[class*="entity-result"], div[componentkey]') ||
+      anchor.parentElement?.closest("div") ||
+      anchor.parentElement;
+    let headline = "";
+    let location = "";
+    const summaryLines = [];
+    if (card) {
+      const lines = Array.from(card.querySelectorAll('span[aria-hidden="true"], .t-14, .t-12, p, [class*="subtitle"], [class*="summary"]'))
+        .map((n) => clean(n.textContent))
+        .filter((t) => t && t !== fullName && !NAME_NOISE.test(t));
+      // de-dupe consecutive repeats
+      const seen = new Set();
+      for (const t of lines) {
+        if (seen.has(t)) continue;
+        seen.add(t);
+        summaryLines.push(t);
+      }
+      headline = summaryLines[0] || "";
+      location =
+        summaryLines.find(
+          (t) => t !== headline && /(,|Indonesia|Jakarta|Surabaya|Bandung|Medan|Bali|Yogyakarta|Area|Greater)/i.test(t) && t.length < 60,
+        ) || "";
+    }
 
     let title = headline;
     let companyName = "";
@@ -66,15 +116,8 @@ function scrapePeople() {
       title = clean(m[1]);
       companyName = clean(m[2]);
     }
-
-    // CURRENT/latest company — LinkedIn highlights it in a summary line, e.g.
-    // "Current: Manager at PT X" / "Saat ini: PT X". Prefer this over the headline.
-    const summary = pick(el, [
-      '.entity-result__summary',
-      '[class*="entity-result__summary"]',
-      '.entity-result__content-summary',
-      'p.entity-result__summary--2-lines',
-    ]);
+    // CURRENT/latest company line ("Current: … at PT X" / "Saat ini: PT X").
+    const summary = summaryLines.find((t) => /(current|saat\s*ini)\s*:/i.test(t)) || "";
     const cm = summary.match(/(?:current|saat\s*ini)\s*:?\s*(.+)$/i);
     if (cm) {
       const cur = clean(cm[1]);
@@ -88,9 +131,9 @@ function scrapePeople() {
     people.push({
       fullName,
       title: title || undefined,
-      companyName: companyName || undefined, // current/latest company
+      companyName: companyName || undefined,
       location: location || undefined,
-      linkedinUrl: linkedinUrl || undefined,
+      linkedinUrl: url,
       source: "linkedin-extension",
     });
   });
@@ -99,6 +142,17 @@ function scrapePeople() {
     people,
     companies: [...companies.values()].map((name) => ({ name, source: "linkedin-extension" })),
   };
+}
+
+// LinkedIn lazy-loads search results as you scroll — nudge the page to the
+// bottom a few times so all ~10 results render before we scrape.
+async function autoScroll(steps = 6, delay = 350) {
+  for (let i = 0; i < steps; i++) {
+    window.scrollTo(0, document.body.scrollHeight);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  window.scrollTo(0, 0);
+  await new Promise((r) => setTimeout(r, 250));
 }
 
 // ── Stage 2: profile detail (track record) ──────────────────────────────────
@@ -206,16 +260,21 @@ function scrapeContactInfo() {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  try {
-    if (msg && msg.type === "SCAN_PEOPLE") {
-      sendResponse({ ok: true, ...scrapePeople() });
-    } else if (msg && msg.type === "SCAN_PROFILE") {
-      sendResponse({ ok: true, profile: scrapeProfile() });
-    } else if (msg && msg.type === "SCAN_CONTACT_INFO") {
-      sendResponse({ ok: true, contact: scrapeContactInfo() });
+  (async () => {
+    try {
+      if (msg && msg.type === "SCAN_PEOPLE") {
+        await autoScroll(); // let lazy-loaded results render first
+        sendResponse({ ok: true, ...scrapePeople() });
+      } else if (msg && msg.type === "SCAN_PROFILE") {
+        sendResponse({ ok: true, profile: scrapeProfile() });
+      } else if (msg && msg.type === "SCAN_CONTACT_INFO") {
+        sendResponse({ ok: true, contact: scrapeContactInfo() });
+      } else {
+        sendResponse({ ok: false, error: "unknown message" });
+      }
+    } catch (e) {
+      sendResponse({ ok: false, error: String(e) });
     }
-  } catch (e) {
-    sendResponse({ ok: false, error: String(e) });
-  }
-  return true;
+  })();
+  return true; // keep the message channel open for the async sendResponse
 });
