@@ -1,22 +1,31 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, or, isNull } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { companyTable, contactPointTable, personTable } from "@/lib/db/schema";
+import { isManager } from "@/lib/team/members";
 
 export const runtime = "nodejs";
 
 // GET /api/db/people → tenant's people, each with company name + person-level
-// contact points (doc 20). RLS-scoped via withTenant.
+// contact points (doc 20). RLS-scoped via withTenant. Per-rep isolation (doc 41
+// §2): a sales rep (member) sees only leads assigned to them OR still unassigned
+// (the tenant pool); managers see everything.
 export async function GET() {
   const ctx = await getTenantContext();
   if (!ctx) return NextResponse.json({ data: [], source: "mock" });
   if (!hasDb()) return NextResponse.json({ data: [], source: "mock" });
+  const scoped = !isManager(ctx.role);
   try {
     const { persons, companies, cps } = await withTenant(ctx, async (tx) => {
-      const persons = await tx.select().from(personTable);
+      const persons = scoped
+        ? await tx
+            .select()
+            .from(personTable)
+            .where(or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo)))
+        : await tx.select().from(personTable);
       const companies = await tx
         .select({ id: companyTable.id, name: companyTable.name })
         .from(companyTable);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Activity,
   BarChart3,
   Bell,
   BookOpen,
@@ -68,6 +69,7 @@ interface NavItem {
   icon: LucideIcon;
   label: string;
   desc: string; // shown as a tooltip — explains the menu in one line
+  managerOnly?: boolean; // hidden from Sales Rep (member) — doc 41
 }
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
@@ -94,6 +96,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Pelanggan & Penjualan",
     items: [
+      { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead per sales", managerOnly: true },
       { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
       { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
       { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
@@ -144,6 +147,8 @@ async function handleLogout(router: ReturnType<typeof useRouter>) {
 export function SideNav() {
   const pathname = usePathname();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const isRep = useAuthStore((s) => s.currentUser.role) === "Sales Rep";
+  const visible = (items: NavItem[]) => items.filter((it) => !it.managerOnly || !isRep);
 
   return (
     <aside
@@ -181,7 +186,7 @@ export function SideNav() {
             )}
             {collapsed && gi > 0 && <div className="mx-2 mb-1.5 border-t border-border/60" />}
             <div className="flex flex-col gap-0.5">
-              {group.items.map(({ href, icon: Icon, label, desc }) => {
+              {visible(group.items).map(({ href, icon: Icon, label, desc }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
                 const item = (
                   <Link
@@ -326,7 +331,9 @@ export function TopBar() {
                 <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                   {group.label}
                 </p>
-                {group.items.map(({ href, icon: Icon, label }) => {
+                {group.items
+                  .filter((it) => !it.managerOnly || currentUser.role !== "Sales Rep")
+                  .map(({ href, icon: Icon, label }) => {
                   const active = pathname === href || pathname.startsWith(href + "/");
                   return (
                     <Link

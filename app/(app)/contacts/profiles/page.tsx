@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, Building2, Handshake, MapPin, Radar, Sparkles, User2, Users } from "lucide-react";
+import { AlertTriangle, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,14 @@ interface PersonRow {
   leadReason?: string | null;
   leadScore?: number | null;
   capturedAt?: string | null;
+  assignedTo?: string | null;
   contacts: ContactPoint[];
+}
+
+interface Member {
+  userId: string;
+  name: string;
+  role: string;
 }
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
@@ -146,6 +153,31 @@ export default function ProfilesPage() {
     },
     onError: () => toast.error("Klasifikasi gagal — pastikan model AI aktif & DB tersambung"),
     onSettled: () => setClassifyingId(null),
+  });
+
+  const membersQ = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const r = await fetch("/api/team/members");
+      if (!r.ok) return [] as Member[];
+      return ((await r.json()).data ?? []) as Member[];
+    },
+  });
+  const assign = useMutation({
+    mutationFn: async (body: { personId: string; assignedTo: string | null }) => {
+      const r = await fetch("/api/profiles/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error("gagal");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast.success("Lead di-assign");
+      qc.invalidateQueries({ queryKey: ["people"] });
+    },
+    onError: () => toast.error("Gagal assign (cek hak akses)"),
   });
 
   const companies = useQuery({
@@ -343,6 +375,22 @@ export default function ProfilesPage() {
                                 {p.location}
                               </span>
                             )}
+                            <span className="inline-flex items-center gap-1">
+                              <UserCircle2 className="h-3 w-3" />
+                              <select
+                                value={p.assignedTo ?? ""}
+                                onChange={(e) => assign.mutate({ personId: p.id, assignedTo: e.target.value || null })}
+                                className="rounded border bg-background px-1 py-0.5 text-[11px] text-foreground"
+                                title="Assign lead ke sales"
+                              >
+                                <option value="">Belum di-assign</option>
+                                {(membersQ.data ?? []).map((m) => (
+                                  <option key={m.userId} value={m.userId}>
+                                    {m.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </span>
                           </div>
                           {p.contacts.length > 0 && (
                             <div className="mt-3 space-y-1.5 border-t pt-3">
