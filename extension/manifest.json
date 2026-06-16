@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Maira Sales — LinkedIn Lead Collector",
-  "version": "0.5.0",
-  "description": "Collect + enrich LinkedIn leads into your Maira Sales workspace — runs in YOUR logged-in session (RPA), rate-limited, consent-gated. No credentials stored.",
+  "version": "0.6.0",
+  "description": "Collect + enrich leads into your Maira Sales workspace — RPA scrape + DeepSeek AI websearch run in YOUR browser, buffered locally, then sent to the platform. Rate-limited, consent-gated.",
   "permissions": ["storage", "tabs", "scripting", "alarms"],
-  "host_permissions": ["https://www.linkedin.com/*"],
+  "host_permissions": ["https://www.linkedin.com/*", "https://api.deepseek.com/*"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Maira Sales Collector"

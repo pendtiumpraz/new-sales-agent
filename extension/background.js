@@ -18,6 +18,7 @@ const DEFAULTS = {
   consent: false,
   paused: false,
   autoEnrich: true, // Stage 1 → auto-continue to Stage 2 (enrichment)
+  deepseekKey: "", // for AI websearch (runs in the browser, not the platform)
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -114,9 +115,62 @@ async function heartbeat() {
       body: JSON.stringify({ version: EXT_VERSION }),
     });
     const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error };
+    // Pull the AI key from the platform on connect (doc 40) — no manual paste.
+    if (data.connected && data.deepseekKey) await chrome.storage.local.set({ deepseekKey: data.deepseekKey });
+    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error, aiKey: !!data.deepseekKey };
   } catch (e) {
     return { ok: false, connected: false, error: String(e) };
+  }
+}
+
+// ── AI websearch (DeepSeek), run IN THE BROWSER ─────────────────────────────
+// The extension calls DeepSeek directly (the platform/Vercel can't crawl), gets
+// candidate leads, buffers them in localStorage, then flushes to /api/ingest.
+// Candidates are for targeting — verify real contacts via Stage-2 enrich.
+async function runAiSearch(query) {
+  const c = await cfg();
+  const q = (query || c.query || "").trim();
+  if (!c.deepseekKey) return setStatus("Isi DeepSeek API key di popup dulu.");
+  if (!q) return setStatus("Isi query dulu.");
+  await setStatus(`AI websearch (DeepSeek): "${q}"…`);
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + c.deepseekKey },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Kamu asisten lead-generation Indonesia. Balas HANYA JSON array of " +
+              '{fullName,title,companyName,location,linkedinUrl}. JANGAN mengarang email/HP. ' +
+              "Maksimal 20 kandidat yang relevan dengan query.",
+          },
+          { role: "user", content: "Cari kandidat lead untuk: " + q },
+        ],
+      }),
+    });
+    if (!res.ok) return setStatus(`AI websearch gagal (${res.status}). Cek API key.`);
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content || "";
+    const m = text.match(/\[[\s\S]*\]/);
+    const arr = m ? JSON.parse(m[0]) : [];
+    const people = (Array.isArray(arr) ? arr : [])
+      .filter((p) => p && p.fullName)
+      .map((p) => ({
+        fullName: p.fullName,
+        title: p.title || undefined,
+        companyName: p.companyName || undefined,
+        location: p.location || undefined,
+        linkedinUrl: p.linkedinUrl || undefined,
+        source: "deepseek-websearch",
+      }));
+    await addLeads(people, []);
+    await flush();
+    await setStatus(`AI websearch: ${people.length} kandidat → dikirim ke app (verifikasi via enrich).`);
+  } catch (e) {
+    await setStatus("AI websearch error: " + String(e));
   }
 }
 
@@ -311,6 +365,10 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
       // "Test koneksi" / Connect — ping the app to verify URL + token (doc 40).
       case "CONNECT":
         return sendResponse(await heartbeat());
+      // AI websearch via DeepSeek (runs in the browser, buffers → ingest).
+      case "AI_SEARCH":
+        runAiSearch(msg.query);
+        return sendResponse({ ok: true });
       // Manual scan from a search page (legacy popup button).
       case "BUFFER_LEADS":
         return sendResponse({ ok: true, buffered: await addLeads(msg.people || [], msg.companies || []) });

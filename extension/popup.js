@@ -1,4 +1,4 @@
-const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich"];
+const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey"];
 const $ = (id) => document.getElementById(id);
 
 async function load() {
@@ -11,6 +11,7 @@ async function load() {
   $("dailyCap").value = cfg.dailyCap ?? 200;
   $("consent").checked = !!cfg.consent;
   $("autoEnrich").checked = cfg.autoEnrich !== false;
+  $("deepseekKey").value = cfg.deepseekKey ?? "";
   toggleConsent();
   refreshStatus();
 }
@@ -29,6 +30,7 @@ async function save() {
     dailyCap: Number($("dailyCap").value) || 200,
     consent: $("consent").checked,
     autoEnrich: $("autoEnrich").checked,
+    deepseekKey: $("deepseekKey").value.trim(),
   });
 }
 
@@ -48,11 +50,18 @@ $("connect").addEventListener("click", async () => {
   $("connStatus").textContent = "Menghubungkan…";
   chrome.runtime.sendMessage({ type: "CONNECT" }, (r) => {
     if (r && r.connected) {
-      $("connStatus").textContent = `✅ Terhubung${r.tenant ? ` (workspace: ${r.tenant})` : ""}. Hasil crawl akan terkirim ke app.`;
+      $("connStatus").textContent = `✅ Terhubung${r.tenant ? ` (workspace: ${r.tenant})` : ""}.${r.aiKey ? " AI key diambil dari platform." : ""} Hasil crawl akan terkirim.`;
+      load(); // refresh fields — the heartbeat may have stored the DeepSeek key
     } else {
       $("connStatus").textContent = `❌ Gagal: ${(r && r.error) || "cek URL aplikasi & token"}`;
     }
   });
+});
+
+$("aiSearch").addEventListener("click", async () => {
+  await save();
+  $("status").textContent = "AI websearch (DeepSeek)…";
+  chrome.runtime.sendMessage({ type: "AI_SEARCH", query: $("query").value.trim() }, () => setTimeout(refreshStatus, 1000));
 });
 
 $("startSearch").addEventListener("click", async () => {

@@ -89,6 +89,15 @@ export default function DiscoveryPage() {
       return ((await r.json()).data ?? []) as Job[];
     },
   });
+  // Extension is the PRIMARY discovery engine (RPA in the rep's own session).
+  const ext = useQuery({
+    queryKey: ["rep-account"],
+    queryFn: async () => {
+      const r = await fetch("/api/rep/account");
+      if (!r.ok) return null;
+      return (await r.json()) as { connected: boolean; lastSeenAt: string | null };
+    },
+  });
 
   const [posture, setPosture] = useState("compliant");
   const [names, setNames] = useState("");
@@ -192,15 +201,64 @@ export default function DiscoveryPage() {
 
   return (
     <div>
-      <PageHeader title="Discovery" description="Mulai pencarian lead: URL manual, pilih bidang, daftar nama (bulk), atau auto (doc 21).">
+      <PageHeader title="Discovery" description="Crawl lead lewat extension (RPA + AI websearch) — datanya diambil di browser kamu, dikirim ke platform.">
         <Link href="/contacts/profiles" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent">
           Lihat Profil
         </Link>
       </PageHeader>
       <div className="max-w-3xl space-y-4 p-6">
+        {/* Extension = the PRIMARY discovery engine (data plane in the browser). */}
+        <Card className="border-primary/30">
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Radar className="h-4 w-4 text-primary" /> Crawl via Extension (utama)
+              {ext.data?.connected ? (
+                <Badge className="ml-auto bg-success/10 text-success">Terhubung</Badge>
+              ) : (
+                <Badge variant="muted" className="ml-auto">Belum terhubung</Badge>
+              )}
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              Extension di browser kamu yang ngambil data (RPA scrape + AI websearch) → buffer di localStorage → kirim ke platform.
+              Platform cuma simpan + CRM. (Vercel serverless gak bisa crawl sendiri.)
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                ["LinkedIn", true],
+                ["Google", false],
+                ["Instagram", false],
+                ["Shopee", false],
+                ["Tokopedia", false],
+                ["TikTok", false],
+                ["AI Websearch (DeepSeek)", false],
+              ].map(([label, on]) => (
+                <span
+                  key={label as string}
+                  className={
+                    "rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                    (on ? "bg-success/10 text-success" : "bg-muted text-muted-foreground")
+                  }
+                >
+                  {label as string}
+                  {on ? "" : " · segera"}
+                </span>
+              ))}
+            </div>
+            <Link
+              href="/settings/extension"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <ExternalLink className="h-4 w-4" /> {ext.data?.connected ? "Buka pengaturan extension" : "Pasang & hubungkan extension"}
+            </Link>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base"><Radar className="h-4 w-4 text-primary" /> Mulai discovery</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base"><Radar className="h-4 w-4 text-primary" /> Crawl server-side (web &amp; Hunter)</CardTitle>
+            <p className="text-[11px] text-muted-foreground">Pelengkap: crawl website PT (URL) + Hunter + rencana AI. Terbatas timeout serverless — untuk orang/sosmed pakai extension.</p>
           </CardHeader>
           <CardContent className="p-4">
             <Tabs defaultValue="ai">
