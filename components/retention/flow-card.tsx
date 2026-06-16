@@ -38,9 +38,9 @@ const TYPE_ACCENT = {
   },
   upsell: {
     hex: "#F59E0B", // amber
-    bgClass: "bg-amber-100",
-    textClass: "text-amber-700",
-    barClass: "bg-amber-500",
+    bgClass: "bg-warning/15",
+    textClass: "text-warning",
+    barClass: "bg-warning",
   },
   "after-sales": {
     hex: "#14B8A6", // teal / tertiary
@@ -115,9 +115,9 @@ export function FlowCard({ flow }: { flow: RetentionFlow }) {
                 className={cn(
                   "h-1.5 w-1.5 rounded-full",
                   isActive
-                    ? "bg-emerald-500 animate-pulse"
+                    ? "bg-success animate-pulse"
                     : flow.status === "jeda"
-                      ? "bg-amber-500"
+                      ? "bg-warning"
                       : "bg-muted-foreground/40",
                 )}
               />

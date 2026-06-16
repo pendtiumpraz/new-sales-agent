@@ -70,7 +70,7 @@ export function RetentionStatTile({
               className={cn(
                 "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
                 positive
-                  ? "bg-success/15 text-emerald-700"
+                  ? "bg-success/15 text-success"
                   : "bg-destructive/10 text-destructive",
               )}
             >

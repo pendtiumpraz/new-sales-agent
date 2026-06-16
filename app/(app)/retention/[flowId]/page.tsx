@@ -181,9 +181,9 @@ export default function RetentionFlowDetailPage() {
                       aria-hidden
                       className={
                         isActive
-                          ? "h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"
+                          ? "h-1.5 w-1.5 rounded-full bg-success animate-pulse"
                           : flow.status === "jeda"
-                            ? "h-1.5 w-1.5 rounded-full bg-amber-500"
+                            ? "h-1.5 w-1.5 rounded-full bg-warning"
                             : "h-1.5 w-1.5 rounded-full bg-muted-foreground/40"
                       }
                     />
@@ -258,9 +258,9 @@ export default function RetentionFlowDetailPage() {
                   {flow.conversionRate}%
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-center justify-between rounded-lg border border-warning/30 bg-warning/10 p-3">
                 <span className="text-sm text-muted-foreground">Langkah</span>
-                <span className="tnum text-lg font-semibold text-amber-700">
+                <span className="tnum text-lg font-semibold text-warning">
                   {flow.steps.length}
                 </span>
               </div>

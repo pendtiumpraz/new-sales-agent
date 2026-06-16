@@ -440,7 +440,7 @@ export default function DashboardPage() {
                         className={cn(
                           "flex items-center gap-3 px-6 py-3 transition-colors duration-500",
                           isFlashing
-                            ? "bg-emerald-100/70"
+                            ? "bg-success/15"
                             : "hover:bg-muted/40",
                         )}
                       >

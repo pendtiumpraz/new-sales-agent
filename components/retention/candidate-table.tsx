@@ -29,7 +29,7 @@ function flowAccent(
   const lower = `${flowId} ${flowName}`.toLowerCase();
   if (lower.includes("upsell")) {
     return {
-      className: "bg-amber-100 text-amber-700 ring-amber-200",
+      className: "bg-warning/15 text-warning ring-warning/30",
       Icon: Sparkles,
     };
   }

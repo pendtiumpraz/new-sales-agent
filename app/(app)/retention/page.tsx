@@ -30,7 +30,7 @@ const TYPE_FILTERS: {
 }[] = [
   { key: "all", label: "Semua" },
   { key: "repeat-order", label: "Pesanan berulang", dot: "bg-primary" },
-  { key: "upsell", label: "Upsell", dot: "bg-amber-500" },
+  { key: "upsell", label: "Upsell", dot: "bg-warning" },
   { key: "after-sales", label: "After-sales", dot: "bg-tertiary" },
 ];
 
@@ -52,9 +52,9 @@ export default function RetentionPage() {
       >
         <Badge
           variant="secondary"
-          className="gap-1.5 bg-emerald-100 text-emerald-700"
+          className="gap-1.5 bg-success/15 text-success"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
           {activeFlowCount} alur aktif
         </Badge>
         <Button
@@ -107,7 +107,7 @@ export default function RetentionPage() {
                   {kpi.repeatOrdersThisMonth}
                 </span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1.5 text-xs font-medium text-warning ring-1 ring-warning/30">
                 <Sparkles className="h-3.5 w-3.5" />
                 <span className="text-muted-foreground/80">Upsell</span>
                 <span className="tnum font-semibold text-foreground">

@@ -133,7 +133,7 @@ export function AudienceFilter({
           </Badge>
           <Badge
             variant="muted"
-            className="tnum bg-amber-100 text-amber-700"
+            className="tnum bg-warning/15 text-warning"
           >
             {minDays}–{maxDays} hari
           </Badge>

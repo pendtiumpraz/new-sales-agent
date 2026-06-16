@@ -99,7 +99,7 @@ export function AiSimulatePanel({
           {step && (
             <Badge
               variant="outline"
-              className="tnum border-amber-300 text-amber-700"
+              className="tnum border-warning/30 text-warning"
             >
               Hari +{step.delayDays}
             </Badge>

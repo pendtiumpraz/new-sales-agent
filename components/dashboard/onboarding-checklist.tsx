@@ -83,13 +83,13 @@ export function OnboardingChecklist() {
                   href={s.href}
                   className={cn(
                     "group flex items-center gap-3 rounded-lg border p-3 transition-colors",
-                    isDone ? "border-emerald-200 bg-success/5" : "bg-card hover:border-primary/40 hover:bg-accent",
+                    isDone ? "border-success/30 bg-success/5" : "bg-card hover:border-primary/40 hover:bg-accent",
                   )}
                 >
                   <span
                     className={cn(
                       "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                      isDone ? "bg-success/15 text-emerald-600" : "bg-muted text-muted-foreground",
+                      isDone ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
                     )}
                   >
                     {isDone ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
