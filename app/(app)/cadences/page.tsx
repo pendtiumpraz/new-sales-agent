@@ -269,7 +269,7 @@ export default function CadencesPage() {
                       delay: reduce ? 0 : Math.min(i * 0.04, 0.32),
                     }}
                   >
-                    <div className="block h-full">
+                    <Link href={`/cadences/${c.id}`} className="block h-full">
                       <Card
                         className={cn(
                           "group relative h-full overflow-hidden border transition-all duration-200 ease-out",
@@ -371,7 +371,7 @@ export default function CadencesPage() {
                           </div>
                         </CardContent>
                       </Card>
-                    </div>
+                    </Link>
                   </motion.div>
                 );
               })}
