@@ -10,6 +10,7 @@ import { tenantsTable } from "@/lib/db/schema";
 import { processCadences } from "@/lib/cadence/processor";
 import { processSendJobs } from "@/lib/mail/send";
 import { runUpsell } from "@/lib/engagement/upsell";
+import { runAutoReply } from "@/lib/engagement/autoreply";
 import { inngest } from "./client";
 
 // Per-tenant system context. superadmin role so the worker is allowed to act
@@ -90,4 +91,21 @@ export const upsellCron = inngest.createFunction(
   },
 );
 
-export const functions = [cadenceCron, sendQueueCron, cadenceOnDemand, upsellCron];
+// Cron: auto-reply + escalation across active tenants (every 10 min). Drafts +
+// judges inbound conversations; auto-sends when confident + opted in, else queues
+// an escalation for a human.
+export const autoReplyCron = inngest.createFunction(
+  { id: "auto-reply-cron", name: "Auto-reply + escalation", triggers: [{ cron: "*/10 * * * *" }] },
+  async ({ step }) => {
+    const tenantIds = await step.run("list-tenants", activeTenantIds);
+    const results: Record<string, unknown> = {};
+    for (const tenantId of tenantIds) {
+      results[tenantId] = await step.run(`auto-reply-${tenantId}`, () =>
+        runAutoReply(systemCtx(tenantId)),
+      );
+    }
+    return { tenants: tenantIds.length, results };
+  },
+);
+
+export const functions = [cadenceCron, sendQueueCron, cadenceOnDemand, upsellCron, autoReplyCron];

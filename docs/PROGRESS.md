@@ -158,7 +158,13 @@ _Terakhir diperbarui: 2026-06-16_
 - ✅ Engine `lib/engagement/upsell.ts` — `runUpsell`: deal `tutup` → produk upsell dari KB (`upsellMap`+`pricing`) → draft AI grounded + link checkout → kirim email (`send_job`)/WA (WAHA); **idempotent** (`engagement_event`, dedup 30 hari per contact+product)
 - ✅ API `/api/engagement/upsell` (GET log + POST run) + `/api/billing/payment-link` (close manual); Inngest **`upsell-cron` harian** (24 jam); tombol "Jalankan upsell" di Cadence; migrasi `0008` `engagement_event` (applied + RLS)
 - ✅ Diuji DB live: KB sementara → `candidates:1, sent:1`, pesan AI grounded, re-run `dedup:1`; routes 401, inngest function_count 4
-- ⬜ Berikutnya: auto-reply auto-send + gate confidence/escalation; pemicu upsell event-driven (post-purchase) + `deal.productId` buat target presisi; close high-ticket human-in-loop
+
+**Slice 2 (auto-reply + escalation) — selesai & terverifikasi (doc 36):**
+- ✅ Engine `lib/engagement/autoreply.ts` — `runAutoReply`: percakapan `unread>0` pesan terakhir masuk → AI JSON terstruktur `{reply,confidence,escalate,...}` grounded KB → **gate**: auto-kirim (yakin+aman+opt-in) atau **escalate ke manusia**; **guardrail** topik sensitif (refund/komplain/nego/"bicara manusia") paksa escalate; idempotent per `message_id`
+- ✅ **SAFETY**: auto-send OFF default (`AUTO_REPLY_AUTOSEND=1` buat nyalain), threshold `AUTO_REPLY_CONFIDENCE` (0.7); tanpa opt-in semua escalate (draft-only)
+- ✅ API `/api/engagement/auto-reply` (GET antrian + POST run) + Inngest **`auto-reply-cron` /10m** + tombol "Auto-reply" di Cadence; migrasi `0009` `auto_reply_event` (applied + RLS)
+- ✅ Diuji DB live: benign → `sent` (grounded "Rp 300.000/bln"), sensitif → `escalated` (guardrail menang walau conf 1); inngest function_count 5
+- ⬜ Berikutnya: UI inbox antrian-escalation satu-klik-kirim; pemicu upsell event-driven (post-`tutup`) + `deal.productId`; rate-limit/jam-kerja auto-send
 
 ## Keputusan arsitektur (terkunci)
 - Isolasi tenant: shared DB + Postgres RLS (`tenant_id`)

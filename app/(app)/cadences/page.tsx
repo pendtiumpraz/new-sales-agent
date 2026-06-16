@@ -118,6 +118,7 @@ export default function CadencesPage() {
     <div>
       <PageHeader title="Cadence" description="Rangkaian otomatis lintas channel.">
         <div className="flex items-center gap-2">
+          <RunAutoReplyButton />
           <RunUpsellButton />
           <RunCadencesButton />
           <Button
@@ -438,6 +439,45 @@ function RunCadencesButton() {
     <Button variant="outline" onClick={run} disabled={pending}>
       <Play className="h-4 w-4" />
       {pending ? "Menjalankan…" : "Jalankan sekarang"}
+    </Button>
+  );
+}
+
+// Autonomous auto-reply + escalation (doc 36): draft + judge inbound chats,
+// auto-send when confident + opted in, else escalate to a human.
+function RunAutoReplyButton() {
+  const [pending, setPending] = useState(false);
+  async function run() {
+    setPending(true);
+    try {
+      const r = await fetch("/api/engagement/auto-reply", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+      const s = j.summary as {
+        candidates: number;
+        sent: number;
+        escalated: number;
+        skipped: number;
+        failed: number;
+        autoSend: boolean;
+      };
+      if (s.candidates === 0) {
+        toast.info("Tidak ada percakapan yang menunggu balasan.");
+      } else {
+        toast.success(
+          `Auto-reply — ${s.sent} terkirim, ${s.escalated} escalate ke manusia${s.failed ? `, ${s.failed} gagal` : ""}${s.autoSend ? "" : " (auto-send OFF)"}.`,
+        );
+      }
+    } catch (e) {
+      toast.error(`Gagal auto-reply (${e instanceof Error ? e.message : e})`);
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <Button variant="outline" onClick={run} disabled={pending}>
+      <MessageCircle className="h-4 w-4" />
+      {pending ? "Memproses…" : "Auto-reply"}
     </Button>
   );
 }

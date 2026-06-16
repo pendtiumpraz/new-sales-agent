@@ -170,6 +170,28 @@ export const engagementEventTable = pgTable("engagement_event", {
   dedupIdx: index("engagement_event_dedup_idx").on(t.tenantId, t.contactId, t.productId, t.kind),
 }));
 
+// Auto-reply decisions (doc 36) — one row per inbound message the agent handled:
+// it either auto-sent a reply (confident + safe) or escalated to a human.
+// decision=escalated rows ARE the human review queue; the reply is kept so it can
+// be sent with one click later. Idempotent per inbound message. Tenant + RLS.
+export const autoReplyEventTable = pgTable("auto_reply_event", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  conversationId: text("conversation_id"),
+  messageId: text("message_id"),                          // inbound message handled
+  decision: text("decision").notNull(),                   // sent | escalated | skipped | failed
+  confidence: real("confidence"),                         // 0..1 self-assessed
+  channel: text("channel"),                               // whatsapp | email
+  reply: text("reply"),                                   // suggested/sent reply
+  reason: text("reason"),
+  category: text("category"),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("auto_reply_event_tenant_idx").on(t.tenantId),
+  msgIdx: index("auto_reply_event_msg_idx").on(t.tenantId, t.messageId),
+}));
+
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
