@@ -71,7 +71,7 @@ export default function BillingPage() {
   return (
     <div>
       <PageHeader title="Tagihan & Kuota" description="Paket aktif dan pemakaian terhadap kuota (doc 27)." />
-      <div className="max-w-4xl space-y-4 p-6">
+      <div className="space-y-4 p-6">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Memuat…</p>
         ) : (

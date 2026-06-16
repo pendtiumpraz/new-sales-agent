@@ -115,7 +115,7 @@ export default function DsarPage() {
   return (
     <div>
       <PageHeader title="DSAR & Audit" description="Akses/hapus data subjek + retensi + jejak audit (UU PDP/GDPR, doc 25)." />
-      <div className="max-w-5xl space-y-4 p-6">
+      <div className="space-y-4 p-6">
         {canPurge && <PoolOptOutCard />}
         <Card>
           <CardHeader className="border-b">

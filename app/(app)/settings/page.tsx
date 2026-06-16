@@ -145,7 +145,7 @@ export default function SettingsPage() {
           </TabsList>
 
           {/* ── Umum ───────────────────────────────────────────────── */}
-          <TabsContent value="umum" className="mt-5 max-w-3xl space-y-4">
+          <TabsContent value="umum" className="mt-5 space-y-4">
             {/* Workspace hero strip — coral gradient */}
             <Card className="overflow-hidden border-primary/20">
               <div className="relative bg-gradient-to-br from-primary/15 via-primary/8 to-tertiary/10 p-5">
@@ -294,7 +294,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           {/* ── Pengguna ───────────────────────────────────────────── */}
-          <TabsContent value="pengguna" className="mt-5 max-w-3xl">
+          <TabsContent value="pengguna" className="mt-5">
             <Card>
               <CardHeader className="flex-row items-center justify-between space-y-0 border-b bg-gradient-to-r from-primary/8 via-transparent to-tertiary/8">
                 <div>
@@ -357,7 +357,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           {/* ── Integrasi ──────────────────────────────────────────── */}
-          <TabsContent value="integrasi" className="mt-5 max-w-3xl">
+          <TabsContent value="integrasi" className="mt-5">
             <div className="grid gap-3 sm:grid-cols-2">
               {INTEGRATIONS.map((it) => {
                 const meta = channelMeta(it.ch);
@@ -412,7 +412,7 @@ export default function SettingsPage() {
           </TabsContent>
 
           {/* ── Tagihan ────────────────────────────────────────────── */}
-          <TabsContent value="tagihan" className="mt-5 max-w-xl">
+          <TabsContent value="tagihan" className="mt-5">
             <Card className="overflow-hidden border-primary/25">
               {/* Gradient header strip */}
               <div className="relative bg-gradient-to-br from-primary via-primary to-primary/80 p-5 text-primary-foreground">

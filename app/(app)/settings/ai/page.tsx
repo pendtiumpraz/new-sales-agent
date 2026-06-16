@@ -120,7 +120,7 @@ export default function AiSettingsPage() {
         title="AI"
         description="Pilih 1 model aktif per workspace, kelola API key sendiri (BYOK), dan pantau pemakaian (doc 24)."
       />
-      <div className="max-w-5xl space-y-4 p-6">
+      <div className="space-y-4 p-6">
         {/* Usage rollup */}
         <Card>
           <CardContent className="grid grid-cols-3 gap-4 p-4 text-center">

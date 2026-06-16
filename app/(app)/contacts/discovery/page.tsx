@@ -208,7 +208,7 @@ export default function DiscoveryPage() {
           Lihat Profil
         </Link>
       </PageHeader>
-      <div className="max-w-5xl space-y-4 p-6">
+      <div className="space-y-4 p-6">
         {workspaceId && (
           <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
             <Radar className="h-4 w-4 text-primary" />

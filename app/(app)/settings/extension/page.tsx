@@ -169,7 +169,7 @@ export default function ExtensionPage() {
         title="Extension LinkedIn"
         description="Pasang collector di browser Anda untuk crawl lead LinkedIn (RPA) langsung ke workspace ini."
       />
-      <div className="max-w-4xl space-y-4 p-6">
+      <div className="space-y-4 p-6">
         {/* Connection status */}
         <div
           className={
