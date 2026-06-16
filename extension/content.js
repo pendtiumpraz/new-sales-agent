@@ -146,6 +146,16 @@ function scrapePeople() {
     });
   });
 
+  // Diagnostic — open DevTools (F12) → Console to see this if leads come back 0.
+  try {
+    console.log("[Maira] scrapePeople →", {
+      anchors: anchors.length,
+      people: people.length,
+      sampleNames: people.slice(0, 5).map((p) => p.fullName),
+      sampleHrefs: Array.from(anchors).slice(0, 5).map((a) => a.getAttribute("href")),
+    });
+  } catch (e) { /* ignore */ }
+
   return {
     people,
     companies: [...companies.values()].map((name) => ({ name, source: "linkedin-extension" })),
