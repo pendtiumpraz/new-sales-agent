@@ -22,6 +22,7 @@ export const maxDuration = 60;
 // (pending only ever appears transiently / on error).
 const Body = z.object({
   kind: z.enum(["bulk", "url", "industry", "auto"]),
+  workspaceId: z.string().optional(),
   names: z.array(z.string().min(1)).optional(),
   url: z.string().optional(),
   industry: z.string().optional(),
@@ -41,7 +42,7 @@ interface CrawlOutcome {
 
 // Crawl one website + persist the company, its contact points, and (if Hunter is
 // configured) its people. Returns a summary. Shared by the url + industry/auto paths.
-async function crawlAndPersist(ctx: TenantContext, url: string, posture: string): Promise<CrawlOutcome> {
+async function crawlAndPersist(ctx: TenantContext, url: string, posture: string, workspaceId: string | null = null): Promise<CrawlOutcome> {
   const crawl = await crawlWebsite(url);
   const coName = crawl.name || crawl.domain || url;
   const coId = stableId("co", companyDedupKey({ tenantId: ctx.tenantId, name: coName, domain: crawl.domain }));
@@ -118,6 +119,7 @@ async function crawlAndPersist(ctx: TenantContext, url: string, posture: string)
               department: p.department,
               seniority: p.seniority,
               socials: p.linkedin ? { linkedin: p.linkedin } : {},
+              workspaceId: workspaceId ?? null,
               source: "hunter",
               sourceUrl: `https://${crawl.domain}`,
               capturedAt: new Date(),
@@ -228,7 +230,7 @@ export async function POST(req: Request) {
       result = { created, note: `${created} perusahaan dibuat sebagai shell — crawl URL-nya untuk dapat kontak.` };
     } else if (b.kind === "url" && b.url) {
       input.url = b.url;
-      const r = await crawlAndPersist(ctx, b.url, b.posture);
+      const r = await crawlAndPersist(ctx, b.url, b.posture, b.workspaceId ?? null);
       created = 1;
       contactsCreated = r.contactsCreated;
       peopleCreated = r.peopleCreated;
@@ -256,7 +258,7 @@ export async function POST(req: Request) {
         const crawled: { name: string; domain: string | null; contacts: number }[] = [];
         for (const d of domains) {
           try {
-            const r = await crawlAndPersist(ctx, d.startsWith("http") ? d : `https://${d}`, b.posture);
+            const r = await crawlAndPersist(ctx, d.startsWith("http") ? d : `https://${d}`, b.posture, b.workspaceId ?? null);
             created++;
             contactsCreated += r.contactsCreated;
             peopleCreated += r.peopleCreated;

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, ExternalLink, Radar, Sparkles } from "lucide-react";
@@ -99,6 +100,7 @@ export default function DiscoveryPage() {
     },
   });
 
+  const workspaceId = useSearchParams().get("workspace"); // tag crawled leads to this workspace (doc 44)
   const [posture, setPosture] = useState("compliant");
   const [names, setNames] = useState("");
   const [url, setUrl] = useState("");
@@ -134,7 +136,7 @@ export default function DiscoveryPage() {
       const r = await fetch("/api/discovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, posture }),
+        body: JSON.stringify({ ...payload, posture, ...(workspaceId ? { workspaceId } : {}) }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
@@ -207,6 +209,13 @@ export default function DiscoveryPage() {
         </Link>
       </PageHeader>
       <div className="max-w-5xl space-y-4 p-6">
+        {workspaceId && (
+          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+            <Radar className="h-4 w-4 text-primary" />
+            <span>Crawl untuk <b>workspace ini</b> — lead hasil crawl otomatis ditandai ke workspace.</span>
+            <Link href="/contacts/discovery" className="ml-auto text-xs text-primary hover:underline">Lepas workspace</Link>
+          </div>
+        )}
         {/* Extension = the PRIMARY discovery engine (data plane in the browser). */}
         <Card className="border-primary/30">
           <CardHeader className="border-b">

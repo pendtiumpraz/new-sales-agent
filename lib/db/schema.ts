@@ -31,6 +31,7 @@ export const dealsTable = pgTable("deals", {
   expectedClose: text("expected_close"),                        // keep ISO string
   sourceChannel: text("source_channel"),
   owner: text("owner"),
+  workspaceId: text("workspace_id"),                            // doc 44 — scope deal to a workspace
   avatarColor: text("avatar_color"),
   createdAt: text("created_at"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -72,6 +73,7 @@ export const conversationsTable = pgTable("conversations", {
   unread: integer("unread").notNull().default(0),
   avatarColor: text("avatar_color"),
   assignedTo: text("assigned_to"),
+  workspaceId: text("workspace_id"),                            // doc 44 — scope conversation to a workspace
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -109,6 +111,7 @@ export const cadencesTable = pgTable("cadences", {
   enrolled: integer("enrolled").notNull().default(0),
   replyRate: real("reply_rate").notNull().default(0),    // 0-100
   owner: text("owner"),
+  workspaceId: text("workspace_id"),                     // doc 44 — scope cadence to a workspace
   createdAt: text("created_at"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
