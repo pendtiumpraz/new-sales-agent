@@ -174,6 +174,112 @@ async function runAiSearch(query) {
   }
 }
 
+// ── Internet search via DuckDuckGo (real web results) + DeepSeek structuring ──
+// Runs in the service worker (fetch + regex, no DOM). The user's architecture:
+// the EXTENSION searches the internet (DDG), optionally structures with DeepSeek,
+// buffers, then sends to the platform.
+const cleanStr = (s) => (s || "").trim().replace(/\s+/g, " ");
+async function runWebSearch(query) {
+  const c = await cfg();
+  const q = (query || c.query || "").trim();
+  if (!q) return setStatus("Isi query dulu.");
+  await setStatus(`Internet search (DuckDuckGo): "${q}"…`);
+
+  let results = [];
+  try {
+    const res = await fetch("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q));
+    const html = await res.text();
+    const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+    let m;
+    while ((m = re.exec(html)) && results.length < 25) {
+      let url = m[1];
+      const um = url.match(/uddg=([^&]+)/);
+      if (um) url = decodeURIComponent(um[1]);
+      const title = cleanStr(m[2].replace(/<[^>]+>/g, ""));
+      if (title && /^https?:/i.test(url)) results.push({ title, url });
+    }
+  } catch (e) {
+    return setStatus("DuckDuckGo gagal: " + String(e));
+  }
+  if (!results.length) return setStatus("DuckDuckGo: tak ada hasil (mungkin diblok). Coba lagi nanti.");
+
+  // Default: each result site is a company candidate.
+  let companies = results.map((r) => {
+    let domain = "";
+    try { domain = new URL(r.url).hostname.replace(/^www\./, ""); } catch { domain = ""; }
+    return { name: r.title.slice(0, 80), domain: domain || undefined, source: "duckduckgo", sourceUrl: r.url };
+  });
+  let people = [];
+
+  // With a DeepSeek key: let the model extract structured leads from the results.
+  if (c.deepseekKey) {
+    try {
+      await setStatus("Strukturkan hasil dengan DeepSeek…");
+      const ds = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + c.deepseekKey },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content:
+                'Dari hasil pencarian web, ekstrak lead relevan. Balas HANYA JSON {"companies":[{name,domain,summary}],"people":[{fullName,title,companyName}]}. JANGAN mengarang kontak.',
+            },
+            { role: "user", content: `Query: ${q}\nHasil:\n` + results.map((r) => `- ${r.title} (${r.url})`).join("\n") },
+          ],
+        }),
+      });
+      if (ds.ok) {
+        const data = await ds.json();
+        const text = data?.choices?.[0]?.message?.content || "";
+        const jm = text.match(/\{[\s\S]*\}/);
+        if (jm) {
+          const parsed = JSON.parse(jm[0]);
+          if (Array.isArray(parsed.companies) && parsed.companies.length)
+            companies = parsed.companies.map((x) => ({ name: x.name, domain: x.domain || undefined, summary: x.summary || undefined, source: "duckduckgo+deepseek" }));
+          people = Array.isArray(parsed.people)
+            ? parsed.people.filter((p) => p && p.fullName).map((p) => ({ fullName: p.fullName, title: p.title || undefined, companyName: p.companyName || undefined, source: "duckduckgo+deepseek" }))
+            : [];
+        }
+      }
+    } catch {
+      // keep the raw DDG companies on AI failure
+    }
+  }
+
+  await ingest({ origin: "extension", companies, people });
+  await setStatus(`Internet search: ${companies.length} situs${people.length ? ` + ${people.length} orang` : ""} → dikirim ke app.`);
+}
+
+// ── Per-platform RPA search (Google/Tokopedia/Shopee/IG/TikTok) ───────────────
+function platformSearchUrl(platform, q) {
+  const e = encodeURIComponent(q);
+  switch (platform) {
+    case "google": return "https://www.google.com/search?q=" + e;
+    case "tokopedia": return "https://www.tokopedia.com/search?st=product&q=" + e;
+    case "shopee": return "https://shopee.co.id/search?keyword=" + e;
+    case "tiktok": return "https://www.tiktok.com/search?q=" + e;
+    case "instagram": return "https://www.instagram.com/explore/tags/" + e.replace(/%20/g, "") + "/";
+    default: return "";
+  }
+}
+async function runPlatformSearch(platform, query) {
+  const c = await cfg();
+  const q = (query || c.query || "").trim();
+  if (!q) return setStatus("Isi query dulu.");
+  const url = platformSearchUrl(platform, q);
+  if (!url) return setStatus("Platform tidak dikenal.");
+  const tab = await activeLinkedInTab();
+  if (!tab) return setStatus("Buka 1 tab browser (login ke platform-nya) lalu mulai.");
+  await setStatus(`Cari di ${platform}: "${q}"…`);
+  const res = await navAndScan(tab.id, url, "SCAN_PLATFORM");
+  if (!res || !res.ok) return setStatus(`Gagal scan ${platform} (${(res && res.error) || "?"}).`);
+  const n = await addLeads(res.people || [], res.companies || []);
+  await flush();
+  await setStatus(`${platform}: ${(res.people || []).length} orang + ${(res.companies || []).length} toko/situs → dikirim. (buffer ${n})`);
+}
+
 // ── RPA navigation helper ───────────────────────────────────────────────────
 function waitForComplete(tabId, timeout = 25000) {
   return new Promise((resolve) => {
@@ -368,6 +474,14 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
       // AI websearch via DeepSeek (runs in the browser, buffers → ingest).
       case "AI_SEARCH":
         runAiSearch(msg.query);
+        return sendResponse({ ok: true });
+      // Internet search via DuckDuckGo (+ DeepSeek structuring).
+      case "WEB_SEARCH":
+        runWebSearch(msg.query);
+        return sendResponse({ ok: true });
+      // Per-platform RPA search (Google/Tokopedia/Shopee/IG/TikTok).
+      case "PLATFORM_SEARCH":
+        runPlatformSearch(msg.platform, msg.query);
         return sendResponse({ ok: true });
       // Manual scan from a search page (legacy popup button).
       case "BUFFER_LEADS":

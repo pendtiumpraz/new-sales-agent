@@ -64,6 +64,21 @@ $("aiSearch").addEventListener("click", async () => {
   chrome.runtime.sendMessage({ type: "AI_SEARCH", query: $("query").value.trim() }, () => setTimeout(refreshStatus, 1000));
 });
 
+$("platformSearch").addEventListener("click", async () => {
+  await save();
+  $("status").textContent = `Cari di ${$("platformSel").value}…`;
+  chrome.runtime.sendMessage(
+    { type: "PLATFORM_SEARCH", platform: $("platformSel").value, query: $("query").value.trim() },
+    () => setTimeout(refreshStatus, 1000),
+  );
+});
+
+$("webSearch").addEventListener("click", async () => {
+  await save();
+  $("status").textContent = "Internet search (DuckDuckGo)…";
+  chrome.runtime.sendMessage({ type: "WEB_SEARCH", query: $("query").value.trim() }, () => setTimeout(refreshStatus, 1500));
+});
+
 $("startSearch").addEventListener("click", async () => {
   await save();
   $("status").textContent = "Memulai Tahap 1…";
