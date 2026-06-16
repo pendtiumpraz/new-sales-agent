@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
@@ -89,6 +90,9 @@ export default function CadencesPage() {
     (typeof STATUS_CHIPS)[number]["key"]
   >("all");
 
+  // Workspace scope (doc 44): ?workspace=<id> filters cadences to that workspace.
+  const workspaceId = useSearchParams().get("workspace");
+  const [wsAll, setWsAll] = useState(false);
   const visible = useMemo(() => {
     const list = cadences ?? [];
     return list.filter((c) => {
@@ -96,9 +100,10 @@ export default function CadencesPage() {
         channelFilter === "all" ||
         c.channelMix.includes(channelFilter as CadenceStepChannel);
       const statusOk = statusFilter === "all" || c.status === statusFilter;
-      return channelOk && statusOk;
+      const wsOk = !workspaceId || wsAll || (c as { workspaceId?: string | null }).workspaceId === workspaceId;
+      return channelOk && statusOk && wsOk;
     });
-  }, [cadences, channelFilter, statusFilter]);
+  }, [cadences, channelFilter, statusFilter, workspaceId, wsAll]);
 
   const summary = useMemo(() => {
     const list = cadences ?? [];
@@ -134,6 +139,14 @@ export default function CadencesPage() {
       </PageHeader>
 
       <div className="space-y-5 p-6">
+        {workspaceId && (
+          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+            <span>Difilter ke <b>workspace ini</b> — {wsAll ? "semua cadence" : "cadence workspace ini saja"}.</span>
+            <button onClick={() => setWsAll((v) => !v)} className="ml-auto text-xs text-primary hover:underline">
+              {wsAll ? "Workspace saja" : "Lihat semua"}
+            </button>
+          </div>
+        )}
         {/* Hero strip — soft coral→teal radial backdrop with KPI pills */}
         <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-tertiary/5 p-5 sm:p-6">
           <div
