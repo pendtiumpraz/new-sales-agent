@@ -311,6 +311,19 @@ export const personTable = pgTable("person", {
   seniority: text("seniority"),
   location: text("location"),
   socials: jsonb("socials").$type<Record<string, string>>().notNull().default({}),
+  // ── Extension/LinkedIn enrichment (doc 40) ──
+  linkedinUrl: text("linkedin_url"),
+  about: text("about"),
+  experience: jsonb("experience").$type<{ title?: string; company?: string; period?: string }[]>().notNull().default([]), // track record
+  // ── FORD profiling (doc 39) ──
+  gender: text("gender"),                          // male | female | unknown
+  honorific: text("honorific"),                    // Pak | Bu | Mas | Mbak | Prof. | Dr. | Kak
+  ageBand: text("age_band"),                       // 22-30 | 30-40 | 40+ | unknown
+  interests: jsonb("interests").$type<string[]>().notNull().default([]),
+  ford: jsonb("ford").$type<Record<string, string>>().notNull().default({}),
+  leadType: text("lead_type"),                     // b2c_customer | b2b_partner | unknown (doc 40)
+  profileSummary: text("profile_summary"),
+  profileConfidence: real("profile_confidence"),
   status: text("status").notNull().default("active"),
   source: text("source"),
   sourceUrl: text("source_url"),

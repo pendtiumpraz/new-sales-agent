@@ -92,6 +92,13 @@
       "when": 1781580430951,
       "tag": "0012_tenant_active_until",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781584687249,
+      "tag": "0013_person_profiling",
+      "breakpoints": true
     }
   ]
 }

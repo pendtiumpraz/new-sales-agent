@@ -1,42 +1,53 @@
-# Maira Sales — LinkedIn Lead Collector (Chrome MV3)
+# Maira Sales — LinkedIn Collector
 
-Collects leads from LinkedIn **search results you're already viewing** into your
-Maira Sales workspace via `/api/ingest`. Runs in **your own logged-in session** —
-no credentials are stored or transmitted. (Fase 6, doc 21/25)
+Dua cara pakai, sama-sama jalan **di sesi LinkedIn Anda sendiri** (Anda login
+sendiri di browser; **tidak ada kredensial yang disimpan**):
 
-## How it works
+1. **Extension Chrome (MV3)** — paling kuat: **RPA 3 tahap** (search → list →
+   enrich profil) dengan background orchestration. ← folder ini.
+2. **Userscript Tampermonkey** (`maira-userscript.user.js`) — install paling
+   gampang (paste ke Tampermonkey); scrape halaman yang sedang dibuka → kirim ke
+   app. Cocok kalau tak mau load extension.
 
-```
-content.js   reads the visible search-result DOM → {people[], companies[]}
-background.js buffers in chrome.storage.local → flushes a small batch every
-              60–120s (jittered, anti-ban) to /api/ingest with x-ingest-token,
-              respecting a daily cap; aggressive posture requires consent
-popup.html    config (API base + token), posture, consent, Scan/Flush, status
-```
+> Kenapa RPA & bukan login dari web app: LinkedIn auth-gated. Tool pakai sesi
+> login Anda di browser → **tidak perlu login LinkedIn dari aplikasi**.
 
-The server side dedupes by stable id, so re-sending is idempotent.
+## A) Extension — 3 tahap (doc 40)
 
-## Install (unpacked)
+| Tahap | Apa | Hasil |
+|---|---|---|
+| **1 — Cari** | RPA people-search untuk query jabatan, halaman 1..N | nama + link profil + headline → buffer → `/api/ingest` |
+| **2 — Enrich** | kunjungi tiap profil → **detail + track record** (experience, about) | `person.experience` (riwayat karier) ter-isi di app |
+| Flush | kirim buffer, rate-limited + daily-cap + consent-gated | — |
 
-1. `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select this `extension/` folder.
-2. Open the popup, set:
-   - **API base URL** — your deployment (e.g. `https://app.mairasales.com`) or `http://localhost:3000` for dev.
-   - **Ingest token** — the value of `LINKEDIN_INGEST_TOKEN` from the server's env (maps to `LINKEDIN_INGEST_TENANT`).
-   - **Posture** — `compliant` (default) / `balanced` / `aggressive` (consent-gated).
-3. Go to a LinkedIn **search** page (people or company), click **Scan visible results**, then **Flush** (or wait for the scheduled sync).
+### Pasang
+1. `chrome://extensions` → **Developer mode** → **Load unpacked** → pilih folder `extension/`.
+2. Login ke **linkedin.com** di tab yang sama.
+3. Klik ikon extension → isi **URL aplikasi**, **Ingest token** (`LINKEDIN_INGEST_TOKEN`),
+   **Query** jabatan + **maks halaman**.
 
-## Guardrails (built in)
+### Pakai
+1. **Tahap 1:** buka 1 tab LinkedIn (login) → **"Mulai cari (Tahap 1)"** (jeda 3–7 dtk/halaman, anti-ban).
+2. **Tahap 2:** **"Enrich profil (Tahap 2)"** → kunjungi tiap profil (jeda 4–9 dtk), ambil track record → kirim ke app.
+3. **Stop** kapan saja. **Kirim buffer** = flush manual.
 
-- **Your session only** — uses the page you're viewing; never logs in, never stores LinkedIn credentials.
-- **Rate-limited + jittered** flush (60–120s) and a **daily cap** — anti-ban.
-- **Consent gate** for `aggressive` posture, with a ToS-risk warning.
-- **Idempotent** server ingest (dedup by stable id).
+## B) Userscript Tampermonkey
 
-## Caveats
+1. Install [Tampermonkey](https://www.tampermonkey.net/).
+2. Buka `maira-userscript.user.js` → Tampermonkey nawarin install → **Install**.
+3. Di menu Tampermonkey → **"Maira: set config"** → isi URL app + token.
+4. Buka halaman LinkedIn search / profil → klik tombol melayang **"➕ Maira"** →
+   data terkirim ke app. (Userscript = per-halaman manual; tak ada RPA otomatis
+   multi-halaman seperti extension.)
 
-- DOM selectors in `content.js` are best-effort — LinkedIn changes its markup
-  often; tune the selectors if a scan returns 0 results.
-- The ingest token currently maps to one tenant (`LINKEDIN_INGEST_TENANT`).
-  Production should issue per-tenant signed tokens.
-- Respect LinkedIn's Terms of Service and applicable law (UU PDP / GDPR). This is
-  a user-operated tool; you are responsible for how you use it.
+## Tuning selector (penting)
+DOM LinkedIn sering berubah. Kalau hasil kosong, edit selector di `content.js`
+(`scrapePeople`/`scrapeProfile`/`scrapeExperience`) atau di userscript. Cek di
+DevTools halaman live.
+
+## Etika & risiko
+- **Pakai akun sendiri.** Otomasi LinkedIn berisiko batasan/ban → ada jeda +
+  daily-cap; posture `aggressive` butuh consent.
+- UU PDP: data profesional (jabatan/perusahaan) relatif aman; **jangan** ambil
+  ranah pribadi (keluarga). Provenance disimpan (`source`, `linkedin_url`). Server
+  dedup by stable id (idempotent).

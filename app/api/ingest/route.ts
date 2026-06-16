@@ -42,6 +42,12 @@ const Body = z.object({
         department: z.string().optional(),
         seniority: z.string().optional(),
         location: z.string().optional(),
+        // Extension/LinkedIn enrichment (doc 40)
+        linkedinUrl: z.string().optional(),
+        about: z.string().optional(),
+        experience: z
+          .array(z.object({ title: z.string().optional(), company: z.string().optional(), period: z.string().optional() }))
+          .optional(),
         source: z.string().optional(),
       }),
     )
@@ -128,12 +134,25 @@ export async function POST(req: Request) {
             department: p.department ?? null,
             seniority: p.seniority ?? null,
             location: p.location ?? null,
+            linkedinUrl: p.linkedinUrl ?? null,
+            about: p.about ?? null,
+            experience: p.experience ?? [],
             source: p.source ?? b.origin,
+            sourceUrl: p.linkedinUrl ?? null,
             updatedAt: new Date(),
           })
           .onConflictDoUpdate({
             target: personTable.id,
-            set: { title: p.title ?? null, department: p.department ?? null, updatedAt: new Date() },
+            set: {
+              title: p.title ?? null,
+              department: p.department ?? null,
+              location: p.location ?? null,
+              linkedinUrl: p.linkedinUrl ?? null,
+              about: p.about ?? null,
+              // only overwrite experience when the new payload actually has it
+              ...(p.experience && p.experience.length ? { experience: p.experience } : {}),
+              updatedAt: new Date(),
+            },
           });
         count++;
       }

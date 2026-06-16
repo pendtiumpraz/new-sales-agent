@@ -4,57 +4,62 @@
     <meta charset="utf-8" />
     <style>
       body { font: 13px/1.4 system-ui, sans-serif; width: 320px; margin: 0; padding: 12px; color: #1f2937; }
-      h1 { font-size: 14px; margin: 0 0 8px; }
+      h1 { font-size: 14px; margin: 0 0 6px; }
+      .stage { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; margin: 12px 0 2px; }
       label { display: block; font-size: 11px; color: #6b7280; margin-top: 8px; }
       input, select { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
       .row { display: flex; gap: 8px; }
       .row > * { flex: 1; }
-      button { margin-top: 10px; width: 100%; padding: 8px; border: 0; border-radius: 999px; background: #FB5E3B; color: #fff; font-weight: 600; cursor: pointer; }
-      button.secondary { background: #fff; color: #FB5E3B; border: 1px solid #FB5E3B; }
+      button { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #FB5E3B; color: #fff; font-weight: 600; cursor: pointer; }
+      button.secondary { background: #f3f4f6; color: #1f2937; }
+      button.danger { background: #fee2e2; color: #b91c1c; }
       .muted { color: #6b7280; font-size: 11px; }
       .warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 8px; border-radius: 6px; font-size: 11px; margin-top: 8px; }
-      .stat { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; }
+      .stat { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; }
       .chk { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; }
       .chk input { width: auto; }
+      .status { font-size: 11px; padding: 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 8px; min-height: 16px; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     </style>
   </head>
   <body>
     <h1>Maira Sales — LinkedIn Collector</h1>
-    <p class="muted">Buka halaman LinkedIn search, lalu "Scan visible". Lead masuk buffer & disinkron rate-limited ke workspace.</p>
+    <p class="muted">Jalan di sesi LinkedIn Anda sendiri (RPA). Login dulu ke LinkedIn di tab ini.</p>
 
-    <label>API base URL</label>
-    <input id="apiBase" placeholder="https://app.mairasales.com" />
-    <label>Ingest token</label>
+    <label>URL aplikasi</label>
+    <input id="apiBase" placeholder="https://app-anda.vercel.app" />
+    <label>Ingest token (Pengaturan → Integrasi)</label>
     <input id="token" type="password" placeholder="LINKEDIN_INGEST_TOKEN" />
 
+    <div class="stage">Tahap 1 — Cari (RPA search)</div>
     <div class="row">
-      <div>
-        <label>Posture</label>
-        <select id="postureMode">
-          <option value="compliant">compliant</option>
-          <option value="balanced">balanced</option>
-          <option value="aggressive">aggressive</option>
-        </select>
-      </div>
-      <div>
-        <label>Daily cap</label>
-        <input id="dailyCap" type="number" value="200" />
-      </div>
+      <div style="flex: 2"><label>Query jabatan / kata kunci</label><input id="query" placeholder="Logistics Manager Jakarta" /></div>
+      <div><label>Maks halaman</label><input id="maxPages" type="number" min="1" max="100" value="5" /></div>
+    </div>
+    <button id="startSearch">▶ Mulai cari (Tahap 1)</button>
+
+    <div class="stage">Tahap 2 — Enrich profil (track record)</div>
+    <button id="startEnrich">▶ Enrich profil (Tahap 2)</button>
+
+    <div class="grid2">
+      <button id="flush" class="secondary">Kirim buffer</button>
+      <button id="stop" class="danger">Stop</button>
     </div>
 
+    <div class="row" style="margin-top:8px">
+      <div><label>Posture</label>
+        <select id="postureMode"><option value="compliant">compliant</option><option value="balanced">balanced</option><option value="aggressive">aggressive</option></select>
+      </div>
+      <div><label>Daily cap</label><input id="dailyCap" type="number" value="200" /></div>
+    </div>
     <div id="consentBox" class="warn" hidden>
-      Mode <b>aggressive</b> mungkin melanggar ToS LinkedIn dan berisiko ban akun. Pakai akunmu sendiri, rate-limited.
+      Mode <b>aggressive</b> mungkin melanggar ToS LinkedIn & berisiko ban. Pakai akunmu sendiri, rate-limited.
       <label class="chk"><input type="checkbox" id="consent" /> Saya paham risikonya & setuju.</label>
     </div>
 
-    <label class="chk"><input type="checkbox" id="paused" /> Pause sync</label>
-
-    <button id="scan">Scan visible results</button>
-    <button id="flush" class="secondary">Flush buffer sekarang</button>
-
     <div class="stat"><span class="muted">Buffer</span><b id="bufCount">0</b></div>
     <div class="stat"><span class="muted">Terkirim hari ini</span><b id="sentCount">0</b></div>
-    <p id="msg" class="muted"></p>
+    <div id="status" class="status">Siap.</div>
 
     <script src="popup.js"></script>
   </body>
