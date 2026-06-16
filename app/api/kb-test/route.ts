@@ -22,6 +22,9 @@ import {
   hasGatewayCredentials,
   isRealAiEnabled,
 } from "@/lib/ai/provider";
+import { hasDb } from "@/lib/db/client";
+import { getTenantContext } from "@/lib/auth/session-context";
+import { meteredGenerateText } from "@/lib/ai/meter";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
 import {
   buildKbSystemPrompt,
@@ -73,35 +76,47 @@ export async function POST(req: Request) {
     );
   }
 
-  // No credentials or feature flag off → deterministic heuristic.
+  const system = buildKbSystemPrompt(kb, {
+    surface: "analysis",
+    includeSources: true,
+    userPrompt: prompt,
+  });
+  const sources = retrieveSources(prompt, kb).map((s) => s.title);
+
+  // Prefer the per-tenant AI registry (metered; tenant active model + BYOK/platform
+  // key, token+cost recorded) when logged in + DB wired. (Fase 3, doc 24)
+  const ctx = await getTenantContext();
+  if (ctx && hasDb()) {
+    try {
+      const { text } = await meteredGenerateText(ctx, {
+        feature: "kb-test",
+        system,
+        prompt,
+        maxOutputTokens: 500,
+      });
+      const trimmed = (text ?? "").trim();
+      if (trimmed) {
+        return NextResponse.json({ answer: trimmed, sources, source: "real" } satisfies KbTestResponse);
+      }
+    } catch (err) {
+      console.error("[kb-test] registry call failed, trying gateway/mock:", err);
+    }
+  }
+
+  // Legacy Gateway fallback — only when no per-tenant model resolved.
   if (!hasGatewayCredentials() || !isRealAiEnabled()) {
     return NextResponse.json(mockResponse(prompt, kb));
   }
-
   try {
-    const system = buildKbSystemPrompt(kb, {
-      surface: "analysis",
-      includeSources: true,
-      userPrompt: prompt,
-    });
-
     const { text } = await generateText({
       model: GATEWAY_MODEL_FAST,
       system,
       prompt,
       temperature: 0.3,
     });
-
-    const sources = retrieveSources(prompt, kb).map((s) => s.title);
-
-    const payload: KbTestResponse = {
-      answer: text.trim(),
-      sources,
-      source: "real",
-    };
-    return NextResponse.json(payload);
+    return NextResponse.json({ answer: text.trim(), sources, source: "real" } satisfies KbTestResponse);
   } catch (err) {
-    console.error("[kb-test] real AI call failed — falling back to mock", err);
+    console.error("[kb-test] gateway AI call failed — falling back to mock", err);
     return NextResponse.json(mockResponse(prompt, kb));
   }
 }
