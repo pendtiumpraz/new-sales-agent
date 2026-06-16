@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Check, KeyRound, Loader2, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ListSkeleton } from "@/components/shared/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,7 +143,7 @@ export default function AiSettingsPage() {
         </Card>
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat…</p>
+          <ListSkeleton rows={4} avatar={false} />
         ) : (
           data?.providers.map((p) => {
             const models = (data.models ?? []).filter((m) => m.providerId === p.id && m.isAvailable);

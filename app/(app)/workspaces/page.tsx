@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import type { WorkspaceType } from "@/lib/workspace/store";
 
 interface ProductOption {
@@ -153,7 +154,7 @@ export default function WorkspacesPage() {
             description="Pastikan kamu login dan punya akses data. Hubungi manajer jika masalah berlanjut."
           />
         ) : q.isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat…</p>
+          <CardGridSkeleton count={6} />
         ) : visible.length === 0 ? (
           <EmptyState
             icon={LayoutGrid}

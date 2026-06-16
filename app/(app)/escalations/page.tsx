@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Bot, Check, Send, X } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ListSkeleton } from "@/components/shared/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,7 +61,7 @@ export default function EscalationsPage() {
           </CardHeader>
           <CardContent className="space-y-3 p-4">
             {events.isLoading ? (
-              <p className="text-sm text-muted-foreground">Memuat…</p>
+              <ListSkeleton rows={3} />
             ) : queue.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Tidak ada eskalasi. Jalankan <span className="font-medium">Auto-reply</span> di halaman Cadence — balasan yang

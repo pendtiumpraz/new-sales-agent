@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardGridSkeleton, TableSkeleton } from "@/components/shared/skeletons";
 
 interface Item { desc: string; qty: number; unitPrice: number }
 interface Quote {
@@ -63,7 +65,25 @@ export default function PenawaranEditor() {
     retry: false,
   });
 
-  if (query.isLoading || !q) return <div className="p-6 text-sm text-muted-foreground">Memuat…</div>;
+  if (query.isError)
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        Gagal memuat penawaran. <Link href="/penawaran" className="underline">Kembali ke daftar</Link>
+      </div>
+    );
+  if (query.isLoading || !q)
+    return (
+      <div className="space-y-4 p-6">
+        <Skeleton className="h-7 w-64" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <TableSkeleton rows={5} cols={3} />
+            <TableSkeleton rows={3} cols={1} />
+          </div>
+          <CardGridSkeleton count={2} />
+        </div>
+      </div>
+    );
 
   const subtotal = q.items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unitPrice) || 0), 0);
   const taxAmount = Math.round(subtotal * (Number(q.taxRate) || 0));

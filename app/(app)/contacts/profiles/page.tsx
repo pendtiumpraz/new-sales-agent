@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Briefcase, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -256,7 +257,7 @@ export default function ProfilesPage() {
           {/* ── Perusahaan ─────────────────────────────────────────── */}
           <TabsContent value="perusahaan" className="mt-5">
             {companies.isLoading ? (
-              <p className="text-sm text-muted-foreground">Memuat…</p>
+              <CardGridSkeleton count={6} />
             ) : (companies.data?.data.length ?? 0) === 0 ? (
               <EmptyState
                 icon={Building2}
@@ -311,7 +312,7 @@ export default function ProfilesPage() {
           {/* ── Orang ──────────────────────────────────────────────── */}
           <TabsContent value="orang" className="mt-5">
             {people.isLoading ? (
-              <p className="text-sm text-muted-foreground">Memuat…</p>
+              <CardGridSkeleton count={6} />
             ) : (people.data?.data.length ?? 0) === 0 ? (
               <EmptyState
                 icon={Users}

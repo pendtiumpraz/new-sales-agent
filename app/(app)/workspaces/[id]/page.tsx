@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { StatRowSkeleton, ListSkeleton } from "@/components/shared/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -143,7 +144,7 @@ export default function WorkspaceHubPage() {
 
       <div className="space-y-5 p-6">
         {q.isLoading || !ws ? (
-          <p className="text-sm text-muted-foreground">Memuat…</p>
+          <div className="space-y-4"><StatRowSkeleton n={4} /><ListSkeleton rows={6} /></div>
         ) : (
           <>
             {/* Header card: type/product/target + owner + lead count */}

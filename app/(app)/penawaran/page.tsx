@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 
 interface QuoteRow {
   id: string;
@@ -131,7 +132,7 @@ export default function PenawaranPage() {
         {q.isError ? (
           <EmptyState icon={FileText} title="Tidak bisa memuat penawaran" description="Pastikan kamu login & punya akses data." />
         ) : q.isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat…</p>
+          <CardGridSkeleton count={6} />
         ) : visible.length === 0 ? (
           <EmptyState
             icon={FileText}
