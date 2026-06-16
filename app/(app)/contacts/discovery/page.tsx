@@ -62,10 +62,23 @@ export default function DiscoveryPage() {
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
-      return j as { status: string; created: number };
+      return j as {
+        status: string;
+        created: number;
+        contactsCreated?: number;
+        result?: { emails?: number; phones?: number; socials?: number; name?: string } | null;
+      };
     },
     onSuccess: (j) => {
-      toast.success(j.status === "done" ? `Selesai — ${j.created} perusahaan dibuat` : "Job antri (menunggu crawler)");
+      if (j.status !== "done") {
+        toast.success("Job antri (menunggu crawler)");
+      } else if ((j.contactsCreated ?? 0) > 0) {
+        toast.success(
+          `Crawl selesai — ${j.result?.name ?? "perusahaan"}: ${j.contactsCreated} kontak (${j.result?.emails ?? 0} email, ${j.result?.phones ?? 0} telp, ${j.result?.socials ?? 0} sosmed)`,
+        );
+      } else {
+        toast.success(`Selesai — ${j.created} perusahaan dibuat`);
+      }
       qc.invalidateQueries({ queryKey: ["crawl-jobs"] });
     },
     onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
@@ -123,8 +136,12 @@ export default function DiscoveryPage() {
                   <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.perusahaan.co.id" />
                 </div>
                 {PostureSelect}
-                <Button disabled={!url.trim() || run.isPending} onClick={() => run.mutate({ kind: "url", url })}>Antri crawl</Button>
-                <p className="text-[11px] text-muted-foreground">Crawl nyata dipenuhi MCP server / extension (Fase 6).</p>
+                <Button disabled={!url.trim() || run.isPending} onClick={() => run.mutate({ kind: "url", url })}>
+                  {run.isPending ? "Crawling…" : "Crawl sekarang"}
+                </Button>
+                <p className="text-[11px] text-muted-foreground">
+                  Crawl website <span className="font-medium">nyata</span> (server-side): ekstrak email, telepon, & sosmed dari halaman publik (homepage, /contact, /about). Situs full-JS mungkin perlu extension.
+                </p>
               </TabsContent>
 
               <TabsContent value="industry" className="mt-4 space-y-3">

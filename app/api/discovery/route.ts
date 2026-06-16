@@ -5,16 +5,18 @@ import { z } from "zod";
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { crawlJobTable, companyTable } from "@/lib/db/schema";
-import { companyDedupKey, stableId } from "@/lib/profiling/dedup";
+import { crawlJobTable, companyTable, contactPointTable } from "@/lib/db/schema";
+import { companyDedupKey, contactPointDedupKey, stableId } from "@/lib/profiling/dedup";
+import { crawlWebsite } from "@/lib/crawl/web";
 import { recordAudit } from "@/lib/compliance/audit";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
-// Discovery entry-points (doc 21): user starts a crawl by manual URL, industry,
-// bulk company-name list, or auto. Each becomes a crawl_job. The bulk list is
-// fulfilled immediately (companies created via dedup). URL/industry/auto enqueue
-// pending jobs for the MCP server / extension to fulfill (Fase 6).
+// Discovery entry-points (doc 21). The URL kind does a REAL server-side crawl of
+// the target site (homepage + /contact + /about) and writes the company + its
+// real contact points (emails/phones/socials). bulk creates company shells from
+// names. industry/auto still need the MCP server / extension (Fase 6).
 const Body = z.object({
   kind: z.enum(["bulk", "url", "industry", "auto"]),
   names: z.array(z.string().min(1)).optional(),
@@ -51,13 +53,15 @@ export async function POST(req: Request) {
 
   try {
     let created = 0;
+    let contactsCreated = 0;
     let status = "pending";
     const input: Record<string, unknown> = { kind: b.kind };
+    let result: Record<string, unknown> | null = null;
 
-    await withTenant(ctx, async (tx) => {
-      if (b.kind === "bulk") {
-        const names = (b.names ?? []).map((n) => n.trim()).filter(Boolean);
-        input.names = names;
+    if (b.kind === "bulk") {
+      const names = (b.names ?? []).map((n) => n.trim()).filter(Boolean);
+      input.names = names;
+      await withTenant(ctx, async (tx) => {
         for (const name of names) {
           await tx
             .insert(companyTable)
@@ -72,26 +76,120 @@ export async function POST(req: Request) {
             .onConflictDoUpdate({ target: companyTable.id, set: { name, updatedAt: new Date() } });
           created++;
         }
-        status = "done";
-      } else {
-        if (b.url) input.url = b.url;
-        if (b.industry) input.industry = b.industry;
-      }
+      });
+      status = "done";
+      result = { created };
+    } else if (b.kind === "url" && b.url) {
+      input.url = b.url;
+      // REAL crawl (network I/O outside the tx).
+      const crawl = await crawlWebsite(b.url);
+      const coName = crawl.name || crawl.domain || b.url;
+      const coId = stableId(
+        "co",
+        companyDedupKey({ tenantId: ctx.tenantId, name: coName, domain: crawl.domain }),
+      );
+      const socialsMap = Object.fromEntries(
+        Object.entries(crawl.socials).filter(([, v]) => Boolean(v)),
+      ) as Record<string, string>;
 
-      await tx.insert(crawlJobTable).values({
+      // Build real contact points from what the site exposed.
+      const cps = [
+        ...crawl.emails.map((v) => ({ channel: "email", value: v })),
+        ...crawl.phones.map((v) => ({ channel: /^(\+?62|0)/.test(v) ? "whatsapp" : "phone", value: v })),
+        ...(crawl.socials.linkedin ? [{ channel: "linkedin", value: crawl.socials.linkedin }] : []),
+        ...(crawl.socials.instagram ? [{ channel: "instagram", value: crawl.socials.instagram }] : []),
+      ];
+
+      await withTenant(ctx, async (tx) => {
+        await tx
+          .insert(companyTable)
+          .values({
+            id: coId,
+            tenantId: ctx.tenantId,
+            name: coName,
+            domain: crawl.domain,
+            summary: crawl.description,
+            socials: socialsMap,
+            source: "crawl:web",
+            sourceUrl: crawl.url,
+            capturedAt: new Date(),
+            capturedMode: b.posture,
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: companyTable.id,
+            set: {
+              name: coName,
+              domain: crawl.domain,
+              summary: crawl.description,
+              socials: socialsMap,
+              sourceUrl: crawl.url,
+              updatedAt: new Date(),
+            },
+          });
+        created = 1;
+
+        for (const cp of cps) {
+          await tx
+            .insert(contactPointTable)
+            .values({
+              id: stableId(
+                "cp",
+                contactPointDedupKey({
+                  tenantId: ctx.tenantId,
+                  ownerType: "company",
+                  ownerId: coId,
+                  channel: cp.channel,
+                  value: cp.value,
+                }),
+              ),
+              tenantId: ctx.tenantId,
+              ownerType: "company",
+              ownerId: coId,
+              channel: cp.channel,
+              value: cp.value,
+              source: "crawl:web",
+              sourceUrl: crawl.url,
+              capturedAt: new Date(),
+              capturedMode: b.posture,
+              consentStatus: "unknown",
+              updatedAt: new Date(),
+            })
+            .onConflictDoNothing();
+          contactsCreated++;
+        }
+      });
+      status = "done";
+      result = {
+        created,
+        contactsCreated,
+        name: coName,
+        domain: crawl.domain,
+        emails: crawl.emails.length,
+        phones: crawl.phones.length,
+        socials: Object.keys(socialsMap).length,
+        pagesTried: crawl.pagesTried.length,
+      };
+    } else {
+      // industry / auto — still need the MCP server / extension (Fase 6).
+      if (b.industry) input.industry = b.industry;
+    }
+
+    await withTenant(ctx, (tx) =>
+      tx.insert(crawlJobTable).values({
         id: jobId,
         tenantId: ctx.tenantId,
         kind: b.kind,
         input,
         posture: b.posture,
         status,
-        result: status === "done" ? { created } : null,
+        result,
         finishedAt: status === "done" ? new Date() : null,
-      });
-    });
+      }),
+    );
 
-    await recordAudit(ctx, "discovery.start", b.kind, { posture: b.posture, created });
-    return NextResponse.json({ ok: true, jobId, status, created });
+    await recordAudit(ctx, "discovery.start", b.kind, { posture: b.posture, created, contactsCreated });
+    return NextResponse.json({ ok: true, jobId, status, created, contactsCreated, result });
   } catch (err) {
     console.error("[api/discovery POST]", err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
