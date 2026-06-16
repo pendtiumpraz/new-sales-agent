@@ -44,6 +44,11 @@ interface PersonRow {
   capturedAt?: string | null;
   assignedTo?: string | null;
   workspaceId?: string | null;
+  linkedinUrl?: string | null;
+  gender?: string | null;
+  honorific?: string | null;
+  socials?: Record<string, string> | null;
+  profileSummary?: string | null;
   contacts: ContactPoint[];
 }
 
@@ -111,14 +116,50 @@ const CHANNEL_LABEL: Record<string, string> = {
   other: "Lainnya",
 };
 
+// Normalize an Indonesian phone → wa.me digits (62…, no +/spaces).
+function toWaDigits(phone: string): string {
+  let d = phone.replace(/[^\d+]/g, "");
+  if (d.startsWith("+")) d = d.slice(1);
+  if (d.startsWith("0")) d = "62" + d.slice(1);
+  if (!d.startsWith("62")) d = "62" + d;
+  return d;
+}
+function linkForChannel(channel: string, value: string): string | null {
+  const c = channel.toLowerCase();
+  if (c === "email") return `mailto:${value}`;
+  if (c === "phone" || c === "tel") return `tel:${value}`;
+  if (c === "wa" || c === "whatsapp") return `https://wa.me/${toWaDigits(value)}`;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (["website", "github", "twitter", "linkedin", "instagram", "tiktok"].includes(c)) return value.startsWith("http") ? value : `https://${value}`;
+  return null;
+}
+
 function ContactRow({ cp }: { cp: ContactPoint }) {
   const consent = CONSENT[cp.consentStatus] ?? CONSENT.unknown;
+  const href = linkForChannel(cp.channel, cp.value);
+  const wa = cp.channel === "phone" ? `https://wa.me/${toWaDigits(cp.value)}` : null;
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
         {CHANNEL_LABEL[cp.channel] ?? cp.channel}
       </span>
-      <span className="font-mono text-foreground">{cp.value}</span>
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" className="font-mono text-primary hover:underline">
+          {cp.value}
+        </a>
+      ) : (
+        <span className="font-mono text-foreground">{cp.value}</span>
+      )}
+      {wa && (
+        <a
+          href={wa}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-200"
+        >
+          WhatsApp
+        </a>
+      )}
       <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", consent.cls)}>
         {consent.label}
       </span>
@@ -169,9 +210,11 @@ export default function ProfilesPage() {
     },
     onError: () => toast.error("Gagal ubah workspace lead"),
   });
-  const classify = useMutation({
+  // Real enrichment: gender from name + websearch (DuckDuckGo + GitHub) for
+  // email/phone/github/site + classify + summary (doc 46).
+  const enrich = useMutation({
     mutationFn: async (body: { personId?: string; all?: boolean }) => {
-      const r = await fetch("/api/profiles/classify", {
+      const r = await fetch("/api/profiles/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -180,10 +223,10 @@ export default function ProfilesPage() {
       return (await r.json()) as { ok: boolean; count: number };
     },
     onSuccess: (d) => {
-      toast.success(`Klasifikasi selesai — ${d.count} kontak diperbarui`);
+      toast.success(`Enrich selesai — ${d.count} kontak dicari di web (email/HP/GitHub)`);
       qc.invalidateQueries({ queryKey: ["people"] });
     },
-    onError: () => toast.error("Klasifikasi gagal — pastikan model AI aktif & DB tersambung"),
+    onError: () => toast.error("Enrich gagal (cek hak akses & DB)"),
     onSettled: () => setClassifyingId(null),
   });
 
@@ -359,12 +402,12 @@ export default function ProfilesPage() {
                     variant="outline"
                     onClick={() => {
                       setClassifyingId("__all__");
-                      classify.mutate({ all: true });
+                      enrich.mutate({ all: true });
                     }}
-                    disabled={classify.isPending}
+                    disabled={enrich.isPending}
                   >
                     <Sparkles className="h-4 w-4" />
-                    {classifyingId === "__all__" && classify.isPending ? "Mengklasifikasi…" : "Klasifikasi yang belum"}
+                    {classifyingId === "__all__" && enrich.isPending ? "Mencari di web…" : "Cari kontak & profil (web)"}
                   </Button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -383,6 +426,11 @@ export default function ProfilesPage() {
                               <p className="text-xs text-muted-foreground">
                                 {[p.title, p.companyName].filter(Boolean).join(" · ")}
                               </p>
+                              {(p.honorific || p.gender) && (
+                                <span className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                  {p.honorific ? `Sapaan: ${p.honorific}` : p.gender === "male" ? "Pria" : p.gender === "female" ? "Wanita" : ""}
+                                </span>
+                              )}
                             </div>
                             <Button
                               size="sm"
@@ -390,12 +438,13 @@ export default function ProfilesPage() {
                               className="h-7 shrink-0 px-2 text-xs"
                               onClick={() => {
                                 setClassifyingId(p.id);
-                                classify.mutate({ personId: p.id });
+                                enrich.mutate({ personId: p.id });
                               }}
-                              disabled={classify.isPending && classifyingId === p.id}
+                              disabled={enrich.isPending && classifyingId === p.id}
+                              title="Cari email/HP/GitHub + gender + klasifikasi via websearch"
                             >
                               <Sparkles className="h-3.5 w-3.5" />
-                              {classifyingId === p.id && classify.isPending ? "…" : "Klasifikasi"}
+                              {classifyingId === p.id && enrich.isPending ? "…" : "Enrich"}
                             </Button>
                           </div>
 
@@ -451,6 +500,18 @@ export default function ProfilesPage() {
                               </button>
                             )}
                           </div>
+                          {(p.linkedinUrl || (p.socials && Object.keys(p.socials).length > 0) || p.profileSummary) && (
+                            <div className="mt-2 space-y-1.5">
+                              {p.profileSummary && <p className="text-[11px] text-muted-foreground">{p.profileSummary}</p>}
+                              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                {p.linkedinUrl && <a href={p.linkedinUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">LinkedIn ↗</a>}
+                                {p.socials?.github && <a href={p.socials.github} target="_blank" rel="noreferrer" className="text-primary hover:underline">GitHub ↗</a>}
+                                {p.socials?.website && <a href={p.socials.website} target="_blank" rel="noreferrer" className="text-primary hover:underline">Web ↗</a>}
+                                {p.socials?.twitter && <a href={p.socials.twitter} target="_blank" rel="noreferrer" className="text-primary hover:underline">X ↗</a>}
+                                {p.socials?.instagram && <a href={p.socials.instagram} target="_blank" rel="noreferrer" className="text-primary hover:underline">IG ↗</a>}
+                              </div>
+                            </div>
+                          )}
                           {p.contacts.length > 0 && (
                             <div className="mt-3 space-y-1.5 border-t pt-3">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
