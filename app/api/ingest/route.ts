@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
+import { sql, eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 import { hasDb } from "@/lib/db/client";
@@ -13,6 +13,8 @@ import {
   contactPointDedupKey,
 } from "@/lib/profiling/dedup";
 import { resolveRepByToken } from "@/lib/team/rep-account";
+import { classifyLead } from "@/lib/engagement/classify";
+import { salutationFor } from "@/lib/profiling/salutation";
 
 export const runtime = "nodejs";
 
@@ -103,6 +105,9 @@ export async function POST(req: Request) {
   const T = ctx.tenantId;
   const coId = (name: string, domain?: string) => stableId("co", companyDedupKey({ tenantId: T, name, domain: domain ?? null }));
 
+  // Enriched people (have track record) → auto-analyze with DeepSeek after insert (doc 44).
+  const enriched: { id: string; fullName: string; title?: string | null; companyName?: string | null; experience?: { title?: string; company?: string; period?: string }[] }[] = [];
+
   try {
     let count = 0;
     await withTenant(ctx, async (tx) => {
@@ -132,6 +137,9 @@ export async function POST(req: Request) {
       for (const p of b.people ?? []) {
         const companyId = p.companyName || p.companyDomain ? coId(p.companyName ?? "", p.companyDomain) : null;
         const id = stableId("pe", personDedupKey({ tenantId: T, companyId, fullName: p.fullName }));
+        if (p.experience && p.experience.length) {
+          enriched.push({ id, fullName: p.fullName, title: p.title, companyName: p.companyName, experience: p.experience });
+        }
         await tx
           .insert(personTable)
           .values({
@@ -207,7 +215,27 @@ export async function POST(req: Request) {
       });
     });
 
-    return NextResponse.json({ ok: true, count, source: "db" });
+    // Auto-analyze enriched leads with DeepSeek (doc 44): classify B2C/B2B + reason
+    // and set rule-based salutation. Capped per request to stay within the function
+    // budget; classifyLead falls back to a heuristic when no AI model is active.
+    let analyzed = 0;
+    for (const e of enriched.slice(0, 8)) {
+      try {
+        const cls = await classifyLead(ctx, { fullName: e.fullName, title: e.title, company: e.companyName, experience: e.experience });
+        const sal = salutationFor(e.fullName);
+        await withTenant(ctx, (tx) =>
+          tx
+            .update(personTable)
+            .set({ leadType: cls.leadType, leadReason: cls.reason, leadScore: cls.score, gender: sal.gender, honorific: sal.honorific, updatedAt: new Date() })
+            .where(and(eq(personTable.id, e.id), eq(personTable.tenantId, T))),
+        );
+        analyzed++;
+      } catch (err) {
+        console.error("[ingest auto-analyze]", e.id, err);
+      }
+    }
+
+    return NextResponse.json({ ok: true, count, analyzed, source: "db" });
   } catch (err) {
     console.error("[api/ingest POST]", err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
