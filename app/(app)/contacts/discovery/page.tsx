@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CrawlProgressDialog, type CrawlStatus } from "@/components/contacts/crawl-progress-dialog";
+import { ListSkeleton } from "@/components/shared/skeletons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface Job {
@@ -439,6 +440,9 @@ export default function DiscoveryPage() {
             <p className="text-[11px] text-muted-foreground">Tiap job jalan langsung di server (tanpa antrian/cron). Klik baris untuk detail.</p>
           </CardHeader>
           <CardContent className="p-0">
+            {jobs.isLoading ? (
+              <div className="p-3"><ListSkeleton rows={5} avatar={false} /></div>
+            ) : (
             <ul className="divide-y">
               {(jobs.data ?? []).map((j) => {
                 const target =
@@ -467,6 +471,7 @@ export default function DiscoveryPage() {
                 <li className="p-3 text-xs text-muted-foreground">Belum ada crawl. Mulai dari tab di atas.</li>
               )}
             </ul>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -37,6 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatRowSkeleton, TableSkeleton } from "@/components/shared/skeletons";
 import {
   Table,
   TableBody,
@@ -508,9 +509,10 @@ function deriveQuality(
 }
 
 export default function ReportsPage() {
-  const { data: deals } = useDeals();
-  const { data: cadences } = useCadences();
-  const { data: contacts } = useContacts();
+  const { data: deals, isLoading: dealsLoading } = useDeals();
+  const { data: cadences, isLoading: cadencesLoading } = useCadences();
+  const { data: contacts, isLoading: contactsLoading } = useContacts();
+  const isLoading = dealsLoading || cadencesLoading || contactsLoading;
   const currentRun = useAutopilotStore((s) => s.currentRun);
   const history = useAutopilotStore((s) => s.history);
   const hydrateHistory = useAutopilotStore((s) => s.hydrateHistory);
@@ -567,6 +569,26 @@ export default function ReportsPage() {
     setTimeout(() => {
       if (typeof window !== "undefined") window.print();
     }, 180);
+  }
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader
+          title="Laporan & Analitik"
+          description="Performa penjualan menyeluruh, akurasi AI, dan kualitas data pipeline."
+        />
+        <div className="space-y-6 p-6">
+          <StatRowSkeleton n={4} />
+          <Skeleton className="h-[300px] w-full rounded-xl" />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <TableSkeleton rows={5} cols={3} />
+            <TableSkeleton rows={5} cols={3} />
+          </div>
+          <TableSkeleton rows={5} cols={4} />
+        </div>
+      </div>
+    );
   }
 
   return (

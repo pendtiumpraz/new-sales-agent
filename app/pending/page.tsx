@@ -7,6 +7,7 @@ import { Clock, LogOut, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 
 interface Status {
   active?: boolean;
@@ -47,6 +48,17 @@ export default function PendingPage() {
   }, [sessionStatus]);
 
   const reason = info?.reason ?? "pending";
+
+  if (sessionStatus === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md">
+          <CardGridSkeleton count={1} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">

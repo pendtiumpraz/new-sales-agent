@@ -8,6 +8,7 @@ import { KeyRound, Loader2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ListSkeleton } from "@/components/shared/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,7 +209,9 @@ export default function TeamPage() {
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="p-6 text-sm text-muted-foreground">Memuat…</div>
+              <div className="p-4">
+                <ListSkeleton rows={5} avatar />
+              </div>
             ) : (
               <ul className="divide-y">
                 {data?.members.map((m) => (

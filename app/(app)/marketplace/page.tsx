@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatIDR } from "@/lib/utils/format-idr";
 
 interface Listing {
@@ -100,6 +101,15 @@ export default function MarketplacePage() {
       return true;
     });
   }, [peopleQ.data, pfilter, ploc, plead]);
+
+  if (browseQ.isLoading) {
+    return (
+      <div>
+        <PageHeader title="Marketplace Kontak" description="Jual-beli data perusahaan & orang antar-tenant. Data orang opted-out diblok (UU PDP)." />
+        <div className="p-6"><CardGridSkeleton count={6} /></div>
+      </div>
+    );
+  }
 
   if (browseQ.data && !browseQ.data.enabled) {
     return (

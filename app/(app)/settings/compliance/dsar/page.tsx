@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PoolOptOutCard } from "@/components/compliance/pool-optout-card";
+import { ListSkeleton } from "@/components/shared/skeletons";
 import { can, type Role } from "@/lib/rbac/permissions";
 
 interface AuditRow {
@@ -161,18 +162,24 @@ export default function DsarPage() {
             <CardTitle className="text-base">Jejak audit</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ul className="divide-y">
-              {(audit.data ?? []).slice(0, 20).map((a) => (
-                <li key={a.id} className="flex items-center gap-3 p-3 text-sm">
-                  <Badge variant="muted" className="font-mono">{a.action}</Badge>
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{a.target ?? "—"}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">{new Date(a.at).toLocaleString("id-ID")}</span>
-                </li>
-              ))}
-              {(audit.data?.length ?? 0) === 0 && !audit.isLoading && (
-                <li className="p-3 text-xs text-muted-foreground">Belum ada aktivitas audit.</li>
-              )}
-            </ul>
+            {audit.isLoading ? (
+              <div className="p-3">
+                <ListSkeleton rows={6} avatar={false} />
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {(audit.data ?? []).slice(0, 20).map((a) => (
+                  <li key={a.id} className="flex items-center gap-3 p-3 text-sm">
+                    <Badge variant="muted" className="font-mono">{a.action}</Badge>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{a.target ?? "—"}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">{new Date(a.at).toLocaleString("id-ID")}</span>
+                  </li>
+                ))}
+                {(audit.data?.length ?? 0) === 0 && (
+                  <li className="p-3 text-xs text-muted-foreground">Belum ada aktivitas audit.</li>
+                )}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>

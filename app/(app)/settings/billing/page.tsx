@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IDRAmount } from "@/components/shared/idr-amount";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/shared/skeletons";
 
 interface PlanRow {
   key: string;
@@ -73,7 +75,25 @@ export default function BillingPage() {
       <PageHeader title="Tagihan & Kuota" description="Paket aktif dan pemakaian terhadap kuota (doc 27)." />
       <div className="space-y-4 p-6">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat…</p>
+          <>
+            <Card className="overflow-hidden border-primary/25">
+              <div className="flex items-start justify-between bg-muted p-5">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="space-y-2 text-right">
+                  <Skeleton className="ml-auto h-8 w-24" />
+                  <Skeleton className="ml-auto h-3 w-20" />
+                </div>
+              </div>
+              <CardContent className="space-y-4 p-5">
+                <ListSkeleton rows={3} avatar={false} />
+              </CardContent>
+            </Card>
+            <Skeleton className="h-32 w-full rounded-xl" />
+          </>
         ) : (
           <>
             <Card className="overflow-hidden border-primary/25">

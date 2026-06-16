@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatRowSkeleton, TableSkeleton } from "@/components/shared/skeletons";
 import { formatIDR } from "@/lib/utils/format-idr";
 
 interface RepRow {
@@ -64,6 +65,11 @@ export default function MonitoringPage() {
       <div className="space-y-4 p-6">
         {q.isError ? (
           <EmptyState icon={UserCog} title="Khusus manajer" description="Halaman ini hanya untuk Manajer/Owner tenant. Login sebagai manajer untuk memantau tim." />
+        ) : q.isLoading ? (
+          <>
+            <StatRowSkeleton n={3} />
+            <TableSkeleton rows={8} cols={7} />
+          </>
         ) : (
           <>
             {/* Summary */}

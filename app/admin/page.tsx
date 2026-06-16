@@ -14,6 +14,7 @@ import { WaModeToggle } from "@/components/admin/wa-mode-toggle";
 import { DeploymentModeToggle } from "@/components/admin/deployment-mode-toggle";
 import { UserManagement } from "@/components/admin/user-management";
 import { EntitlementMatrix } from "@/components/admin/entitlement-matrix";
+import { TableSkeleton } from "@/components/shared/skeletons";
 import {
   Dialog,
   DialogContent,
@@ -199,7 +200,9 @@ export default function AdminConsole() {
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="border-b px-4 py-3 text-sm font-semibold">Tenants</div>
           {isLoading ? (
-            <p className="p-4 text-sm text-muted-foreground">Memuat…</p>
+            <div className="p-4">
+              <TableSkeleton rows={6} cols={8} />
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">

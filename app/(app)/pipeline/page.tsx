@@ -21,6 +21,7 @@ import { AnimatedHeroBg } from "@/components/dashboard/animated-hero-bg";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePipelineStore } from "@/lib/stores/pipeline-store";
+import { TableSkeleton } from "@/components/shared/skeletons";
 
 export default function PipelinePage() {
   const [productsOpen, setProductsOpen] = useState(false);
@@ -31,6 +32,7 @@ export default function PipelinePage() {
   // The store's hydrateDeals is idempotent (guarded by `dealsHydrated` + in-flight
   // promise) so this is safe across re-mounts and concurrent callers.
   const hydrateDeals = usePipelineStore((s) => s.hydrateDeals);
+  const dealsHydrated = usePipelineStore((s) => s.dealsHydrated);
   useEffect(() => {
     void hydrateDeals();
   }, [hydrateDeals]);
@@ -124,7 +126,7 @@ export default function PipelinePage() {
           <TabsContent value="list" className="mt-4">
             <div className="grid gap-4 lg:grid-cols-12">
               <div className="lg:col-span-8 xl:col-span-9">
-                <EnrichmentTable />
+                {dealsHydrated ? <EnrichmentTable /> : <TableSkeleton rows={8} cols={6} />}
               </div>
               <aside className="lg:col-span-4 xl:col-span-3">
                 <div className="lg:sticky lg:top-4">

@@ -156,9 +156,11 @@ export default function EcommercePage() {
               {isLoading
                 ? Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={8}>
-                        <Skeleton className="h-6 w-full" />
-                      </TableCell>
+                      {Array.from({ length: 8 }).map((_, c) => (
+                        <TableCell key={c}>
+                          <Skeleton className={c === 0 ? "h-4 w-24" : "h-3.5 w-full"} />
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))
                 : (orders ?? []).slice(0, 40).map((o) => (
