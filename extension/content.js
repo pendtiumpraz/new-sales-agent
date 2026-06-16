@@ -10,6 +10,11 @@
 // Selectors are BEST-EFFORT — LinkedIn's DOM is A/B-tested + changes often. If
 // extraction comes back empty, tune these against the live page (README §Tuning).
 
+// Load marker — if you DON'T see this in the LinkedIn tab's Console, the fresh
+// content script is NOT running (stale tab → hard-reload the page after reloading
+// the extension). Confirms v0.8.2 is live before you even run Stage 1.
+try { console.log("[Maira] content.js v0.8.2 loaded →", location.href); } catch (e) { /* ignore */ }
+
 function clean(s) {
   return (s || "").trim().replace(/\s+/g, " ");
 }
