@@ -104,12 +104,27 @@ async function autoScroll(steps = 5, delay = 350) {
   window.scrollTo(0, 0);
 }
 
+// Stage-2 core (doc 45) — capture the page's VISIBLE text (not class selectors) so
+// DeepSeek in the background can extract structured fields. Mirrors content.js's
+// profilePageText(): resilient to each platform's class-name churn.
+function capturePageText() {
+  const root = document.querySelector("main") || document.body;
+  let t = (root.innerText || "").replace(/\n{2,}/g, "\n").trim();
+  t = t.replace(/\b(Masuk|Daftar|Login|Sign up|Sign in|Download the app|Buka di aplikasi|Lihat selengkapnya|See more|Show more)\b/gi, "");
+  return t.slice(0, 8000); // ~2k tokens — same budget as LinkedIn enrich
+}
+
 chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
   (async () => {
     try {
       if (msg && msg.type === "SCAN_PLATFORM") {
+        // Stage 1 — list scrape (buffers queue items carrying sourceUrl for Stage 2).
         await autoScroll();
-        sendResponse({ ok: true, ...scrapeCurrent() });
+        sendResponse({ ok: true, ...scrapeCurrent(), pageText: capturePageText() });
+      } else if (msg && msg.type === "SCAN_ENRICH") {
+        // Stage 2 — the orchestrator navigated to one profile/store/site; grab its text.
+        await autoScroll(6, 400);
+        sendResponse({ ok: true, platform: detectPlatform(), url: location.href.split("?")[0], pageText: capturePageText() });
       } else {
         sendResponse({ ok: false, error: "unknown message" });
       }
