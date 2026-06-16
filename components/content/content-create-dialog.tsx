@@ -201,14 +201,14 @@ export function ContentCreateDialog({ open, onOpenChange, defaultDate }: Props) 
                 onClick={generate}
               >
                 <Wand2 className="h-3.5 w-3.5 text-primary" />
-                {generating ? "Menyusun..." : "Bantuan AI"}
+                {generating ? "Menyusun..." : "Pakai template"}
               </Button>
             </div>
             <Textarea
               id="cn-body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Tulis konten Anda — atau klik Bantuan AI untuk draf otomatis."
+              placeholder="Tulis konten Anda — atau klik Template untuk isi cepat."
               className="min-h-[160px]"
             />
           </div>

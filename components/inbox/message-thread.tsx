@@ -290,7 +290,7 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
               <span className="flex items-center gap-1 text-[11px] font-medium text-tertiary">
                 <Sparkles className="h-3 w-3" />
-                Saran AI
+                Balasan cepat
               </span>
               {AI_SUGGESTIONS.map((s) => (
                 <button

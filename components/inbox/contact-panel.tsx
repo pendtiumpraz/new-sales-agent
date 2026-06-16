@@ -14,7 +14,6 @@ import { useContact, useDeals } from "@/lib/api-mock/hooks";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatDateID } from "@/lib/utils/format-date-id";
-import { toast } from "sonner";
 
 const STAGE_LABEL: Record<string, string> = {
   prospek: "Prospek",
@@ -97,14 +96,11 @@ export function ContactPanel({ contactId }: { contactId: string }) {
       </div>
 
       <div className="space-y-2 p-5 pt-0">
-        <Button
-          className="w-full"
-          onClick={() =>
-            toast.success(`${contact.name} ditambahkan ke cadence "Demo to Close".`)
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Tambahkan ke cadence
+        <Button className="w-full" asChild>
+          <Link href="/cadences">
+            <Plus className="h-4 w-4" />
+            Tambahkan ke cadence
+          </Link>
         </Button>
         <Button variant="outline" className="w-full" asChild>
           <Link href="/contacts">Lihat di Kontak</Link>
