@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
+import { AlertTriangle, Briefcase, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ interface PersonRow {
   leadScore?: number | null;
   capturedAt?: string | null;
   assignedTo?: string | null;
+  workspaceId?: string | null;
   contacts: ContactPoint[];
 }
 
@@ -137,6 +139,35 @@ export default function ProfilesPage() {
   const qc = useQueryClient();
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState("all"); // all | Crawl | Impor | Hunter
+  const [wsShowAll, setWsShowAll] = useState(false); // workspace mode: show all leads to add
+
+  // Workspace scope (doc 44): ?workspace=<id> filters to that workspace's leads.
+  const workspaceId = useSearchParams().get("workspace");
+  const wsQ = useQuery({
+    queryKey: ["workspace", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const r = await fetch(`/api/workspaces/${workspaceId}`);
+      if (!r.ok) return null;
+      return (await r.json()) as { data?: { name: string } };
+    },
+  });
+  const tagWorkspace = useMutation({
+    mutationFn: async (body: { personId: string; workspaceId: string | null }) => {
+      const r = await fetch("/api/profiles/workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error("gagal");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast.success("Workspace lead diperbarui");
+      qc.invalidateQueries({ queryKey: ["people"] });
+    },
+    onError: () => toast.error("Gagal ubah workspace lead"),
+  });
   const classify = useMutation({
     mutationFn: async (body: { personId?: string; all?: boolean }) => {
       const r = await fetch("/api/profiles/classify", {
@@ -296,6 +327,18 @@ export default function ProfilesPage() {
               />
             ) : (
               <>
+                {workspaceId && (
+                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                    <Briefcase className="h-4 w-4 text-primary" />
+                    <span>
+                      Workspace <b>{wsQ.data?.data?.name ?? "ini"}</b> —{" "}
+                      {wsShowAll ? "semua lead (klik + workspace untuk menambah)" : "hanya lead workspace ini"}.
+                    </span>
+                    <button onClick={() => setWsShowAll((v) => !v)} className="ml-auto text-xs text-primary hover:underline">
+                      {wsShowAll ? "Tampilkan workspace saja" : "Tambah lead…"}
+                    </button>
+                  </div>
+                )}
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Sumber:</span>
@@ -326,6 +369,7 @@ export default function ProfilesPage() {
                 <div className="grid gap-3 md:grid-cols-2">
                   {people.data?.data
                     .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
+                    .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId)
                     .map((p) => {
                     const stale = staleInfo(p.capturedAt);
                     const src = sourceBucket(p.source);
@@ -392,6 +436,19 @@ export default function ProfilesPage() {
                                 ))}
                               </select>
                             </span>
+                            {workspaceId && (
+                              <button
+                                onClick={() =>
+                                  tagWorkspace.mutate({ personId: p.id, workspaceId: p.workspaceId === workspaceId ? null : workspaceId })
+                                }
+                                disabled={tagWorkspace.isPending}
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] hover:bg-accent"
+                                title="Tambah/keluarkan dari workspace ini"
+                              >
+                                <Briefcase className="h-3 w-3" />
+                                {p.workspaceId === workspaceId ? "Di workspace ✓" : "+ workspace"}
+                              </button>
+                            )}
                           </div>
                           {p.contacts.length > 0 && (
                             <div className="mt-3 space-y-1.5 border-t pt-3">
