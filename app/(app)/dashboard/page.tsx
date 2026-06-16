@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedHeroBg } from "@/components/dashboard/animated-hero-bg";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { useCountUp } from "@/components/dashboard/use-count-up";
 import {
   useActivity,
@@ -220,6 +221,9 @@ export default function DashboardPage() {
       </PageHeader>
 
       <div className="space-y-4 p-6">
+        {/* First-run setup checklist (auto-hides when complete or dismissed) */}
+        <OnboardingChecklist />
+
         {/* Channel quick filters */}
         <div className="flex flex-wrap items-center gap-1.5">
           {CHANNEL_FILTERS.map((f) => {
