@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ContactQualityBar } from "@/components/contacts/contact-quality-bar";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { ConsentBadge } from "@/components/shared/consent-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -486,6 +487,13 @@ function ContactsPageInner() {
           </>
         )}
       </PageHeader>
+
+      {/* Email-quality bar (real validation stats + re-validate) — contacts tab */}
+      {activeTab === "contacts" && (
+        <div className="px-6 pt-4">
+          <ContactQualityBar />
+        </div>
+      )}
 
       {/* Coral hero strip — KPI pills (contacts tab only) */}
       {activeTab === "contacts" && (

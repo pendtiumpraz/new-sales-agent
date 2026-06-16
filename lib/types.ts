@@ -47,6 +47,8 @@ export interface Contact {
   avatarColor: string;
   tags: string[];
   source: string;
+  /** Email validation result (doc 21): valid | invalid_syntax | invalid_domain | risky | null. */
+  emailStatus?: string | null;
 }
 
 export interface Deal {
