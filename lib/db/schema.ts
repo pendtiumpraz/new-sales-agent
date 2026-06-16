@@ -322,6 +322,7 @@ export const personTable = pgTable("person", {
   interests: jsonb("interests").$type<string[]>().notNull().default([]),
   ford: jsonb("ford").$type<Record<string, string>>().notNull().default({}),
   leadType: text("lead_type"),                     // b2c_customer | b2b_partner | unknown (doc 40)
+  workspaceId: text("workspace_id"),               // owning workspace (doc 44) — scopes the lead to a sales focus
   leadReason: text("lead_reason"),                 // why this classification — fed to sales (doc 40)
   leadScore: real("lead_score"),                   // classifier confidence 0..1 (doc 40)
   assignedTo: text("assigned_to"),                 // owning sales rep (users.id) — per-rep isolation (doc 41)
@@ -516,6 +517,36 @@ export const poolOptOutTable = pgTable("pool_optout", {
   reason: text("reason").notNull().default("opt_out"), // opt_out | dsar_erasure
   at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Sales workspace (doc 44) — a rep's focused container: pick a product/purpose,
+// target a segment, and run the flow scoped to it (so hundreds of products don't
+// get mixed up). A rep has many; managers/superadmin see all.
+export const workspaceTable = pgTable("workspace", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  ownerUserId: text("owner_user_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("lead_gen"), // lead_gen | partner | offering | retention | custom
+  productId: text("product_id"),
+  targetSegment: text("target_segment"),            // e.g. "AI Engineer Jakarta", "Logistik B2B"
+  status: text("status").notNull().default("active"), // active | archived
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("workspace_tenant_idx").on(t.tenantId),
+  ownerIdx: index("workspace_owner_idx").on(t.tenantId, t.ownerUserId),
+}));
+
+// Per-tenant module entitlement (doc 44) — superadmin enable/disable modules per
+// tenant (not every client buys everything). Absent row = enabled (default on).
+export const tenantEntitlementTable = pgTable("tenant_entitlement", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  moduleKey: text("module_key").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+}, (t) => ({
+  tenantModuleUq: uniqueIndex("tenant_entitlement_uq").on(t.tenantId, t.moduleKey),
+}));
 
 // Platform-level settings (doc 41) — superadmin-managed key/value, e.g.
 // wa_mode (per_sales | per_platform), deployment_mode (saas | on_prem).
