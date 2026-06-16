@@ -7,14 +7,24 @@ import { getTenantContext } from "@/lib/auth/session-context";
 import { requirePermission } from "@/lib/rbac/guard";
 import { sendingAccountTable } from "@/lib/db/schema";
 import { encryptSecret } from "@/lib/ai/crypto";
+import { mailProviderConfigured } from "@/lib/mail/oauth";
 
 export const runtime = "nodejs";
+
+// Which OAuth providers are wired (client id+secret in env) — drives the connect
+// buttons in the UI. Inert when unset.
+function oauthFlags() {
+  return {
+    google: mailProviderConfigured("google"),
+    microsoft: mailProviderConfigured("microsoft"),
+  };
+}
 
 // GET /api/tenant/mailboxes → the tenant's sending identities (no secrets).
 export async function GET() {
   const ctx = await getTenantContext();
-  if (!ctx) return NextResponse.json({ data: [], source: "mock" });
-  if (!hasDb()) return NextResponse.json({ data: [], source: "mock" });
+  if (!ctx) return NextResponse.json({ data: [], oauth: oauthFlags(), source: "mock" });
+  if (!hasDb()) return NextResponse.json({ data: [], oauth: oauthFlags(), source: "mock" });
   try {
     const rows = await withTenant(ctx, (tx) =>
       tx
@@ -29,10 +39,10 @@ export async function GET() {
         })
         .from(sendingAccountTable),
     );
-    return NextResponse.json({ data: rows, source: "db" });
+    return NextResponse.json({ data: rows, oauth: oauthFlags(), source: "db" });
   } catch (err) {
     console.error("[api/tenant/mailboxes GET]", err);
-    return NextResponse.json({ data: [], source: "error" });
+    return NextResponse.json({ data: [], oauth: oauthFlags(), source: "error" });
   }
 }
 

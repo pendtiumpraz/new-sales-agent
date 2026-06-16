@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Mail, Send, Trash2 } from "lucide-react";
+import { Mail, Send, ShieldCheck, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -57,9 +57,27 @@ export default function MailboxesPage() {
     queryFn: async () => {
       const r = await fetch("/api/tenant/mailboxes");
       if (!r.ok) throw new Error();
-      return ((await r.json()).data ?? []) as Mailbox[];
+      const j = await r.json();
+      return {
+        rows: (j.data ?? []) as Mailbox[],
+        oauth: (j.oauth ?? { google: false, microsoft: false }) as {
+          google: boolean;
+          microsoft: boolean;
+        },
+      };
     },
   });
+
+  // OAuth connect result lands back here as ?connect=success|error|norefresh.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("connect");
+    if (!c) return;
+    if (c === "success") toast.success("Mailbox OAuth terhubung");
+    else if (c === "norefresh") toast.error("Tidak dapat refresh token — coba lagi & izinkan akses penuh");
+    else toast.error("Gagal menghubungkan mailbox OAuth");
+    window.history.replaceState({}, "", window.location.pathname);
+    qc.invalidateQueries({ queryKey: ["mailboxes"] });
+  }, [qc]);
   const sends = useQuery({
     queryKey: ["sends"],
     queryFn: async () => {
@@ -140,7 +158,7 @@ export default function MailboxesPage() {
           </CardHeader>
           <CardContent className="space-y-3 p-4">
             <ul className="divide-y">
-              {(mailboxes.data ?? []).map((m) => (
+              {(mailboxes.data?.rows ?? []).map((m) => (
                 <li key={m.id} className="flex items-center gap-3 py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{m.fromName ? `${m.fromName} · ` : ""}{m.fromEmail}</p>
@@ -155,10 +173,36 @@ export default function MailboxesPage() {
                   )}
                 </li>
               ))}
-              {(mailboxes.data?.length ?? 0) === 0 && !mailboxes.isLoading && (
-                <li className="py-2.5 text-xs text-muted-foreground">Belum ada mailbox. Connect SMTP di bawah.</li>
+              {(mailboxes.data?.rows.length ?? 0) === 0 && !mailboxes.isLoading && (
+                <li className="py-2.5 text-xs text-muted-foreground">Belum ada mailbox. Connect Gmail/Outlook (OAuth) atau SMTP di bawah.</li>
               )}
             </ul>
+
+            {/* OAuth connect (doc 32) — buttons show only when the provider's
+                client id/secret are configured; otherwise a setup hint. */}
+            {canManage && (mailboxes.data?.oauth.google || mailboxes.data?.oauth.microsoft) && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-primary/5 p-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Hubungkan via OAuth
+                </span>
+                {mailboxes.data?.oauth.google && (
+                  <Button variant="outline" size="sm" onClick={() => { window.location.href = "/api/mailboxes/oauth/google/start"; }}>
+                    Connect Gmail
+                  </Button>
+                )}
+                {mailboxes.data?.oauth.microsoft && (
+                  <Button variant="outline" size="sm" onClick={() => { window.location.href = "/api/mailboxes/oauth/microsoft/start"; }}>
+                    Connect Outlook
+                  </Button>
+                )}
+              </div>
+            )}
+            {canManage && !mailboxes.data?.oauth.google && !mailboxes.data?.oauth.microsoft && (
+              <p className="rounded-lg border border-dashed p-3 text-[11px] text-muted-foreground">
+                Connect via OAuth (Gmail/Outlook) belum aktif — isi <code>GOOGLE_OAUTH_CLIENT_ID/SECRET</code> atau{" "}
+                <code>MICROSOFT_OAUTH_CLIENT_ID/SECRET</code> di <code>.env.local</code> (lihat <code>docs/32</code>). SMTP app-password di bawah tetap jalan.
+              </p>
+            )}
 
             {canManage && (
               <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-2">
@@ -211,7 +255,7 @@ export default function MailboxesPage() {
                   <Select value={msg.sendingAccountId} onValueChange={(v) => setMsg({ ...msg, sendingAccountId: v })}>
                     <SelectTrigger><SelectValue placeholder="Pilih mailbox" /></SelectTrigger>
                     <SelectContent>
-                      {(mailboxes.data ?? []).map((m) => (
+                      {(mailboxes.data?.rows ?? []).map((m) => (
                         <SelectItem key={m.id} value={m.id}>{m.fromEmail}</SelectItem>
                       ))}
                     </SelectContent>

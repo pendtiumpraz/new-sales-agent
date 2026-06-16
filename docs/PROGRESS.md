@@ -114,7 +114,8 @@ _Terakhir diperbarui: 2026-06-16_
 - ✅ API `/api/cadences/process` (GET log + POST jalankan; guard `campaign.manage`) + tombol **"Jalankan sekarang"** di halaman Cadence; migrasi `0006` applied + masuk daftar RLS
 - ✅ Diuji di DB live: cadence 3-step → step 0 (whatsapp) dipersonalisasi model nyata (`aiSource=real`), di-queue, enrollment maju ke step 1 due +2 hari
 - ✅ **Inngest scaffold (doc 31)** — `lib/inngest/` + `/api/inngest` (serve): `cadence-cron` (*/15m) + `send-queue-cron` (*/5m) fan-out per tenant aktif (reuse `processCadences`/`processSendJobs`) + `cadence-on-demand` (event). Dev jalan keyless (mode dev, 3 function ke-register, 200); produksi **tinggal isi `INNGEST_SIGNING_KEY`+`INNGEST_EVENT_KEY`**
-- ⛔ **belum (keblok creds):** OAuth Gmail/MS + platform ESP; deliverability (SPF/DKIM/warmup/bounce webhook); pengiriman live channel non-email
+- ✅ **OAuth Gmail/MS scaffold (doc 32)** — connect mailbox sendiri via OAuth → kirim sebagai user lewat SMTP XOAUTH2 (reuse pipa kirim). `lib/mail/oauth.ts` + `lib/mail/smtp.ts` (union SMTP-password\|OAuth) + route `start`/`callback` per provider + tombol di `/settings/mailboxes`. Null-safe (tombol nyembunyi tanpa key); **tinggal isi `GOOGLE_OAUTH_*`/`MICROSOFT_OAUTH_*`**. Diuji: start 401 (guarded), callback 307→/login, mailboxes GET 200+flags, page 302
+- ⛔ **belum (keblok creds):** platform ESP (SES/SendGrid); deliverability (SPF/DKIM/warmup/bounce webhook); pengiriman live channel non-email; (opsional) MS Graph `Mail.Send` kalau SMTP AUTH dimatikan
 
 ### Fase 6 — Chrome extension RPA 🟡
 **Slice 1 (extension scaffold + token-ingest seam) — selesai:**
