@@ -37,9 +37,9 @@ export function ConversationList({ className }: { className?: string }) {
       const q = query.toLowerCase();
       list = list.filter(
         (c) =>
-          c.contactName.toLowerCase().includes(q) ||
-          c.company.toLowerCase().includes(q) ||
-          c.lastMessage.toLowerCase().includes(q),
+          (c.contactName ?? "").toLowerCase().includes(q) ||
+          (c.company ?? "").toLowerCase().includes(q) ||
+          (c.lastMessage ?? "").toLowerCase().includes(q),
       );
     }
     return list;
