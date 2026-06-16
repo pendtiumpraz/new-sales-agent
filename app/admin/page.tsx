@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { WaModeToggle } from "@/components/admin/wa-mode-toggle";
 import { DeploymentModeToggle } from "@/components/admin/deployment-mode-toggle";
 import { UserManagement } from "@/components/admin/user-management";
+import { EntitlementMatrix } from "@/components/admin/entitlement-matrix";
 import {
   Dialog,
   DialogContent,
@@ -187,6 +188,9 @@ export default function AdminConsole() {
           <DeploymentModeToggle />
           <WaModeToggle />
         </div>
+
+        {/* Module entitlement matrix (doc 44) */}
+        <EntitlementMatrix />
 
         {/* User management — cross-tenant (doc 41) */}
         <UserManagement />

@@ -8,6 +8,7 @@ import {
   Bell,
   BookOpen,
   Bot,
+  Briefcase,
   Database,
   Heart,
   LayoutDashboard,
@@ -30,6 +31,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 import { BrandLogo } from "@/components/shared/brand-logo";
 import { LanguageToggle } from "@/components/shared/language-toggle";
@@ -82,6 +84,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Cari & Riset Lead",
     items: [
+      { href: "/workspaces", icon: Briefcase, label: "Workspace", desc: "Fokus jualan per produk/tujuan — flow ter-scope" },
       { href: "/contacts", icon: Users, label: "Kontak & Lead", desc: "Kontak, penemuan lead, & profil" },
       { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
       { href: "/marketplace", icon: Store, label: "Marketplace", desc: "Jual-beli data perusahaan & orang antar-tenant (SaaS)", managerOnly: true },
@@ -150,7 +153,19 @@ export function SideNav() {
   const pathname = usePathname();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const isRep = useAuthStore((s) => s.currentUser.role) === "Sales Rep";
-  const visible = (items: NavItem[]) => items.filter((it) => !it.managerOnly || !isRep);
+  // Modules the superadmin disabled for this tenant are hidden (doc 44).
+  const entQ = useQuery({
+    queryKey: ["tenant-entitlements"],
+    queryFn: async () => {
+      const r = await fetch("/api/tenant/entitlements");
+      if (!r.ok) return { disabled: [] as string[] };
+      return (await r.json()) as { disabled: string[] };
+    },
+    staleTime: 60_000,
+  });
+  const disabled = new Set(entQ.data?.disabled ?? []);
+  const visible = (items: NavItem[]) =>
+    items.filter((it) => (!it.managerOnly || !isRep) && !disabled.has(it.href));
 
   return (
     <aside
