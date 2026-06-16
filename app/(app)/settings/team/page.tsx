@@ -149,7 +149,7 @@ export default function TeamPage() {
         description="Kelola anggota workspace, peran (RBAC), dan undangan."
       />
 
-      <div className="max-w-3xl space-y-4 p-6">
+      <div className="max-w-5xl space-y-4 p-6">
         {!canManage && (
           <Card className="border-dashed">
             <CardContent className="flex items-center gap-3 p-4 text-sm text-muted-foreground">

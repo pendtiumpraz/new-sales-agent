@@ -50,7 +50,7 @@ export default function EscalationsPage() {
         title="Eskalasi AI"
         description="Balasan yang ditahan agen untuk ditinjau manusia — kirim sekali klik atau abaikan (doc 36)."
       />
-      <div className="max-w-3xl space-y-5 p-6">
+      <div className="max-w-5xl space-y-5 p-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between border-b">
             <CardTitle className="flex items-center gap-2 text-base">

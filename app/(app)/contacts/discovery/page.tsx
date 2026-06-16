@@ -206,7 +206,7 @@ export default function DiscoveryPage() {
           Lihat Profil
         </Link>
       </PageHeader>
-      <div className="max-w-3xl space-y-4 p-6">
+      <div className="max-w-5xl space-y-4 p-6">
         {/* Extension = the PRIMARY discovery engine (data plane in the browser). */}
         <Card className="border-primary/30">
           <CardHeader className="border-b">
