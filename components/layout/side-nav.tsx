@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import {
   BarChart3,
   Bell,
+  BookOpen,
   Database,
   Heart,
   LayoutDashboard,
@@ -66,6 +67,7 @@ const NAV: { href: string; icon: LucideIcon; key: string; label?: string }[] = [
   { href: "/content", icon: Megaphone, key: "content" },
   { href: "/retention", icon: Heart, key: "retention", label: "Retensi" },
   { href: "/reports", icon: BarChart3, key: "reports", label: "Laporan" },
+  { href: "/documentation", icon: BookOpen, key: "documentation", label: "Dokumentasi" },
 ];
 // Autopilot is intentionally NOT in NAV — it surfaces as a "special" coral
 // button in both the top bar and the bottom of the sidebar (above the AI dock).
