@@ -398,8 +398,12 @@ function ContactsPageInner() {
    * `?focus=ct_XXXX` URL param (preserves backward compatibility for any
    * existing deep links).
    */
+  // Row click opens the contact DETAIL sheet (not the per-contact workspace, which
+  // is empty for leads with no conversations). The workspace stays reachable via
+  // the header CTA + the row overflow menu.
   function openWorkspace(c: Contact) {
-    router.push(`/workspace/${c.id}`);
+    setDetail(c);
+    setSheetOpen(true);
   }
 
   function openHero() {
