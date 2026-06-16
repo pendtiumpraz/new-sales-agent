@@ -49,6 +49,7 @@ function ConsentBadge({ s }: { s: string | null }) {
 export default function MarketplacePage() {
   const qc = useQueryClient();
   const [pfilter, setPfilter] = useState(""); // jabatan/title
+  const [ploc, setPloc] = useState(""); // lokasi
   const [plead, setPlead] = useState("all");
   const [category, setCategory] = useState("");
   const [selPeople, setSelPeople] = useState<Set<string>>(new Set());
@@ -91,12 +92,14 @@ export default function MarketplacePage() {
 
   const filteredPeople = useMemo(() => {
     const f = pfilter.trim().toLowerCase();
+    const loc = ploc.trim().toLowerCase();
     return (peopleQ.data ?? []).filter((p) => {
       if (plead !== "all" && (p.leadType ?? "") !== plead) return false;
       if (f && !`${p.title ?? ""} ${p.fullName}`.toLowerCase().includes(f)) return false;
+      if (loc && !(p.location ?? "").toLowerCase().includes(loc)) return false;
       return true;
     });
-  }, [peopleQ.data, pfilter, plead]);
+  }, [peopleQ.data, pfilter, ploc, plead]);
 
   if (browseQ.data && !browseQ.data.enabled) {
     return (
@@ -162,16 +165,17 @@ export default function MarketplacePage() {
             <div className="rounded-lg border bg-card p-3">
               <p className="mb-2 text-xs text-muted-foreground">
                 Pilih kontak (centang) lalu publikasikan sekaligus. <b>Perusahaan</b>: nama+website+email+HP. <b>Orang</b>: sosmed+WA+email
-                (opted-out diblok). Beri <b>kategori</b> biar pembeli ngerti, mis. “AI Engineer”.
+                (opted-out diblok). Harga default platform: <b>perusahaan Rp100</b> · <b>orang Rp50</b>.
               </p>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Kategori listing (opsional), mis. AI Engineer / Logistik" className="h-9" />
+              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Nama publikasi (mis. AI Engineer Jakarta)" className="h-9" />
             </div>
 
             {/* People */}
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Orang</p>
-                <Input value={pfilter} onChange={(e) => setPfilter(e.target.value)} placeholder="filter jabatan/nama…" className="h-7 w-44 text-xs" />
+                <Input value={pfilter} onChange={(e) => setPfilter(e.target.value)} placeholder="filter jabatan/nama…" className="h-7 w-40 text-xs" />
+                <Input value={ploc} onChange={(e) => setPloc(e.target.value)} placeholder="filter lokasi…" className="h-7 w-32 text-xs" />
                 <select value={plead} onChange={(e) => setPlead(e.target.value)} className="h-7 rounded-md border bg-background px-2 text-xs">
                   <option value="all">Semua tipe</option>
                   <option value="b2c_customer">B2C</option>

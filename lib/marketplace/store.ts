@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { marketplaceListingTable, companyTable, personTable, contactPointTable } from "@/lib/db/schema";
 import { stableId, companyDedupKey, personDedupKey, contactPointDedupKey } from "@/lib/profiling/dedup";
 import { filterOptedOut } from "@/lib/compliance/pool-optout";
+import { getDefaultPrices } from "@/lib/platform/settings";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 // Cross-tenant marketplace store (doc 41 §6). Cross-tenant reads use the raw
@@ -61,6 +62,8 @@ export interface PublishResult {
 export async function publishMany(ctx: TenantContext, input: PublishInput): Promise<PublishResult> {
   const T = ctx.tenantId;
   const out: PublishResult = { published: 0, skipped: [] };
+  const defaults = await getDefaultPrices();
+  const price = input.priceIdr ?? (input.entityType === "company" ? defaults.company : defaults.person);
 
   for (const entityId of input.entityIds) {
     try {
@@ -121,7 +124,7 @@ export async function publishMany(ctx: TenantContext, input: PublishInput): Prom
         summary,
         category,
         channels,
-        priceIdr: input.priceIdr ?? 0,
+        priceIdr: price,
         consentStatus,
       });
       out.published++;

@@ -28,3 +28,10 @@ export async function marketplaceEnabled(): Promise<boolean> {
 
 // Consent values acceptable for listing a PERSON in the marketplace (UU PDP).
 export const SHAREABLE_CONSENT = ["opted_in", "legitimate_interest"];
+
+// Platform default marketplace prices (IDR). Superadmin-overridable; falls back
+// to company Rp100 / person Rp50 (doc 41 §6).
+export async function getDefaultPrices(): Promise<{ company: number; person: number }> {
+  const [co, pe] = await Promise.all([getSetting("price_company_idr"), getSetting("price_person_idr")]);
+  return { company: Number(co) || 100, person: Number(pe) || 50 };
+}
