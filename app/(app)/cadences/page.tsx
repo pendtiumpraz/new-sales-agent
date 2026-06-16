@@ -414,6 +414,7 @@ function RunCadencesButton() {
       const s = j.summary as {
         dueEnrollments: number;
         emailQueued: number;
+        waSent: number;
         otherQueued: number;
         completed: number;
         skipped: number;
@@ -423,7 +424,7 @@ function RunCadencesButton() {
         toast.info("Tidak ada langkah cadence yang jatuh tempo saat ini.");
       } else {
         toast.success(
-          `Cadence dijalankan — ${s.emailQueued} email antri, ${s.otherQueued} channel lain antri, ${s.completed} selesai${s.skipped ? `, ${s.skipped} dilewati` : ""}.`,
+          `Cadence dijalankan — ${s.emailQueued} email antri${s.waSent ? `, ${s.waSent} WhatsApp terkirim` : ""}, ${s.otherQueued} channel lain antri, ${s.completed} selesai${s.skipped ? `, ${s.skipped} dilewati` : ""}.`,
         );
       }
     } catch (e) {

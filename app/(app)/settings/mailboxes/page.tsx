@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Mail, Send, ShieldCheck, Trash2 } from "lucide-react";
+import { Mail, MessageCircle, Send, ShieldCheck, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -315,6 +315,9 @@ export default function MailboxesPage() {
           </Card>
         )}
 
+        {/* WhatsApp (WAHA) */}
+        {canManage && <WhatsAppCard />}
+
         {/* Recent sends */}
         <Card>
           <CardHeader className="border-b">
@@ -339,5 +342,87 @@ export default function MailboxesPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// ── WhatsApp via WAHA (doc 34) ──────────────────────────────────────────────
+// Inert-but-wired: shows a setup hint when WAHA isn't configured; otherwise a
+// session-status badge + a test-send form. Cadence WA steps send via the same
+// session through the processor.
+function WhatsAppCard() {
+  const status = useQuery({
+    queryKey: ["wa-status"],
+    queryFn: async () => {
+      const r = await fetch("/api/wa/status");
+      if (!r.ok) throw new Error();
+      return (await r.json()) as {
+        configured: boolean;
+        session: string;
+        status?: string;
+        error?: string;
+      };
+    },
+  });
+  const [wa, setWa] = useState({ to: "", text: "" });
+  const send = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/wa/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(wa),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+    },
+    onSuccess: () => {
+      toast.success("WhatsApp terkirim");
+      setWa({ to: "", text: "" });
+    },
+    onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
+  });
+  const s = status.data;
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <MessageCircle className="h-4 w-4 text-primary" /> WhatsApp (WAHA)
+          {s?.configured && (
+            <Badge className={s.status === "WORKING" ? "bg-success/10 text-emerald-700" : "bg-muted text-muted-foreground"}>
+              {s.status ?? s.error ?? "?"}
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 p-4">
+        {!s?.configured ? (
+          <p className="text-[11px] text-muted-foreground">
+            WAHA belum aktif — isi <code>WAHA_BASE_URL</code>, <code>WAHA_API_KEY</code>,{" "}
+            <code>WAHA_SESSION</code> di <code>.env.local</code> (lihat <code>docs/34</code>). Step cadence
+            channel WhatsApp tetap di-queue sampai aktif.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Nomor (08.. / 62..)</Label>
+                <Input value={wa.to} onChange={(e) => setWa({ ...wa, to: e.target.value })} placeholder="08123456789" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Pesan</Label>
+              <Textarea rows={3} value={wa.text} onChange={(e) => setWa({ ...wa, text: e.target.value })} />
+            </div>
+            <Button disabled={!wa.to || !wa.text || send.isPending} onClick={() => send.mutate()}>
+              {send.isPending ? "Mengirim…" : "Kirim WhatsApp"}
+            </Button>
+            <p className="text-[11px] text-muted-foreground">
+              Sesi <span className="font-mono">{s.session}</span>: {s.status ?? s.error ?? "—"}. Cadence step
+              WhatsApp kirim via sesi ini.
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

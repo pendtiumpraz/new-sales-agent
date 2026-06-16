@@ -25,6 +25,7 @@ import {
 import type { CadenceStep } from "@/lib/types";
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { isTenantActive } from "@/lib/admin/kill-switch";
+import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -32,6 +33,7 @@ interface ContactLite {
   name: string | null;
   company: string | null;
   email: string | null;
+  phone: string | null;
 }
 
 /** Substitute the cadence placeholders the seed/UI use ({nama}, {perusahaan}). */
@@ -75,6 +77,7 @@ async function personalize(
 export interface CadenceRunSummary {
   dueEnrollments: number;
   emailQueued: number;
+  waSent: number;
   otherQueued: number;
   completed: number;
   skipped: number;
@@ -95,6 +98,7 @@ export async function processCadences(
   const summary: CadenceRunSummary = {
     dueEnrollments: 0,
     emailQueued: 0,
+    waSent: 0,
     otherQueued: 0,
     completed: 0,
     skipped: 0,
@@ -163,6 +167,7 @@ export async function processCadences(
         name: contactRow?.name ?? null,
         company: contactRow?.company ?? null,
         email: contactRow?.email ?? null,
+        phone: contactRow?.phone ?? null,
       };
 
       const { body, source } = await personalize(ctx, step, c);
@@ -193,9 +198,26 @@ export async function processCadences(
           );
           summary.emailQueued++;
         }
+      } else if (step.channel === "whatsapp" && wahaConfigured()) {
+        // Live WhatsApp via WAHA (doc 34) — send now, record the outcome.
+        if (!c.phone) {
+          status = "skipped";
+          error = "kontak tanpa nomor WhatsApp";
+          summary.skipped++;
+        } else {
+          try {
+            await sendWhatsApp({ to: c.phone, text: body });
+            status = "sent";
+            summary.waSent++;
+          } catch (e) {
+            status = "failed";
+            error = String(e).slice(0, 300);
+            summary.failed++;
+          }
+        }
       } else {
-        // whatsapp / linkedin / instagram / sms / call — no live integration yet
-        // (MCP / Chrome extension / WA Business API, cred-blocked). Queue + log.
+        // Other non-email channels (or WA not configured) — queue + log; their
+        // live integrations (LinkedIn/IG/SMS/call) remain cred-blocked.
         summary.otherQueued++;
       }
 
