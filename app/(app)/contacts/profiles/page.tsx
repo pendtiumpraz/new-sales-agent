@@ -215,7 +215,7 @@ export default function ProfilesPage() {
   // Real enrichment: gender from name + websearch (DuckDuckGo + GitHub) for
   // email/phone/github/site + classify + summary (doc 46).
   const enrich = useMutation({
-    mutationFn: async (body: { personId?: string; all?: boolean }) => {
+    mutationFn: async (body: { personId?: string; all?: boolean; companyId?: string; allCompanies?: boolean }) => {
       const r = await fetch("/api/profiles/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,7 +275,11 @@ export default function ProfilesPage() {
   });
 
   const [selected, setSelected] = useState<{ kind: "person" | "company"; data: PersonRow | CompanyRow } | null>(null);
-  const openEnrich = (id: string) => { setClassifyingId(id); enrich.mutate({ personId: id }); };
+  const openEnrich = (id: string) => {
+    setClassifyingId(id);
+    if (selected?.kind === "company") enrich.mutate({ companyId: id });
+    else enrich.mutate({ personId: id });
+  };
 
   const peopleRows = (people.data?.data ?? [])
     .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
@@ -349,12 +353,25 @@ export default function ProfilesPage() {
                 }
               />
             ) : (
-              <DataTable
-                columns={companyCols}
-                rows={companies.data?.data ?? []}
-                getRowId={(c) => c.id}
-                onRowClick={(c) => setSelected({ kind: "company", data: c })}
-              />
+              <>
+                <div className="mb-3 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setClassifyingId("__cos__"); enrich.mutate({ allCompanies: true }); }}
+                    disabled={enrich.isPending}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {classifyingId === "__cos__" && enrich.isPending ? "Mencari di web…" : "Cari domain & kontak (web)"}
+                  </Button>
+                </div>
+                <DataTable
+                  columns={companyCols}
+                  rows={companies.data?.data ?? []}
+                  getRowId={(c) => c.id}
+                  onRowClick={(c) => setSelected({ kind: "company", data: c })}
+                />
+              </>
             )}
           </TabsContent>
 

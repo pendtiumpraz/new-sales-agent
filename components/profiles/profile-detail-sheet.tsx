@@ -228,9 +228,9 @@ export function ProfileDetailSheet({ kind, data, open, onOpenChange, onEnrich, e
                     </section>
                   )}
 
-                  {person && onEnrich && (
-                    <Button variant="secondary" className="w-full" onClick={() => onEnrich(person.id)} disabled={enriching}>
-                      <Sparkles className="h-4 w-4" /> {enriching ? "Mencari di web…" : "Enrich (cari email/HP/GitHub)"}
+                  {onEnrich && (
+                    <Button variant="secondary" className="w-full" onClick={() => onEnrich(data.id)} disabled={enriching}>
+                      <Sparkles className="h-4 w-4" /> {enriching ? "Mencari di web…" : person ? "Enrich (cari email/HP/GitHub)" : "Enrich (cari domain, alamat, email, telepon)"}
                     </Button>
                   )}
                 </>

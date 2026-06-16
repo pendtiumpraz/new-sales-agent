@@ -24,13 +24,52 @@ export async function POST(req: Request) {
   if ("error" in guard) return guard.error;
   const ctx = guard.ctx;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
-  const body = (await req.json().catch(() => ({}))) as { personId?: string; all?: boolean };
+  const body = (await req.json().catch(() => ({}))) as { personId?: string; all?: boolean; companyId?: string; allCompanies?: boolean };
   const T = ctx.tenantId;
 
   const cpId = (ownerType: "person" | "company", ownerId: string, channel: string, value: string) =>
     stableId("cp", contactPointDedupKey({ tenantId: T, ownerType, ownerId, channel, value }));
 
   try {
+    // ── Direct company enrichment (doc 46): find domain + address/email/phone/socials ──
+    if (body.companyId || body.allCompanies) {
+      const cos = await withTenant(ctx, (tx) =>
+        body.companyId
+          ? tx.select().from(companyTable).where(and(eq(companyTable.id, body.companyId), eq(companyTable.tenantId, T)))
+          : tx.select().from(companyTable).where(or(isNull(companyTable.domain), isNull(companyTable.summary))).limit(3),
+      );
+      const out: { id: string; domain: string | null; emails: number; phones: number; address: boolean }[] = [];
+      for (const co of cos) {
+        const dc = await discoverCompany(ctx, { name: co.name, website: co.domain ? `https://${co.domain}` : null });
+        await withTenant(ctx, async (tx) => {
+          await tx
+            .update(companyTable)
+            .set({
+              domain: co.domain ?? dc.domain ?? null,
+              industry: dc.industry ?? co.industry ?? null,
+              summary: dc.summary ?? co.summary ?? null,
+              sourceUrl: co.sourceUrl ?? dc.website ?? null,
+              updatedAt: new Date(),
+            })
+            .where(and(eq(companyTable.id, co.id), eq(companyTable.tenantId, T)));
+          const cps: { channel: string; value: string }[] = [];
+          for (const e of dc.emails) cps.push({ channel: "email", value: e });
+          for (const ph of dc.phones) cps.push({ channel: "phone", value: ph });
+          if (dc.website) cps.push({ channel: "website", value: dc.website });
+          if (dc.address) cps.push({ channel: "address", value: dc.address });
+          for (const [k, v] of Object.entries(dc.socials)) cps.push({ channel: k, value: v });
+          for (const pt of cps) {
+            await tx
+              .insert(contactPointTable)
+              .values({ id: cpId("company", co.id, pt.channel, pt.value), tenantId: T, ownerType: "company", ownerId: co.id, channel: pt.channel, value: pt.value, consentStatus: "unknown", source: "websearch", updatedAt: new Date() })
+              .onConflictDoNothing();
+          }
+        });
+        out.push({ id: co.id, domain: co.domain ?? dc.domain ?? null, emails: dc.emails.length, phones: dc.phones.length, address: !!dc.address });
+      }
+      return NextResponse.json({ ok: true, count: out.length, results: out, source: "db" });
+    }
+
     const { companies, targets } = await withTenant(ctx, async (tx) => {
       const companies = await tx
         .select({ id: companyTable.id, name: companyTable.name, industry: companyTable.industry })
