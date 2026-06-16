@@ -322,6 +322,8 @@ export const personTable = pgTable("person", {
   interests: jsonb("interests").$type<string[]>().notNull().default([]),
   ford: jsonb("ford").$type<Record<string, string>>().notNull().default({}),
   leadType: text("lead_type"),                     // b2c_customer | b2b_partner | unknown (doc 40)
+  leadReason: text("lead_reason"),                 // why this classification — fed to sales (doc 40)
+  leadScore: real("lead_score"),                   // classifier confidence 0..1 (doc 40)
   profileSummary: text("profile_summary"),
   profileConfidence: real("profile_confidence"),
   status: text("status").notNull().default("active"),
