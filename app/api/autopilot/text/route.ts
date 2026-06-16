@@ -27,6 +27,8 @@ import {
 import { hasDb } from "@/lib/db/client";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { wrapUntrusted } from "@/lib/ai/safety";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import type { KnowledgeBase } from "@/lib/types/kb";
 
@@ -138,7 +140,7 @@ function buildPromptSpec(body: AutopilotTextRequest): PromptSpec {
     }
     case "cos-summary": {
       const contextTail = meetingContext
-        ? `Konteks transkrip: ${meetingContext}`
+        ? `Konteks transkrip:\n${wrapUntrusted("transkrip", meetingContext)}` // doc 43 §2 — untrusted transcript
         : "Asumsikan meeting berjalan positif, prospek tertarik produk inti.";
       return {
         surface: "analysis",
@@ -291,7 +293,7 @@ export async function POST(request: Request) {
         prompt: spec.user,
         maxOutputTokens: spec.maxOutputTokens,
       });
-      const trimmed = (text ?? "").trim();
+      const trimmed = stripMarkdown((text ?? "").trim()); // doc 43 §1 — shown in UI + sent to prospect
       if (trimmed) {
         const response: AutopilotTextResponse = { text: trimmed, source: "real" };
         return NextResponse.json(response);
@@ -306,7 +308,7 @@ export async function POST(request: Request) {
   // Legacy Gateway fallback — only when no per-tenant model resolved.
   if (!hasGatewayCredentials() || !isRealAiEnabled()) {
     const response: AutopilotTextResponse = {
-      text: buildMockText(body),
+      text: stripMarkdown(buildMockText(body)), // doc 43 §1 — template emits literal headings/bullets
       source: "mock",
     };
     return NextResponse.json(response);
@@ -325,7 +327,7 @@ export async function POST(request: Request) {
       maxOutputTokens: spec.maxOutputTokens,
     });
 
-    const text = (result.text ?? "").trim();
+    const text = stripMarkdown((result.text ?? "").trim()); // doc 43 §1
     if (!text) {
       // Empty completion — degrade to template rather than ship blank copy.
       const response: AutopilotTextResponse = {
@@ -341,7 +343,7 @@ export async function POST(request: Request) {
     // Any provider/gateway error — degrade gracefully to the template.
     console.error("[autopilot/text] Deepseek call failed, falling back:", error);
     const response: AutopilotTextResponse = {
-      text: buildMockText(body),
+      text: stripMarkdown(buildMockText(body)), // doc 43 §1 — template emits literal headings/bullets
       source: "mock",
     };
     return NextResponse.json(response);

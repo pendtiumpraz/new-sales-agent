@@ -23,6 +23,7 @@ import {
 import type { KnowledgeBase } from "@/lib/types/kb";
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { stripMarkdown } from "@/lib/ai/sanitize";
+import { wrapUntrusted, looksInjected } from "@/lib/ai/safety";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
@@ -150,7 +151,11 @@ export async function runAutoReply(
 
       // Decision: ask the model for a structured judgment grounded in the KB.
       let judgment: Judgment | null = null;
-      if (kb) {
+      // doc 43 §2/§3.4 — an inbound message attempting prompt-injection escalates to a
+      // human instead of being fed to the model.
+      if (looksInjected(last.body ?? "")) {
+        judgment = null; // forces the escalate path below
+      } else if (kb) {
         try {
           const sal = salutationFor(convo.contactName ?? "");
           const system =
@@ -165,7 +170,7 @@ export async function runAutoReply(
           const { text } = await meteredGenerateText(ctx, {
             feature: "auto-reply",
             system,
-            prompt: `Percakapan:\n${context}\n\nNilai & balas pesan terakhir pelanggan.`,
+            prompt: `Percakapan:\n${wrapUntrusted("PERCAKAPAN", context)}\n\nNilai & balas pesan terakhir pelanggan.`,
             maxOutputTokens: 500,
           });
           judgment = parseJudgment(text);

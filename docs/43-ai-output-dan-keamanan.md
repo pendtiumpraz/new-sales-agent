@@ -32,11 +32,11 @@ Karena hasil internet paling rawan injection + halusinasi:
 ## 4. Status implementasi
 | Item | Status |
 |---|---|
-| `stripMarkdown` util | 🔜 lib/ai/sanitize.ts |
-| Strip markdown di balasan klien (autoreply/upsell/draft/WA) | 🔜 |
-| No-markdown instruction di semua system prompt | 🔜 |
-| `SAFETY_RULES` + `wrapUntrusted` (anti-injection) | 🔜 lib/ai/safety.ts |
-| Websearch: untrusted-wrap + verifikasi pass-2 (platform) | 🔜 |
-| Extension DeepSeek: JSON-only + untrusted-wrap + verifikasi | 🔜 |
+| `stripMarkdown` util (+ `•/·` bullets) | ✅ lib/ai/sanitize.ts |
+| Strip markdown di balasan klien (cadence/autoreply/auto-reply/autopilot/upsell/WA) | ✅ |
+| No-markdown + SAFETY_RULES di system prompt (kb-system-prompt sentral + classify/profiling/positioning/discovery/upsell) | ✅ |
+| `SAFETY_RULES` + `wrapUntrusted` + `looksInjected` (anti-injection) di konten untrusted (KB/percakapan/profil/prospek/transkrip) | ✅ |
+| Websearch DuckDuckGo: untrusted-wrap + injection-scan + strip + verifikasi pass-2 | ✅ extension/background.js (runWebSearch/runAiSearch) |
+| Render AI di UI di-strip (chat/kb-test/auto-reply-card/pipeline/autopilot step+results) | ✅ |
 | Extension enrich (analyzeProfile): JSON-only + untrusted-wrap + stripMd | ✅ extension/background.js |
 | Penawaran/quote AI (compose): JSON-only + untrusted-wrap + injection-scan + stripMarkdown; email klien plain-text | ✅ lib/quotes/store.ts |

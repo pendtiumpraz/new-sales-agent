@@ -18,6 +18,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import {
   AnimatePresence,
@@ -225,7 +226,9 @@ export function AiChat({ className }: { className?: string }) {
       >
         <AnimatePresence initial={false}>
           {messages.map((m, idx) => {
-            const text = readMessageText(m);
+            const rawText = readMessageText(m);
+            // doc 43 §1 — streamed assistant text can't be JSON-parsed, so strip markdown on render.
+            const text = m.role === "assistant" ? stripMarkdown(rawText) : rawText;
             const isLastAssistant = idx === lastAssistantIndex;
             const isUser = m.role === "user";
             const isGreeting = m.id === GREETING_ID;

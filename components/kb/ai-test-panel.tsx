@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { IDRAmount } from "@/components/shared/idr-amount";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -252,7 +253,8 @@ export function AiTestPanel() {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = (await res.json()) as LiveResponse;
-      setLiveResponse(data);
+      setLiveResponse({ ...data, answer: stripMarkdown(data.answer) }); // doc 43 §1
+
       setSubmitted(true);
     } catch (err) {
       console.error("[ai-test-panel] live call failed", err);

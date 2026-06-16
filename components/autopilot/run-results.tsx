@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAutopilotStore } from "@/lib/stores/autopilot-store";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { cn } from "@/lib/utils";
 import type {
   AutopilotRun,
@@ -470,6 +471,7 @@ function ContentBlock({
     emerald: "text-emerald-700",
   }[tone];
 
+  const clean = body ? stripMarkdown(body) : body; // doc 43 §1 — AI bodies rendered raw
   return (
     <div className={cn("rounded-lg border p-3 text-xs", cls)}>
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -491,9 +493,9 @@ function ContentBlock({
           </Badge>
         )}
       </div>
-      {body ? (
+      {clean ? (
         <pre className="scrollbar-thin max-h-44 overflow-auto whitespace-pre-wrap font-sans text-[11.5px] leading-relaxed text-foreground">
-          {body}
+          {clean}
         </pre>
       ) : (
         <p className="italic text-muted-foreground">{empty}</p>

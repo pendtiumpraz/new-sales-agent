@@ -18,8 +18,8 @@ export function stripMarkdown(input: string | null | undefined): string {
   s = s.replace(/\*([^*\n]+)\*/g, "$1");
   s = s.replace(/__([^_]+)__/g, "$1");
   s = s.replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?]|$)/g, "$1$2");
-  // list markers at line start (-, *, +, 1.) → keep text, drop the bullet
-  s = s.replace(/^\s{0,4}([-*+]|\d+\.)\s+/gm, "");
+  // list markers at line start (-, *, +, •, ·, 1.) → keep text, drop the bullet
+  s = s.replace(/^\s{0,4}([-*+•·]|\d+\.)\s+/gm, "");
   // links [text](url) → "text (url)"
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)");
   // leftover stray markup chars

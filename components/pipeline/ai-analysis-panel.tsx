@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import {
   Dialog,
   DialogContent,
@@ -199,7 +200,7 @@ export function AiAnalysisPanel() {
     } catch (err) {
       console.error("[ai-analysis-panel] draft fetch failed", err);
       toast.error("Gagal memanggil AI. Memakai template demo.");
-      setDraft(draftMessage(product, segment));
+      setDraft(stripMarkdown(draftMessage(product, segment))); // doc 43 §1 — WA opener must be plain text
       setDraftSource("mock");
     } finally {
       setLoadingDraft(false);

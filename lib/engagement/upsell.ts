@@ -21,6 +21,7 @@ import {
 import type { KbPricingTier, KbProduct, KnowledgeBase } from "@/lib/types/kb";
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { stripMarkdown } from "@/lib/ai/sanitize";
+import { SAFETY_RULES } from "@/lib/ai/safety";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { createCheckoutLink } from "@/lib/billing/checkout-link";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
@@ -77,7 +78,8 @@ async function composeUpsellMessage(
       feature: "upsell",
       system:
         `Kamu sales yang hangat & ber-empati (bukan robot). Bahasa Indonesia, sopan, ringkas. ` +
-        `Sapa lawan bicara dengan "${sal.greeting}". Jangan menyebut dirimu AI. Tanpa placeholder kurung kurawal.`,
+        `Sapa lawan bicara dengan "${sal.greeting}". Jangan menyebut dirimu AI. Tanpa placeholder kurung kurawal. ` +
+        SAFETY_RULES,
       prompt:
         `Tulis pesan upsell singkat untuk ${sal.greeting}${company ? ` (${company})` : ""} ` +
         `menawarkan produk "${target.product.name}". Alasan: ${target.rationale}.` +

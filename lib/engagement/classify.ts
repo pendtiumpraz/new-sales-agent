@@ -1,4 +1,6 @@
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { SAFETY_RULES, wrapUntrusted } from "@/lib/ai/safety";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 // B2C-customer vs B2B-partner lead classifier (doc 40). Decides whether a
@@ -76,28 +78,34 @@ export async function classifyLead(ctx: TenantContext, input: ClassifyInput): Pr
     .join("; ");
 
   try {
+    // The person block is CRAWLED LinkedIn data → untrusted (doc 43 §2): wrap it
+    // so an injected "ignore instructions" in a title/track can't hijack the call.
+    const profileBlock =
+      `Nama: ${input.fullName}\n` +
+      `Jabatan: ${input.title || "-"}\n` +
+      `Perusahaan: ${input.company || "-"}\n` +
+      `Industri: ${input.industry || "-"}\n` +
+      `Track record: ${track || "-"}`;
     const { text } = await meteredGenerateText(ctx, {
       feature: "classify",
       system:
         `Kamu analis sales B2B/B2C berpengalaman. Tugasmu menilai apakah seseorang lebih cocok sebagai ` +
         `CUSTOMER langsung (b2c_customer) atau PARTNER/distributor/reseller bisnis (b2b_partner) bagi produk tenant. ` +
         `Hanya berdasar data yang diberikan — JANGAN mengarang fakta. Jika sinyal lemah, jawab "unknown". ` +
-        `Balas HANYA JSON: {"leadType":"b2c_customer|b2b_partner|unknown","reason":"<1-2 kalimat Bahasa Indonesia yang actionable untuk sales>","score":<0..1>}.`,
+        `Balas HANYA JSON: {"leadType":"b2c_customer|b2b_partner|unknown","reason":"<1-2 kalimat Bahasa Indonesia yang actionable untuk sales>","score":<0..1>}. ` +
+        SAFETY_RULES,
       prompt:
         `Produk tenant: ${input.product || "(tidak disebutkan — nilai secara umum)"}.\n` +
-        `Nama: ${input.fullName}\n` +
-        `Jabatan: ${input.title || "-"}\n` +
-        `Perusahaan: ${input.company || "-"}\n` +
-        `Industri: ${input.industry || "-"}\n` +
-        `Track record: ${track || "-"}\n` +
-        `Klasifikasikan.`,
+        wrapUntrusted("PROFIL_LEAD", profileBlock) +
+        `\nKlasifikasikan.`,
       maxOutputTokens: 250,
     });
     const parsed = text ? parseJson(text) : null;
     const lt = parsed?.leadType;
     if (lt === "b2c_customer" || lt === "b2b_partner" || lt === "unknown") {
       const score = typeof parsed?.score === "number" ? Math.max(0, Math.min(1, parsed.score)) : 0.6;
-      return { leadType: lt, reason: (parsed?.reason || "").trim() || heuristicClassify(input).reason, score };
+      // doc 43 §1 — reason is persisted (person.leadReason) + rendered; strip markdown.
+      return { leadType: lt, reason: stripMarkdown((parsed?.reason || "").trim()) || heuristicClassify(input).reason, score };
     }
   } catch {
     // no active model / suspended / parse fail → heuristic

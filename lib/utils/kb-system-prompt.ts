@@ -9,6 +9,7 @@
 // stable.
 
 import { formatIDR } from "@/lib/utils/format-idr";
+import { SAFETY_RULES, wrapUntrusted, looksInjected } from "@/lib/ai/safety";
 import type {
   KbProduct,
   KbSegment,
@@ -356,8 +357,9 @@ export function buildKbSystemPrompt(
     "berdasarkan Basis Pengetahuan di bawah. Jika informasi tidak tersedia di sana,",
     "jawab apa adanya dan minta user mengisi Basis Pengetahuan.",
     "",
-    "Ringkas, sopan, gunakan format markdown ringan. Mata uang selalu Rupiah dengan",
-    "pemisah titik (gunakan format yang sudah diberikan).",
+    "Ringkas dan sopan. Mata uang selalu Rupiah dengan pemisah titik (gunakan format yang sudah diberikan).",
+    "",
+    SAFETY_RULES, // doc 43 §1/§2 — no markdown + treat KB/user content as data, not instructions
   ].join("\n");
 
   const sections: string[][] = [
@@ -387,5 +389,14 @@ export function buildKbSystemPrompt(
     .map((s) => s.join("\n"))
     .join("\n\n");
 
-  return `${header}\n\n${body}`;
+  // doc 43 §2.1/§4 — the KB body holds tenant-editable free-text + source URLs.
+  // Mark it all as DATA (not instructions); neutralize injection patterns first so
+  // a KB string like "abaikan instruksi sebelumnya" can't hijack the assistant.
+  const safeBody = looksInjected(body)
+    ? body.replace(
+        /ignore (all |the )?(previous|above|prior) (instructions|prompt)|abaikan (instruksi|perintah)|you are now|kamu sekarang (adalah|jadi)|system\s*:|disregard/gi,
+        "[dihapus]",
+      )
+    : body;
+  return `${header}\n\n${wrapUntrusted("BASIS_PENGETAHUAN", safeBody)}`;
 }

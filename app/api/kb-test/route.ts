@@ -25,6 +25,7 @@ import {
 import { hasDb } from "@/lib/db/client";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
 import {
   buildKbSystemPrompt,
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
         prompt,
         maxOutputTokens: 500,
       });
-      const trimmed = (text ?? "").trim();
+      const trimmed = stripMarkdown((text ?? "").trim()); // doc 43 §1
       if (trimmed) {
         return NextResponse.json({ answer: trimmed, sources, source: "real" } satisfies KbTestResponse);
       }
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
       prompt,
       temperature: 0.3,
     });
-    return NextResponse.json({ answer: text.trim(), sources, source: "real" } satisfies KbTestResponse);
+    return NextResponse.json({ answer: stripMarkdown(text.trim()), sources, source: "real" } satisfies KbTestResponse);
   } catch (err) {
     console.error("[kb-test] gateway AI call failed — falling back to mock", err);
     return NextResponse.json(mockResponse(prompt, kb));

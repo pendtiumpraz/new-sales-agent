@@ -18,6 +18,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import {
   AnimatePresence,
   motion,
@@ -224,6 +225,8 @@ export function StepCard({
   const ts = event.finishedAt ?? event.startedAt;
   const relative = secondsAgoLabel(ts);
   const kind = STEP_KIND[event.step];
+  // doc 43 §1 — AI step text (LinkedIn notes/DMs/agendas/summaries) shown raw; strip markdown.
+  const detailText = event.detail ? stripMarkdown(event.detail) : event.detail;
   const reduce = useReducedMotion();
 
   // Response time — only meaningful once a finishedAt exists.
@@ -352,11 +355,11 @@ export function StepCard({
               >
                 {expandable && expanded ? (
                   <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-foreground">
-                    {event.detail}
+                    {detailText}
                   </pre>
                 ) : (
                   <p className="mt-2 whitespace-pre-line text-xs text-muted-foreground">
-                    {event.detail}
+                    {detailText}
                   </p>
                 )}
               </motion.div>

@@ -1,4 +1,5 @@
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { SAFETY_RULES } from "@/lib/ai/safety";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 // AI discovery planner (doc 40) — turn a profession/field + Indonesian location
@@ -100,7 +101,8 @@ export async function planDiscovery(ctx: TenantContext, input: PlanInput): Promi
         `Balas HANYA JSON valid: {"roles":[],"industries":[],"companies":[{"name":"","why":"","domainGuess":""}],` +
         `"linkedinQueries":[],"googleDorks":[],"keywords":[]}. ` +
         `roles = titel jabatan untuk dicari (campur Indonesia & Inggris). ` +
-        `linkedinQueries = string siap-pakai untuk people-search (titel + lokasi).`,
+        `linkedinQueries = string siap-pakai untuk people-search (titel + lokasi). ` +
+        SAFETY_RULES,
       prompt:
         `Bidang/pekerjaan: ${field}\n` +
         `Lokasi target: ${location}\n` +

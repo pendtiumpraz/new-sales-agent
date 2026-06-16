@@ -16,6 +16,8 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 
+import { stripMarkdown } from "@/lib/ai/sanitize";
+
 import {
   GATEWAY_MODEL_FAST,
   hasGatewayCredentials,
@@ -50,7 +52,7 @@ export async function POST() {
       ok: true,
       source: "real",
       latencyMs: Date.now() - t0,
-      response: text,
+      response: stripMarkdown(text), // doc 43 §1 — displayed in diagnostics UI
       usage: usage ?? null,
     });
   } catch (err: unknown) {

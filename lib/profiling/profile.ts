@@ -9,6 +9,8 @@
 // language style (when socialContext is supplied), per doc 39 §3.4.
 
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { SAFETY_RULES, wrapUntrusted, looksInjected } from "@/lib/ai/safety";
 import type { TenantContext } from "@/lib/db/tenant-context";
 import { ageBandFromSeniority } from "./age";
 import { type Gender, salutationFor } from "./salutation";
@@ -65,12 +67,15 @@ export async function synthesizeProfile(ctx: TenantContext, input: ProfileInput)
       feature: "profiling",
       system:
         "Kamu analis profiling sales B2B Indonesia. Keluarkan HANYA JSON valid (tanpa markdown). " +
-        "GROUNDED: jangan mengarang yang tidak ada datanya — kosongkan kalau tak tahu. Hormati privasi.",
+        "GROUNDED: jangan mengarang yang tidak ada datanya — kosongkan kalau tak tahu. Hormati privasi. " +
+        SAFETY_RULES,
       prompt:
         `Susun profil singkat untuk pendekatan sales yang sopan & ber-empati.\n` +
         `Nama: ${input.fullName}\nJabatan: ${input.title ?? "-"}\nPerusahaan: ${input.company ?? "-"} (industri: ${input.industry ?? "-"})\n` +
-        (input.socialContext
-          ? `Konten/komentar sosmed (sumber utama untuk sapaan & minat):\n${input.socialContext.slice(0, 2000)}\n`
+        // socialContext = crawled/searched text → untrusted (doc 43 §2/§3.4): wrap as
+        // data; omit entirely if it carries injection patterns.
+        (input.socialContext && !looksInjected(input.socialContext)
+          ? `Konten/komentar sosmed (sumber utama untuk sapaan & minat):\n${wrapUntrusted("SOSMED", input.socialContext.slice(0, 2000))}\n`
           : `Tidak ada konten sosmed.\n`) +
         `\nKeluarkan JSON skema persis:\n{\n` +
         `"gender": "male|female|unknown",\n` +
@@ -96,15 +101,16 @@ export async function synthesizeProfile(ctx: TenantContext, input: ProfileInput)
         honorific: sal.honorific,
         greeting: sal.greeting,
         ageBand: String(j.ageBand ?? ageBand),
-        interests: Array.isArray(j.interests) ? (j.interests as unknown[]).map(String).slice(0, 8) : [],
+        // doc 43 §1 — these free-text fields are rendered in the profiles UI; strip markdown.
+        interests: Array.isArray(j.interests) ? (j.interests as unknown[]).map((x) => stripMarkdown(String(x))).slice(0, 8) : [],
         ford: {
-          occupation: String(ford.occupation ?? input.title ?? ""),
-          recreation: String(ford.recreation ?? ""),
+          occupation: stripMarkdown(String(ford.occupation ?? input.title ?? "")),
+          recreation: stripMarkdown(String(ford.recreation ?? "")),
           family: "", // never store family from crawl (PDP)
-          dreams: String(ford.dreams ?? ""),
+          dreams: stripMarkdown(String(ford.dreams ?? "")),
         },
         tone: String(j.tone ?? "hangat"),
-        summary: String(j.summary ?? "").slice(0, 600),
+        summary: stripMarkdown(String(j.summary ?? "")).slice(0, 600),
         confidence: typeof j.confidence === "number" ? j.confidence : 0.5,
         source: "ai",
       };

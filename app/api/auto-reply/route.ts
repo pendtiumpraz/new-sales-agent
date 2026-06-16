@@ -24,6 +24,8 @@ import {
 import { hasDb } from "@/lib/db/client";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { wrapUntrusted, looksInjected } from "@/lib/ai/safety";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import type { KnowledgeBase } from "@/lib/types/kb";
@@ -80,9 +82,14 @@ export async function POST(request: Request) {
     );
   }
 
+  // doc 43 §2/§3.4 — the inbound conversation is untrusted; a hijack attempt
+  // degrades to the KB heuristic instead of being fed to the model.
+  if (looksInjected(body.conversationContext)) {
+    return NextResponse.json({ draft: stripMarkdown(buildMockDraft(body)), source: "mock" as const });
+  }
   const system = buildKbSystemPrompt(body.kbSnapshot, { surface: "auto-reply" });
   const prompt =
-    `Tulis balasan WhatsApp singkat (max 3 paragraf) untuk percakapan berikut:\n\n${body.conversationContext}\n\n` +
+    `Tulis balasan WhatsApp singkat (max 3 paragraf) untuk percakapan berikut:\n\n${wrapUntrusted("percakapan", body.conversationContext)}\n\n` +
     "Gunakan Basis Pengetahuan di atas. Sopan, akurat, Bahasa Indonesia.";
 
   // Prefer the per-tenant AI registry (metered; tenant BYOK or platform key)
@@ -96,7 +103,7 @@ export async function POST(request: Request) {
         prompt,
         maxOutputTokens: 400,
       });
-      const trimmed = (text ?? "").trim();
+      const trimmed = stripMarkdown((text ?? "").trim()); // doc 43 §1 — sent to client over WA/email
       if (trimmed) {
         return NextResponse.json({ draft: trimmed, source: "real" as const });
       }
@@ -126,7 +133,7 @@ export async function POST(request: Request) {
       maxOutputTokens: 400,
     });
 
-    const draft = (result.text ?? "").trim();
+    const draft = stripMarkdown((result.text ?? "").trim()); // doc 43 §1
     if (!draft) {
       // Empty completion — fall back rather than show nothing.
       return NextResponse.json({

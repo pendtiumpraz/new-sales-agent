@@ -1,6 +1,8 @@
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { positioningInsightTable } from "@/lib/db/schema";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { SAFETY_RULES, wrapUntrusted, looksInjected } from "@/lib/ai/safety";
 import { stableId } from "@/lib/profiling/dedup";
 import type { Company, Product } from "@/lib/types/profiling";
 
@@ -72,10 +74,17 @@ export async function generatePositioning(
 ): Promise<{ insight: Positioning; source: "ai" | "heuristic"; generatedBy: string }> {
   try {
     const system =
-      "You are a B2B sales strategist. Output ONLY valid minified JSON — no markdown, no prose. Ground every claim in the prospect facts given.";
+      "You are a B2B sales strategist. Output ONLY valid minified JSON — no markdown, no prose. Ground every claim in the prospect facts given. " +
+      SAFETY_RULES;
+    // Prospect facts come from website/company crawls = untrusted (doc 43 §2): wrap
+    // them as data; drop summary/tech if they carry injection patterns.
+    const prospectFacts =
+      `Prospect: ${company.name}. Industry: ${company.industry ?? "-"}. Size: ${company.size ?? "-"}. ` +
+      `Summary: ${looksInjected(company.summary ?? "") ? "-" : company.summary ?? "-"}. ` +
+      `Tech: ${(company.techStack ?? []).join(", ") || "-"}.`;
     const prompt = [
       `Product: ${product.name}. Value props: ${(product.valueProps ?? []).join("; ") || "-"}. Target market: ${product.targetMarket ?? "B2B"}.`,
-      `Prospect: ${company.name}. Industry: ${company.industry ?? "-"}. Size: ${company.size ?? "-"}. Summary: ${company.summary ?? "-"}. Tech: ${(company.techStack ?? []).join(", ") || "-"}.`,
+      wrapUntrusted("PROSPEK", prospectFacts),
       `Return JSON: {"fitScore": <0-100 int>, "angle": <string>, "rationale": <string[2-3]>, "objections": <string[1-2]>, "recommendedChannel": "email"|"whatsapp"|"linkedin", "draftOpener": <string>}.`,
       `angle/rationale/objections/draftOpener in Bahasa Indonesia. draftOpener max 6 lines, use {nama} and {perusahaan} placeholders.`,
     ].join("\n");
@@ -91,14 +100,16 @@ export async function generatePositioning(
     if (typeof j.fitScore === "number" && j.angle) {
       return {
         insight: {
+          // doc 43 §1 — angle/rationale/objections/draftOpener are rendered in the UI
+          // (and draftOpener is used as a message opener); strip markdown.
           fitScore: clamp(j.fitScore),
-          angle: String(j.angle),
-          rationale: Array.isArray(j.rationale) ? j.rationale.map(String) : [],
-          objections: Array.isArray(j.objections) ? j.objections.map(String) : [],
+          angle: stripMarkdown(String(j.angle)),
+          rationale: Array.isArray(j.rationale) ? j.rationale.map((x) => stripMarkdown(String(x))) : [],
+          objections: Array.isArray(j.objections) ? j.objections.map((x) => stripMarkdown(String(x))) : [],
           recommendedChannel: ["email", "whatsapp", "linkedin"].includes(String(j.recommendedChannel))
             ? String(j.recommendedChannel)
             : "email",
-          draftOpener: String(j.draftOpener ?? ""),
+          draftOpener: stripMarkdown(String(j.draftOpener ?? "")),
         },
         source: "ai",
         generatedBy: model,

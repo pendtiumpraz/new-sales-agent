@@ -24,6 +24,8 @@ import {
 } from "@/lib/db/schema";
 import type { CadenceStep } from "@/lib/types";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { SAFETY_RULES } from "@/lib/ai/safety";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
 import { salutationFor } from "@/lib/profiling/salutation";
@@ -69,11 +71,13 @@ async function personalize(
       `Bahasa Indonesia, ringkas.\n\nPesan dasar:\n${template}`;
     const { text } = await meteredGenerateText(ctx, {
       feature: "cadence",
+      system: "Kamu sales hangat & ber-empati Bahasa Indonesia. " + SAFETY_RULES,
       prompt,
       maxOutputTokens: 400,
     });
-    const trimmed = (text ?? "").trim();
-    if (trimmed) return { body: trimmed, source: "real" };
+    // doc 43 §1 — this body is sent to the client over WhatsApp/email; must be clean plain text.
+    const clean = stripMarkdown((text ?? "").trim());
+    if (clean) return { body: clean, source: "real" };
   } catch {
     // no active model / suspended / provider error → template fallback
   }

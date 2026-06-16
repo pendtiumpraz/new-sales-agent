@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKbStore } from "@/lib/stores/kb-store";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { cn } from "@/lib/utils";
 
 type DraftSource = "real" | "mock";
@@ -91,7 +92,7 @@ export function AutoReplyCard({
         const data = (await res.json()) as AutoReplyResponse;
         // Guard against late responses from a stale conversation.
         if (controller.signal.aborted) return;
-        setDraft(data.draft ?? "");
+        setDraft(stripMarkdown(data.draft ?? "")); // doc 43 §1 — clean before render + WA/email send
         setSource(data.source ?? "mock");
       } catch (err) {
         if ((err as { name?: string }).name === "AbortError") return;
