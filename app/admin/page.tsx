@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WaModeToggle } from "@/components/admin/wa-mode-toggle";
+import { UserManagement } from "@/components/admin/user-management";
 import {
   Dialog,
   DialogContent,
@@ -182,6 +183,9 @@ export default function AdminConsole() {
 
         {/* WhatsApp mode (doc 41) */}
         <WaModeToggle />
+
+        {/* User management — cross-tenant (doc 41) */}
+        <UserManagement />
 
         {/* Tenants */}
         <div className="overflow-hidden rounded-xl border bg-card">
