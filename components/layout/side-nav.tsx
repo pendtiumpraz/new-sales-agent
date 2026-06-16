@@ -12,12 +12,15 @@ import {
   Heart,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Megaphone,
   Menu,
   PanelLeft,
   Rocket,
   Search,
   Settings,
+  Shield,
+  ShoppingBag,
   Sparkles,
   User,
   Users,
@@ -68,6 +71,8 @@ const NAV: { href: string; icon: LucideIcon; key: string; label?: string }[] = [
   { href: "/escalations", icon: Bot, key: "escalations", label: "Eskalasi AI" },
   { href: "/content", icon: Megaphone, key: "content" },
   { href: "/retention", icon: Heart, key: "retention", label: "Retensi" },
+  { href: "/ecommerce", icon: ShoppingBag, key: "ecommerce", label: "E-Commerce" },
+  { href: "/field", icon: MapPin, key: "field", label: "Sales Lapangan" },
   { href: "/reports", icon: BarChart3, key: "reports", label: "Laporan" },
   { href: "/documentation", icon: BookOpen, key: "documentation", label: "Dokumentasi" },
 ];
@@ -433,6 +438,12 @@ export function TopBar() {
             <Sparkles className="h-4 w-4" />
             Kepatuhan UU PDP
           </DropdownMenuItem>
+          {currentUser.role === "Superadmin" && (
+            <DropdownMenuItem onClick={() => router.push("/admin")}>
+              <Shield className="h-4 w-4" />
+              Superadmin Console
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => handleLogout(router)}
