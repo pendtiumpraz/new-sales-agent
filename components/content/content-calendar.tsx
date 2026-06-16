@@ -221,14 +221,9 @@ function CalendarChip({ item }: { item: ContentItem }) {
             </Button>
           )}
           {item.status === "published" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1"
-              disabled
-            >
+            <span className="flex-1 rounded-md border bg-muted/40 px-2 py-1.5 text-center text-xs text-muted-foreground">
               Diterbitkan{item.reach ? ` · ${item.reach.toLocaleString("id-ID")} reach` : ""}
-            </Button>
+            </span>
           )}
         </div>
       </PopoverContent>

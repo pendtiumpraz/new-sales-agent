@@ -116,7 +116,7 @@ export default function CadencesPage() {
 
   return (
     <div>
-      <PageHeader title="Cadence" description="Rangkaian otomatis lintas channel.">
+      <PageHeader title="Cadence" description="Rangkaian pesan lintas channel — dijalankan manual via “Jalankan sekarang”.">
         <div className="flex items-center gap-2">
           <RunAutoReplyButton />
           <RunUpsellButton />
@@ -159,7 +159,7 @@ export default function CadencesPage() {
                   Otomasi outreach Anda
                 </h2>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Setiap cadence menjaga balasan tetap cepat — AI menulis, Anda menutup.
+                  AI bantu nulis draft, kamu jalankan & tutup — cadence jalan saat “Jalankan sekarang” ditekan.
                 </p>
               </div>
             </div>

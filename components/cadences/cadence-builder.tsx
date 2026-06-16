@@ -298,6 +298,9 @@ export function CadenceBuilder() {
           <TabsContent value="settings">
             <Card className="max-w-xl">
               <CardContent className="space-y-6 p-6">
+                <p className="rounded-md border border-amber-200 bg-warning/10 px-3 py-2 text-[11px] text-warning">
+                  Pengaturan jadwal & batas kirim ini <b>belum tersimpan</b> di prototype (cadence baru menyimpan nama + langkah). Demo.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="mb-1.5 block">Jam mulai kirim</Label>
