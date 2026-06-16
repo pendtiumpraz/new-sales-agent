@@ -340,11 +340,13 @@ async function runSearch() {
       break;
     }
     if (!res.people || res.people.length === 0) {
-      // Diagnostic: distinguish "no results" from "DOM changed / wrong page".
-      if ((res.anchors ?? 0) > 0) {
-        await setStatus(`Halaman ${page}: ada ${res.anchors} link profil tapi 0 nama ke-ambil — DOM LinkedIn berubah, kabari developer (selector tuning).`);
+      if (page > 1) {
+        // Already collected from earlier pages → results are exhausted. Normal end.
+        await setStatus(`Stage 1 selesai — ${total} lead dari ${page - 1} halaman (hasil habis).`);
+      } else if ((res.anchors ?? 0) > 0) {
+        await setStatus(`Halaman 1: ada ${res.anchors} link profil tapi 0 nama ke-ambil — DOM LinkedIn berubah, kabari developer.`);
       } else {
-        await setStatus(`Halaman ${page}: gak ada link profil. Pastikan kamu di halaman People search (linkedin.com/search/results/people) & sudah login.`);
+        await setStatus(`Halaman 1: gak ada link profil. Pastikan di People search (linkedin.com/search/results/people) & sudah login.`);
       }
       break;
     }
