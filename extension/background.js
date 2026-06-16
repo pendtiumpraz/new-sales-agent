@@ -62,6 +62,27 @@ async function addLeads(people, companies) {
   return st.buffer.length;
 }
 
+// Build contactPoints[] for the ingest POST from a scraped overlay result.
+// Only emits a point per field that actually has a value (empty overlay → []).
+function contactPointsFrom(personName, contact) {
+  if (!contact || !personName) return [];
+  const points = [];
+  for (const channel of ["email", "phone", "website"]) {
+    const value = (contact[channel] || "").trim();
+    if (value) {
+      points.push({
+        ownerType: "person",
+        personName,
+        channel,
+        value,
+        consentStatus: "unknown",
+        source: "linkedin-overlay",
+      });
+    }
+  }
+  return points;
+}
+
 // Send a payload to the app. Used by flush + the Stage-2 enrich path.
 async function ingest(payload) {
   const c = await cfg();
@@ -75,6 +96,26 @@ async function ingest(payload) {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// Heartbeat → /api/extension/heartbeat (doc 40). Proves the extension is
+// installed AND authorized so the app's Settings → Extension shows "Terhubung".
+// Returns { ok, connected } so the popup's "Test koneksi" button can confirm.
+const EXT_VERSION = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || "0";
+async function heartbeat() {
+  const c = await cfg();
+  if (!c.token || !c.apiBase) return { ok: false, connected: false, error: "Isi URL aplikasi + token dulu" };
+  try {
+    const res = await fetch(c.apiBase.replace(/\/$/, "") + "/api/extension/heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-ingest-token": c.token },
+      body: JSON.stringify({ version: EXT_VERSION }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error };
+  } catch (e) {
+    return { ok: false, connected: false, error: String(e) };
   }
 }
 
@@ -161,8 +202,26 @@ async function runEnrich() {
     const res = await navAndScan(tab.id, p.linkedinUrl, "SCAN_PROFILE");
     if (res && res.ok && res.profile) {
       const prof = { ...p, ...res.profile, enriched: true };
+
+      // Extra gentle step: visit the shared contact-info overlay for this
+      // profile and fold any email/phone/website into the SAME ingest POST as
+      // contactPoints. Only 1st-degree connections who shared it populate this;
+      // for everyone else the overlay is empty → we simply skip contactPoints.
+      // Reuses navAndScan (same nav + waitForComplete + jitter posture).
+      let contactPoints = [];
+      const overlayUrl = p.linkedinUrl.replace(/\/+$/, "") + "/overlay/contact-info/";
+      const cRes = await navAndScan(tab.id, overlayUrl, "SCAN_CONTACT_INFO");
+      if (cRes && cRes.ok && cRes.contact) {
+        contactPoints = contactPointsFrom(prof.fullName, cRes.contact);
+      }
+
       // Push the enriched person (with experience/track record) to the app.
-      await ingest({ origin: "extension", people: [prof], companies: prof.companyName ? [{ name: prof.companyName, source: "linkedin-extension" }] : [] });
+      await ingest({
+        origin: "extension",
+        people: [prof],
+        companies: prof.companyName ? [{ name: prof.companyName, source: "linkedin-extension" }] : [],
+        ...(contactPoints.length ? { contactPoints } : {}),
+      });
       // mark enriched in the buffer
       st = await state();
       st.buffer = st.buffer.map((x) => (x.linkedinUrl === p.linkedinUrl ? { ...x, enriched: true } : x));
@@ -201,13 +260,16 @@ async function flush() {
 
 function scheduleNext() {
   chrome.alarms.create("flush", { delayInMinutes: 1 + Math.random() });
+  chrome.alarms.create("heartbeat", { delayInMinutes: 5, periodInMinutes: 5 });
 }
-chrome.runtime.onInstalled.addListener(scheduleNext);
-if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(scheduleNext);
+chrome.runtime.onInstalled.addListener(() => { scheduleNext(); heartbeat(); });
+if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => { scheduleNext(); heartbeat(); });
 chrome.alarms.onAlarm.addListener(async (a) => {
   if (a.name === "flush") {
     await flush();
     scheduleNext();
+  } else if (a.name === "heartbeat") {
+    await heartbeat();
   }
 });
 
@@ -231,6 +293,9 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
         const st = await state();
         return sendResponse({ ok: true, buffered: st.buffer.length, sentToday: st.sentToday, running: st.running, status: st.lastStatus });
       }
+      // "Test koneksi" / Connect — ping the app to verify URL + token (doc 40).
+      case "CONNECT":
+        return sendResponse(await heartbeat());
       // Manual scan from a search page (legacy popup button).
       case "BUFFER_LEADS":
         return sendResponse({ ok: true, buffered: await addLeads(msg.people || [], msg.companies || []) });

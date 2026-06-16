@@ -473,6 +473,18 @@ export const ingestBatchTable = pgTable("ingest_batch", {
   at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({ tenantIdx: index("ingest_batch_tenant_idx").on(t.tenantId) }));
 
+// Browser-extension connection (doc 40) — one row per tenant, upserted on every
+// heartbeat. Drives the "Terhubung / Belum terhubung" status in Settings →
+// Extension. A fresh last_seen_at proves the extension is installed AND
+// authorized (valid ingest token), not merely downloaded.
+export const extensionConnectionTable = pgTable("extension_connection", {
+  tenantId: text("tenant_id").primaryKey(),
+  version: text("version"),
+  userAgent: text("user_agent"),
+  installedAt: timestamp("installed_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const positioningInsightTable = pgTable("positioning_insight", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id").notNull(),

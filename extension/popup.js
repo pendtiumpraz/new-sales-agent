@@ -41,6 +41,18 @@ async function refreshStatus() {
 
 FIELDS.forEach((id) => $(id).addEventListener("change", () => { save(); toggleConsent(); }));
 
+$("connect").addEventListener("click", async () => {
+  await save();
+  $("connStatus").textContent = "Menghubungkan…";
+  chrome.runtime.sendMessage({ type: "CONNECT" }, (r) => {
+    if (r && r.connected) {
+      $("connStatus").textContent = `✅ Terhubung${r.tenant ? ` (workspace: ${r.tenant})` : ""}. Hasil crawl akan terkirim ke app.`;
+    } else {
+      $("connStatus").textContent = `❌ Gagal: ${(r && r.error) || "cek URL aplikasi & token"}`;
+    }
+  });
+});
+
 $("startSearch").addEventListener("click", async () => {
   await save();
   $("status").textContent = "Memulai Tahap 1…";

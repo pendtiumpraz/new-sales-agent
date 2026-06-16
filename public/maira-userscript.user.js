@@ -30,6 +30,26 @@
   }
   GM_registerMenuCommand("Maira: set config", setConfig);
 
+  // Connect / test koneksi (doc 40) — ping the app so Settings → Extension shows
+  // "Terhubung", and confirm the URL + token are correct before crawling.
+  function testConnection() {
+    const apiBase = (GM_getValue("apiBase", "") || "").replace(/\/$/, "");
+    const token = GM_getValue("token", "");
+    if (!apiBase || !token) { setConfig(); return; }
+    GM_xmlhttpRequest({
+      method: "POST",
+      url: apiBase + "/api/extension/heartbeat",
+      headers: { "Content-Type": "application/json", "x-ingest-token": token },
+      data: JSON.stringify({ version: "0.2.0-userscript" }),
+      onload: (r) => {
+        let ok = false; try { ok = JSON.parse(r.responseText).connected; } catch { /* ignore */ }
+        alert(ok ? "✅ Terhubung ke Maira. Hasil crawl akan terkirim." : `❌ Gagal (${r.status}). Cek URL & token.`);
+      },
+      onerror: () => alert("❌ Network error — cek URL aplikasi."),
+    });
+  }
+  GM_registerMenuCommand("Maira: tes koneksi", testConnection);
+
   // ── scraping helpers ──
   const clean = (s) => (s || "").trim().replace(/\s+/g, " ");
   function pick(el, sels) {
@@ -89,6 +109,33 @@
     return { fullName, title: title || undefined, companyName: companyName || undefined, location: location || undefined, about: about || undefined, experience: experience.slice(0, 12), linkedinUrl: absUrl(location.href || window.location.href), source: "linkedin-userscript" };
   }
 
+  // Shared contact-info overlay (doc 40) — only populated for 1st-degree
+  // connections who shared it. On a profile page it lives in a modal the user
+  // opened (we don't auto-navigate in the userscript); scrape it if present.
+  function scrapeContactInfo() {
+    const root = document.querySelector(".pv-contact-info") || document.querySelector('section[class*="pv-contact-info"]');
+    if (!root) return {};
+    const out = {};
+    const mail = root.querySelector('a[href^="mailto:"]');
+    if (mail) out.email = clean((mail.getAttribute("href") || "").replace(/^mailto:/i, "").split("?")[0]) || clean(mail.textContent);
+    const tel = root.querySelector('a[href^="tel:"]');
+    if (tel) out.phone = clean((tel.getAttribute("href") || "").replace(/^tel:/i, "")) || clean(tel.textContent);
+    for (const a of root.querySelectorAll('a[href^="http"]')) {
+      const href = (a.getAttribute("href") || "").trim();
+      let host = ""; try { host = new URL(href).hostname; } catch { host = ""; }
+      if (host && !/(^|\.)linkedin\.com$/i.test(host)) { out.website = href.replace(/\/$/, ""); break; }
+    }
+    return out;
+  }
+  function contactPointsFrom(personName, contact) {
+    const points = [];
+    for (const channel of ["email", "phone", "website"]) {
+      const value = (contact[channel] || "").trim();
+      if (value) points.push({ ownerType: "person", personName, channel, value, consentStatus: "unknown", source: "linkedin-overlay" });
+    }
+    return points;
+  }
+
   function send(payload, onDone) {
     const apiBase = (GM_getValue("apiBase", "") || "").replace(/\/$/, "");
     const token = GM_getValue("token", "");
@@ -110,9 +157,14 @@
   btn.onclick = () => {
     btn.textContent = "Mengirim…";
     const isProfile = /\/in\//.test(location.pathname);
-    const payload = isProfile
-      ? { origin: "extension", people: [scrapeProfile()], companies: [] }
-      : { origin: "extension", ...scrapePeople() };
+    let payload;
+    if (isProfile) {
+      const prof = scrapeProfile();
+      const cps = contactPointsFrom(prof.fullName, scrapeContactInfo());
+      payload = { origin: "extension", people: [prof], companies: [], ...(cps.length ? { contactPoints: cps } : {}) };
+    } else {
+      payload = { origin: "extension", ...scrapePeople() };
+    }
     send(payload, (ok) => {
       btn.textContent = ok ? "✓ Terkirim" : "✗ Gagal";
       setTimeout(() => (btn.textContent = "➕ Maira"), 2200);

@@ -10,6 +10,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface ExtStatus {
+  connected: boolean;
+  ever: boolean;
+  lastSeenAt?: string;
+  ageSeconds?: number;
+  version?: string;
+  tokenConfigured?: boolean;
+}
+
+function lastSeenLabel(st?: ExtStatus): string {
+  if (!st?.lastSeenAt) return "";
+  const s = st.ageSeconds ?? 0;
+  if (s < 60) return "baru saja";
+  if (s < 3600) return `${Math.floor(s / 60)} menit lalu`;
+  if (s < 86400) return `${Math.floor(s / 3600)} jam lalu`;
+  return `${Math.floor(s / 86400)} hari lalu`;
+}
+
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
@@ -54,6 +72,16 @@ export default function ExtensionPage() {
       return (await r.json()) as { token: string; configured: boolean };
     },
   });
+  const statusQ = useQuery({
+    queryKey: ["extension-status"],
+    queryFn: async () => {
+      const r = await fetch("/api/extension/status");
+      if (!r.ok) return { connected: false, ever: false } as ExtStatus;
+      return (await r.json()) as ExtStatus;
+    },
+    refetchInterval: 15_000, // live-ish: re-check every 15s
+  });
+  const st = statusQ.data;
 
   return (
     <div>
@@ -62,6 +90,40 @@ export default function ExtensionPage() {
         description="Pasang collector di browser Anda untuk crawl lead LinkedIn (RPA) langsung ke workspace ini."
       />
       <div className="max-w-2xl space-y-4 p-6">
+        {/* Connection status */}
+        <div
+          className={
+            "flex items-center gap-3 rounded-lg border px-4 py-3 " +
+            (st?.connected
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : st?.ever
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-slate-200 bg-slate-50 text-slate-600")
+          }
+        >
+          <span
+            className={
+              "h-2.5 w-2.5 shrink-0 rounded-full " +
+              (st?.connected ? "bg-emerald-500" : st?.ever ? "bg-amber-500" : "bg-slate-400")
+            }
+          />
+          <div className="min-w-0 flex-1 text-sm">
+            {st?.connected ? (
+              <>
+                <b>Terhubung.</b> Extension aktif & mengirim hasil crawl{st?.version ? ` (v${st.version})` : ""}. Terakhir aktif {lastSeenLabel(st)}.
+              </>
+            ) : st?.ever ? (
+              <>
+                <b>Pernah terhubung</b>, tapi tidak aktif belakangan ini (terakhir {lastSeenLabel(st)}). Buka extension & klik “Hubungkan”.
+              </>
+            ) : (
+              <>
+                <b>Belum terhubung.</b> Setelah dipasang, buka extension → tempel URL + token → klik <b>“Hubungkan &amp; tes koneksi”</b>.
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Download */}
         <Card>
           <CardHeader className="border-b">

@@ -1,8 +1,11 @@
 // Content script — runs in the USER's logged-in LinkedIn session (never logs in,
-// never stores credentials). Two scrape modes:
-//   SCAN_PEOPLE   → search results page (Stage 1): name + profile link + headline
-//   SCAN_PROFILE  → an /in/ profile page (Stage 2): current role + company +
-//                   experience (track record) + location + about
+// never stores credentials). Three scrape modes:
+//   SCAN_PEOPLE        → search results page (Stage 1): name + profile link + headline
+//   SCAN_PROFILE       → an /in/ profile page (Stage 2): current role + company +
+//                        experience (track record) + location + about
+//   SCAN_CONTACT_INFO  → the /in/<id>/overlay/contact-info/ modal (Stage 2 extra):
+//                        email / phone / website — ONLY populated for 1st-degree
+//                        connections who chose to share it (else empty → skip).
 //
 // Selectors are BEST-EFFORT — LinkedIn's DOM is A/B-tested + changes often. If
 // extraction comes back empty, tune these against the live page (README §Tuning).
@@ -146,12 +149,70 @@ function scrapeProfile() {
   };
 }
 
+// ── Stage 2 extra: shared contact info overlay ──────────────────────────────
+// The contact-info modal (URL /in/<id>/overlay/contact-info/) lives in a
+// `.pv-contact-info` section with one `section.pv-contact-info__contact-type`
+// per row (email, phone, websites, IM, birthday, connected). Each row labels
+// its type via the icon/header text; emails are mailto: links, phones tel:
+// links, websites plain http(s) links. Only 1st-degree connections who shared
+// their details populate this — for everyone else it's empty (return {}).
+function isWebsiteUrl(u) {
+  // exclude LinkedIn's own links (e.g. the profile URL leaking into the modal)
+  return /^https?:\/\//i.test(u) && !/(^|\.)linkedin\.com$/i.test((() => { try { return new URL(u).hostname; } catch { return ""; } })());
+}
+function scrapeContactInfo() {
+  const root =
+    document.querySelector(".pv-contact-info") ||
+    document.querySelector('section[class*="pv-contact-info"]') ||
+    document.querySelector('div[class*="artdeco-modal"] section') ||
+    document;
+
+  const out = {};
+
+  // Email — always a mailto: link.
+  const mail = root.querySelector('a[href^="mailto:"]');
+  if (mail) {
+    const v = clean((mail.getAttribute("href") || "").replace(/^mailto:/i, "").split("?")[0]) || clean(mail.textContent);
+    if (v) out.email = v;
+  }
+
+  // Phone — tel: link, or the dedicated phone row's value span.
+  const tel = root.querySelector('a[href^="tel:"]');
+  if (tel) {
+    const v = clean((tel.getAttribute("href") || "").replace(/^tel:/i, "")) || clean(tel.textContent);
+    if (v) out.phone = v;
+  }
+  if (!out.phone) {
+    const phoneSection = root.querySelector('section.pv-contact-info__contact-type[class*="phone" i], section.ci-phone');
+    const v = pick(phoneSection || document.createElement("div"), [
+      ".pv-contact-info__ci-container span",
+      "li span",
+      "span",
+    ]);
+    if (v && /\d/.test(v)) out.phone = v;
+  }
+
+  // Website — first non-LinkedIn http(s) link in the modal.
+  const links = root.querySelectorAll('a[href^="http"]');
+  for (const a of links) {
+    const href = (a.getAttribute("href") || "").trim();
+    if (isWebsiteUrl(href)) {
+      out.website = href.replace(/\/$/, "");
+      break;
+    }
+  }
+
+  return out;
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   try {
     if (msg && msg.type === "SCAN_PEOPLE") {
       sendResponse({ ok: true, ...scrapePeople() });
     } else if (msg && msg.type === "SCAN_PROFILE") {
       sendResponse({ ok: true, profile: scrapeProfile() });
+    } else if (msg && msg.type === "SCAN_CONTACT_INFO") {
+      sendResponse({ ok: true, contact: scrapeContactInfo() });
     }
   } catch (e) {
     sendResponse({ ok: false, error: String(e) });

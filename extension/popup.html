@@ -28,8 +28,10 @@
 
     <label>URL aplikasi</label>
     <input id="apiBase" placeholder="https://app-anda.vercel.app" />
-    <label>Ingest token (Pengaturan → Integrasi)</label>
+    <label>Ingest token (Pengaturan → Extension)</label>
     <input id="token" type="password" placeholder="LINKEDIN_INGEST_TOKEN" />
+    <button id="connect" class="secondary">🔌 Hubungkan & tes koneksi</button>
+    <div id="connStatus" class="status">Belum terhubung — isi URL + token lalu klik Hubungkan.</div>
 
     <div class="stage">Tahap 1 — Cari (RPA search)</div>
     <div class="row">

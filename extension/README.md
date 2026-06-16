@@ -16,15 +16,28 @@ sendiri di browser; **tidak ada kredensial yang disimpan**):
 
 | Tahap | Apa | Hasil |
 |---|---|---|
-| **1 — Cari** | RPA people-search untuk query jabatan, halaman 1..N | nama + link profil + headline → buffer → `/api/ingest` |
-| **2 — Enrich** | kunjungi tiap profil → **detail + track record** (experience, about) | `person.experience` (riwayat karier) ter-isi di app |
+| **1 — Cari** | RPA people-search untuk query jabatan, halaman 1..N | nama + link profil + headline + **PT terbaru** → buffer → `/api/ingest` |
+| **2 — Enrich** | kunjungi tiap profil → **detail + track record** (experience, about) + **overlay kontak** | `person.experience` (riwayat karier) + email/HP (jika dibagikan) ter-isi di app |
 | Flush | kirim buffer, rate-limited + daily-cap + consent-gated | — |
+
+### Email & nomor HP (overlay kontak)
+Saat **Tahap 2**, extension juga membuka `/in/<id>/overlay/contact-info/` dan mengambil
+**email / telepon / website** → dikirim sebagai `contactPoint`. **Hanya muncul untuk
+koneksi 1st-degree yang membagikan kontaknya**; untuk non-koneksi LinkedIn menyembunyikannya
+→ pakai **Hunter.io** atau **crawl website PT** sebagai gantinya. (Userscript: scrape overlay
+hanya jika modal "Contact info" sedang dibuka.)
+
+### Hubungkan dulu (connect)
+Setelah dipasang, **hubungkan ke app**: di popup isi **URL aplikasi** + **Ingest token**,
+lalu klik **"🔌 Hubungkan & tes koneksi"**. Ini ping `/api/extension/heartbeat` → app
+menandai **"Terhubung"** di *Pengaturan → Extension*. Extension juga heartbeat tiap 5 menit,
+jadi status hidup/mati terdeteksi otomatis.
 
 ### Pasang
 1. `chrome://extensions` → **Developer mode** → **Load unpacked** → pilih folder `extension/`.
 2. Login ke **linkedin.com** di tab yang sama.
-3. Klik ikon extension → isi **URL aplikasi**, **Ingest token** (`LINKEDIN_INGEST_TOKEN`),
-   **Query** jabatan + **maks halaman**.
+3. Klik ikon extension → isi **URL aplikasi**, **Ingest token** (`LINKEDIN_INGEST_TOKEN`)
+   → **"🔌 Hubungkan & tes koneksi"** sampai hijau → isi **Query** jabatan + **maks halaman**.
 
 ### Pakai
 1. **Tahap 1:** buka 1 tab LinkedIn (login) → **"Mulai cari (Tahap 1)"** (jeda 3–7 dtk/halaman, anti-ban).
@@ -35,7 +48,8 @@ sendiri di browser; **tidak ada kredensial yang disimpan**):
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/).
 2. Buka `maira-userscript.user.js` → Tampermonkey nawarin install → **Install**.
-3. Di menu Tampermonkey → **"Maira: set config"** → isi URL app + token.
+3. Di menu Tampermonkey → **"Maira: set config"** → isi URL app + token →
+   **"Maira: tes koneksi"** untuk memastikan terhubung.
 4. Buka halaman LinkedIn search / profil → klik tombol melayang **"➕ Maira"** →
    data terkirim ke app. (Userscript = per-halaman manual; tak ada RPA otomatis
    multi-halaman seperti extension.)
