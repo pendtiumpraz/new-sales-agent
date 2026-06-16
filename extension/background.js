@@ -17,6 +17,7 @@ const DEFAULTS = {
   postureMode: "compliant", // compliant | balanced | aggressive
   consent: false,
   paused: false,
+  autoEnrich: true, // Stage 1 → auto-continue to Stage 2 (enrichment)
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -181,8 +182,22 @@ async function runSearch() {
     total = await addLeads(res.people, res.companies || []);
     await sleep(jitter(3000, 7000)); // pace between pages (anti-ban)
   }
-  await chrome.storage.local.set({ running: false });
-  await setStatus(`Stage 1 selesai — ${total} lead di buffer. Lanjut "Enrich profil" untuk track record.`);
+
+  // If the user stopped mid-run, halt here.
+  if (!(await state()).running) {
+    await chrome.storage.local.set({ running: false });
+    return setStatus("Dihentikan.");
+  }
+  // Auto-continue to Stage 2 (enrichment) once Stage 1 has the names/URLs/titles
+  // — unless autoEnrich is explicitly turned off in the popup.
+  const cfgNow = await cfg();
+  if (cfgNow.autoEnrich !== false && total > 0) {
+    await setStatus(`Stage 1 selesai — ${total} lead. Lanjut enrich otomatis…`);
+    await runEnrich(); // manages `running` + sets its own final status
+  } else {
+    await chrome.storage.local.set({ running: false });
+    await setStatus(`Stage 1 selesai — ${total} lead di buffer. Klik "Enrich profil" untuk track record.`);
+  }
 }
 
 // ── Stage 2: per-profile detail (track record) ──────────────────────────────

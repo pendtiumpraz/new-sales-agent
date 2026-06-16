@@ -1,4 +1,4 @@
-const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent"];
+const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich"];
 const $ = (id) => document.getElementById(id);
 
 async function load() {
@@ -10,6 +10,7 @@ async function load() {
   $("postureMode").value = cfg.postureMode ?? "compliant";
   $("dailyCap").value = cfg.dailyCap ?? 200;
   $("consent").checked = !!cfg.consent;
+  $("autoEnrich").checked = cfg.autoEnrich !== false;
   toggleConsent();
   refreshStatus();
 }
@@ -27,6 +28,7 @@ async function save() {
     postureMode: $("postureMode").value,
     dailyCap: Number($("dailyCap").value) || 200,
     consent: $("consent").checked,
+    autoEnrich: $("autoEnrich").checked,
   });
 }
 
