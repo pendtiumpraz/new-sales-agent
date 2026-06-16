@@ -9,6 +9,7 @@ import {
   CreditCard,
   Globe2,
   Mail,
+  Puzzle,
   ShieldCheck,
   Sparkles,
   Users,
@@ -260,6 +261,14 @@ export default function SettingsPage() {
                     description="Connect mailbox SMTP, kirim email dari identitas sendiri, suppression & unsubscribe."
                     tone="blue"
                     badge="Kirim"
+                  />
+                  <EntryCard
+                    href="/settings/extension"
+                    icon={Puzzle}
+                    title="Extension LinkedIn"
+                    description="Unduh & pasang collector browser (RPA) untuk crawl lead LinkedIn ke workspace."
+                    tone="coral"
+                    badge="Crawl"
                   />
                   <EntryCard
                     href="/settings/billing"

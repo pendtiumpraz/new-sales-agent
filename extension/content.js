@@ -63,12 +63,29 @@ function scrapePeople() {
       title = clean(m[1]);
       companyName = clean(m[2]);
     }
+
+    // CURRENT/latest company — LinkedIn highlights it in a summary line, e.g.
+    // "Current: Manager at PT X" / "Saat ini: PT X". Prefer this over the headline.
+    const summary = pick(el, [
+      '.entity-result__summary',
+      '[class*="entity-result__summary"]',
+      '.entity-result__content-summary',
+      'p.entity-result__summary--2-lines',
+    ]);
+    const cm = summary.match(/(?:current|saat\s*ini)\s*:?\s*(.+)$/i);
+    if (cm) {
+      const cur = clean(cm[1]);
+      const cm2 = cur.match(/^.*?\s+(?:at|@|di)\s+(.+)$/i);
+      const currentCompany = cm2 ? clean(cm2[1]) : cur;
+      if (currentCompany) companyName = currentCompany;
+    }
+
     if (companyName) companies.set(companyName.toLowerCase(), companyName);
 
     people.push({
       fullName,
       title: title || undefined,
-      companyName: companyName || undefined,
+      companyName: companyName || undefined, // current/latest company
       location: location || undefined,
       linkedinUrl: linkedinUrl || undefined,
       source: "linkedin-extension",

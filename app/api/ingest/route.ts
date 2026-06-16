@@ -139,6 +139,7 @@ export async function POST(req: Request) {
             experience: p.experience ?? [],
             source: p.source ?? b.origin,
             sourceUrl: p.linkedinUrl ?? null,
+            capturedAt: new Date(), // crawl date (doc 40) — drives the >1yr stale warning
             updatedAt: new Date(),
           })
           .onConflictDoUpdate({
@@ -151,6 +152,7 @@ export async function POST(req: Request) {
               about: p.about ?? null,
               // only overwrite experience when the new payload actually has it
               ...(p.experience && p.experience.length ? { experience: p.experience } : {}),
+              capturedAt: new Date(), // refresh crawl date on re-crawl
               updatedAt: new Date(),
             },
           });
