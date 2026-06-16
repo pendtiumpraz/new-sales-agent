@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, or, isNull } from "drizzle-orm";
+import { and, eq, or, isNull, isNotNull } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -13,19 +13,22 @@ export const runtime = "nodejs";
 // contact points (doc 20). RLS-scoped via withTenant. Per-rep isolation (doc 41
 // §2): a sales rep (member) sees only leads assigned to them OR still unassigned
 // (the tenant pool); managers see everything.
-export async function GET() {
+// ?archived=1 returns ONLY soft-deleted people (the Arsip view, doc 49).
+export async function GET(req: Request) {
   const ctx = await getTenantContext();
   if (!ctx) return NextResponse.json({ data: [], source: "mock" });
   if (!hasDb()) return NextResponse.json({ data: [], source: "mock" });
   const scoped = !isManager(ctx.role);
+  const archived = new URL(req.url).searchParams.get("archived") === "1";
+  const delPred = archived ? isNotNull(personTable.deletedAt) : isNull(personTable.deletedAt);
   try {
     const { persons, companies, cps } = await withTenant(ctx, async (tx) => {
       const persons = scoped
         ? await tx
             .select()
             .from(personTable)
-            .where(or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo)))
-        : await tx.select().from(personTable);
+            .where(and(or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo)), delPred))
+        : await tx.select().from(personTable).where(delPred);
       const companies = await tx
         .select({ id: companyTable.id, name: companyTable.name })
         .from(companyTable);

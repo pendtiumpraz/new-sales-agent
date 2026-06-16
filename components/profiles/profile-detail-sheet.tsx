@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Pencil, Save, Sparkles, X } from "lucide-react";
+import { ExternalLink, Pencil, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ interface PersonRow {
   honorific?: string | null;
   socials?: Record<string, string> | null;
   profileSummary?: string | null;
+  deletedAt?: string | null;
   contacts: ContactPoint[];
 }
 interface CompanyRow {
@@ -42,6 +43,7 @@ interface CompanyRow {
   summary?: string | null;
   source?: string | null;
   peopleCount: number;
+  deletedAt?: string | null;
   contacts: ContactPoint[];
 }
 
@@ -143,6 +145,29 @@ export function ProfileDetailSheet({ kind, data, open, onOpenChange, onEnrich, e
       qc.invalidateQueries({ queryKey: ["cadence-enrollments"] });
     },
     onError: (e) => toast.error(e instanceof Error && e.message !== "gagal" ? e.message : "Gagal (mode demo / DB belum aktif)"),
+  });
+
+  // Soft-delete / restore (doc 49). entity = person|company; restore flips it back.
+  const archived = !!data?.deletedAt;
+  const archive = useMutation({
+    mutationFn: async () => {
+      if (!data || !kind) throw new Error("gagal");
+      const r = await fetch("/api/data/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: kind, id: data.id, restore: archived }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j.error ?? "gagal");
+      return j as { archived: boolean };
+    },
+    onSuccess: () => {
+      toast.success(archived ? "Dipulihkan dari arsip" : "Diarsipkan");
+      qc.invalidateQueries({ queryKey: ["people"] });
+      qc.invalidateQueries({ queryKey: ["companies"] });
+      onOpenChange(false); // row leaves the current (active/arsip) view
+    },
+    onError: () => toast.error("Gagal (cek hak akses & DB)"),
   });
 
   const socials: { label: string; href: string }[] = [];
@@ -287,6 +312,18 @@ export function ProfileDetailSheet({ kind, data, open, onOpenChange, onEnrich, e
                       </div>
                     </section>
                   )}
+
+                  <div className="border-t pt-3">
+                    <Button
+                      variant="ghost"
+                      className={cn("w-full", !archived && "text-destructive hover:text-destructive")}
+                      onClick={() => archive.mutate()}
+                      disabled={archive.isPending}
+                    >
+                      {archived ? <RotateCcw className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                      {archive.isPending ? "Memproses…" : archived ? "Pulihkan dari arsip" : "Arsipkan"}
+                    </Button>
+                  </div>
                 </>
               )}
             </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isNull, isNotNull } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -11,7 +12,8 @@ import { deals as seedDeals } from "@/lib/api-mock/data";
 export const runtime = "nodejs";
 
 // GET /api/db/deals → returns all deals. Falls back to seed if DB unset or empty.
-export async function GET() {
+// ?archived=1 returns ONLY soft-deleted deals (the Arsip view, doc 49).
+export async function GET(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ data: seedDeals, source: "mock" });
   }
@@ -19,10 +21,13 @@ export async function GET() {
   if (!ctx) {
     return NextResponse.json({ data: seedDeals, source: "mock" });
   }
+  const archived = new URL(req.url).searchParams.get("archived") === "1";
   try {
-    const rows = await withTenant(ctx, (tx) => tx.select().from(dealsTable));
+    const rows = await withTenant(ctx, (tx) =>
+      tx.select().from(dealsTable).where(archived ? isNotNull(dealsTable.deletedAt) : isNull(dealsTable.deletedAt)),
+    );
     if (rows.length === 0) {
-      return NextResponse.json({ data: seedDeals, source: "seed" });
+      return archived ? NextResponse.json({ data: [], source: "db" }) : NextResponse.json({ data: seedDeals, source: "seed" });
     }
     return NextResponse.json({ data: rows, source: "db" });
   } catch (err) {

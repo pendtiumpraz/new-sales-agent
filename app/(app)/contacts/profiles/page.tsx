@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, Briefcase, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
+import { Archive, AlertTriangle, ArchiveRestore, Briefcase, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
@@ -28,6 +28,7 @@ interface CompanyRow {
   summary?: string | null;
   source?: string | null;
   capturedMode?: string | null;
+  deletedAt?: string | null;
   contacts: ContactPoint[];
   peopleCount: number;
 }
@@ -51,6 +52,7 @@ interface PersonRow {
   honorific?: string | null;
   socials?: Record<string, string> | null;
   profileSummary?: string | null;
+  deletedAt?: string | null;
   contacts: ContactPoint[];
 }
 
@@ -184,6 +186,7 @@ export default function ProfilesPage() {
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState("all"); // all | Crawl | Impor | Hunter
   const [wsShowAll, setWsShowAll] = useState(false); // workspace mode: show all leads to add
+  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
 
   // Workspace scope (doc 44): ?workspace=<id> filters to that workspace's leads.
   const workspaceId = useSearchParams().get("workspace");
@@ -258,18 +261,19 @@ export default function ProfilesPage() {
     onError: () => toast.error("Gagal assign (cek hak akses)"),
   });
 
+  const archParam = showArchived ? "?archived=1" : "";
   const companies = useQuery({
-    queryKey: ["companies"],
+    queryKey: ["companies", showArchived],
     queryFn: async () => {
-      const r = await fetch("/api/db/companies");
+      const r = await fetch(`/api/db/companies${archParam}`);
       if (!r.ok) throw new Error("gagal");
       return (await r.json()) as { data: CompanyRow[] };
     },
   });
   const people = useQuery({
-    queryKey: ["people"],
+    queryKey: ["people", showArchived],
     queryFn: async () => {
-      const r = await fetch("/api/db/people");
+      const r = await fetch(`/api/db/people${archParam}`);
       if (!r.ok) throw new Error("gagal");
       return (await r.json()) as { data: PersonRow[] };
     },
@@ -327,7 +331,12 @@ export default function ProfilesPage() {
       <PageHeader
         title="Profil"
         description="Profiling terpisah — Perusahaan vs Orang — dengan provenance & status consent (doc 20)."
-      />
+      >
+        <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived((v) => !v)}>
+          {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          {showArchived ? "Lihat aktif" : "Lihat arsip"}
+        </Button>
+      </PageHeader>
       <div className="p-6">
         <Tabs defaultValue="perusahaan">
           <TabsList>

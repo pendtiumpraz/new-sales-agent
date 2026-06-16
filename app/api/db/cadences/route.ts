@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isNull, isNotNull } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -12,7 +13,8 @@ export const runtime = "nodejs";
 // GET /api/db/cadences → returns all cadences. Falls back to seed when DB is
 // unconfigured, empty, or errors. Same pattern as `/api/db/kb` + the deals,
 // contacts, conversations, messages routes.
-export async function GET() {
+// ?archived=1 returns ONLY soft-deleted cadences (the Arsip view, doc 49).
+export async function GET(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ data: seedCadences, source: "mock" });
   }
@@ -20,10 +22,13 @@ export async function GET() {
   if (!ctx) {
     return NextResponse.json({ data: seedCadences, source: "mock" });
   }
+  const archived = new URL(req.url).searchParams.get("archived") === "1";
   try {
-    const rows = await withTenant(ctx, (tx) => tx.select().from(cadencesTable));
+    const rows = await withTenant(ctx, (tx) =>
+      tx.select().from(cadencesTable).where(archived ? isNotNull(cadencesTable.deletedAt) : isNull(cadencesTable.deletedAt)),
+    );
     if (!rows.length) {
-      return NextResponse.json({ data: seedCadences, source: "seed" });
+      return archived ? NextResponse.json({ data: [], source: "db" }) : NextResponse.json({ data: seedCadences, source: "seed" });
     }
     return NextResponse.json({
       data: rows as unknown as Cadence[],

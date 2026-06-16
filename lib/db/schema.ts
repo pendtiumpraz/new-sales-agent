@@ -17,6 +17,7 @@ export const kbTable = pgTable("kb", {
   tenantId: text("tenant_id"),                                  // doc 19; nullable until backfill
   data: jsonb("data").$type<KnowledgeBase>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 });
 
 export const dealsTable = pgTable("deals", {
@@ -35,6 +36,7 @@ export const dealsTable = pgTable("deals", {
   avatarColor: text("avatar_color"),
   createdAt: text("created_at"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 });
 
 // Penawaran / quote (doc 45) — quote-to-cash starts here. AI-composed, sent via the
@@ -78,6 +80,7 @@ export const quoteTable = pgTable("quote", {
   rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 }, (t) => ({
   tenantIdx: index("quote_tenant_idx").on(t.tenantId),
   tokenIdx: uniqueIndex("quote_token_idx").on(t.publicToken),
@@ -106,6 +109,7 @@ export const contactsTable = pgTable("contacts", {
   emailStatus: text("email_status"),                            // valid | invalid_syntax | invalid_domain | risky | unknown (doc 21)
   emailCheckedAt: timestamp("email_checked_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 });
 
 export const conversationsTable = pgTable("conversations", {
@@ -161,6 +165,7 @@ export const cadencesTable = pgTable("cadences", {
   workspaceId: text("workspace_id"),                     // doc 44 — scope cadence to a workspace
   createdAt: text("created_at"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 });
 
 export const cadenceEnrollmentsTable = pgTable("cadence_enrollments", {
@@ -346,6 +351,7 @@ export const companyTable = pgTable("company", {
   capturedMode: text("captured_mode"),             // compliant | balanced | aggressive
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 }, (t) => ({
   tenantIdx: index("company_tenant_idx").on(t.tenantId),
   domainIdx: index("company_domain_idx").on(t.tenantId, t.domain),
@@ -385,6 +391,7 @@ export const personTable = pgTable("person", {
   capturedMode: text("captured_mode"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 }, (t) => ({
   tenantIdx: index("person_tenant_idx").on(t.tenantId),
   companyIdx: index("person_company_idx").on(t.companyId),
@@ -427,6 +434,7 @@ export const productTable = pgTable("product", {
   icp: jsonb("icp").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 }, (t) => ({
   tenantIdx: index("product_tenant_idx").on(t.tenantId),
 }));
@@ -582,6 +590,7 @@ export const workspaceTable = pgTable("workspace", {
   status: text("status").notNull().default("active"), // active | archived
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),       // soft-delete + restore (doc 49)
 }, (t) => ({
   tenantIdx: index("workspace_tenant_idx").on(t.tenantId),
   ownerIdx: index("workspace_owner_idx").on(t.tenantId, t.ownerUserId),

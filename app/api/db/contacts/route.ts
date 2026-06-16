@@ -1,5 +1,5 @@
+import { inArray, isNull, isNotNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { inArray } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -12,7 +12,8 @@ export const runtime = "nodejs";
 
 // GET /api/db/contacts → tenant-scoped contacts (RLS), falling back to seed when
 // DB is unconfigured, no session, empty, or errors. (doc 19 — slice 2b)
-export async function GET() {
+// ?archived=1 returns ONLY soft-deleted rows (the Arsip view, doc 49).
+export async function GET(req: Request) {
   if (!hasDb()) {
     return NextResponse.json({ data: seedContacts, source: "mock" });
   }
@@ -20,10 +21,14 @@ export async function GET() {
   if (!ctx) {
     return NextResponse.json({ data: seedContacts, source: "mock" });
   }
+  const archived = new URL(req.url).searchParams.get("archived") === "1";
   try {
-    const rows = await withTenant(ctx, (tx) => tx.select().from(contactsTable));
+    const rows = await withTenant(ctx, (tx) =>
+      tx.select().from(contactsTable).where(archived ? isNotNull(contactsTable.deletedAt) : isNull(contactsTable.deletedAt)),
+    );
     if (!rows.length) {
-      return NextResponse.json({ data: seedContacts, source: "seed" });
+      // Seed only backfills the normal view; the Arsip view is honestly empty.
+      return archived ? NextResponse.json({ data: [], source: "db" }) : NextResponse.json({ data: seedContacts, source: "seed" });
     }
     return NextResponse.json({ data: rows as unknown as Contact[], source: "db" });
   } catch (err) {
