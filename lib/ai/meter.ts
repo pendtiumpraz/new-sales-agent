@@ -3,7 +3,17 @@ import { generateText, streamText, type ModelMessage } from "ai";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { aiUsageTable } from "@/lib/db/schema";
 import { isTenantActive } from "@/lib/admin/kill-switch";
+import { creditEnforced, tenantCreditBalance } from "@/lib/billing/credit";
 import { resolveActiveModel } from "./registry";
+
+/** Block when credit enforcement is on and the tenant's balance is exhausted. */
+async function assertCredit(ctx: TenantContext) {
+  if (!creditEnforced()) return;
+  const bal = await tenantCreditBalance(ctx);
+  if (bal.balance <= 0) {
+    throw new Error("Kredit AI habis — minta superadmin untuk top-up");
+  }
+}
 
 /** Compute cost (USD) from token counts + the model's snapshotted per-1M pricing. */
 function costOf(
@@ -36,6 +46,7 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
   if (!(await isTenantActive(ctx))) {
     throw new Error("Tenant suspended (kill-switch) — AI disabled");
   }
+  await assertCredit(ctx);
   const resolved = await resolveActiveModel(ctx);
   if (!resolved) {
     throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");

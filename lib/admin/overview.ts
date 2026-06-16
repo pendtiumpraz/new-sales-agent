@@ -6,6 +6,7 @@ import {
   sendJobTable,
   subscriptionTable,
   planTable,
+  creditGrantTable,
 } from "@/lib/db/schema";
 
 // Cross-tenant rollup for the superadmin console (doc 26). The caller's ctx must
@@ -21,7 +22,8 @@ export async function adminOverview(ctx: TenantContext) {
     const sends = await tx.select({ tenantId: sendJobTable.tenantId }).from(sendJobTable);
     const subs = await tx.select().from(subscriptionTable);
     const plans = await tx.select().from(planTable);
-    return { tenants, memberships, usage, sends, subs, plans };
+    const grants = await tx.select({ tenantId: creditGrantTable.tenantId, tokens: creditGrantTable.tokens }).from(creditGrantTable);
+    return { tenants, memberships, usage, sends, subs, plans, grants };
   });
 
   const members = new Map<string, number>();
@@ -38,18 +40,29 @@ export async function adminOverview(ctx: TenantContext) {
   });
   const planById = new Map(raw.plans.map((p) => [p.id, p]));
   const subByTenant = new Map(raw.subs.map((s) => [s.tenantId, s]));
+  const granted = new Map<string, number>();
+  raw.grants.forEach((g) => granted.set(g.tenantId, (granted.get(g.tenantId) ?? 0) + (g.tokens ?? 0)));
 
   const tenants = raw.tenants.map((t) => {
     const sub = subByTenant.get(t.id);
+    const plan = sub ? planById.get(sub.planId) : undefined;
+    const planTokens = ((plan?.quotas as Record<string, number> | undefined)?.ai_tokens ?? 0) as number;
+    const aiAgg = ai.get(t.id) ?? { calls: 0, tokens: 0, cost: 0 };
+    const grantedTokens = granted.get(t.id) ?? 0;
     return {
       id: t.id,
       name: t.name,
       status: t.status,
-      plan: sub ? planById.get(sub.planId)?.name ?? "—" : "—",
+      plan: plan?.name ?? "—",
       seats: sub?.seats ?? null,
       members: members.get(t.id) ?? 0,
       sends: sendCount.get(t.id) ?? 0,
-      ai: ai.get(t.id) ?? { calls: 0, tokens: 0, cost: 0 },
+      ai: aiAgg,
+      credit: {
+        planTokens,
+        granted: grantedTokens,
+        balance: planTokens + grantedTokens - aiAgg.tokens,
+      },
     };
   });
 

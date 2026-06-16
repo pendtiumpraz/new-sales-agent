@@ -192,6 +192,20 @@ export const autoReplyEventTable = pgTable("auto_reply_event", {
   msgIdx: index("auto_reply_event_msg_idx").on(t.tenantId, t.messageId),
 }));
 
+// AI credit grants (doc 37) — superadmin tops up a tenant's AI-token allowance.
+// A tenant's balance = plan allowance + SUM(grants) - SUM(ai_usage tokens). Each
+// row is a grant (positive) or revoke (negative). Tenant-scoped + RLS.
+export const creditGrantTable = pgTable("credit_grant", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  tokens: integer("tokens").notNull(),                    // + grant / - revoke (AI tokens)
+  reason: text("reason"),
+  grantedBy: text("granted_by"),                          // superadmin user id
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  tenantIdx: index("credit_grant_tenant_idx").on(t.tenantId),
+}));
+
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

@@ -20,7 +20,7 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'kb','deals','contacts','conversations','messages',
-    'autopilot_runs','cadences','cadence_enrollments','cadence_step_run','engagement_event','auto_reply_event',
+    'autopilot_runs','cadences','cadence_enrollments','cadence_step_run','engagement_event','auto_reply_event','credit_grant',
     'company','person','contact_point','product',
     'ai_credential','tenant_active_model','ai_usage',
     'crawl_job','ingest_batch','positioning_insight',

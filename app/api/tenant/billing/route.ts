@@ -12,6 +12,7 @@ import {
   membershipsTable,
 } from "@/lib/db/schema";
 import { configuredPlanKeys, stripeConfigured } from "@/lib/billing/stripe";
+import { creditEnforced, tenantCreditBalance } from "@/lib/billing/credit";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,7 @@ export async function GET() {
       .from(planTable)
       .orderBy(planTable.priceMonthIdr);
     const purchasable = configuredPlanKeys();
+    const credit = await tenantCreditBalance(ctx);
 
     return NextResponse.json({
       source: "db",
@@ -51,6 +53,7 @@ export async function GET() {
       currentPlanKey: data.plan?.key ?? null,
       seats: data.sub?.seats ?? null,
       status: data.sub?.status ?? null,
+      credit: { ...credit, enforced: creditEnforced() },
       usage: {
         aiTokens,
         aiTokensQuota: quotas.ai_tokens ?? null,

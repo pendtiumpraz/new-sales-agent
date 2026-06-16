@@ -15,6 +15,7 @@ interface TenantRow {
   members: number;
   sends: number;
   ai: { calls: number; tokens: number; cost: number };
+  credit: { planTokens: number; granted: number; balance: number };
 }
 interface AuditRow { id: string; action: string; target: string | null; at: string }
 interface Overview {
@@ -54,6 +55,34 @@ export default function AdminConsole() {
     },
     onError: () => toast.error("Gagal mengubah status"),
   });
+
+  const grant = useMutation({
+    mutationFn: async ({ tenantId, tokens }: { tenantId: string; tokens: number }) => {
+      const r = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, action: "grant_credit", tokens, reason: "manual top-up" }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+    },
+    onSuccess: () => {
+      toast.success("Kredit AI ditambahkan");
+      qc.invalidateQueries({ queryKey: ["admin"] });
+    },
+    onError: (e) => toast.error(`Gagal beri kredit (${e instanceof Error ? e.message : e})`),
+  });
+
+  function promptGrant(tenantId: string) {
+    const raw = window.prompt("Tambah kredit AI (jumlah token, mis. 1000000). Pakai angka negatif untuk mengurangi.");
+    if (raw == null) return;
+    const tokens = Number(raw.replace(/[^\d-]/g, ""));
+    if (!Number.isFinite(tokens) || tokens === 0) {
+      toast.error("Jumlah token tidak valid");
+      return;
+    }
+    grant.mutate({ tenantId, tokens });
+  }
 
   if (status === "loading") return null;
   if (!isSuper) {
@@ -109,6 +138,7 @@ export default function AdminConsole() {
                   <th className="px-4 py-2">Plan</th>
                   <th className="px-4 py-2">Anggota</th>
                   <th className="px-4 py-2">AI (calls / $)</th>
+                  <th className="px-4 py-2">Kredit AI (sisa token)</th>
                   <th className="px-4 py-2">Email</th>
                   <th className="px-4 py-2">Status</th>
                   <th className="px-4 py-2"></th>
@@ -121,20 +151,28 @@ export default function AdminConsole() {
                     <td className="px-4 py-2">{tn.plan}{tn.seats ? ` · ${tn.seats} kursi` : ""}</td>
                     <td className="px-4 py-2 tabular-nums">{tn.members}</td>
                     <td className="px-4 py-2 tabular-nums">{tn.ai.calls} / ${tn.ai.cost.toFixed(4)}</td>
+                    <td className={`px-4 py-2 tabular-nums ${tn.credit.balance <= 0 ? "text-destructive" : ""}`}>
+                      {tn.credit.balance.toLocaleString("id-ID")}
+                    </td>
                     <td className="px-4 py-2 tabular-nums">{tn.sends}</td>
                     <td className="px-4 py-2">
                       <span className={tn.status === "suspended" ? "text-destructive" : "text-emerald-600"}>{tn.status}</span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {tn.status === "suspended" ? (
-                        <button className="text-xs text-emerald-600 hover:underline" onClick={() => toggle.mutate({ tenantId: tn.id, action: "activate" })}>
-                          Aktifkan
+                      <div className="flex items-center justify-end gap-3">
+                        <button className="text-xs text-primary hover:underline" disabled={grant.isPending} onClick={() => promptGrant(tn.id)}>
+                          + Kredit
                         </button>
-                      ) : (
-                        <button className="text-xs text-destructive hover:underline" onClick={() => toggle.mutate({ tenantId: tn.id, action: "suspend" })}>
-                          Suspend (kill-switch)
-                        </button>
-                      )}
+                        {tn.status === "suspended" ? (
+                          <button className="text-xs text-emerald-600 hover:underline" onClick={() => toggle.mutate({ tenantId: tn.id, action: "activate" })}>
+                            Aktifkan
+                          </button>
+                        ) : (
+                          <button className="text-xs text-destructive hover:underline" onClick={() => toggle.mutate({ tenantId: tn.id, action: "suspend" })}>
+                            Suspend
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

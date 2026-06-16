@@ -71,6 +71,13 @@
       "when": 1781574578360,
       "tag": "0009_auto_reply_event",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781576255713,
+      "tag": "0010_credit_grant",
+      "breakpoints": true
     }
   ]
 }
