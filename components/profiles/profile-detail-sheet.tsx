@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ExternalLink, Pencil, Save, Sparkles, X } from "lucide-react";
 
@@ -112,6 +112,38 @@ export function ProfileDetailSheet({ kind, data, open, onOpenChange, onEnrich, e
   const person = kind === "person" && data ? (data as PersonRow) : null;
   const company = kind === "company" && data ? (data as CompanyRow) : null;
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Enroll a person (lead/profile) into a cadence: convert to contact, then enroll.
+  const [cadenceId, setCadenceId] = useState("");
+  const cadencesQ = useQuery({
+    queryKey: ["cadences"],
+    queryFn: async () => {
+      const r = await fetch("/api/db/cadences");
+      if (!r.ok) return { data: [] as { id: string; name: string; status: string }[] };
+      return (await r.json()) as { data: { id: string; name: string; status: string }[] };
+    },
+    enabled: open && kind === "person",
+  });
+  const toCadence = useMutation({
+    mutationFn: async () => {
+      if (!person || !cadenceId) throw new Error("gagal");
+      const r = await fetch("/api/profiles/to-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personId: person.id, cadenceId }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j.error ?? "gagal");
+      return j as { contactId: string; enrolled: boolean };
+    },
+    onSuccess: (j) => {
+      toast.success(j?.enrolled ? "Lead jadi kontak & didaftarkan ke cadence" : "Lead jadi kontak (sudah ada di cadence ini)");
+      setCadenceId("");
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+      qc.invalidateQueries({ queryKey: ["cadence-enrollments"] });
+    },
+    onError: (e) => toast.error(e instanceof Error && e.message !== "gagal" ? e.message : "Gagal (mode demo / DB belum aktif)"),
+  });
 
   const socials: { label: string; href: string }[] = [];
   if (person?.linkedinUrl) socials.push({ label: "LinkedIn", href: person.linkedinUrl });
@@ -232,6 +264,28 @@ export function ProfileDetailSheet({ kind, data, open, onOpenChange, onEnrich, e
                     <Button variant="secondary" className="w-full" onClick={() => onEnrich(data.id)} disabled={enriching}>
                       <Sparkles className="h-4 w-4" /> {enriching ? "Mencari di web…" : person ? "Enrich (cari email/HP/GitHub)" : "Enrich (cari domain, alamat, email, telepon)"}
                     </Button>
+                  )}
+
+                  {person && (
+                    <section className="space-y-2 rounded-lg border border-dashed p-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Masukkan ke cadence</h4>
+                      <p className="text-xs text-muted-foreground">Lead dijadikan kontak lalu didaftarkan ke cadence pilihan.</p>
+                      <div className="flex gap-2">
+                        <select
+                          value={cadenceId}
+                          onChange={(e) => setCadenceId(e.target.value)}
+                          className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
+                        >
+                          <option value="">Pilih cadence…</option>
+                          {(cadencesQ.data?.data ?? []).map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                        <Button variant="outline" className="shrink-0" onClick={() => toCadence.mutate()} disabled={!cadenceId || toCadence.isPending}>
+                          {toCadence.isPending ? "Memproses…" : "Daftarkan"}
+                        </Button>
+                      </div>
+                    </section>
                   )}
                 </>
               )}
