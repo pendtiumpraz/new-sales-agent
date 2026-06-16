@@ -26,6 +26,7 @@ export const MODULES: ModuleDef[] = [
   { key: "/ecommerce", label: "E-Commerce" },
   { key: "/field", label: "Sales Lapangan" },
   { key: "/team", label: "Monitoring Sales" },
+  { key: "/penawaran", label: "Penawaran" },
   { key: "/reports", label: "Laporan" },
   { key: "/autopilot", label: "Autopilot" },
 ];

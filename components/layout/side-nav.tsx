@@ -10,6 +10,7 @@ import {
   Bot,
   Briefcase,
   Database,
+  FileText,
   Heart,
   Inbox,
   LayoutDashboard,
@@ -103,6 +104,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Pelanggan & Penjualan",
     items: [
+      { href: "/penawaran", icon: FileText, label: "Penawaran", desc: "Susun, kirim & lacak penawaran — AI bantu + update deal" },
       { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead per sales", managerOnly: true },
       { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
       { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
