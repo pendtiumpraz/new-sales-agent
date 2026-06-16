@@ -376,10 +376,10 @@ function LoginPageInner() {
       >
         Belum punya akun?{" "}
         <Link
-          href="/"
+          href="/register"
           className="group inline-flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80"
         >
-          Hubungi tim sales
+          Daftar
           <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
         </Link>
       </motion.p>

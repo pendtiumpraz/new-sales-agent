@@ -26,6 +26,23 @@ export default function AppLayout({
     }
   }, [status, pathname, router]);
 
+  // Activation gate (doc 38): a pending / expired / suspended tenant can't use
+  // the app — bounce to /pending. Fails open (errors → ignore) so a glitch never
+  // locks a real tenant out.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    fetch("/api/tenant/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!cancelled && j && j.active === false) router.replace("/pending");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [status, pathname, router]);
+
   // Hydrate the Knowledge Base from Postgres once per session. The store
   // guards itself with a `hydrated` flag, so this is a safe no-op on repeat
   // mounts (e.g. route transitions that re-render the layout).

@@ -229,7 +229,8 @@ export const tenantsTable = pgTable("tenants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   plan: text("plan").notNull().default("starter"),   // doc 27 tiers
-  status: text("status").notNull().default("active"), // active | suspended
+  status: text("status").notNull().default("active"), // active | suspended | pending (doc 38)
+  activeUntil: timestamp("active_until", { withTimezone: true }), // null = no activation/expiry; superadmin sets on activate
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

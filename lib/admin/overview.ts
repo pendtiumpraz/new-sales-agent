@@ -53,6 +53,7 @@ export async function adminOverview(ctx: TenantContext) {
       id: t.id,
       name: t.name,
       status: t.status,
+      activeUntil: t.activeUntil ?? null,
       plan: plan?.name ?? "—",
       seats: sub?.seats ?? null,
       members: members.get(t.id) ?? 0,

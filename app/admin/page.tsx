@@ -10,6 +10,7 @@ interface TenantRow {
   id: string;
   name: string;
   status: string;
+  activeUntil: string | null;
   plan: string;
   seats: number | null;
   members: number;
@@ -72,6 +73,34 @@ export default function AdminConsole() {
     },
     onError: (e) => toast.error(`Gagal beri kredit (${e instanceof Error ? e.message : e})`),
   });
+
+  const activate = useMutation({
+    mutationFn: async ({ tenantId, until }: { tenantId: string; until: string | null }) => {
+      const r = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, action: "activate_until", until }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+    },
+    onSuccess: () => {
+      toast.success("Tenant diaktifkan");
+      qc.invalidateQueries({ queryKey: ["admin"] });
+    },
+    onError: (e) => toast.error(`Gagal aktivasi (${e instanceof Error ? e.message : e})`),
+  });
+
+  function promptActivate(tenantId: string) {
+    const raw = window.prompt("Aktifkan sampai tanggal (YYYY-MM-DD). Kosongkan = tanpa batas waktu.");
+    if (raw == null) return;
+    const until = raw.trim() ? new Date(raw.trim()).toISOString() : null;
+    if (until && Number.isNaN(Date.parse(until))) {
+      toast.error("Format tanggal salah (YYYY-MM-DD)");
+      return;
+    }
+    activate.mutate({ tenantId, until });
+  }
 
   function promptGrant(tenantId: string) {
     const raw = window.prompt("Tambah kredit AI (jumlah token, mis. 1000000). Pakai angka negatif untuk mengurangi.");
@@ -156,16 +185,35 @@ export default function AdminConsole() {
                     </td>
                     <td className="px-4 py-2 tabular-nums">{tn.sends}</td>
                     <td className="px-4 py-2">
-                      <span className={tn.status === "suspended" ? "text-destructive" : "text-emerald-600"}>{tn.status}</span>
+                      <span
+                        className={
+                          tn.status === "suspended"
+                            ? "text-destructive"
+                            : tn.status === "pending"
+                              ? "text-amber-600"
+                              : "text-emerald-600"
+                        }
+                      >
+                        {tn.status}
+                      </span>
+                      {tn.activeUntil && (
+                        <span className="block text-[11px] text-muted-foreground">
+                          s/d {new Date(tn.activeUntil).toLocaleDateString("id-ID")}
+                          {new Date(tn.activeUntil).getTime() < Date.now() && " (kadaluarsa)"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        <button className="text-xs text-emerald-600 hover:underline" disabled={activate.isPending} onClick={() => promptActivate(tn.id)}>
+                          Aktifkan s/d…
+                        </button>
                         <button className="text-xs text-primary hover:underline" disabled={grant.isPending} onClick={() => promptGrant(tn.id)}>
                           + Kredit
                         </button>
                         {tn.status === "suspended" ? (
                           <button className="text-xs text-emerald-600 hover:underline" onClick={() => toggle.mutate({ tenantId: tn.id, action: "activate" })}>
-                            Aktifkan
+                            Un-suspend
                           </button>
                         ) : (
                           <button className="text-xs text-destructive hover:underline" onClick={() => toggle.mutate({ tenantId: tn.id, action: "suspend" })}>

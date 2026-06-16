@@ -1,0 +1,1 @@
+ALTER TABLE "tenants" ADD COLUMN "active_until" timestamp with time zone;

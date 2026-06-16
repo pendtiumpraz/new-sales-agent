@@ -8,6 +8,7 @@ export default auth((req) => {
   const isPublic =
     pathname === "/" ||
     pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
     pathname.startsWith("/unsubscribe") ||
     pathname.startsWith("/api");
 

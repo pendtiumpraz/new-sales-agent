@@ -85,6 +85,13 @@
       "when": 1781578836836,
       "tag": "0011_contact_email_status",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781580430951,
+      "tag": "0012_tenant_active_until",
+      "breakpoints": true
     }
   ]
 }

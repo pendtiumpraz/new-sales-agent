@@ -1,8 +1,11 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { eq } from "drizzle-orm";
 
 import { findAccount } from "./demo-accounts";
 import { mapDemoRole, type Role } from "@/lib/rbac/permissions";
+import { db, hasDb } from "@/lib/db/client";
+import { membershipsTable, usersTable } from "@/lib/db/schema";
 
 // Auth.js v5 (doc 28). Credentials-first (slice 2a): authorize against the
 // existing demo accounts so login works offline with no external OAuth creds.
@@ -22,19 +25,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: (creds) => {
-        const account = findAccount(String(creds?.email ?? ""), String(creds?.password ?? ""));
-        if (!account) return null;
+      authorize: async (creds) => {
+        const email = String(creds?.email ?? "").trim().toLowerCase();
+        const password = String(creds?.password ?? "");
+
+        // 1) Demo accounts — offline, always on t_default.
+        const account = findAccount(email, password);
+        if (account) {
+          return {
+            id: account.id,
+            name: account.name,
+            email: account.email,
+            role: mapDemoRole(account.role),
+            tenantId: DEFAULT_TENANT_ID,
+            avatarColor: account.avatarColor,
+            demoRole: account.role,
+            scope: account.scope,
+          };
+        }
+
+        // 2) Registered users (doc 38). Resolve tenant + role from membership.
+        // Authorization succeeds even if the tenant is pending/expired — the app
+        // shell gates that and shows /pending; this keeps the error legible.
+        if (!hasDb()) return null;
+        const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+        if (!user || user.password !== password) return null;
+        const [mem] = await db.select().from(membershipsTable).where(eq(membershipsTable.userId, user.id)).limit(1);
+        if (!mem) return null;
         return {
-          id: account.id,
-          name: account.name,
-          email: account.email,
-          role: mapDemoRole(account.role),
-          tenantId: DEFAULT_TENANT_ID,
-          // Display fields the existing UI/store still reads.
-          avatarColor: account.avatarColor,
-          demoRole: account.role,
-          scope: account.scope,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: mem.role as Role,
+          tenantId: mem.tenantId,
+          avatarColor: user.avatarColor,
+          demoRole: user.role,
+          scope: user.scope ?? undefined,
         };
       },
     }),

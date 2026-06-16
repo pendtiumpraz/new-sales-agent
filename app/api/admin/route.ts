@@ -36,11 +36,25 @@ export async function POST(req: Request) {
   try {
     const b = (await req.json()) as {
       tenantId?: string;
-      action?: "suspend" | "activate" | "grant_credit";
+      action?: "suspend" | "activate" | "grant_credit" | "activate_until";
       tokens?: number;
       reason?: string;
+      until?: string; // ISO date for activate_until
     };
     if (!b?.tenantId) return NextResponse.json({ error: "Missing tenantId" }, { status: 400 });
+
+    // Activate a (pending/expired) tenant until a date (doc 38).
+    if (b.action === "activate_until") {
+      const until = b.until ? new Date(b.until) : null;
+      if (until && Number.isNaN(until.getTime())) {
+        return NextResponse.json({ error: "Tanggal tidak valid" }, { status: 400 });
+      }
+      await withTenant(ctx, (tx) =>
+        tx.update(tenantsTable).set({ status: "active", activeUntil: until }).where(eq(tenantsTable.id, b.tenantId!)),
+      );
+      await recordAudit(ctx, "tenant.activate_until", b.tenantId, { until: b.until ?? null });
+      return NextResponse.json({ ok: true });
+    }
 
     if (b.action === "grant_credit") {
       const tokens = Number(b.tokens);
