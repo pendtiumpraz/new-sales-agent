@@ -114,19 +114,27 @@ export async function publishMany(ctx: TenantContext, input: PublishInput): Prom
         category = category || pe.title || (pe.leadType === "b2b_partner" ? "B2B Partner" : pe.leadType === "b2c_customer" ? "B2C Customer" : null);
       }
 
-      const id = "mkt_" + crypto.randomUUID();
-      await db.insert(marketplaceListingTable).values({
-        id,
-        sellerTenantId: T,
-        entityType: input.entityType,
-        entityId,
-        title,
-        summary,
-        category,
-        channels,
-        priceIdr: price,
-        consentStatus,
-      });
+      // Deterministic id per (seller, entityType, entity) → re-publishing the same
+      // entity refreshes the existing listing instead of flooding duplicates.
+      const id = stableId("mkt", `${T}:${input.entityType}:${entityId}`);
+      await db
+        .insert(marketplaceListingTable)
+        .values({
+          id,
+          sellerTenantId: T,
+          entityType: input.entityType,
+          entityId,
+          title,
+          summary,
+          category,
+          channels,
+          priceIdr: price,
+          consentStatus,
+        })
+        .onConflictDoUpdate({
+          target: marketplaceListingTable.id,
+          set: { title, summary, category, channels, priceIdr: price, consentStatus, status: "active" },
+        });
       out.published++;
     } catch (e) {
       out.skipped.push({ id: entityId, reason: String(e) });

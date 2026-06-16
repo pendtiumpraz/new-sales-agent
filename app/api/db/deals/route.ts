@@ -63,6 +63,7 @@ export async function PUT(req: Request) {
             expectedClose: d.expectedClose,
             sourceChannel: d.sourceChannel,
             owner: d.owner,
+            workspaceId: d.workspaceId ?? null,
             avatarColor: d.avatarColor,
             createdAt: d.createdAt,
             tenantId: ctx.tenantId,
@@ -73,6 +74,8 @@ export async function PUT(req: Request) {
               stage: d.stage,
               value: d.value,
               expectedClose: d.expectedClose,
+              // Preserve an existing workspace tag; only overwrite when the payload carries one.
+              workspaceId: d.workspaceId ?? undefined,
               updatedAt: new Date(),
               tenantId: ctx.tenantId,
             },

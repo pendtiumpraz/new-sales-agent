@@ -39,14 +39,16 @@ interface ContactLite {
   phone: string | null;
 }
 
-/** Substitute the cadence placeholders ({nama}, {perusahaan}). {nama} becomes the
- *  proper greeting (Pak/Bu/Mas/Mbak + first name), not a bare name. */
+/** Substitute the cadence placeholders. The builder authors DOUBLE-brace tokens
+ *  ({{nama}}, {{perusahaan}}, {{produk}}) — we accept both {{x}} and {x}. {{nama}}
+ *  becomes the proper greeting (Pak/Bu/Mas/Mbak + first name), not a bare name. */
 function fillPlaceholders(text: string, c: ContactLite): string {
   const greeting = c.name ? salutationFor(c.name).greeting : "Kak";
   return (text ?? "")
-    .replace(/(?:bapak\/ibu|bapak ?\/ ?ibu)\s*\{nama\}/gi, greeting) // collapse "Bapak/Ibu {nama}" → greeting
-    .replace(/\{nama\}/gi, greeting)
-    .replace(/\{perusahaan\}/gi, c.company ?? "perusahaan Anda");
+    .replace(/(?:bapak\/ibu|bapak ?\/ ?ibu)\s*\{\{?\s*nama\s*\}?\}/gi, greeting) // collapse "Bapak/Ibu {{nama}}" → greeting
+    .replace(/\{\{?\s*nama\s*\}?\}/gi, greeting)
+    .replace(/\{\{?\s*perusahaan\s*\}?\}/gi, c.company ?? "perusahaan Anda")
+    .replace(/\{\{?\s*produk\s*\}?\}/gi, "produk kami");
 }
 
 /**
@@ -181,7 +183,9 @@ export async function processCadences(
       };
 
       const { body, source } = await personalize(ctx, step, c);
-      const subject = step.subject ?? cad.name;
+      // Subject is not AI-personalized — substitute its placeholders directly so
+      // raw {{perusahaan}} merge tags never reach the inbox.
+      const subject = fillPlaceholders(step.subject ?? cad.name, c);
 
       let status = "queued";
       let sendJobId: string | null = null;

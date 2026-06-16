@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -54,10 +55,28 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
     s.getActiveTriggers(conversationId),
   );
   const takeOver = useHandoffStore((s) => s.takeOver);
+  const qc = useQueryClient();
   const [sent, setSent] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [dismissedDraft, setDismissedDraft] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Persist an outbound message to the DB so it survives reload (PUT is insert-
+  // only). The optimistic copy in `sent` keeps the UI instant; on success we
+  // refetch so the thread reconciles with the stored row (deduped by id below).
+  async function persistMessage(msg: Message) {
+    try {
+      await fetch("/api/db/messages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: [msg] }),
+      });
+      qc.invalidateQueries({ queryKey: ["conversation", conversationId] });
+      qc.invalidateQueries({ queryKey: ["conversations"] });
+    } catch {
+      /* optimistic copy stays visible even if the write failed */
+    }
+  }
 
   // Reset locally-sent messages when switching conversations.
   useEffect(() => {
@@ -71,10 +90,20 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
   // useMemo + downstream useCallback in AutoReplyCard to thrash, which is
   // the prime suspect behind the React #185 'Maximum update depth' on
   // /workspace/[contactId].
-  const all = useMemo(
-    () => (data ? [...data.messages, ...sent] : []),
-    [data, sent],
-  );
+  const all = useMemo(() => {
+    if (!data) return [];
+    // Dedup by id so the optimistic local copy and the refetched DB row (same id)
+    // don't render twice after persistMessage invalidates the query.
+    const seen = new Set<string>();
+    const merged: Message[] = [];
+    for (const m of [...data.messages, ...sent]) {
+      if (!seen.has(m.id)) {
+        seen.add(m.id);
+        merged.push(m);
+      }
+    }
+    return merged;
+  }, [data, sent]);
   const sentiment = useMemo(() => getSentiment(conversationId), [conversationId]);
   const handedOff = handoffState?.status === "handed-off";
   const lastMessage = all[all.length - 1];
@@ -142,19 +171,18 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
   function send() {
     const body = draft.trim();
     if (!body) return;
-    setSent((s) => [
-      ...s,
-      {
-        id: `local_${Date.now()}`,
-        conversationId,
-        direction: "out",
-        body,
-        timestamp: new Date().toISOString(),
-        status: "sent",
-        subject: isEmail ? `Re: ${all.find((m) => m.subject)?.subject ?? "Pesan"}` : undefined,
-      },
-    ]);
+    const msg: Message = {
+      id: `local_${Date.now()}`,
+      conversationId,
+      direction: "out",
+      body,
+      timestamp: new Date().toISOString(),
+      status: "sent",
+      subject: isEmail ? `Re: ${all.find((m) => m.subject)?.subject ?? "Pesan"}` : undefined,
+    };
+    setSent((s) => [...s, msg]);
     setDraft("");
+    void persistMessage(msg);
   }
 
   return (
@@ -267,18 +295,17 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
               onApprove={(liveDraft) => {
                 const body = (liveDraft || aiDraft).trim();
                 if (!body) return;
-                setSent((s) => [
-                  ...s,
-                  {
-                    id: `local_${Date.now()}`,
-                    conversationId,
-                    direction: "out",
-                    body,
-                    timestamp: new Date().toISOString(),
-                    status: "sent",
-                  },
-                ]);
+                const msg: Message = {
+                  id: `local_${Date.now()}`,
+                  conversationId,
+                  direction: "out",
+                  body,
+                  timestamp: new Date().toISOString(),
+                  status: "sent",
+                };
+                setSent((s) => [...s, msg]);
                 setDismissedDraft(true);
+                void persistMessage(msg);
               }}
               onEdit={(liveDraft) => {
                 setDraft(liveDraft || aiDraft);

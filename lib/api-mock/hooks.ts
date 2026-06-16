@@ -155,7 +155,22 @@ export function useActivity() {
 export function useContact(id: string) {
   return useQuery({
     queryKey: ["contact", id],
-    queryFn: () => settle(db.contacts.find((c) => c.id === id) ?? null),
+    // Resolve from the DB first (contacts created via discovery / to-contact only
+    // exist there, not in the static fixture) — falls back to the seed fixture so
+    // demo contacts still render when the DB is empty/unset.
+    queryFn: async () => {
+      try {
+        const r = await fetch("/api/db/contacts");
+        if (r.ok) {
+          const rows = ((await r.json())?.data ?? []) as { id: string }[];
+          const hit = rows.find((c) => c.id === id);
+          if (hit) return hit as (typeof db.contacts)[number];
+        }
+      } catch {
+        /* fall back to fixture */
+      }
+      return db.contacts.find((c) => c.id === id) ?? null;
+    },
     ...STABLE,
   });
 }

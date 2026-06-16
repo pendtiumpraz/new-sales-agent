@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       tx
         .update(membershipsTable)
         .set({ role: body.role! })
-        .where(eq(membershipsTable.id, params.id)),
+        .where(and(eq(membershipsTable.id, params.id), eq(membershipsTable.tenantId, ctx.tenantId))),
     );
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {
@@ -39,7 +39,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   try {
     await withTenant(ctx, (tx) =>
-      tx.delete(membershipsTable).where(eq(membershipsTable.id, params.id)),
+      tx.delete(membershipsTable).where(and(eq(membershipsTable.id, params.id), eq(membershipsTable.tenantId, ctx.tenantId))),
     );
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {

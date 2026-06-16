@@ -27,12 +27,16 @@ export async function GET() {
       const plan = sub ? (await tx.select().from(planTable).where(eq(planTable.id, sub.planId)).limit(1))[0] ?? null : null;
       const usage = await tx
         .select({ tokensIn: aiUsageTable.tokensIn, tokensOut: aiUsageTable.tokensOut })
-        .from(aiUsageTable);
+        .from(aiUsageTable)
+        .where(eq(aiUsageTable.tenantId, ctx.tenantId));
       const sent = await tx
         .select({ id: sendJobTable.id })
         .from(sendJobTable)
         .where(and(eq(sendJobTable.tenantId, ctx.tenantId), eq(sendJobTable.status, "sent")));
-      const members = await tx.select({ id: membershipsTable.id }).from(membershipsTable);
+      const members = await tx
+        .select({ id: membershipsTable.id })
+        .from(membershipsTable)
+        .where(and(eq(membershipsTable.tenantId, ctx.tenantId), eq(membershipsTable.status, "active")));
       return { sub, plan, usage, sent, members };
     });
 

@@ -1,0 +1,674 @@
+[
+ {
+  "sev": "low",
+  "cluster": "Contacts & Profiles",
+  "feat": "Contacts list (table, filters, bulk enroll/export/delete)",
+  "loc": "app/(app)/contacts/page.tsx:171",
+  "desc": "invalidateQueries(['cadenceEnrollments']) targets a query key that no useQuery in the repo registers (the only enrollment fetches use other keys). The invalidation is a no-op; enrollment counts only refresh because ['cadences'] is also invalidated. Harmless but dead code."
+ },
+ {
+  "sev": "low",
+  "cluster": "Contacts & Profiles",
+  "feat": "Contacts list (table, filters, bulk enroll/export/delete)",
+  "loc": "app/api/db/contacts/route.ts:79",
+  "desc": "Hard DELETE removes the contact row only; related conversations/messages/cadence_enrollments referencing that contactId are not cleaned up, leaving orphaned rows (no FK cascade). The PDPA dialog promises deletion of 'riwayat komunikasi' but comms history is not actually purged."
+ },
+ {
+  "sev": "low",
+  "cluster": "Contacts & Profiles",
+  "feat": "Profiles — Companies & People (enrich, classify, assign, edit, to-cadence)",
+  "loc": "components/profiles/profile-detail-sheet.tsx:143",
+  "desc": "to-cadence onSuccess invalidates ['cadence-enrollments'], a key no useQuery registers — no-op. Minor."
+ },
+ {
+  "sev": "low",
+  "cluster": "Contacts & Profiles",
+  "feat": "Profiles — Companies & People (enrich, classify, assign, edit, to-cadence)",
+  "loc": "app/api/profiles/update/route.ts:14-17",
+  "desc": "ALLOWED.person whitelist includes 'about' but the edit form never exposes it; company allows 'size' which is fine. No bug per se, but 'about' is dead in the whitelist. Cosmetic."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Contacts & Profiles",
+  "feat": "Profiles — Companies & People (enrich, classify, assign, edit, to-cadence)",
+  "loc": "app/(app)/contacts/profiles/page.tsx:296-298",
+  "desc": "peopleRows applies workspace + source filters, but the 'Cari kontak & profil (web)' bulk-enrich button calls enrich.mutate({all:true}) which on the server only targets up to 3 people with null gender/profileSummary (enrich/route.ts:82-84). The toast claims 'count dicari di web' but there's no progress per-row and the cap of 3 is invisible to the user — large lists silently enrich only a handful per click with no indication more remain."
+ },
+ {
+  "sev": "low",
+  "cluster": "Contacts & Profiles",
+  "feat": "Discovery (extension status, server crawl, AI plan, history)",
+  "loc": "app/(app)/contacts/discovery/page.tsx:447-468",
+  "desc": "History row reads j.result?.contactsCreated / j.result?.created, but for url crawls the server stores contactsCreated inside result (ok), while for industry/auto the count is under result.created — both handled. However bulk jobs put count in result.created and there is no 'X kontak' line for them; acceptable, just inconsistent display."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Contacts & Profiles",
+  "feat": "Discovery (extension status, server crawl, AI plan, history)",
+  "loc": "app/api/discovery/route.ts:231-238",
+  "desc": "URL crawl runs synchronously within maxDuration=60 on Vercel serverless; crawlWebsite + Hunter fan-out can exceed that, causing a 504 with no crawl_job row written (the job insert happens only after crawl completes). The UI then shows the CrawlProgressDialog stuck on 'pending'/error with no history record. The page copy acknowledges serverless limits but there is no timeout-guard or partial-progress persistence."
+ },
+ {
+  "sev": "high",
+  "cluster": "Contacts & Profiles",
+  "feat": "Unified Workspace (per-contact 3-column workbench)",
+  "loc": "lib/api-mock/hooks.ts:155-160",
+  "desc": "useContact(id) resolves from the static db.contacts fixture (settle(db.contacts.find...)), while the contacts list and DELETE/enroll flows operate on the DB-backed /api/db/contacts. Any contact that exists in the DB but not in the static fixture — e.g. created via /api/profiles/to-contact (id = stableId('ct', tenant:person:...)) or via discovery — will render 'Kontak tidak ditemukan' in the workspace even though it appears and is clickable in the list. Navigating from the list row to the workspace is broken for all DB-only contacts."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Contacts & Profiles",
+  "feat": "Unified Workspace (per-contact 3-column workbench)",
+  "loc": "components/workspace/unified-workspace.tsx:119-155",
+  "desc": "Workspace hard-blocks with 'Workspace memerlukan percakapan' when a contact has zero conversations. Discovery/profile-derived contacts almost never have conversations, so the primary CTA from /contacts ('Buka workspace terpadu' on row click via openWorkspace actually opens the sheet, but the header/overflow CTAs route here) dead-ends for most contacts. The enrichment/prospect/NBA rails are gated behind having a conversation that those leads don't have."
+ },
+ {
+  "sev": "high",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Pipeline — Deals (Kanban + Enrichment)",
+  "loc": "app/api/db/deals/route.ts:54-79",
+  "desc": "PUT upsert omits workspaceId from both the insert .values() and the onConflictDoUpdate .set(). KanbanBoard filters deals by workspaceId (components/pipeline/kanban-board.tsx:30) when the page is opened with ?workspace=<id>. After any persist round-trip the column is null, so the workspace-scoped pipeline view shows an empty board with no explanation — a silent data-loss / dead-view bug."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Pipeline — Deals (Kanban + Enrichment)",
+  "loc": "lib/stores/pipeline-store.ts:83-91",
+  "desc": "moveDeal persists the FULL deals array on every drag via debounced PUT (full-snapshot). Fine for a demo, but every move re-upserts every row; with a large pipeline this is O(n) inserts per drag inside one withTenant transaction (PUT loops insert-per-row, route.ts:51-80)."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Pipeline — Deals (Kanban + Enrichment)",
+  "loc": "components/pipeline/deal-detail-sheet.tsx:56-61",
+  "desc": "Activity log is hardcoded ACTIVITY constant ('contoh'/example) — same 4 fake events for every deal. Labeled as example, so not misleading, but it is non-functional."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Pipeline — Products & Pricing (ProductManagerDialog)",
+  "loc": "components/pipeline/product-manager-dialog.tsx:61-97",
+  "desc": "Product add/remove/reset are in-memory only and never persisted (store has no persist middleware for products, and no /api/db/product call). Toasts say 'Produk ditambahkan' / 'dihapus' implying durability, but a page reload reverts to seedProducts — a misleading success-feedback bug given productTable exists in schema."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Pipeline — Products & Pricing (ProductManagerDialog)",
+  "loc": "lib/stores/pipeline-store.ts:102-109",
+  "desc": "updateProduct store action is implemented but dead — no UI invokes it; products can only be added or removed, not edited."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Marketplace — Browse & Acquire",
+  "loc": "app/(app)/marketplace/page.tsx:170-172",
+  "desc": "Acquire button has no per-card pending/disabled isolation: disabled={acquire.isPending} disables EVERY card's button while any one acquire is in flight, and there is no spinner on the clicked card — looks frozen during the request."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Marketplace — Browse & Acquire",
+  "loc": "lib/marketplace/store.ts:139-167",
+  "desc": "acquire() has no idempotency/duplicate guard at the listing level — buying the same listing twice silently re-runs the upsert (dedup id makes it a no-op data-wise, but the user gets a second 'Diambil' success toast with no 'already in your contacts' feedback)."
+ },
+ {
+  "sev": "high",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Marketplace — Publish",
+  "loc": "lib/marketplace/store.ts:117-130",
+  "desc": "Publish has no dedup: each publish of the same entity inserts a brand-new marketplace_listing (id = 'mkt_' + randomUUID), so the same company/person can be listed unlimited times. There is no unique constraint on (sellerTenantId, entityType, entityId) and no 'already listed' skip — repeat clicks flood the marketplace with duplicate listings."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Marketplace — Publish",
+  "loc": "app/(app)/marketplace/page.tsx:86-99",
+  "desc": "No UI to view, edit, or delist your own listings. marketplace_listing.status supports 'delisted' and store.mine() exists, but neither is reachable from the page — once you publish, you cannot unpublish (soft-delete column present, no restore/delist path)."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "Marketplace — Publish",
+  "loc": "app/(app)/marketplace/page.tsx:228-235",
+  "desc": "Companies list has no filter inputs (people list has title/location/leadType filters). With many companies the user must scroll a 200-cap (slice(0,200)) unfiltered list."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "E-Commerce — Orders, Channel Connect & Cart Recovery",
+  "loc": "app/(app)/ecommerce/page.tsx:43-47,99-110",
+  "desc": "Channel connection is a hardcoded const + local useState. 'Hubungkan' shows a success toast and flips the badge to 'Terhubung', but nothing is persisted and there is no real integration — misleading success feedback (TikTok will revert to disconnected on reload)."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "E-Commerce — Orders, Channel Connect & Cart Recovery",
+  "loc": "app/(app)/ecommerce/page.tsx:251-256",
+  "desc": "Cart-recovery dialog 'Buka di Inbox' marks the order recovered locally and routes to /inbox?channel=whatsapp without creating any actual draft/conversation — the Inbox will not contain the drafted message, so the flow dead-ends despite the toast 'Membuka Inbox…'."
+ },
+ {
+  "sev": "low",
+  "cluster": "Pipeline, Deals & Marketplace",
+  "feat": "E-Commerce — Orders, Channel Connect & Cart Recovery",
+  "loc": "app/(app)/ecommerce/page.tsx:168",
+  "desc": "Orders table is silently capped at .slice(0,40) while the header count shows orders?.length (full count) — count and visible rows disagree with no 'showing 40 of N' indicator."
+ },
+ {
+  "sev": "low",
+  "cluster": "Cadences & Engagement",
+  "feat": "Cadence detail (steps + enrollment)",
+  "loc": "app/(app)/cadences/[id]/page.tsx:116",
+  "desc": "Error toast logic shows 'Mode demo / DB belum aktif' only when err.message === 'gagal'. But on !hasDb()/no-session the POST returns 200 {ok:false, source:'mock'} with no error field, so the mutationFn throws new Error('gagal') (j.error ?? 'gagal') -> the demo toast does fire. However a real 500 also returns {ok:false, error: <stack>}, which throws with that message and shows generic 'Gagal mendaftarkan' — acceptable but the branching is fragile (string-equality on 'gagal')."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Cadences & Engagement",
+  "feat": "Cadence builder (new)",
+  "loc": "components/cadences/cadence-builder.tsx:182-200",
+  "desc": "When DB is unconfigured or there is no session, PUT returns 200 {ok:false, source:'mock'}. saveCadence throws on json.ok===false and shows 'Gagal menyimpan cadence' WITHOUT navigating — so in the offline/demo path the builder looks broken (red toast, stays on page) even though that is the expected mock response. The list page's run buttons explicitly special-case source:'mock' with an info toast; the builder does not, so behavior is inconsistent and misleading in the default demo."
+ },
+ {
+  "sev": "low",
+  "cluster": "Cadences & Engagement",
+  "feat": "Cadence builder (new)",
+  "loc": "components/cadences/cadence-builder.tsx:298-388",
+  "desc": "The 'Pengaturan' tab (send window, sending days, max/day, skip-holidays) is pure UI state (days useState) / uncontrolled defaultValue inputs and is explicitly never persisted (warning banner at line 301). saveCadence ignores all of it. Honest-but-dead settings surface."
+ },
+ {
+  "sev": "high",
+  "cluster": "Cadences & Engagement",
+  "feat": "Run cadences now (processor)",
+  "loc": "lib/cadence/processor.ts:44-49",
+  "desc": "Placeholder mismatch: fillPlaceholders only replaces single-brace {nama}/{perusahaan}, but the cadence builder authors and inserts double-brace {{nama}}/{{perusahaan}}/{{produk}} (cadence-builder.tsx:67 VARIABLES and AI_DRAFTS). When the AI personalize call is unavailable (no active model / suspended / mock) the template fallback is sent verbatim with literal '{{nama}}' still in the body. Also {{produk}} is never substituted at all. Real outbound messages would contain raw merge tags."
+ },
+ {
+  "sev": "high",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "Conversation thread (read + reply + handoff)",
+  "loc": "components/inbox/message-thread.tsx:142-158",
+  "desc": "Composer 'send' is purely local: setSent(...) with id `local_${Date.now()}` and never calls the DB. Reply + AutoReply approve do not persist; on navigation/reload the sent messages disappear. The whole DB-write path (PUT /api/db/messages) is wired but dead (no caller), so the inbox is read-only against the DB in practice."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "Conversation thread (read + reply + handoff)",
+  "loc": "components/inbox/handoff-panel.tsx:54 + lib/stores/handoff-store.ts",
+  "desc": "getSentiment(conversationId) and the seeded handoff states are keyed to hardcoded mock IDs (cv_0001..cv_0030 in lib/api-mock/handoff.ts). For any conversation id NOT in that list, sentiment silently falls back to neutral score=0 and AI_DRAFTS falls back to a generic line. If DB conversation ids ever diverge from those seeds, the entire Handoff/sentiment panel shows fabricated neutral data with no indication it is not real."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "Conversation thread (read + reply + handoff)",
+  "loc": "lib/stores/handoff-store.ts:131-136",
+  "desc": "toggleAutoReplyForConversation ignores the conversationId and flips the GLOBAL config.autoReplyEnabled. The HandoffPanel Switch is labeled per-conversation ('Auto-reply AI aktif') but toggling it on one thread changes it for every thread. Misleading control."
+ },
+ {
+  "sev": "low",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "Conversation thread (read + reply + handoff)",
+  "loc": "lib/stores/handoff-store.ts:3 (in-memory) ",
+  "desc": "Handoff state (takeOver/release, auto-reply toggle) is in-memory Zustand only (comment: 'no localStorage'). 'Ambil alih' and 'Kembalikan ke AI' produce a success toast but reset on reload — no DB/server persistence, so handoff has no durable effect."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "AI Escalation review queue",
+  "loc": "app/(app)/escalations/page.tsx:38-43",
+  "desc": "queryFn throws bare `new Error()` on !r.ok. The GET is campaign.manage-guarded and returns 401/403 on no-session/insufficient role; there is no isError UI branch, so the page silently shows the empty 'Tidak ada eskalasi...' state (events.data ?? []) instead of an auth/error message. An unauthorized or errored fetch is indistinguishable from a genuinely empty queue."
+ },
+ {
+  "sev": "low",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "AI Escalation review queue",
+  "loc": "lib/engagement/autoreply.ts:329",
+  "desc": "resolveEscalation 'send' on a WhatsApp escalation fails with error 'WhatsApp belum siap (WAHA/nomor)' whenever WAHA is unconfigured (the default in this prototype). Since auto-reply escalations are predominantly whatsapp channel, the one-click 'Kirim' will return ok:false for most escalations in a demo env, surfacing a toast 'Gagal (WhatsApp belum siap...)'. Honest, but the queue's primary action is effectively non-functional without WAHA."
+ },
+ {
+  "sev": "low",
+  "cluster": "Inbox, Conversations & Escalations",
+  "feat": "AI Escalation review queue",
+  "loc": "app/(app)/escalations/page.tsx:46",
+  "desc": "history slice(0,15) is applied AFTER filtering decision!=='escalated' on only the 30 rows the GET returns (recentAutoReplyEvents limit=30). With many escalations the non-escalated history can be sparse/empty even if more exist in the DB — capped client-side with no 'load more'."
+ },
+ {
+  "sev": "high",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Penawaran list + create",
+  "loc": "lib/quotes/store.ts:42-49,103-106",
+  "desc": "createQuote derives the human number from count(*) of existing rows (nextNumber), inserts with number:'' then a SECOND update sets the real number. (1) Race condition: two concurrent creates both count N and both produce PNW-YEAR-000(N+1) → duplicate quote numbers (no unique constraint on quote.number to catch it). (2) Two DB round-trips + a transient row with an empty number is briefly visible to a concurrent list query."
+ },
+ {
+  "sev": "low",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Penawaran list + create",
+  "loc": "app/(app)/penawaran/page.tsx:62-67",
+  "desc": "List query has retry:false and treats 403 specially but the EmptyState for q.isError says only 'Pastikan kamu login & punya akses'. A member role CAN read quotes (data.read granted), so a 403 here is unexpected; the generic message hides the actual cause. Minor UX."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Penawaran editor (detail, edit, send, track)",
+  "loc": "app/(app)/penawaran/[id]/page.tsx:246 + lib/quotes/store.ts:127",
+  "desc": "validUntil uses <Input type=\"date\">; clearing it yields \"\" (empty string), and PATCH stores \"\" rather than null (PatchSchema allows string). The public page (app/q/[token]/page.tsx:74) guards with {q.validUntil && ...} so \"\" hides it, but the editor's Tracking/date input round-trips an empty string as a value — harmless but stores junk; if a real date validator is added later this becomes a 500 source."
+ },
+ {
+  "sev": "low",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Penawaran editor (detail, edit, send, track)",
+  "loc": "app/(app)/penawaran/[id]/page.tsx:138-158",
+  "desc": "send() calls save(true) (silent) then POSTs send. save() can fail (returns undefined, toast suppressed because silent) yet send proceeds anyway against the previously-saved server state. If the rep edited items then hit Send and the save 500'd, the email goes out with stale totals and no warning."
+ },
+ {
+  "sev": "low",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Penawaran editor (detail, edit, send, track)",
+  "loc": "app/(app)/penawaran/[id]/page.tsx:204-208",
+  "desc": "taxRate is edited as a raw number Input (e.g. 0.11). The label shows 'PPN (11%)' but a user can type 11 thinking percent, producing a 1100% tax with no validation/clamping."
+ },
+ {
+  "sev": "low",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Public quote view + accept/reject",
+  "loc": "app/q/[token]/page.tsx:20 and app/api/public/quote/[token]/route.ts:32",
+  "desc": "markViewed is implemented in two places and the page calls it on every render (force-dynamic); the GET API route also calls it. Not a correctness bug (viewedAt uses coalesce so it's set-once), but the GET route is unused by the page — dead/duplicate path that could drift."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Public quote view + accept/reject",
+  "loc": "app/api/public/quote/[token]/route.ts:36-43",
+  "desc": "POST accept/reject is fully public with only the token as auth — no rate limiting and the token is in the URL/email. Anyone with the link can accept/reject (which mutates the linked deal stage). Acceptable for a prototype but worth flagging as a real-world security gap."
+ },
+ {
+  "sev": "high",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Tenant billing summary (plan + usage)",
+  "loc": "app/api/tenant/billing/route.ts:28-35",
+  "desc": "aiUsageTable and membershipsTable are selected with NO .where(eq(tenantId,...)) filter — they rely on RLS to scope rows. But lib/db/tenant-context.ts:24-25 explicitly states RLS is NOT enabled yet ('Until then it's a harmless transaction wrapper'). So aiTokens usage AND member/seat counts aggregate across ALL tenants, inflating the meters. The sendJobTable query in the same handler DOES filter by tenantId, proving the omission is a bug, not intentional. Cross-tenant data leak into the billing UI."
+ },
+ {
+  "sev": "low",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Tenant billing summary (plan + usage)",
+  "loc": "app/api/tenant/billing/route.ts:72-75",
+  "desc": "On any DB error the handler returns {source:'error'} with no other fields; the page's Billing type has no 'source' and reads data?.plan?.name etc. as '—'. The user sees an all-dashes billing card with no error indication — silent failure."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Stripe webhook (subscription sync)",
+  "loc": "app/api/billing/webhook/route.ts:42-69",
+  "desc": "upsertSubscription uses a non-atomic select-then-insert. Stripe can deliver checkout.session.completed and customer.subscription.created near-simultaneously (different event types, parallel retries); both can see no existing row and both INSERT, hitting the subscription_tenant_uq unique index — the second insert throws, the handler returns 500, and Stripe retries (eventually self-heals, but logs errors). Use onConflictDoUpdate (upsert) instead."
+ },
+ {
+  "sev": "low",
+  "cluster": "Quotes/Penawaran & Billing",
+  "feat": "Stripe webhook (subscription sync)",
+  "loc": "app/api/billing/webhook/route.ts:60-67",
+  "desc": "When inserting a brand-new subscription with an unknown planKey, planId falls back to '' (empty string). subscription.planId is notNull but '' satisfies it, leaving an orphan FK-less planId that planTable lookup in /api/tenant/billing won't resolve (plan=null -> UI shows 'Paket —')."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "AI Assistant (chat)",
+  "loc": "components/ai/ai-chat.tsx:139-142,337",
+  "desc": "Source chips + 'segmen X' footer are derived from composeKbReply(lastUserText, kb) on the client, independent of the actual server answer. When source='real' (Deepseek), the displayed 'Sumber' chips and segment label can disagree with the real model's answer content - the chips are heuristic theatre, not the model's actual citations. Misleading in a demo that toggles between Live/Demo."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "AI Assistant (chat)",
+  "loc": "components/ai/ai-chat.tsx:96-99",
+  "desc": "useChat is initialized with messages:[GREETING_MESSAGE] but there is no error surface in the UI. If /api/chat returns a non-2xx (it shouldn't - it always streams a mock fallback), the hook's error is silently swallowed; no toast / retry affordance for the user."
+ },
+ {
+  "sev": "medium",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "Content library + calendar + create",
+  "loc": "components/content/content-create-dialog.tsx:72-87",
+  "desc": "'Pakai template' is labeled with a Wand2/Sparkles 'AI' affordance but is purely a hardcoded string rotation (CONTENT_AI_DRAFTS[type][draftIdx]) with a fake delay. In the AI cluster this is a mock masquerading as generation - and /api/draft-message (a real AI route) already exists and is unused here."
+ },
+ {
+  "sev": "medium",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "Content library + calendar + create",
+  "loc": "lib/stores/content-store.ts:17",
+  "desc": "Content store is NOT persisted (no zustand persist, no /api/db PUT). All created/edited/deleted content is lost on page refresh. Comment even calls it 'In-memory only (build.md hard rule)'. So 'Buat konten' followed by a reload silently discards work - confusing in a real-feeling demo where KB and pipeline DO persist."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "Content library + calendar + create",
+  "loc": "components/content/content-library.tsx:121-124",
+  "desc": "Delete has no confirmation dialog and no undo; a single dropdown click permanently removes the card. Easy to mis-click."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "AI settings: active model + BYOK keys + usage",
+  "loc": "app/(app)/settings/ai/page.tsx:51",
+  "desc": "role = (session?.user?.role ?? 'member'). If the session ever loads without a role (e.g. during initial hydration the first render has session undefined), canManage is false and all management controls are hidden until the query resolves; there's no loading state for the session itself, so controls can briefly disappear/appear. Minor flicker, not broken."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "AI settings: active model + BYOK keys + usage",
+  "loc": "app/api/tenant/ai/route.ts:24-25",
+  "desc": "When !hasDb() the GET returns empty arrays with source:'mock' and HTTP 200. The page has no 'no models configured / DB unavailable' banner - it just shows the usage rollup as zeros and 'Belum ada model' per provider with zero providers, which looks like an empty/broken page rather than a 'not connected' state. DB is connected here so not hit in practice, but the degraded path is mute."
+ },
+ {
+  "sev": "medium",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "Knowledge Base editor (sources/products/pricing/segments/strategy/upsell/retention)",
+  "loc": "lib/stores/kb-store.ts:110-124",
+  "desc": "persistKb() PUTs the ENTIRE KB blob 400ms after the last edit (last-write-wins on a single row). Two superadmins editing concurrently, or a stale tab, will silently clobber each other's KB - no optimistic concurrency / updatedAt check. For a single jsonb blob this is by design but is a real data-loss risk if multi-user."
+ },
+ {
+  "sev": "medium",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "Knowledge Base editor (sources/products/pricing/segments/strategy/upsell/retention)",
+  "loc": "lib/stores/kb-store.ts:114, app/(app)/layout.tsx:51",
+  "desc": "persistKb() early-returns if !hydrated, and hydrate() sets hydrated=true even when the fetch returns no data / errors (kb-store.ts:147-152). If the very first GET /api/db/kb fails transiently, hydrated flips true with the in-memory SEED clone, and the next edit PUTs that seed blob over whatever was actually in the DB - effectively resetting the tenant KB to seed on a flaky first load. No 'failed to load, retry' guard."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "Knowledge Base editor (sources/products/pricing/segments/strategy/upsell/retention)",
+  "loc": "app/(app)/settings/knowledge-base/page.tsx:106-108,formatRelativeID(kb.lastUpdated)",
+  "desc": "There is no visible save indicator anywhere on the page. Edits persist silently via the debounced PUT; the only feedback is the 'Pembaruan terakhir' badge which reflects the in-memory stamp (set on every edit), not confirmation the PUT actually succeeded. A failed PUT (.catch only console.errors, kb-store.ts:122) is invisible to the user."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "KB AI Test panel (RAG playground)",
+  "loc": "components/kb/ai-test-panel.tsx:299-313",
+  "desc": "liveSources maps the server's returned source TITLES back to kb.sources by exact title string match; titles that aren't real KB sources (e.g. heuristic 'Segmen UMKM') become synthetic 'doc' rows. So the 'Sumber yang dipakai - Advanced RAG' list can show fabricated doc entries that don't correspond to any indexed source. Cosmetic but overstates RAG grounding."
+ },
+ {
+  "sev": "low",
+  "cluster": "AI, Content & Knowledge Base",
+  "feat": "KB AI Test panel (RAG playground)",
+  "loc": "app/api/kb-test/route.ts:85",
+  "desc": "sources are computed by retrieveSources(prompt, kb) regardless of whether the answer came from the real model or mock; the model isn't actually told to cite these, so for source:'real' the chips are heuristic, not the model's real citations (same class of issue as the chat panel)."
+ },
+ {
+  "sev": "high",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Autopilot (one-button AI pipeline run)",
+  "loc": "lib/autopilot/orchestrator.ts:58-77 vs app/(app)/autopilot/page.tsx:35-51 / components/autopilot/audience-picker.tsx:25-37",
+  "desc": "Two DIFFERENT segment classifiers. The page/AudiencePicker classify() buckets by the FIRST number found in companySize (n>=250 Korporat, n>=50 Menengah), while the orchestrator's segmentFromCompanySize() buckets by the parsed UPPER bound of a range (<=10 UMKM, <=200 Menengah, else Korporat). For a band like '51-200' the picker says 'Menengah' but the orchestrator also says 'Menengah' — but for '11-50' the picker says UMKM (n=11) while orchestrator says Menengah (upper=50). The 'Y prospek cocok' estimate shown in the hero and AudiencePicker can therefore differ from what the run actually selects, producing 'X prospek terpilih' != the estimate. Also the city filter differs: picker uses city.includes(substring) (page.tsx:88, audience-picker.tsx:56) while orchestrator uses exact equality city===wantedCity (orchestrator.ts:94), so a partial city match estimates >0 but selects 0 -> run fails with 'Tidak ada prospek yang cocok'."
+ },
+ {
+  "sev": "low",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Autopilot (one-button AI pipeline run)",
+  "loc": "app/api/autopilot/text/route.ts:20-26,322-328",
+  "desc": "Comment/contract says 'Deepseek called directly (not via Vercel AI Gateway)' (CLAUDE.md), but the legacy fallback path here uses generateText from 'ai' with GATEWAY_MODEL_FAST resolved via the Vercel AI Gateway (AI_GATEWAY_API_KEY/VERCEL_OIDC_TOKEN). In practice the metered registry path (meteredGenerateText) runs first when logged-in + hasDb, so this branch is dead unless a tenant has no active model; harmless but inconsistent with the documented provider story."
+ },
+ {
+  "sev": "low",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Autopilot (one-button AI pipeline run)",
+  "loc": "lib/stores/autopilot-store.ts:54-61",
+  "desc": "persistRun() is fire-and-forget; a failed PUT (route returns {ok:false} for no-tenant/no-db, or 500) is only console.error'd. The user gets no feedback that a run failed to persist, so after reload the run silently vanishes from history. Acceptable for a demo but it's a silent data-loss path."
+ },
+ {
+  "sev": "low",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Field — live rep map",
+  "loc": "app/(app)/field/page.tsx:34-37,121",
+  "desc": "When tab==='live', list filters to status==='kunjungan'. If a selectedId rep then drops out of the filtered list (e.g. status changes / tab toggled), FieldMap receives reps=list without the selected rep but selectedId still set, so the selected rep's footer detail (page.tsx:104) can show a rep that's no longer pinned on the map — minor desync. Not a crash."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Field — visit log",
+  "loc": "app/(app)/field/visits/page.tsx:67-68",
+  "desc": "const o = OUTCOME[v.outcome]; const Icon = o.icon; — if a visit row has an outcome value not in the OUTCOME map (only 'berhasil'|'tindak-lanjut'|'tidak-ada' are defined), o is undefined and o.icon throws -> the whole row map crashes the page (no per-row guard, no error boundary on this page). Depends entirely on visits.json staying in sync with the three keys; any drift = runtime crash."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Retention — flows dashboard",
+  "loc": "lib/stores/retention-store.ts:54-171",
+  "desc": "Store uses persist() to localStorage, but CLAUDE.md / build.md hard rule for this codebase is 'no localStorage' (see autopilot-store.ts:2 comment). Retention state therefore survives across sessions while every other feature (autopilot, prospecting) is in-memory — inconsistent persistence model. Worse: persisted seed snapshot will NOT pick up future seed changes (a stale 'maira-retention-v1' blob shadows new seedFlows after a redeploy), so users can see outdated flows/KPIs with no cache-bust/version migration."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Retention — flow detail/editor",
+  "loc": "app/(app)/retention/[flowId]/page.tsx:46-70",
+  "desc": "Because the store is persist()'d to localStorage but seeded synchronously, on first paint after a fresh load the store value is read before persist rehydration completes in some cases (zustand persist hydrates async). flow can be undefined for one render and show the 'Alur tidak ditemukan' state momentarily/flash for a valid seeded id like rf_repeat_30d, especially on direct navigation/refresh. Not a hard crash but a confusing flash-of-not-found."
+ },
+ {
+  "sev": "low",
+  "cluster": "Autopilot, Prospecting, Field & Retention",
+  "feat": "Retention — flow detail/editor",
+  "loc": "app/(app)/retention/[flowId]/page.tsx:103-110",
+  "desc": "onSave uses flow! non-null assertion; safe given the earlier guard, but updates name/description/triggerCondition only — segmentTarget edited via AudienceFilter is a separate code path; there is no single 'dirty' indicator, so a user who edits the name then navigates away without Save loses the draft silently (nameDraft is local state, not persisted until Save)."
+ },
+ {
+  "sev": "low",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Workspaces (list + create)",
+  "loc": "app/api/workspaces/route.ts:24,57",
+  "desc": "When hasDb() is false OR the try/catch errors, GET returns { data: [], products: [] } with source 'mock'/'error' and HTTP 200 (not an error status). The page's q.isError branch never fires, so the user sees the friendly 'Belum ada workspace' empty state instead of a DB-problem message. Misleading but not crash-y; the 403-from-RBAC path is the only real error the UI surfaces."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Workspace hub (detail + archive)",
+  "loc": "app/(app)/workspaces/[id]/page.tsx:92-103",
+  "desc": "Stale/incorrect comment: 'The target pages don't consume the param yet (this just threads the context through).' In reality the targets DO consume ?workspace= — confirmed in app/(app)/cadences/page.tsx:93 (useSearchParams().get('workspace') filters cadences), and contacts/profiles, contacts, pipeline, contacts/discovery all read it. Not a runtime bug but actively misleading for maintainers; the threading works."
+ },
+ {
+  "sev": "low",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Workspace hub (detail + archive)",
+  "loc": "app/api/workspaces/[id]/route.ts:52",
+  "desc": "GET catch-block returns { data: null, source: 'error' } with HTTP 200. The page treats a successful response with data:null as a loaded-but-empty state (q.isLoading || !ws shows skeletons forever, since !ws stays true and isLoading is false). A genuine DB error therefore leaves the page stuck on skeletons rather than showing the not-found EmptyState (which only triggers on the explicit 404 -> throw path)."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Dashboard",
+  "loc": "app/(app)/dashboard/page.tsx:122-123",
+  "desc": "kpi.closing uses +new Date(d.expectedClose) where expectedClose can be null (schema dealsTable.expectedClose is nullable text). new Date(null) -> epoch 0, and +new Date(undefined) -> NaN; the <= WEEK_AHEAD comparison with NaN is false (safe) but a null expectedClose silently coerces to 1970 and would count as 'closing this week'. Mock seed currently always sets it, so it doesn't bite today, but it's fragile against real/empty DB data."
+ },
+ {
+  "sev": "low",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Dashboard",
+  "loc": "app/(app)/dashboard/page.tsx:92,446-470",
+  "desc": "Completed tasks (done Set) and the success flash are component-local state with no persistence and no mutation endpoint. Checking a task off does nothing server-side and resets on navigation/reload — the 'X tersisa' counter is purely cosmetic."
+ },
+ {
+  "sev": "low",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Reports & Analytics",
+  "loc": "app/(app)/reports/page.tsx:486-492",
+  "desc": "deriveQuality stagnant count uses Math.max(stale, Math.min(8, hashStr(...) % 14)) — it injects a fabricated minimum of stagnant deals so the demo 'always has something to triage'. The 'Deal stagnan > 30 hari' figure is therefore partly synthetic, not a true count; combined with the 'Data live' badge it overstates data fidelity."
+ },
+ {
+  "sev": "low",
+  "cluster": "Workspaces, Dashboard, Reports & Docs",
+  "feat": "Reports & Analytics",
+  "loc": "app/(app)/reports/page.tsx:639,649,659,669",
+  "desc": "Sales KPI deltas are hardcoded strings ('+18,2%', '+4 deal', '+2,1 pp', '-3 hari') regardless of the actual derived numbers, while the 'Data live'/'Diperbarui …' badge implies all figures are live. The headline values are derived but the trend deltas are static fiction."
+ },
+ {
+  "sev": "high",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Team & Access / RBAC (Tim & Akses)",
+  "loc": "app/api/tenant/members/route.ts:24",
+  "desc": "GET selects ALL memberships with no tenant WHERE clause (tx.select().from(membershipsTable)), relying on RLS which is explicitly DISABLED (lib/db/tenant-context.ts:23-25 'RLS is not enabled... harmless transaction wrapper'). Harmless with one tenant today, but the moment a second tenant exists this leaks/mixes other tenants' members into the UI. PATCH/DELETE by id are similarly tenant-blind (members/[id] route lines 24-25, 42) — a manager could mutate another tenant's membership by id."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Team & Access / RBAC (Tim & Akses)",
+  "loc": "app/api/tenant/members/[id]/route.ts:41-44",
+  "desc": "Member removal is a hard DELETE of the membership row with no restore path and no confirm dialog on the UI (Trash2 button calls removeMember.mutate(m.id) directly, app/(app)/settings/team/page.tsx:256). One mis-click permanently removes a member; contrast with the DSAR delete which at least uses confirm()."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Team & Access / RBAC (Tim & Akses)",
+  "loc": "app/api/tenant/members/route.ts:31-42",
+  "desc": "Display name/email/avatarColor are resolved from the hardcoded DEMO_ACCOUNTS list, NOT from usersTable (which is populated and joined correctly in lib/team/members.ts). Any real (non-demo) user shows name===userId and email===null. The team monitoring route already does the correct usersTable join; this route should too."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Sales Monitoring (Monitoring Sales)",
+  "loc": "app/api/team/monitoring/route.ts:50-67",
+  "desc": "Deal attribution joins deals to a rep by lowercased free-text deals.owner === member.name. This is fragile name-matching (any owner string that isn't an exact member full name silently attributes to nobody). Live DB has deals=0 so EVERY rep currently shows 0 deals/0 closing/Rp— regardless; the closings columns are effectively dead until deals exist AND owner strings exactly equal member names."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Sales Monitoring (Monitoring Sales)",
+  "loc": "app/(app)/team/page.tsx:49",
+  "desc": "All non-OK statuses (incl. real 500/'error' source) map to the same 'Khusus manajer' EmptyState because the query throws on any non-403 too and retry:false. A genuine server error is indistinguishable from a permission denial to the user."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Compliance / GRC (Kepatuhan UU PDP)",
+  "loc": "app/(app)/settings/compliance/page.tsx:79-98",
+  "desc": "Compliance score 94/100, the 3-row delete queue, the 6-row audit trail, and the 3 'generated reports' are all hardcoded constants presented as if real GRC data. The audit trail here is fabricated and unrelated to the real auditLogTable shown on the DSAR page — two different audit truths."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Compliance / GRC (Kepatuhan UU PDP)",
+  "loc": "app/(app)/settings/compliance/page.tsx:186",
+  "desc": "MiniStat 'Permintaan hapus' is hardcoded '3' while the Ringkasan 'Antrean hak hapus data' card also hardcodes 3 rows; neither reflects real pool_optout/suppression counts (live pool_optout=0)."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "DSAR & Audit (live)",
+  "loc": "app/(app)/settings/compliance/dsar/page.tsx:48-63",
+  "desc": "The shared call() helper invalidates the audit query inside finally{} on EVERY op including dsar-export. Export builds a download but also triggers an audit refetch; minor, but more importantly the finally runs qc.invalidateQueries unconditionally even when the request 500s, and busy is reset before the await of invalidate settles — no functional break, but the 'busy' flag and audit refresh are loosely coupled."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "DSAR & Audit (live)",
+  "loc": "app/api/tenant/compliance/route.ts:33-40",
+  "desc": "dsar-delete is irreversible hard delete across person/contact_point/contacts with only a client-side confirm() (page line 83) and no audit of WHAT was deleted beyond counts. Acceptable for UU-PDP erasure, but there is no dry-run/preview of how many rows will be erased before committing."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "DSAR & Audit (live)",
+  "loc": "lib/compliance/dsar.ts:31",
+  "desc": "Legacy contacts match uses sql lower(email)=e but contact_point match (line 18) uses exact eq on value (no lower()), so a contact_point stored with mixed-case email won't be found/erased while the legacy contact would — inconsistent normalization between the two code paths."
+ },
+ {
+  "sev": "high",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "AI Handoff settings (Alihkan ke Manusia)",
+  "loc": "lib/stores/handoff-store.ts:2-3",
+  "desc": "All handoff configuration is in-memory Zustand with no persistence and no API. Every change (threshold, timeout, topics, auto-reply master switch) is silently lost on page reload/navigation. There is no save action and no /api/...handoff route, so this 'settings' page cannot actually configure anything durable — it only updates local component state for the session."
+ },
+ {
+  "sev": "medium",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "AI Handoff settings (Alihkan ke Manusia)",
+  "loc": "app/(app)/settings/handoff/page.tsx:342-373",
+  "desc": "'Eskalasi terbaru' is hardcoded mock handoffEvents; the conversation links /inbox/<conversationId> use fixture ids that may not correspond to any real conversation, producing dead/404-ish links."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "System Diagnostics (Status sistem / Tes API & AI)",
+  "loc": "app/(app)/settings/diagnostics/page.tsx:46",
+  "desc": "Imports seedKnowledgeBase from lib/api-mock/kb and ships it as the kbSnapshot in every probe payload; harmless for a diagnostics tool but couples this superadmin page to a mock module and inflates the bundle."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "System Diagnostics (Status sistem / Tes API & AI)",
+  "loc": "app/api/diagnostics/route.ts:36-39",
+  "desc": "db.credentialPresent + detectedKeys only report presence of a connection string (hasDb), not an actual successful query/round-trip. A configured-but-unreachable DB would still show 'Terhubung'. A real SELECT 1 probe would be more honest."
+ },
+ {
+  "sev": "low",
+  "cluster": "Settings, Team, Compliance & Admin",
+  "feat": "Admin platform routes (users / entitlements / deployment-mode / wa-mode)",
+  "loc": "app/api/admin/users/password/route.ts:12",
+  "desc": "Password reset is gated by tenant.members.manage (not platform.manage), and lib/admin/users.setUserPassword updates usersTable by id with raw db (no tenant scope) — the in-route isMemberOfTenant check (line 24-27) is what enforces tenant boundary for non-superadmins. Correct, but the guard logic lives in the handler rather than the lib, so any future caller of setUserPassword bypasses the tenant check."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Extension - Rep account (token + LinkedIn/IG + heartbeat banner)",
+  "loc": "app/(app)/settings/extension/page.tsx:79-87",
+  "desc": "repQ.queryFn returns null on !r.ok (e.g. 401 no session) instead of throwing, so the query never enters an error state — the page silently shows 'Belum terhubung' + empty token with no error feedback when auth fails. A logged-out/expired user sees a broken-looking but non-erroring page."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Extension - Rep account (token + LinkedIn/IG + heartbeat banner)",
+  "loc": "app/api/extension/status/route.ts:17",
+  "desc": "Dead endpoint relative to this page: /api/extension/status is guarded by tenant.settings.manage (admins only) and is NOT called by the extension page at all (the page uses /api/rep/account, guarded by data.read). The tenant-level extensionConnection status path is effectively orphaned for the per-rep UI."
+ },
+ {
+  "sev": "medium",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Extension - WhatsApp connect by QR (WaConnectCard)",
+  "loc": "app/api/wa/session/route.ts:36-39 + components/wa/wa-connect-card.tsx:59,103-107",
+  "desc": "Dead-end when no gateway is configured: POST sets status='pending' and the button becomes disabled ('Menyiapkan…') indefinitely because nothing ever moves the session off 'pending' without an external VPS gateway. There is no timeout/error and no DB-side check of WA_GATEWAY_TOKEN, so a demo user clicks Hubungkan and is stuck on a permanent spinner with no explanation beyond the small footer hint."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Extension - WhatsApp connect by QR (WaConnectCard)",
+  "loc": "app/(app)/settings/extension/page.tsx:285",
+  "desc": "Two unrelated WhatsApp systems coexist: this page's WaConnectCard uses the QR/gateway path (wa_session/wa_outbox), while the Mailboxes page's WhatsAppCard uses WAHA (/api/wa/status, /api/wa/send). They share no state — a number linked by QR here will NOT make the WAHA card on the mailboxes page show 'WORKING'. Confusing and likely a bug-by-design overlap."
+ },
+ {
+  "sev": "medium",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Extension - Download + install instructions + config to paste",
+  "loc": "app/(app)/settings/extension/page.tsx:230,238",
+  "desc": "Download links point to /maira-extension.zip and /maira-userscript.user.js in public/. If these asset files are not actually present in public/, both download cards 404 — a dead-end for the primary CTA of the page. (Could not confirm asset presence in this audit; flag to verify the files ship.)"
+ },
+ {
+  "sev": "medium",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Mailboxes - list + connect (SMTP / OAuth Gmail-Outlook / platform ESP)",
+  "loc": "app/api/tenant/mailboxes/route.ts:103-105 + app/(app)/settings/mailboxes/page.tsx:189",
+  "desc": "Hard delete with no confirmation and no soft-delete: clicking the trash icon immediately drops the sending_account row (no AlertDialog, no undo). sending_account has a 'status' column (active/...) that could support archive, but DELETE physically removes the row. send_job rows reference sendingAccountId; deleting the mailbox orphans historical/pending sends (processSendJobs then fails them with 'no sending account')."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Mailboxes - list + connect (SMTP / OAuth Gmail-Outlook / platform ESP)",
+  "loc": "app/(app)/settings/mailboxes/page.tsx:188-192",
+  "desc": "removeMbx mutation has onSuccess toast but no onError handler — a failed delete (e.g. 403/500) is completely silent to the user."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Mailboxes - test send + send history",
+  "loc": "app/(app)/settings/mailboxes/page.tsx:152-154",
+  "desc": "send mutation throws a bare Error() on !r.ok || !j.ok, discarding the server's error string (route returns {error} on 400/500). User only ever sees the generic 'Gagal mengirim' toast — e.g. a 400 'Missing fields' or a 500 SMTP auth failure is not surfaced, hurting debuggability of the demo's real-SMTP path."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Mailboxes - WhatsApp via WAHA (WhatsAppCard)",
+  "loc": "app/(app)/settings/mailboxes/page.tsx:318-319,348",
+  "desc": "WhatsAppCard component is referenced at line 319 and defined at line 352 in the same module (function hoisting makes this legal), but it is only rendered when canManage — members (Sales Rep role) still HAVE mailbox.connect so they see it; however per-rep WA QR linking actually lives on the Extension page via a different system. Two WA entry points in one cluster with no cross-link is confusing (same finding as extension WA bug)."
+ },
+ {
+  "sev": "low",
+  "cluster": "WhatsApp, Mailboxes & Extension",
+  "feat": "Mailboxes - WhatsApp via WAHA (WhatsAppCard)",
+  "loc": "lib/wa/waha.ts:69",
+  "desc": "wahaStatus GET to WAHA has no timeout; if WAHA_BASE_URL is set but the server is unreachable, the status query hangs until the platform fetch default timeout, leaving the card's badge unresolved (caught and returned as {error} eventually, but slow)."
+ }
+]

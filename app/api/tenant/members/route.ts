@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -21,11 +21,11 @@ export async function GET() {
   if (!hasDb()) return NextResponse.json({ members: [], invites: [], source: "mock" });
   try {
     const data = await withTenant(ctx, async (tx) => {
-      const members = await tx.select().from(membershipsTable);
+      const members = await tx.select().from(membershipsTable).where(eq(membershipsTable.tenantId, ctx.tenantId));
       const invites = await tx
         .select()
         .from(invitesTable)
-        .where(eq(invitesTable.status, "pending"));
+        .where(and(eq(invitesTable.tenantId, ctx.tenantId), eq(invitesTable.status, "pending")));
       return { members, invites };
     });
     const members = data.members.map((m) => {
