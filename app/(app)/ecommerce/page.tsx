@@ -48,6 +48,8 @@ const CONNECTED: Record<Marketplace, boolean> = {
 export default function EcommercePage() {
   const { data: orders, isLoading } = useOrders();
   const [recover, setRecover] = useState<Order | null>(null);
+  const [connState, setConnState] = useState(CONNECTED);
+  const [recovered, setRecovered] = useState<Set<string>>(new Set());
 
   const stats = useMemo(() => {
     const out: Record<string, { count: number; revenue: number }> = {};
@@ -72,7 +74,7 @@ export default function EcommercePage() {
           {(Object.keys(MARKETPLACES) as Marketplace[]).map((mp) => {
             const meta = MARKETPLACES[mp];
             const Icon = meta.icon;
-            const connected = CONNECTED[mp];
+            const connected = connState[mp];
             return (
               <Card key={mp}>
                 <CardContent className="p-5">
@@ -95,7 +97,10 @@ export default function EcommercePage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => toast.success(`Menghubungkan ${meta.label}...`)}
+                        onClick={() => {
+                          setConnState((s) => ({ ...s, [mp]: true }));
+                          toast.success(`${meta.label} terhubung.`);
+                        }}
                       >
                         <Plug className="h-3.5 w-3.5" />
                         Hubungkan
@@ -184,7 +189,7 @@ export default function EcommercePage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {o.abandoned && (
+                        {o.abandoned && !recovered.has(o.id) ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -193,10 +198,21 @@ export default function EcommercePage() {
                             <ShoppingCart className="h-3.5 w-3.5" />
                             Pulihkan
                           </Button>
-                        )}
+                        ) : o.abandoned ? (
+                          <Badge variant="success" className="gap-1">
+                            <Check className="h-3 w-3" /> Dipulihkan
+                          </Badge>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}
+              {!isLoading && (orders ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                    Belum ada pesanan.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </Card>
@@ -225,9 +241,9 @@ export default function EcommercePage() {
               Batal
             </Button>
             <Button
-              style={{ backgroundColor: "#25D366" }}
-              className="text-white hover:opacity-90"
+              className="bg-channel-wa text-white hover:opacity-90"
               onClick={() => {
+                if (recover) setRecovered((s) => new Set(s).add(recover.id));
                 toast.success(`Pesan pemulihan dikirim ke ${recover?.customer}.`);
                 setRecover(null);
               }}

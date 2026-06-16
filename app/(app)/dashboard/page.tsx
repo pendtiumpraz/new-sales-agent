@@ -310,10 +310,6 @@ export default function DashboardPage() {
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <TrendingUp className="h-5 w-5" />
                 </span>
-                <Badge variant="success" className="gap-1">
-                  <ArrowUpRight className="h-3 w-3" />
-                  +{kpi.pipelineChange}%
-                </Badge>
               </div>
               <p className="mt-5 text-sm text-muted-foreground">
                 Nilai Pipeline{!isAll ? ` · ${activeLabel}` : ""}

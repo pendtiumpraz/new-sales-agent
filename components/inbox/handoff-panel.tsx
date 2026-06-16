@@ -143,7 +143,7 @@ export function HandoffPanel({ conversationId }: { conversationId: string }) {
           Pemicu aktif
         </p>
         {activeTriggers.length === 0 ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
+          <div className="rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success">
             Tidak ada pemicu aktif — AI lanjut menangani.
           </div>
         ) : (
@@ -154,14 +154,14 @@ export function HandoffPanel({ conversationId }: { conversationId: string }) {
               return (
                 <li
                   key={t}
-                  className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-2"
+                  className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2"
                 >
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-rose-700">
+                    <p className="text-xs font-semibold text-danger">
                       {meta.label}
                     </p>
-                    <p className="text-[11px] text-rose-700/80">{meta.desc}</p>
+                    <p className="text-[11px] text-danger/80">{meta.desc}</p>
                   </div>
                 </li>
               );

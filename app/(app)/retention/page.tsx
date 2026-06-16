@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Gauge,
   HeartHandshake,
-  Plus,
   Repeat2,
   Sparkles,
   Users,
@@ -62,8 +61,8 @@ export default function RetentionPage() {
           className="shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)] transition-all hover:-translate-y-px hover:shadow-[0_6px_18px_-4px_rgba(251,94,59,0.7)]"
         >
           <Link href="/retention/rf_repeat_30d">
-            <Plus className="h-4 w-4" />
-            Kelola alur
+            <HeartHandshake className="h-4 w-4" />
+            Buka contoh alur
           </Link>
         </Button>
       </PageHeader>

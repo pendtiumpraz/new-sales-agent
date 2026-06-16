@@ -257,11 +257,10 @@ export default function CadencesPage() {
                       delay: reduce ? 0 : Math.min(i * 0.04, 0.32),
                     }}
                   >
-                    <Link href="/cadences/new" className="block h-full">
+                    <div className="block h-full">
                       <Card
                         className={cn(
                           "group relative h-full overflow-hidden border transition-all duration-200 ease-out",
-                          "hover:-translate-y-1 hover:shadow-[0_12px_28px_-12px_rgba(251,94,59,0.4)] hover:ring-1 hover:ring-primary/20",
                         )}
                         style={
                           {
@@ -366,7 +365,7 @@ export default function CadencesPage() {
                           />
                         </CardContent>
                       </Card>
-                    </Link>
+                    </div>
                   </motion.div>
                 );
               })}

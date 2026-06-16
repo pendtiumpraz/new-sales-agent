@@ -208,9 +208,9 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
 
       {/* Handoff trigger banner */}
       {showHandoffBanner && (
-        <div className="flex items-center gap-2 border-b border-rose-200 bg-rose-50/80 px-4 py-2 text-xs">
-          <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
-          <span className="flex-1 text-rose-700">
+        <div className="flex items-center gap-2 border-b border-danger/30 bg-danger/10/80 px-4 py-2 text-xs">
+          <ShieldAlert className="h-4 w-4 shrink-0 text-danger" />
+          <span className="flex-1 text-danger">
             <strong className="font-semibold">Pemicu handoff aktif:</strong>{" "}
             {activeTriggers
               .map((t) =>
@@ -226,7 +226,7 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
           <Button
             size="sm"
             variant="outline"
-            className="h-7 border-rose-300 bg-white text-rose-700 hover:bg-rose-100"
+            className="h-7 border-rose-300 bg-white text-danger hover:bg-rose-100"
             onClick={() => {
               takeOver(conversationId, "Anda");
             }}
@@ -387,7 +387,7 @@ function ChatBubble({
           )}
         >
           {formatTimeID(m.timestamp)}
-          {out && m.status === "read" && <CheckCheck className="h-3 w-3 text-sky-500" />}
+          {out && m.status === "read" && <CheckCheck className="h-3 w-3 text-info" />}
           {out && m.status && m.status !== "read" && <CheckCheck className="h-3 w-3" />}
         </span>
       </div>
