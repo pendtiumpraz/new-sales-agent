@@ -55,6 +55,8 @@ export const contactsTable = pgTable("contacts", {
   avatarColor: text("avatar_color"),
   tags: jsonb("tags").$type<string[]>().notNull().default([]),
   source: text("source"),
+  emailStatus: text("email_status"),                            // valid | invalid_syntax | invalid_domain | risky | unknown (doc 21)
+  emailCheckedAt: timestamp("email_checked_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
