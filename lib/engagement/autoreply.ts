@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/schema";
 import type { KnowledgeBase } from "@/lib/types/kb";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
@@ -52,7 +53,7 @@ function parseJudgment(text: string): Judgment | null {
     if (!m) return null;
     const j = JSON.parse(m[0]) as Record<string, unknown>;
     return {
-      reply: String(j.reply ?? ""),
+      reply: stripMarkdown(String(j.reply ?? "")), // client message → clean plain text (doc 43)
       confidence: Number(j.confidence ?? 0),
       escalate: Boolean(j.escalate),
       reason: String(j.reason ?? ""),

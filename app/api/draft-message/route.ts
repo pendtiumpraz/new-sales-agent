@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 
 import { hasDb } from "@/lib/db/client";
 import { getTenantContext } from "@/lib/auth/session-context";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { formatIDR } from "@/lib/utils/format-idr";
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
         prompt: buildUserPrompt(body),
         maxOutputTokens: 400,
       });
-      const trimmed = (text ?? "").trim();
+      const trimmed = stripMarkdown(text ?? ""); // draft → clean plain text (doc 43)
       if (trimmed) {
         const payload: DraftMessageResponse = { draft: trimmed, source: "real" };
         return NextResponse.json(payload);

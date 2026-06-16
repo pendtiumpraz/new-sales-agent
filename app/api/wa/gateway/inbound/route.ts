@@ -5,6 +5,8 @@ import { db, hasDb } from "@/lib/db/client";
 import { conversationsTable, messagesTable } from "@/lib/db/schema";
 import { gatewayTokenOk, ownerOfSession, enqueue } from "@/lib/wa/store";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
+import { SAFETY_RULES, wrapUntrusted } from "@/lib/ai/safety";
 import { salutationFor } from "@/lib/profiling/salutation";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
@@ -85,14 +87,18 @@ export async function POST(req: Request) {
           feature: "wa_autoreply",
           system:
             `Kamu sales yang hangat & ber-empati (bukan robot), Bahasa Indonesia, sopan, ringkas. ` +
-            `Sapa dengan "${sal.greeting}". Jangan menyebut dirimu AI. Maksimal 3 kalimat.`,
-          prompt: `Pesan masuk dari ${sal.greeting} via WhatsApp: "${b.body}". Balas dengan hangat & bantu.`,
+            `Sapa dengan "${sal.greeting}". Jangan menyebut dirimu AI. Maksimal 3 kalimat. ` +
+            SAFETY_RULES,
+          prompt:
+            `Balas pesan WhatsApp masuk berikut dengan hangat & membantu (sapa "${sal.greeting}").\n` +
+            wrapUntrusted("pesan_masuk", b.body),
           maxOutputTokens: 220,
         });
         if (text?.trim()) reply = text.trim();
       } catch {
         // no model / suspended → template reply
       }
+      reply = stripMarkdown(reply); // client message must be clean plain text (doc 43)
       await enqueue(owner.tenantId, b.sessionId, "send", { to: b.from, body: reply });
       await db.insert(messagesTable).values({
         id: "msg_" + crypto.randomUUID(),

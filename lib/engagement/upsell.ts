@@ -20,6 +20,7 @@ import {
 } from "@/lib/db/schema";
 import type { KbPricingTier, KbProduct, KnowledgeBase } from "@/lib/types/kb";
 import { meteredGenerateText } from "@/lib/ai/meter";
+import { stripMarkdown } from "@/lib/ai/sanitize";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { createCheckoutLink } from "@/lib/billing/checkout-link";
 import { sendWhatsApp, wahaConfigured } from "@/lib/wa/waha";
@@ -85,7 +86,7 @@ async function composeUpsellMessage(
         `Jangan sertakan URL/link apa pun. Maksimal 4 kalimat, akhiri dengan ajakan checkout.`,
       maxOutputTokens: 300,
     });
-    if (text?.trim()) body = text.trim();
+    if (text?.trim()) body = stripMarkdown(text) || body;
   } catch {
     // no model / suspended → template
   }
