@@ -113,7 +113,8 @@ _Terakhir diperbarui: 2026-06-16_
 - ✅ Step email → `send_job` (worker SMTP yang kirim); channel non-email (wa/linkedin/ig/sms/call) → di-queue + dicatat jujur di tabel baru `cadence_step_run` (integrasi live keblok creds)
 - ✅ API `/api/cadences/process` (GET log + POST jalankan; guard `campaign.manage`) + tombol **"Jalankan sekarang"** di halaman Cadence; migrasi `0006` applied + masuk daftar RLS
 - ✅ Diuji di DB live: cadence 3-step → step 0 (whatsapp) dipersonalisasi model nyata (`aiSource=real`), di-queue, enrollment maju ke step 1 due +2 hari
-- ⛔ **belum (keblok creds/infra):** OAuth Gmail/MS + platform ESP; Inngest worker + cron (gantiin proses inline + auto-jalan terjadwal); deliverability (SPF/DKIM/warmup/bounce webhook); pengiriman live channel non-email
+- ✅ **Inngest scaffold (doc 31)** — `lib/inngest/` + `/api/inngest` (serve): `cadence-cron` (*/15m) + `send-queue-cron` (*/5m) fan-out per tenant aktif (reuse `processCadences`/`processSendJobs`) + `cadence-on-demand` (event). Dev jalan keyless (mode dev, 3 function ke-register, 200); produksi **tinggal isi `INNGEST_SIGNING_KEY`+`INNGEST_EVENT_KEY`**
+- ⛔ **belum (keblok creds):** OAuth Gmail/MS + platform ESP; deliverability (SPF/DKIM/warmup/bounce webhook); pengiriman live channel non-email
 
 ### Fase 6 — Chrome extension RPA 🟡
 **Slice 1 (extension scaffold + token-ingest seam) — selesai:**
@@ -142,7 +143,10 @@ _Terakhir diperbarui: 2026-06-16_
 - ✅ Kill-switch ditegakkan: `isTenantActive` dicek di `meteredGenerateText` + `processSendJobs` (suspended → AI & kirim diblok)
 - ✅ Diuji: overview (t_default Growth, 4 member), suspend → send worker `suspended:true`, activate restore, rep **403**, `/admin` 200
 - ✅ Tenant billing page `/settings/billing` (paket + usage vs kuota: token AI / email / kursi)
-- ⬜ Ditunda: usage→invoice + Stripe; structured logging/metrics/alert; observability dashboard
+
+**Slice 2 — sebagian (scaffold):**
+- ✅ **Stripe scaffold (doc 30)** — inert-but-wired: `lib/billing/stripe.ts` (client null-safe + plan→Price env map), `/api/billing/checkout` (hosted Checkout, guard `tenant.billing`) + `/webhook` (raw-body signature verify → sync `subscription`) + `/portal`; billing page dapat tombol upgrade per-plan + portal (atau hint setup); migrasi `0007` (`subscription.stripe_customer_id`/`stripe_subscription_id`) applied. **Tinggal isi `STRIPE_*` di `.env.local`** → aktif tanpa ubah kode. Diuji: webhook 503 (null-safe), checkout 401 (guarded), billing GET 200
+- ⬜ Ditunda (butuh key): live checkout/invoice end-to-end; structured logging/metrics/alert; observability dashboard
 
 ## Keputusan arsitektur (terkunci)
 - Isolasi tenant: shared DB + Postgres RLS (`tenant_id`)
@@ -157,7 +161,7 @@ _Terakhir diperbarui: 2026-06-16_
 - **Platform fleksibel**: mesin audience-intelligence + outreach umum dengan **playbook** per use-case (sales domestik/luar negeri, recruiting, sebar lowongan, event, partnership, dll); fondasi sama, playbook = layer config — [doc 29](./29-use-cases-and-flexibility.md)
 
 ## Keputusan terbuka (perlu diputuskan)
-- ⬜ Billing provider (asumsi Stripe)
+- ✅ Billing provider → **Stripe** (scaffold terpasang, doc 30)
 - ⬜ ID model AI + harga aktual (isi saat seed Fase 3, dari docs resmi provider)
 
 ## Cara update dokumen ini
