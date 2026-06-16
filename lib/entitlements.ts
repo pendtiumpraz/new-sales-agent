@@ -18,6 +18,7 @@ export const MODULES: ModuleDef[] = [
   { key: "/workspaces", label: "Workspace" },
   { key: "/pipeline", label: "Riset Prospek" },
   { key: "/marketplace", label: "Marketplace" },
+  { key: "/inbox", label: "Inbox" },
   { key: "/cadences", label: "Cadence" },
   { key: "/escalations", label: "Eskalasi AI" },
   { key: "/content", label: "Konten" },

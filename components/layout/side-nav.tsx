@@ -11,6 +11,7 @@ import {
   Briefcase,
   Database,
   Heart,
+  Inbox,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -93,6 +94,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Jangkau & Otomasi AI",
     items: [
+      { href: "/inbox", icon: Inbox, label: "Inbox", desc: "Percakapan omni-channel (WA, email, LinkedIn, IG)" },
       { href: "/cadences", icon: Workflow, label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
       { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
       { href: "/content", icon: Megaphone, label: "Konten", desc: "Buat & rencanakan konten" },
