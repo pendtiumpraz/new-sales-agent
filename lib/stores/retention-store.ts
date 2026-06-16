@@ -7,6 +7,7 @@ import {
   seedKpi,
 } from "@/lib/api-mock/retention";
 import type {
+  RetentionAudienceFilter,
   RetentionCandidate,
   RetentionFlow,
   RetentionKpi,
@@ -18,6 +19,8 @@ interface RetentionState {
   flows: RetentionFlow[];
   candidates: RetentionCandidate[];
   kpi: RetentionKpi;
+  /** Per-flow audience filter, keyed by flowId (persisted). */
+  audienceFilters: Record<string, RetentionAudienceFilter>;
 
   // Flow-level
   toggleStatus: (id: string) => void;
@@ -40,6 +43,9 @@ interface RetentionState {
   // Candidates
   enrollCandidate: (contactId: string) => void;
 
+  // Audience
+  setAudienceFilter: (flowId: string, filter: RetentionAudienceFilter) => void;
+
   reset: () => void;
 }
 
@@ -51,6 +57,7 @@ export const useRetentionStore = create<RetentionState>()(
   flows: seedFlows.map((f) => ({ ...f, steps: f.steps.map((s) => ({ ...s })) })),
   candidates: seedCandidates.map((c) => ({ ...c })),
   kpi: { ...seedKpi },
+  audienceFilters: {},
 
   toggleStatus: (id) =>
     set((s) => ({
@@ -134,6 +141,11 @@ export const useRetentionStore = create<RetentionState>()(
       }),
     })),
 
+  setAudienceFilter: (flowId, filter) =>
+    set((s) => ({
+      audienceFilters: { ...s.audienceFilters, [flowId]: filter },
+    })),
+
   reset: () =>
     set(() => ({
       flows: seedFlows.map((f) => ({
@@ -142,12 +154,18 @@ export const useRetentionStore = create<RetentionState>()(
       })),
       candidates: seedCandidates.map((c) => ({ ...c })),
       kpi: { ...seedKpi },
+      audienceFilters: {},
     })),
     }),
     {
       name: "maira-retention-v1",
       // only persist data, not the action fns
-      partialize: (s) => ({ flows: s.flows, candidates: s.candidates, kpi: s.kpi }),
+      partialize: (s) => ({
+        flows: s.flows,
+        candidates: s.candidates,
+        kpi: s.kpi,
+        audienceFilters: s.audienceFilters,
+      }),
     },
   ),
 );

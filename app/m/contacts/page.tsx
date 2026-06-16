@@ -7,7 +7,15 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/lib/api-mock/hooks";
-import { toast } from "sonner";
+
+/** Digits only, no leading + — required by wa.me (e.g. "+62 841-..." -> "62841..."). */
+function waNumber(phone: string) {
+  return phone.replace(/\D/g, "");
+}
+/** E.164-ish for tel: — keep a single leading +, drop spaces/dashes. */
+function telNumber(phone: string) {
+  return phone.replace(/[^\d+]/g, "");
+}
 
 export default function MobileContactsPage() {
   const { data: contacts, isLoading } = useContacts();
@@ -51,19 +59,23 @@ export default function MobileContactsPage() {
                   <p className="truncate text-sm font-medium">{c.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{c.company}</p>
                 </div>
-                <button
-                  onClick={() => toast.success(`Memanggil ${c.name}...`)}
+                <a
+                  href={`tel:${telNumber(c.phone)}`}
+                  aria-label={`Telepon ${c.name}`}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-muted-foreground"
                 >
                   <Phone className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => toast.success(`Membuka WhatsApp ke ${c.name}...`)}
+                </a>
+                <a
+                  href={`https://wa.me/${waNumber(c.phone)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`WhatsApp ${c.name}`}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-white"
                   style={{ backgroundColor: "#25D366" }}
                 >
                   <MessageCircle className="h-4 w-4" />
-                </button>
+                </a>
               </li>
             ))}
       </ul>

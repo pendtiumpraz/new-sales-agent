@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { BookOpen, RefreshCw, Sparkles } from "lucide-react";
+import { useMemo } from "react";
+import { BookOpen, Sparkles } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { sampleAiMessage } from "@/lib/api-mock/retention";
 import type { RetentionFlow } from "@/lib/types/retention";
@@ -27,26 +26,15 @@ export function AiSimulatePanel({
   flow: RetentionFlow;
   stepId: string | null;
 }) {
-  const [generating, setGenerating] = useState(false);
-  const [tick, setTick] = useState(0);
   const step = useMemo(
     () => flow.steps.find((s) => s.id === stepId) ?? flow.steps[0],
     [flow, stepId],
   );
 
-  const rendered = useMemo(() => {
-    // tick exists to let "regenerate" subtly vary the sample for demo polish.
-    void tick;
-    return step ? sampleAiMessage(flow, step) : "";
-  }, [flow, step, tick]);
-
-  function regenerate() {
-    setGenerating(true);
-    setTimeout(() => {
-      setTick((n) => n + 1);
-      setGenerating(false);
-    }, 600);
-  }
+  const rendered = useMemo(
+    () => (step ? sampleAiMessage(flow, step) : ""),
+    [flow, step],
+  );
 
   return (
     <Card className="border-primary/15">
@@ -62,20 +50,10 @@ export function AiSimulatePanel({
             Disusun AI berbasis Basis Pengetahuan klien.
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={regenerate}
-          disabled={generating}
-          className="text-primary hover:bg-primary/10 hover:text-primary"
-        >
-          <RefreshCw
-            className={
-              generating ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-            }
-          />
-          Buat ulang
-        </Button>
+        <Badge variant="muted" className="gap-1">
+          <Sparkles className="h-3 w-3" />
+          Pratinjau statis
+        </Badge>
       </CardHeader>
       <CardContent className="space-y-3 pt-4">
         {/* KB context chips */}
@@ -128,22 +106,7 @@ export function AiSimulatePanel({
 
         {/* Rendered message */}
         <div className="min-h-[160px] whitespace-pre-line rounded-lg border border-primary/15 bg-gradient-to-br from-primary/[0.04] to-card p-4 text-sm leading-relaxed">
-          {generating ? (
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <span className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </span>
-              Menyusun pesan dari Basis Pengetahuan...
-            </span>
-          ) : (
-            rendered || "Tidak ada langkah untuk disimulasikan."
-          )}
+          {rendered || "Tidak ada langkah untuk disimulasikan."}
         </div>
       </CardContent>
     </Card>

@@ -4,6 +4,7 @@
 
 import { contacts as seedContacts } from "@/lib/api-mock/data";
 import type {
+  RetentionAudienceFilter,
   RetentionCandidate,
   RetentionFlow,
   RetentionKpi,
@@ -284,6 +285,23 @@ export function sampleAiMessage(flow: RetentionFlow, step?: RetentionStep): stri
     .replaceAll("{{perusahaan}}", "PT Sinar Mas")
     .replaceAll("{{produk}}", "Paket Starter");
   return body;
+}
+
+/**
+ * Real audience estimate for a flow's filter, computed from the candidate
+ * pool (read-only). Only the day-since-interaction range has backing data on
+ * candidates, so that's what narrows the count; segment/tags are preview-only
+ * (no per-candidate segment/tag field in the demo dataset).
+ */
+export function estimateAudience(
+  candidates: RetentionCandidate[],
+  filter?: RetentionAudienceFilter,
+): number {
+  const min = filter?.minDaysSinceInteraction ?? 0;
+  const max = filter?.maxDaysSinceInteraction ?? Infinity;
+  return candidates.filter(
+    (c) => c.daysSincePurchase >= min && c.daysSincePurchase <= max,
+  ).length;
 }
 
 /** Counters used by the dashboard header. */

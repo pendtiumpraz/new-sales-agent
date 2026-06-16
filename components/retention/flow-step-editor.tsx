@@ -1,5 +1,20 @@
 "use client";
 
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Clock, GripVertical, Plus, Trash2 } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -62,31 +77,58 @@ export function FlowStepEditor({
   const updateStep = useRetentionStore((s) => s.updateStep);
   const addStep = useRetentionStore((s) => s.addStep);
   const removeStep = useRetentionStore((s) => s.removeStep);
+  const setSteps = useRetentionStore((s) => s.setSteps);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
 
   if (!flow) return null;
   const selected = flow.steps.find((s) => s.id === selectedId) ?? null;
 
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!flow || !over || active.id === over.id) return;
+    const oldIndex = flow.steps.findIndex((s) => s.id === active.id);
+    const newIndex = flow.steps.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setSteps(flowId, arrayMove(flow.steps, oldIndex, newIndex));
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
       <div className="space-y-3">
-        <div className="space-y-2">
-          {flow.steps.map((step, i) => (
-            <StepRow
-              key={step.id}
-              step={step}
-              index={i}
-              active={step.id === selectedId}
-              onSelect={() => onSelect(step.id)}
-              onRemove={() => {
-                removeStep(flowId, step.id);
-                if (selectedId === step.id) {
-                  const remaining = flow.steps.filter((s) => s.id !== step.id);
-                  onSelect(remaining[0]?.id ?? "");
-                }
-              }}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext
+            items={flow.steps.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {flow.steps.map((step, i) => (
+                <StepRow
+                  key={step.id}
+                  step={step}
+                  index={i}
+                  active={step.id === selectedId}
+                  onSelect={() => onSelect(step.id)}
+                  onRemove={() => {
+                    removeStep(flowId, step.id);
+                    if (selectedId === step.id) {
+                      const remaining = flow.steps.filter(
+                        (s) => s.id !== step.id,
+                      );
+                      onSelect(remaining[0]?.id ?? "");
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
         <Button
           variant="outline"
           className="w-full border-dashed"
@@ -217,13 +259,21 @@ function StepRow({
   onRemove: () => void;
 }) {
   const channelHex = channelMeta(step.channel).color;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: step.id });
   return (
     <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
       className={cn(
         "group relative flex items-center gap-2 overflow-hidden rounded-lg border bg-card p-3 transition-all duration-150",
         active
           ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-[0_4px_14px_-6px_rgba(251,94,59,0.45)]"
           : "hover:-translate-y-px hover:border-primary/30 hover:shadow-sm",
+        isDragging && "shadow-lg",
       )}
     >
       {/* Channel-colored left rail */}
@@ -232,9 +282,13 @@ function StepRow({
         className="absolute inset-y-0 left-0 w-1"
         style={{ backgroundColor: channelHex }}
       />
-      <span className="ml-1 cursor-grab text-muted-foreground">
+      <button
+        {...attributes}
+        {...listeners}
+        className="ml-1 cursor-grab text-muted-foreground active:cursor-grabbing"
+      >
         <GripVertical className="h-4 w-4" />
-      </span>
+      </button>
       <button
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"

@@ -27,7 +27,7 @@ export default function MobileNewVisitPage() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    toast.success("Kunjungan tersimpan.");
+    toast.success("Kunjungan dicatat (mode demo — tidak disimpan).");
     router.push("/m");
   }
 
@@ -71,7 +71,7 @@ export default function MobileNewVisitPage() {
         className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed bg-card py-5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
       >
         <Camera className="h-5 w-5" />
-        {hasPhoto ? "Foto terlampir ✓" : "Lampirkan foto"}
+        {hasPhoto ? "Foto contoh dilampirkan ✓" : "Lampirkan foto (demo)"}
       </button>
 
       <div className="flex items-center justify-between rounded-xl border bg-card p-3">

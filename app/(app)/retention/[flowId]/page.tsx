@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { estimateAudience } from "@/lib/api-mock/retention";
 import {
   FLOW_STATUS_LABEL,
   FLOW_TYPE_LABEL,
@@ -45,6 +46,10 @@ export default function RetentionFlowDetailPage() {
   const flow = useRetentionStore((s) => s.flows.find((f) => f.id === flowId));
   const toggleStatus = useRetentionStore((s) => s.toggleStatus);
   const updateFlow = useRetentionStore((s) => s.updateFlow);
+  const candidates = useRetentionStore((s) => s.candidates);
+  const audienceFilter = useRetentionStore((s) =>
+    flowId ? s.audienceFilters[flowId] : undefined,
+  );
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState("");
@@ -288,7 +293,10 @@ export default function RetentionFlowDetailPage() {
 
           <TabsContent value="audience">
             <div className="grid gap-4 lg:grid-cols-2">
-              <AudienceFilter initialSegment={flow.segmentTarget} />
+              <AudienceFilter
+                flowId={flow.id}
+                initialSegment={flow.segmentTarget}
+              />
               <Card className="border-tertiary/20 bg-gradient-to-br from-tertiary/5 via-card to-primary/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -312,18 +320,20 @@ export default function RetentionFlowDetailPage() {
                   </p>
                   <p>
                     Filter di atas akan menentukan pelanggan mana yang
-                    diikutsertakan. Jumlah perkiraan akan diperbarui setelah
-                    aturan disimpan.
+                    diikutsertakan. Klik <b>Simpan filter</b> untuk menerapkan;
+                    estimasi di bawah memakai filter terakhir yang disimpan.
                   </p>
                   <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <p className="text-xs font-medium text-primary">
                       Estimasi audiens
                     </p>
                     <p className="tnum mt-1 text-2xl font-semibold tracking-tight text-foreground">
-                      ~{Math.max(20, flow.enrolled * 2)}
+                      ~{estimateAudience(candidates, audienceFilter)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      pelanggan memenuhi kondisi saat ini
+                      {audienceFilter
+                        ? "pelanggan memenuhi filter tersimpan"
+                        : "pelanggan (belum ada filter tersimpan — semua kandidat)"}
                     </p>
                   </div>
                 </CardContent>

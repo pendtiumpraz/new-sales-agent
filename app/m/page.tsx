@@ -51,33 +51,51 @@ export default function MobileHomePage() {
 
       <h2 className="mb-2 mt-5 text-sm font-semibold">Jadwal hari ini</h2>
       <ul className="space-y-2">
-        {SCHEDULE.map((s, i) => (
-          <li
-            key={i}
-            className={cn(
-              "flex items-center gap-3 rounded-xl border bg-card p-3",
-              s.status === "sekarang" && "border-primary ring-1 ring-primary",
-            )}
-          >
-            <div className="w-12 shrink-0 text-center">
-              <p className="text-sm font-semibold tnum">{s.time}</p>
-              <p className="text-[10px] text-muted-foreground">WIB</p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{s.customer}</p>
-              <p className="truncate text-xs text-muted-foreground">{s.area}</p>
-            </div>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                STATUS[s.status].cls,
+        {SCHEDULE.map((s, i) => {
+          // Only the "sekarang" stop has a real destination (the check-in
+          // flow). The rest are read-only schedule rows, so they get no
+          // ChevronRight affordance (it would otherwise imply navigation
+          // that doesn't exist).
+          const current = s.status === "sekarang";
+          const rowClass = cn(
+            "flex items-center gap-3 rounded-xl border bg-card p-3",
+            current && "border-primary ring-1 ring-primary",
+          );
+          const inner = (
+            <>
+              <div className="w-12 shrink-0 text-center">
+                <p className="text-sm font-semibold tnum">{s.time}</p>
+                <p className="text-[10px] text-muted-foreground">WIB</p>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{s.customer}</p>
+                <p className="truncate text-xs text-muted-foreground">{s.area}</p>
+              </div>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  STATUS[s.status].cls,
+                )}
+              >
+                {STATUS[s.status].label}
+              </span>
+              {current && (
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               )}
-            >
-              {STATUS[s.status].label}
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li key={i}>
+              {current ? (
+                <Link href="/m/check-in" className={rowClass}>
+                  {inner}
+                </Link>
+              ) : (
+                <div className={rowClass}>{inner}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

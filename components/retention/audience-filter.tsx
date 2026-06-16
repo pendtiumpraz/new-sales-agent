@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Filter, Tag } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Filter, Save, Tag } from "lucide-react";
+import { toast } from "sonner";
 
+import { estimateAudience } from "@/lib/api-mock/retention";
+import { useRetentionStore } from "@/lib/stores/retention-store";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,17 +25,38 @@ const TAG_OPTIONS = ["VIP", "Repeat", "Baru", "Korporat", "Referral"];
 
 /**
  * Audience filter panel — segment + interaction-history conditions for a
- * retention flow. State is local; saving is mocked.
+ * retention flow. Persists to the retention store (per flow) and shows a live
+ * estimate computed from the candidate pool.
  */
 export function AudienceFilter({
+  flowId,
   initialSegment,
 }: {
+  flowId: string;
   initialSegment?: string;
 }) {
-  const [segment, setSegment] = useState(initialSegment ?? "Semua");
-  const [minDays, setMinDays] = useState(0);
-  const [maxDays, setMaxDays] = useState(90);
-  const [tags, setTags] = useState<Set<string>>(new Set(["Repeat"]));
+  const candidates = useRetentionStore((s) => s.candidates);
+  const saved = useRetentionStore((s) => s.audienceFilters[flowId]);
+  const setAudienceFilter = useRetentionStore((s) => s.setAudienceFilter);
+
+  const [segment, setSegment] = useState(
+    saved?.segment ?? initialSegment ?? "Semua",
+  );
+  const [minDays, setMinDays] = useState(saved?.minDaysSinceInteraction ?? 0);
+  const [maxDays, setMaxDays] = useState(saved?.maxDaysSinceInteraction ?? 90);
+  const [tags, setTags] = useState<Set<string>>(
+    new Set(saved?.tags ?? ["Repeat"]),
+  );
+
+  // Real count from the candidate pool — only the day-range has backing data.
+  const estimate = useMemo(
+    () =>
+      estimateAudience(candidates, {
+        minDaysSinceInteraction: minDays,
+        maxDaysSinceInteraction: maxDays,
+      }),
+    [candidates, minDays, maxDays],
+  );
 
   function toggleTag(tag: string) {
     setTags((prev) => {
@@ -40,6 +65,16 @@ export function AudienceFilter({
       else next.add(tag);
       return next;
     });
+  }
+
+  function onSaveFilter() {
+    setAudienceFilter(flowId, {
+      segment,
+      minDaysSinceInteraction: minDays,
+      maxDaysSinceInteraction: maxDays,
+      tags: Array.from(tags),
+    });
+    toast.success(`Filter audiens disimpan — ${estimate} pelanggan memenuhi.`);
   }
 
   return (
@@ -147,6 +182,26 @@ export function AudienceFilter({
             </Badge>
           ))}
         </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Estimasi audiens</p>
+            <p className="tnum text-lg font-semibold text-foreground">
+              ~{estimate}{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                kandidat dalam rentang hari
+              </span>
+            </p>
+          </div>
+          <Button size="sm" onClick={onSaveFilter}>
+            <Save className="h-3.5 w-3.5" />
+            Simpan filter
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Estimasi dihitung dari rentang hari sejak interaksi pada data kandidat.
+          Segmen & tag bersifat pratinjau (data demo belum punya atribut ini).
+        </p>
       </CardContent>
     </Card>
   );

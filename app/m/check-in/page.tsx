@@ -24,7 +24,7 @@ export default function MobileCheckInPage() {
         <Crosshair className="h-4 w-4 text-primary" />
         <div className="flex-1">
           <p className="font-medium tnum">-6.2088, 106.8456</p>
-          <p className="text-xs text-muted-foreground">Akurasi GPS ±8 m</p>
+          <p className="text-xs text-muted-foreground">Lokasi contoh · GPS demo</p>
         </div>
         <MapPin className="h-4 w-4 text-success" />
       </div>
@@ -34,7 +34,7 @@ export default function MobileCheckInPage() {
         className="mt-3 flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed bg-card py-6 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
       >
         <Camera className="h-6 w-6" />
-        {hasPhoto ? "Foto tersimpan ✓" : "Ambil foto kunjungan"}
+        {hasPhoto ? "Foto contoh dipilih ✓" : "Ambil foto kunjungan (demo)"}
       </button>
 
       {checkedIn ? (
@@ -42,7 +42,7 @@ export default function MobileCheckInPage() {
           <CheckCircle2 className="h-10 w-10 text-success" />
           <p className="font-semibold text-success">Check-in berhasil!</p>
           <p className="text-xs text-muted-foreground">
-            Lokasi & waktu tercatat 13:02 WIB
+            Mode demo · lokasi & waktu tidak disimpan
           </p>
           <Button
             className="mt-2 w-full"
@@ -57,7 +57,7 @@ export default function MobileCheckInPage() {
           className="mt-5 h-14 w-full text-base"
           onClick={() => {
             setCheckedIn(true);
-            toast.success("Check-in berhasil tercatat.");
+            toast.success("Check-in tercatat (mode demo — tidak disimpan).");
           }}
         >
           <MapPin className="h-5 w-5" />
