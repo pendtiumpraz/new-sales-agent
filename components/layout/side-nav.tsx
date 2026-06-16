@@ -22,6 +22,7 @@ import {
   Settings,
   Shield,
   ShoppingBag,
+  Store,
   Sparkles,
   User,
   Users,
@@ -83,6 +84,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/contacts", icon: Users, label: "Kontak & Lead", desc: "Kontak, penemuan lead, & profil" },
       { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
+      { href: "/marketplace", icon: Store, label: "Marketplace", desc: "Jual-beli data perusahaan & orang antar-tenant (SaaS)", managerOnly: true },
     ],
   },
   {

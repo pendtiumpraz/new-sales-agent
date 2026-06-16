@@ -1,0 +1,7 @@
+# Local env + installed deps
+.env
+node_modules/
+
+# Persisted Baileys auth state (per-session creds) — NEVER commit these.
+# They are device credentials; leaking them = leaking WhatsApp access.
+sessions/

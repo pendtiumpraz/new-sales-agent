@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WaModeToggle } from "@/components/admin/wa-mode-toggle";
+import { DeploymentModeToggle } from "@/components/admin/deployment-mode-toggle";
 import { UserManagement } from "@/components/admin/user-management";
 import {
   Dialog,
@@ -181,8 +182,11 @@ export default function AdminConsole() {
           ))}
         </div>
 
-        {/* WhatsApp mode (doc 41) */}
-        <WaModeToggle />
+        {/* Platform mode toggles (doc 41) */}
+        <div className="grid gap-3 lg:grid-cols-2">
+          <DeploymentModeToggle />
+          <WaModeToggle />
+        </div>
 
         {/* User management — cross-tenant (doc 41) */}
         <UserManagement />

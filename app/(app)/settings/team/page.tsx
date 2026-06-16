@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { can, type Role } from "@/lib/rbac/permissions";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -64,6 +65,25 @@ export default function TeamPage() {
 
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Role>("member");
+  const [pwTarget, setPwTarget] = useState<Member | null>(null);
+  const [pw, setPw] = useState("");
+
+  const changePw = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/users/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: pwTarget!.userId, password: pw }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? "gagal");
+    },
+    onSuccess: () => {
+      toast.success(`Password ${pwTarget?.name} diubah`);
+      setPwTarget(null);
+      setPw("");
+    },
+    onError: (e) => toast.error(String(e instanceof Error ? e.message : e)),
+  });
 
   const invite = useMutation({
     mutationFn: async () => {
@@ -218,14 +238,24 @@ export default function TeamPage() {
                       <Badge variant="muted">{ROLE_LABELS[m.role] ?? m.role}</Badge>
                     )}
                     {canManage && m.role !== "superadmin" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeMember.mutate(m.id)}
-                        aria-label="Hapus anggota"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { setPwTarget(m); setPw(""); }}
+                          aria-label="Ganti password"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeMember.mutate(m.id)}
+                          aria-label="Hapus anggota"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
                     )}
                   </li>
                 ))}
@@ -262,6 +292,25 @@ export default function TeamPage() {
           </Card>
         ) : null}
       </div>
+
+      <Dialog open={!!pwTarget} onOpenChange={(v) => !v && setPwTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ganti password — {pwTarget?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Password baru (min 6 karakter)</Label>
+            <Input type="text" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="password baru" />
+            <p className="text-[11px] text-muted-foreground">Prototype: password plaintext (produksi → hash).</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPwTarget(null)}>Batal</Button>
+            <Button onClick={() => changePw.mutate()} disabled={pw.length < 6 || changePw.isPending}>
+              {changePw.isPending ? "Menyimpan…" : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

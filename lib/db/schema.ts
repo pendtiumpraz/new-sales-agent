@@ -486,6 +486,25 @@ export const extensionConnectionTable = pgTable("extension_connection", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Cross-tenant contact marketplace (doc 41 §6) — a tenant PUBLISHES a company/
+// person to the shared pool; other tenants browse + acquire. Person listings are
+// consent-gated (UU PDP). Only active when deployment_mode = saas.
+export const marketplaceListingTable = pgTable("marketplace_listing", {
+  id: text("id").primaryKey(),
+  sellerTenantId: text("seller_tenant_id").notNull(),
+  entityType: text("entity_type").notNull(),        // company | person
+  entityId: text("entity_id").notNull(),            // company.id / person.id in seller tenant
+  title: text("title").notNull(),
+  summary: text("summary"),
+  priceIdr: real("price_idr").notNull().default(0),
+  consentStatus: text("consent_status"),            // for person listings
+  status: text("status").notNull().default("active"), // active | delisted
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  sellerIdx: index("marketplace_seller_idx").on(t.sellerTenantId),
+  statusIdx: index("marketplace_status_idx").on(t.status),
+}));
+
 // Platform-level settings (doc 41) — superadmin-managed key/value, e.g.
 // wa_mode (per_sales | per_platform), deployment_mode (saas | on_prem).
 export const platformSettingTable = pgTable("platform_setting", {
