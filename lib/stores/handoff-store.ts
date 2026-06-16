@@ -16,6 +16,10 @@ import type {
 interface HandoffStore {
   config: HandoffConfig;
   states: Record<string, ConversationHandoffState>;
+  hydrated: boolean;
+
+  /** Load persisted config from the server (once). Call on the settings page mount. */
+  hydrate: () => Promise<void>;
 
   // Config mutators
   setSentimentThreshold: (value: number) => void;
@@ -87,6 +91,27 @@ function seedStates(
 export const useHandoffStore = create<HandoffStore>((set, get) => ({
   config: initialConfig,
   states: seedStates(initialConfig),
+  hydrated: false,
+
+  hydrate: async () => {
+    if (get().hydrated) return;
+    try {
+      const r = await fetch("/api/tenant/handoff");
+      if (r.ok) {
+        const j = (await r.json()) as { config?: HandoffConfig | null };
+        if (j?.config) {
+          const merged = { ...initialConfig, ...j.config };
+          skipSave = true;
+          set({ config: merged, states: seedStates(merged), hydrated: true });
+          skipSave = false;
+          return;
+        }
+      }
+    } catch {
+      /* keep defaults when offline / no DB */
+    }
+    set({ hydrated: true });
+  },
 
   setSentimentThreshold: (value) =>
     set((s) => ({
@@ -176,6 +201,25 @@ export const useHandoffStore = create<HandoffStore>((set, get) => ({
   getActiveTriggers: (conversationId) =>
     computeTriggers(conversationId, get().config),
 }));
+
+// Persist config to the server whenever it changes (DB-backed, not localStorage —
+// honours the no-localStorage rule). `skipSave` guards the echo during hydrate().
+let skipSave = false;
+async function saveConfig(config: HandoffConfig): Promise<void> {
+  try {
+    await fetch("/api/tenant/handoff", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+  } catch {
+    /* best-effort; UI already reflects the change */
+  }
+}
+useHandoffStore.subscribe((state, prev) => {
+  if (skipSave) return;
+  if (state.config !== prev.config) void saveConfig(state.config);
+});
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(n)));

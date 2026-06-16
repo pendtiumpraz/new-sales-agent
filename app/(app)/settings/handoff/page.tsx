@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlarmClock,
@@ -55,6 +55,11 @@ function HandoffSettingsPageInner() {
   const setAutoReplyEnabled = useHandoffStore((s) => s.setAutoReplyEnabled);
 
   const [newTopic, setNewTopic] = useState("");
+
+  // Load the tenant's saved config from the DB so settings survive reload.
+  useEffect(() => {
+    void useHandoffStore.getState().hydrate();
+  }, []);
 
   function onAddTopic() {
     const t = newTopic.trim();

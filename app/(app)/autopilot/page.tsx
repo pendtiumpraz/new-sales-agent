@@ -27,28 +27,9 @@ import { runAutopilot } from "@/lib/autopilot/orchestrator";
 import { useAutopilotStore } from "@/lib/stores/autopilot-store";
 import { useKbStore } from "@/lib/stores/kb-store";
 import { useProspectingStore } from "@/lib/stores/prospecting-store";
+import { classifySegment, cityMatches } from "@/lib/autopilot/audience";
 import type { AutopilotRun, AutopilotRunConfig } from "@/lib/types/autopilot";
-import type { ProspectLead } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-/** Same heuristic the AudiencePicker uses — keep in sync. */
-function classify(p: ProspectLead): AutopilotRunConfig["audienceSegment"] {
-  const size = (p.companySize ?? "").toLowerCase();
-  const m = size.match(/(\d+)/);
-  const n = m ? Number(m[1]) : 0;
-  if (
-    size.includes("250") ||
-    size.includes("500") ||
-    size.includes("1000") ||
-    n >= 250
-  ) {
-    return "Korporat";
-  }
-  if (n >= 50 || size.includes("100") || size.includes("menengah")) {
-    return "Menengah";
-  }
-  return "UMKM";
-}
 
 /**
  * /autopilot — the one-button AI demo page.
@@ -79,13 +60,12 @@ export default function AutopilotPage() {
   // Live "Y prospek cocok" estimate used in the hero summary copy.
   const estimatedProspects = useMemo(() => {
     const minScore = config.audienceMinScore ?? 0;
-    const city = (config.audienceCity ?? "").trim().toLowerCase();
     const matched = prospects.filter((p) => {
-      if (config.audienceSegment && classify(p) !== config.audienceSegment) {
+      if (config.audienceSegment && classifySegment(p.companySize) !== config.audienceSegment) {
         return false;
       }
       if (p.aiScore < minScore) return false;
-      if (city && !p.city.toLowerCase().includes(city)) return false;
+      if (!cityMatches(p.city, config.audienceCity)) return false;
       return true;
     });
     const cap = config.audienceCap ?? 0;

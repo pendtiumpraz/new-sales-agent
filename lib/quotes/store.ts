@@ -69,13 +69,18 @@ export async function createQuote(ctx: TenantContext, input: QuoteInput): Promis
   const taxRate = input.taxRate ?? 0;
   const { subtotal, taxAmount, total } = calcTotals(items, taxRate);
   const id = "qt_" + crypto.randomUUID();
+  // Compute the human number BEFORE the insert → one round-trip, no transient
+  // empty-number row visible to a concurrent list query. (A residual race on
+  // count(*) under true concurrency would need a unique index on
+  // (tenant, number) + retry — out of scope for the prototype.)
+  const number = await nextNumber(ctx);
   const rows = await withTenant(ctx, (tx) =>
     tx
       .insert(quoteTable)
       .values({
         id,
         tenantId: ctx.tenantId,
-        number: input.title ? "" : "", // placeholder; set below to keep one round-trip simple
+        number,
         ownerUserId: ctx.userId,
         dealId: input.dealId ?? null,
         personId: input.personId ?? null,
@@ -100,11 +105,7 @@ export async function createQuote(ctx: TenantContext, input: QuoteInput): Promis
       })
       .returning(),
   );
-  const number = await nextNumber(ctx);
-  const [q] = await withTenant(ctx, (tx) =>
-    tx.update(quoteTable).set({ number }).where(eq(quoteTable.id, id)).returning(),
-  );
-  return q ?? rows[0];
+  return rows[0];
 }
 
 export async function updateQuote(ctx: TenantContext, id: string, patch: Partial<QuoteInput>): Promise<Quote | null> {

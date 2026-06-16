@@ -8,33 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAutopilotStore } from "@/lib/stores/autopilot-store";
 import { useProspectingStore } from "@/lib/stores/prospecting-store";
-import type { AutopilotRunConfig } from "@/lib/types/autopilot";
-import type { ProspectLead } from "@/lib/types";
+import { classifySegment, cityMatches, type Segment } from "@/lib/autopilot/audience";
 import { cn } from "@/lib/utils";
 import { useAnimatedNumber } from "@/components/autopilot/use-animated-number";
-
-type Segment = NonNullable<AutopilotRunConfig["audienceSegment"]>;
 
 const SEGMENTS: { value: Segment; label: string; hint: string }[] = [
   { value: "UMKM", label: "UMKM", hint: "< 50 karyawan" },
   { value: "Menengah", label: "Menengah", hint: "50–250 karyawan" },
   { value: "Korporat", label: "Korporat", hint: "250+ karyawan" },
 ];
-
-/** Heuristic segment classification mirroring the KB segment tiers. */
-function classify(p: ProspectLead): Segment {
-  const size = (p.companySize ?? "").toLowerCase();
-  // Pull a leading number out of "10–49", "200+", "< 50", etc.
-  const m = size.match(/(\d+)/);
-  const n = m ? Number(m[1]) : 0;
-  if (size.includes("250") || size.includes("500") || size.includes("1000") || n >= 250) {
-    return "Korporat";
-  }
-  if (n >= 50 || size.includes("100") || size.includes("menengah")) {
-    return "Menengah";
-  }
-  return "UMKM";
-}
 
 /**
  * Audience picker — drives `useAutopilotStore.config` for segment, min AI
@@ -49,11 +31,10 @@ export function AudiencePicker({ disabled }: { disabled?: boolean }) {
   const matches = useMemo(() => {
     const segment = config.audienceSegment;
     const minScore = config.audienceMinScore ?? 0;
-    const city = (config.audienceCity ?? "").trim().toLowerCase();
     return prospects.filter((p) => {
-      if (segment && classify(p) !== segment) return false;
+      if (segment && classifySegment(p.companySize) !== segment) return false;
       if (p.aiScore < minScore) return false;
-      if (city && !p.city.toLowerCase().includes(city)) return false;
+      if (!cityMatches(p.city, config.audienceCity)) return false;
       return true;
     });
   }, [prospects, config.audienceSegment, config.audienceMinScore, config.audienceCity]);

@@ -24,6 +24,7 @@ import {
 } from "@/lib/autopilot/mock-integrations";
 import { useAutopilotStore } from "@/lib/stores/autopilot-store";
 import { useProspectingStore } from "@/lib/stores/prospecting-store";
+import { classifySegment, cityMatches } from "@/lib/autopilot/audience";
 import type { AutopilotRunConfig, AutopilotStep } from "@/lib/types/autopilot";
 import type { KnowledgeBase } from "@/lib/types/kb";
 import type { ProspectLead } from "@/lib/types";
@@ -50,33 +51,9 @@ interface AutopilotTextResponse {
 
 // ---- Helpers ----------------------------------------------------------------
 
-/**
- * Map a `companySize` employee-band string (e.g. "11-50") to the segment label
- * used by the Autopilot config. Mirrors the heuristic in
- * `lib/utils/compose-kb-reply.ts` so behaviour stays consistent across the app.
- */
-function segmentFromCompanySize(
-  size: string,
-): "UMKM" | "Menengah" | "Korporat" {
-  const cleaned = size.toLowerCase();
-  // Try to parse an upper bound from bands like "1-10", "51-200", "500+".
-  const range = cleaned.match(/(\d+)\s*[-–]\s*(\d+)/);
-  const plus = cleaned.match(/(\d+)\s*\+/);
-  let upper = 0;
-  if (range) upper = Number(range[2]);
-  else if (plus) upper = Number(plus[1]) + 1;
-  else {
-    const single = cleaned.match(/(\d+)/);
-    if (single) upper = Number(single[1]);
-  }
-  if (upper > 0 && upper <= 10) return "UMKM";
-  if (upper > 0 && upper <= 200) return "Menengah";
-  if (upper > 0) return "Korporat";
-  // Fallback when the band can't be parsed — bucket into "Menengah".
-  return "Menengah";
-}
-
-/** Filter + cap prospects per the run config. */
+/** Filter + cap prospects per the run config. Uses the SHARED classifier +
+ *  city match (lib/autopilot/audience) so the run selects exactly what the
+ *  AudiencePicker estimate promised. */
 function selectProspects(
   config: AutopilotRunConfig,
   prospects: ProspectLead[],
@@ -84,14 +61,11 @@ function selectProspects(
   const minScore = config.audienceMinScore ?? 0;
   const cap = config.audienceCap ?? prospects.length;
   const wantedSegment = config.audienceSegment;
-  const wantedCity = config.audienceCity?.trim().toLowerCase();
 
   const filtered = prospects.filter((p) => {
     if (p.aiScore < minScore) return false;
-    if (wantedSegment && segmentFromCompanySize(p.companySize) !== wantedSegment) {
-      return false;
-    }
-    if (wantedCity && p.city.trim().toLowerCase() !== wantedCity) return false;
+    if (wantedSegment && classifySegment(p.companySize) !== wantedSegment) return false;
+    if (!cityMatches(p.city, config.audienceCity)) return false;
     return true;
   });
 
