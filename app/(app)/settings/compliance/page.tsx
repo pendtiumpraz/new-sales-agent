@@ -107,8 +107,8 @@ export default function CompliancePage() {
 
 function CompliancePageInner() {
   const { data: consentLog, isLoading } = useConsentLog();
-  const { data: dpia } = useDpia();
-  const { data: vendors } = useVendors();
+  const { data: dpia, isLoading: dpiaLoading } = useDpia();
+  const { data: vendors, isLoading: vendorsLoading } = useVendors();
 
   return (
     <div>
@@ -383,7 +383,15 @@ function CompliancePageInner() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(dpia ?? []).map((d) => (
+                    {dpiaLoading
+                      ? Array.from({ length: 5 }).map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell colSpan={7}>
+                              <Skeleton className="h-6 w-full" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      : (dpia ?? []).map((d) => (
                       <TableRow key={d.id}>
                         <TableCell className="font-medium">{d.process}</TableCell>
                         <TableCell className="text-muted-foreground">{d.dataCategory}</TableCell>
@@ -429,7 +437,15 @@ function CompliancePageInner() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(vendors ?? []).map((v) => (
+                    {vendorsLoading
+                      ? Array.from({ length: 5 }).map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell colSpan={6}>
+                              <Skeleton className="h-6 w-full" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      : (vendors ?? []).map((v) => (
                       <TableRow key={v.id}>
                         <TableCell className="font-medium">{v.vendor}</TableCell>
                         <TableCell className="text-muted-foreground">{v.category}</TableCell>

@@ -3,12 +3,26 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 // Public opt-out page (doc 25). Linked from every outbound email's footer.
 export default function UnsubscribePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<UnsubFallback />}>
       <Inner />
     </Suspense>
+  );
+}
+
+function UnsubFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="w-full max-w-md space-y-3 rounded-xl border bg-card p-6 text-center shadow-sm">
+        <Skeleton className="mx-auto h-5 w-48" />
+        <Skeleton className="mx-auto h-4 w-64" />
+        <Skeleton className="mx-auto mt-2 h-9 w-44 rounded-full" />
+      </div>
+    </div>
   );
 }
 
