@@ -4,6 +4,7 @@ import { hasDb } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { extensionConnectionTable } from "@/lib/db/schema";
 import { touchRepHeartbeat } from "@/lib/team/rep-account";
+import { listWorkspaces } from "@/lib/workspace/store";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,18 @@ export async function POST(req: Request) {
   // Per-rep token → record the rep's heartbeat (drives monitoring "Aktif").
   if (token && hasDb()) {
     const rep = await touchRepHeartbeat(token, version);
-    if (rep) return NextResponse.json({ ok: true, connected: true, tenant: rep.tenantId, scope: "rep", deepseekKey, source: "db" });
+    if (rep) {
+      // Send the rep's workspaces so the popup can offer a "crawl untuk workspace"
+      // picker (doc 44). The chosen id is tagged onto every ingested lead.
+      let workspaces: { id: string; name: string; type: string }[] = [];
+      try {
+        const ws = await listWorkspaces({ tenantId: rep.tenantId, userId: rep.userId, role: "member" });
+        workspaces = ws.filter((w) => w.status !== "archived").map((w) => ({ id: w.id, name: w.name, type: w.type }));
+      } catch (err) {
+        console.error("[heartbeat workspaces]", err);
+      }
+      return NextResponse.json({ ok: true, connected: true, tenant: rep.tenantId, scope: "rep", deepseekKey, workspaces, source: "db" });
+    }
   }
 
   // Otherwise fall back to the tenant-level token.

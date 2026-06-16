@@ -49,6 +49,21 @@ function profileUrl(href) {
 }
 // Junk that shows up in a profile anchor's text but isn't the person's name.
 const NAME_NOISE = /^(View|Lihat|LinkedIn Member|Anggota LinkedIn|Status is|•|·|\d(?:st|nd|rd|th)\b|Koneksi|Connection|Mutual|tingkat)/i;
+// Collapse LinkedIn's duplicated name ("Budi SantosoBudi Santoso" or
+// "Budi Santoso Budi Santoso") — happens because the visible + screen-reader
+// copies both land in the text. Handles glued AND space-separated repeats.
+function dedupeName(s) {
+  s = s.trim();
+  const m = s.match(/^(.+?)\s*\1$/); // "X X" / "XX" → "X"
+  if (m) return m[1].trim();
+  const w = s.split(/\s+/);
+  if (w.length >= 2 && w.length % 2 === 0) {
+    const h = w.length / 2;
+    if (w.slice(0, h).join(" ") === w.slice(h).join(" ")) return w.slice(0, h).join(" ");
+  }
+  return s;
+}
+
 function nameFromAnchor(a) {
   // 1) visible name span; 2) aria-label "View X's profile"; 3) first line of text.
   const span = a.querySelector('span[aria-hidden="true"]');
@@ -58,12 +73,18 @@ function nameFromAnchor(a) {
     name = clean(al);
   }
   if (!name) name = clean((a.textContent || "").split("\n")[0]);
-  name = name.replace(/^(View|Lihat)\s+/i, "").replace(/(’s|'s)\s+profile.*$/i, "");
+  name = name
+    .replace(/^(View|Lihat)\s+/i, "")
+    .replace(/(’s|'s)\s+profile.*$/i, "")
+    // strip status/subtitle noise that LinkedIn glues onto the name text
+    .replace(/\bis open to work\b/gi, " ")
+    .replace(/\bopen to work\b/gi, " ")
+    .replace(/\bis hiring\b/gi, " ")
+    .replace(/\b(and\b.*?are mutual connections?|is a mutual connection)\b.*$/i, "")
+    .replace(/\bstatus is (online|offline|reachable)\b/gi, " ");
   // cut trailing degree/headline appended on the same line ("• 3rd", double-space)
   name = name.split(/\s[•·|]\s|\s{2,}/)[0].trim();
-  // collapse a duplicated name like "Budi SantosoBudi Santoso"
-  const half = name.length % 2 === 0 ? name.slice(0, name.length / 2).trim() : "";
-  if (half && half === name.slice(Math.ceil(name.length / 2)).trim()) name = half;
+  name = dedupeName(clean(name));
   return name.slice(0, 80);
 }
 
@@ -200,8 +221,23 @@ function scrapeExperience() {
   return out.slice(0, 12);
 }
 
+// Grab the profile's VISIBLE TEXT (not class-dependent). LinkedIn churns its
+// class names constantly, so selector scraping rots fast — but the rendered text
+// is stable. We hand this text to DeepSeek (in background.js) which extracts the
+// structured fields + classifies. innerText (not textContent) ≈ what a human sees:
+// it respects display:none / visually-hidden, dropping most of the SR-duplicate noise.
+function profilePageText() {
+  const root = document.querySelector("main") || document.body;
+  let t = clean((root.innerText || "").replace(/\n{2,}/g, "\n"));
+  // strip obvious LinkedIn chrome so the model spends tokens on the profile itself
+  t = t
+    .replace(/\b(Skip to (search|main content)|Keyboard shortcuts)\b/gi, "")
+    .replace(/\bAd\b\s*•?/g, "");
+  return t.slice(0, 8000); // ~2k tokens — plenty for one profile, cheap per call
+}
+
 function scrapeProfile() {
-  const fullName = pick(document, ["h1.text-heading-xlarge", "h1"]);
+  const fullName = pick(document, ["h1.text-heading-xlarge", "main h1", "h1"]);
   const headline = pick(document, [".text-body-medium.break-words", ".pv-text-details__left-panel .text-body-medium"]);
   const location = pick(document, [".text-body-small.inline.t-black--light", ".pv-text-details__left-panel .text-body-small"]);
   const about = pick(document, ["#about ~ * .inline-show-more-text", 'section[id*="about" i] .inline-show-more-text', 'div[class*="display-flex"] .inline-show-more-text']);
@@ -216,13 +252,16 @@ function scrapeProfile() {
   }
 
   return {
+    // Selector-scraped fields are now only HINTS — DeepSeek re-derives them from
+    // pageText, which is resilient to LinkedIn's class-name churn.
     fullName,
     title: title || undefined,
     companyName: companyName || undefined,
     location: location || undefined,
     about: about || undefined,
     experience,
-    linkedinUrl: absUrl(location.href ? location.href : window.location.href),
+    pageText: profilePageText(),
+    linkedinUrl: profileUrl(window.location.href) || window.location.href.split("?")[0],
     source: "linkedin-extension",
   };
 }
@@ -290,6 +329,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         await autoScroll(); // let lazy-loaded results render first
         sendResponse({ ok: true, ...scrapePeople() });
       } else if (msg && msg.type === "SCAN_PROFILE") {
+        await autoScroll(8, 400); // load lazy experience/about sections into the DOM
         sendResponse({ ok: true, profile: scrapeProfile() });
       } else if (msg && msg.type === "SCAN_CONTACT_INFO") {
         sendResponse({ ok: true, contact: scrapeContactInfo() });

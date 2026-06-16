@@ -12,9 +12,25 @@ async function load() {
   $("consent").checked = !!cfg.consent;
   $("autoEnrich").checked = cfg.autoEnrich !== false;
   $("deepseekKey").value = cfg.deepseekKey ?? "";
+  await loadWorkspaces();
   toggleConsent();
   refreshStatus();
 }
+
+const WS_TYPE_LABEL = { lead_gen: "Lead", partner: "Partner", offering: "Penawaran", retention: "Retensi", custom: "Custom" };
+async function loadWorkspaces() {
+  const { workspaces = [], workspaceId = "" } = await chrome.storage.local.get(["workspaces", "workspaceId"]);
+  const sel = $("workspaceSel");
+  sel.innerHTML = '<option value="">— Tanpa workspace (pool tenant) —</option>';
+  for (const w of workspaces) {
+    const o = document.createElement("option");
+    o.value = w.id;
+    o.textContent = w.type && WS_TYPE_LABEL[w.type] ? `${w.name} · ${WS_TYPE_LABEL[w.type]}` : w.name;
+    sel.appendChild(o);
+  }
+  sel.value = workspaces.some((w) => w.id === workspaceId) ? workspaceId : "";
+}
+$("workspaceSel").addEventListener("change", () => chrome.storage.local.set({ workspaceId: $("workspaceSel").value }));
 
 function toggleConsent() {
   $("consentBox").hidden = $("postureMode").value !== "aggressive";
@@ -50,8 +66,9 @@ $("connect").addEventListener("click", async () => {
   $("connStatus").textContent = "Menghubungkan…";
   chrome.runtime.sendMessage({ type: "CONNECT" }, (r) => {
     if (r && r.connected) {
-      $("connStatus").textContent = `✅ Terhubung${r.tenant ? ` (workspace: ${r.tenant})` : ""}.${r.aiKey ? " AI key diambil dari platform." : ""} Hasil crawl akan terkirim.`;
-      load(); // refresh fields — the heartbeat may have stored the DeepSeek key
+      const wsN = Array.isArray(r.workspaces) ? r.workspaces.length : 0;
+      $("connStatus").textContent = `✅ Terhubung${r.tenant ? ` (tenant: ${r.tenant})` : ""}.${r.aiKey ? " AI key dari platform." : ""}${wsN ? ` ${wsN} workspace.` : ""} Hasil crawl akan terkirim.`;
+      load(); // refresh fields + workspace picker — heartbeat stored the key & workspaces
     } else {
       $("connStatus").textContent = `❌ Gagal: ${(r && r.error) || "cek URL aplikasi & token"}`;
     }
