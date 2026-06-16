@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -28,9 +28,12 @@ export function ConversationList({ className }: { className?: string }) {
   const activeId = pathname.split("/")[2];
   const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  // Workspace scope (doc 44): ?workspace=<id> filters to that workspace's threads.
+  const workspaceId = useSearchParams().get("workspace");
 
   const filtered = useMemo(() => {
     let list = conversations ?? [];
+    if (workspaceId) list = list.filter((c) => (c as { workspaceId?: string | null }).workspaceId === workspaceId);
     if (filter === "unread") list = list.filter((c) => c.unread > 0);
     else if (filter !== "all") list = list.filter((c) => c.channel === filter);
     if (query.trim()) {
@@ -43,7 +46,7 @@ export function ConversationList({ className }: { className?: string }) {
       );
     }
     return list;
-  }, [conversations, filter, query]);
+  }, [conversations, filter, query, workspaceId]);
 
   return (
     <div className={cn("flex w-full shrink-0 flex-col border-r bg-card md:w-80 lg:w-96", className)}>

@@ -24,8 +24,10 @@ import { cn } from "@/lib/utils";
 import type { Deal, DealStage } from "@/lib/types";
 import { toast } from "sonner";
 
-export function KanbanBoard() {
-  const deals = usePipelineStore((s) => s.deals);
+export function KanbanBoard({ workspaceId }: { workspaceId?: string | null }) {
+  const allDeals = usePipelineStore((s) => s.deals);
+  // Workspace scope (doc 44): when set, only deals tagged to this workspace.
+  const deals = workspaceId ? allDeals.filter((d) => (d as { workspaceId?: string | null }).workspaceId === workspaceId) : allDeals;
   const moveDeal = usePipelineStore((s) => s.moveDeal);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);

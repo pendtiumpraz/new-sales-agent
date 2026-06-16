@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Clock,
   Flame,
@@ -23,6 +24,8 @@ import { usePipelineStore } from "@/lib/stores/pipeline-store";
 
 export default function PipelinePage() {
   const [productsOpen, setProductsOpen] = useState(false);
+  const workspaceId = useSearchParams().get("workspace"); // doc 44 — scope kanban to a workspace
+  const [wsAll, setWsAll] = useState(false);
 
   // Hydrate persisted deals from /api/db/deals once when the pipeline page mounts.
   // The store's hydrateDeals is idempotent (guarded by `dealsHydrated` + in-flight
@@ -133,8 +136,16 @@ export default function PipelinePage() {
 
           {/* ── Kanban (existing) ────────────────────────────────────────── */}
           <TabsContent value="kanban" className="mt-4">
+            {workspaceId && (
+              <div className="mb-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                <span>Pipeline difilter ke <b>workspace ini</b> — {wsAll ? "semua deal" : "deal workspace ini saja"}.</span>
+                <button onClick={() => setWsAll((v) => !v)} className="ml-auto text-xs text-primary hover:underline">
+                  {wsAll ? "Workspace saja" : "Lihat semua"}
+                </button>
+              </div>
+            )}
             <div className="-mx-6 -mb-6">
-              <KanbanBoard />
+              <KanbanBoard workspaceId={workspaceId && !wsAll ? workspaceId : null} />
             </div>
           </TabsContent>
         </Tabs>
