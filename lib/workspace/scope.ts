@@ -10,7 +10,8 @@ export const GLOBAL_PREFIXES = [
   "/reports",
   "/settings",
   "/documentation",
-  "/workspaces", // the picker/hub itself
+  "/workspaces", // the doc-44 picker/hub itself
+  "/workspace", // the per-CONTACT unified workbench (/workspace/[contactId]) — NOT a doc-44 workspace, don't gate it
   "/admin",
   "/ai-assistant",
 ];

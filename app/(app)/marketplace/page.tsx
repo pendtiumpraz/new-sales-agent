@@ -64,8 +64,11 @@ export default function MarketplacePage() {
       return (await r.json()) as { enabled: boolean; data: Listing[] };
     },
   });
-  const companiesQ = useQuery({ queryKey: ["companies"], queryFn: async () => ((await (await fetch("/api/db/companies")).json()).data ?? []) as CompanyRow[] });
-  const peopleQ = useQuery({ queryKey: ["people"], queryFn: async () => ((await (await fetch("/api/db/people")).json()).data ?? []) as PersonRow[] });
+  // Distinct keys: these return arrays, but /contacts/profiles caches ["companies"]/
+  // ["people"] as {data:[…]} objects — sharing the key crashes marketplace (.filter
+  // on an object). Keep them separate (doc 41 §6).
+  const companiesQ = useQuery({ queryKey: ["mp-companies"], queryFn: async () => ((await (await fetch("/api/db/companies")).json()).data ?? []) as CompanyRow[] });
+  const peopleQ = useQuery({ queryKey: ["mp-people"], queryFn: async () => ((await (await fetch("/api/db/people")).json()).data ?? []) as PersonRow[] });
 
   const acquire = useMutation({
     mutationFn: async (listingId: string) => {
@@ -73,7 +76,11 @@ export default function MarketplacePage() {
       if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "gagal");
       return r.json();
     },
-    onSuccess: (d) => { toast.success(`Diambil: ${d.name}`); qc.invalidateQueries({ queryKey: ["companies"] }); qc.invalidateQueries({ queryKey: ["people"] }); },
+    onSuccess: (d) => {
+      toast.success(`Diambil: ${d.name}`);
+      // refresh both the marketplace publish-source lists and the contacts pages
+      for (const k of ["mp-companies", "mp-people", "companies", "people"]) qc.invalidateQueries({ queryKey: [k] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal"),
   });
   const publish = useMutation({
