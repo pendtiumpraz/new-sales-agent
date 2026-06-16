@@ -100,8 +100,8 @@ const SEVERITY: Record<
   PipelineIssueSeverity,
   { label: string; variant: "destructive" | "warning" | "muted"; bar: string }
 > = {
-  tinggi: { label: "Tinggi", variant: "destructive", bar: "bg-rose-400" },
-  sedang: { label: "Sedang", variant: "warning", bar: "bg-amber-400" },
+  tinggi: { label: "Tinggi", variant: "destructive", bar: "bg-danger" },
+  sedang: { label: "Sedang", variant: "warning", bar: "bg-warning" },
   rendah: { label: "Rendah", variant: "muted", bar: "bg-stone-400" },
 };
 
@@ -693,7 +693,7 @@ export default function ReportsPage() {
                       {sales.topCadences.map((c) => (
                         <TableRow key={c.name}>
                           <TableCell className="font-medium">{c.name}</TableCell>
-                          <TableCell className="tnum text-right text-emerald-700">
+                          <TableCell className="tnum text-right text-success">
                             {c.replyRate.toFixed(1)}%
                           </TableCell>
                           <TableCell className="tnum text-right text-muted-foreground">
@@ -770,7 +770,7 @@ export default function ReportsPage() {
                             className={cn(
                               "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold",
                               i === 0
-                                ? "bg-amber-100 text-amber-700"
+                                ? "bg-warning/15 text-warning"
                                 : i === 1
                                   ? "bg-stone-100 text-stone-700"
                                   : i === 2
@@ -868,7 +868,7 @@ export default function ReportsPage() {
                     <p className="text-xs font-medium text-muted-foreground">
                       Status akurasi
                     </p>
-                    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-success">
                       <ShieldCheck className="h-4 w-4" />
                       {ai.errorRateDeltaPctPoints < 0
                         ? "Membaik vs. minggu lalu"
@@ -906,7 +906,7 @@ export default function ReportsPage() {
             <Card>
               <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 text-warning" />
                   Respon yang ditandai terakhir
                 </CardTitle>
                 <Badge variant="warning">{ai.recentFlagged.length} kasus</Badge>
@@ -1024,10 +1024,10 @@ export default function ReportsPage() {
                         className={cn(
                           "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
                           insight.tone === "positive"
-                            ? "bg-emerald-100 text-emerald-700"
+                            ? "bg-success/15 text-success"
                             : insight.tone === "negative"
-                              ? "bg-rose-100 text-rose-700"
-                              : "bg-amber-100 text-amber-700",
+                              ? "bg-danger/15 text-danger"
+                              : "bg-warning/15 text-warning",
                         )}
                       >
                         {insight.tone === "positive" ? (
@@ -1059,7 +1059,7 @@ export default function ReportsPage() {
               <Card className="lg:col-span-1">
                 <CardContent className="flex h-full flex-col p-6">
                   <div className="flex items-center justify-between">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/15 text-success">
                       <Database className="h-5 w-5" />
                     </span>
                     <Badge variant="success" className="gap-1">
@@ -1080,7 +1080,7 @@ export default function ReportsPage() {
                   <div className="mt-4">
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        className="h-full rounded-full bg-success transition-all"
                         style={{ width: `${quality.cleanRate}%` }}
                       />
                     </div>
@@ -1121,9 +1121,9 @@ export default function ReportsPage() {
                             className={cn(
                               "flex h-9 w-9 items-center justify-center rounded-xl",
                               issue.severity === "tinggi"
-                                ? "bg-rose-100 text-rose-700"
+                                ? "bg-danger/15 text-danger"
                                 : issue.severity === "sedang"
-                                  ? "bg-amber-100 text-amber-700"
+                                  ? "bg-warning/15 text-warning"
                                   : "bg-stone-100 text-stone-700",
                             )}
                           >
@@ -1170,7 +1170,7 @@ export default function ReportsPage() {
                 <ul className="divide-y">
                   {VALIDATION_RULES.map((rule) => (
                     <li key={rule.id} className="flex items-center gap-3 px-6 py-3">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{rule.label}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -1243,10 +1243,10 @@ function LiveBadge({ generatedAt }: { generatedAt: Date }) {
   // itself is purely presentational.
   return (
     <div className="hidden items-center gap-3 sm:flex">
-      <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+      <span className="flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
         </span>
         Data live
       </span>

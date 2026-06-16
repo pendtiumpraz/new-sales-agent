@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { inArray } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -63,5 +64,22 @@ export async function PUT(req: Request) {
       { ok: false, error: String(err) },
       { status: 500 },
     );
+  }
+}
+
+// DELETE /api/db/contacts → permanently delete the given contact ids (UU PDP).
+export async function DELETE(req: Request) {
+  if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
+  const ctx = await getTenantContext();
+  if (!ctx) return NextResponse.json({ ok: false, source: "mock" });
+  try {
+    const body = (await req.json().catch(() => ({}))) as { ids?: string[] };
+    const ids = (body.ids ?? []).filter(Boolean);
+    if (!ids.length) return NextResponse.json({ error: "ids wajib" }, { status: 400 });
+    await withTenant(ctx, (tx) => tx.delete(contactsTable).where(inArray(contactsTable.id, ids)));
+    return NextResponse.json({ ok: true, deleted: ids.length, source: "db" });
+  } catch (err) {
+    console.error("[api/db/contacts DELETE]", err);
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }

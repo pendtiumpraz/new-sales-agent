@@ -59,9 +59,9 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 const RISK: Record<RiskLevel, { label: string; variant: "success" | "warning" | "destructive"; bar: string }> = {
-  rendah: { label: "Rendah", variant: "success", bar: "bg-emerald-400" },
-  sedang: { label: "Sedang", variant: "warning", bar: "bg-amber-400" },
-  tinggi: { label: "Tinggi", variant: "destructive", bar: "bg-rose-400" },
+  rendah: { label: "Rendah", variant: "success", bar: "bg-success" },
+  sedang: { label: "Sedang", variant: "warning", bar: "bg-warning" },
+  tinggi: { label: "Tinggi", variant: "destructive", bar: "bg-danger" },
 };
 
 const DPIA_STATUS: Record<string, { label: string; variant: "success" | "warning" | "secondary" }> = {
@@ -161,7 +161,7 @@ function CompliancePageInner() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-6">
                   <ScoreGauge score={SCORE} />
-                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-success">
                     <ShieldCheck className="h-4 w-4" />
                     Sangat baik
                   </p>
@@ -426,12 +426,12 @@ function CompliancePageInner() {
                         </TableCell>
                         <TableCell>
                           {v.dpaSigned ? (
-                            <span className="flex items-center gap-1 text-xs text-emerald-700">
+                            <span className="flex items-center gap-1 text-xs text-success">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Ada
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-xs text-amber-700">
+                            <span className="flex items-center gap-1 text-xs text-warning">
                               <AlertTriangle className="h-3.5 w-3.5" />
                               Belum
                             </span>
@@ -593,14 +593,14 @@ function ReportGenerator({
         </div>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
+          <ShieldCheck className="h-3.5 w-3.5 text-success" />
           Format siap-regulator — dapat diserahkan langsung ke KOMDIGI / Lembaga PDP.
         </div>
 
         {state === "ready" ? (
-          <div className="flex items-center justify-between rounded-xl border border-emerald-400/30 bg-emerald-400/5 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/5 px-4 py-3">
             <span className="flex items-center gap-2 text-sm">
-              <FileCheck2 className="h-4 w-4 text-emerald-700" />
+              <FileCheck2 className="h-4 w-4 text-success" />
               {t.label} ({period.toUpperCase()}) siap.
             </span>
             <Button size="sm" onClick={() => toast.success("Mengunduh PDF...")}>
@@ -711,21 +711,21 @@ function MiniStat({
   const palette =
     tone === "success"
       ? {
-          text: "text-emerald-700",
+          text: "text-success",
           bar: "bg-gradient-to-r from-success/70 to-tertiary/70",
           border: "border-success/25",
           tint: "from-success/10 to-transparent",
         }
       : tone === "warning"
         ? {
-            text: "text-amber-700",
+            text: "text-warning",
             bar: "bg-gradient-to-r from-amber-400 to-amber-500",
             border: "border-warning/25",
             tint: "from-warning/10 to-transparent",
           }
         : tone === "danger"
           ? {
-              text: "text-rose-600",
+              text: "text-danger",
               bar: "bg-gradient-to-r from-rose-400 to-rose-500",
               border: "border-destructive/25",
               tint: "from-destructive/10 to-transparent",

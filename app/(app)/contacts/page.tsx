@@ -828,8 +828,21 @@ function ContactsPageInner() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                toast.success(`${selected.size} kontak dihapus sesuai UU PDP.`);
+              onClick={async () => {
+                const ids = [...selected];
+                try {
+                  const r = await fetch("/api/db/contacts", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids }),
+                  });
+                  const j = await r.json();
+                  if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
+                  toast.success(`${j.deleted ?? ids.length} kontak dihapus sesuai UU PDP.`);
+                  queryClient.invalidateQueries({ queryKey: ["contacts"] });
+                } catch (e) {
+                  toast.error(`Gagal menghapus (${e instanceof Error ? e.message : e})`);
+                }
                 setSelected(new Set());
                 setDeleteOpen(false);
               }}
