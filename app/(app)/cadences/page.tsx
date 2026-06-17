@@ -108,7 +108,9 @@ export default function CadencesPage() {
   }, [cadences, channelFilter, statusFilter, workspaceId, wsAll]);
 
   const summary = useMemo(() => {
-    const list = cadences ?? [];
+    // KPI must describe the VISIBLE (filtered + workspace-scoped) set, not the
+    // tenant-wide list — otherwise pills and cards describe different populations.
+    const list = visible;
     const active = list.filter((c) => c.status === "active");
     const enrolled = list.reduce((s, c) => s + c.enrolled, 0);
     const replyRates = list.filter((c) => c.replyRate > 0).map((c) => c.replyRate);
@@ -119,7 +121,7 @@ export default function CadencesPage() {
           )
         : 0;
     return { activeCount: active.length, enrolled, avgReply };
-  }, [cadences]);
+  }, [visible]);
 
   return (
     <div>

@@ -69,6 +69,7 @@ export async function PUT(req: Request) {
           enrolled: c.enrolled ?? 0,
           replyRate: c.replyRate ?? 0,
           owner: c.owner ?? null,
+          workspaceId: (c as { workspaceId?: string | null }).workspaceId ?? null, // doc 44 — persist scope
           createdAt: c.createdAt ?? new Date().toISOString(),
           tenantId: ctx.tenantId,
         })
@@ -82,6 +83,7 @@ export async function PUT(req: Request) {
             enrolled: c.enrolled ?? 0,
             replyRate: c.replyRate ?? 0,
             owner: c.owner ?? null,
+            workspaceId: (c as { workspaceId?: string | null }).workspaceId ?? undefined, // keep existing tag if absent
             updatedAt: new Date(),
             tenantId: ctx.tenantId,
           },

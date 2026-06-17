@@ -41,6 +41,7 @@ interface PersonRow {
   title?: string | null;
   department?: string | null;
   location?: string | null;
+  companyId?: string | null;
   companyName?: string | null;
   source?: string | null;
   capturedMode?: string | null;
@@ -204,7 +205,7 @@ export default function ProfilesPage() {
   // Workspace scope (doc 44): ?workspace=<id> filters to that workspace's leads.
   const workspaceId = useSearchParams().get("workspace");
   const wsQ = useQuery({
-    queryKey: ["workspace", workspaceId],
+    queryKey: ["workspace-name", workspaceId], // distinct from the hub's ["workspace", id] (different payload shape)
     enabled: !!workspaceId,
     queryFn: async () => {
       const r = await fetch(`/api/workspaces/${workspaceId}`);
@@ -326,10 +327,18 @@ export default function ProfilesPage() {
       }
     : null;
 
+  // Workspace scope (doc 44): inside a workspace BOTH tabs scope to that workspace.
+  // People carry person.workspaceId; companies have none, so a company belongs to a
+  // workspace iff it has a person in that workspace. Tab counts use these scoped sets
+  // (not the tenant-wide totals) so Perusahaan & Orang are separated, not "campur".
+  const inWs = (wsId: string | null | undefined) => !workspaceId || wsShowAll || wsId === workspaceId;
+  const wsPeople = (people.data?.data ?? []).filter((p) => inWs(p.workspaceId));
+  const scopedCompanyIds = new Set(wsPeople.map((p) => p.companyId).filter(Boolean) as string[]);
+  const wsCompanies = (companies.data?.data ?? []).filter((c) => !workspaceId || wsShowAll || scopedCompanyIds.has(c.id));
+
   const peopleSearchQ = peopleSearch.trim().toLowerCase();
-  const peopleRows = (people.data?.data ?? [])
+  const peopleRows = wsPeople
     .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
-    .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId)
     .filter((p) => peopleLeadType === "all" || (p.leadType ?? "unknown") === peopleLeadType)
     .filter(
       (p) =>
@@ -341,7 +350,7 @@ export default function ProfilesPage() {
     );
 
   const companySearchQ = companySearch.trim().toLowerCase();
-  const companyRows = (companies.data?.data ?? [])
+  const companyRows = wsCompanies
     .filter((c) => companyIndustry === "all" || (c.industry ?? "") === companyIndustry)
     .filter(
       (c) =>
@@ -409,6 +418,19 @@ export default function ProfilesPage() {
         {(membersQ.data ?? []).map((m) => (<option key={m.userId} value={m.userId}>{m.name}</option>))}
       </select>
     ) },
+    // Workspace tagging (doc 44) — the real "+" the banner promises. Only in a workspace.
+    ...(workspaceId
+      ? [{
+          key: "ws",
+          label: "Workspace",
+          render: (p: PersonRow) =>
+            p.workspaceId === workspaceId ? (
+              <button onClick={(e) => { e.stopPropagation(); tagWorkspace.mutate({ personId: p.id, workspaceId: null }); }} className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-200">✓ di sini · keluarkan</button>
+            ) : (
+              <button onClick={(e) => { e.stopPropagation(); tagWorkspace.mutate({ personId: p.id, workspaceId }); }} className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-accent">+ ke workspace</button>
+            ),
+        } as Column<PersonRow>]
+      : []),
   ];
   const companyCols: Column<CompanyRow>[] = [
     { key: "name", label: "Nama", sortable: true, sortValue: (c) => c.name, render: (c) => <span className="font-medium">{c.name}</span> },
@@ -437,14 +459,14 @@ export default function ProfilesPage() {
               <Building2 className="h-3.5 w-3.5" />
               Perusahaan
               <Badge variant="muted" className="ml-1">
-                {companies.data?.data.length ?? 0}
+                {wsCompanies.length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="orang" className="gap-1.5">
               <Users className="h-3.5 w-3.5" />
               Orang
               <Badge variant="muted" className="ml-1">
-                {people.data?.data.length ?? 0}
+                {wsPeople.length}
               </Badge>
             </TabsTrigger>
           </TabsList>
@@ -556,7 +578,6 @@ export default function ProfilesPage() {
                       <option value="all">Semua tipe</option>
                       <option value="b2c_customer">B2C Customer</option>
                       <option value="b2b_partner">B2B Partner</option>
-                      <option value="b2b_client">B2B Client</option>
                       <option value="unknown">Belum diklasifikasi</option>
                     </select>
                     <span className="text-xs text-muted-foreground">{peopleRows.length} hasil</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -99,6 +99,7 @@ const newStep = (channel: CadenceStepChannel): CadenceStep => ({
 
 export function CadenceBuilder() {
   const router = useRouter();
+  const workspaceId = useSearchParams().get("workspace"); // doc 44 — stamp scope on new cadence
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("Cadence Baru");
@@ -177,7 +178,8 @@ export function CadenceBuilder() {
       channelMix,
       createdAt: new Date().toISOString(),
       owner: "Anda",
-    };
+      ...(workspaceId ? { workspaceId } : {}),
+    } as Cadence;
     try {
       const res = await fetch("/api/db/cadences", {
         method: "PUT",
