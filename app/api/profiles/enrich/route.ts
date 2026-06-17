@@ -147,11 +147,14 @@ export async function POST(req: Request) {
       }
 
       // ── Persist the person ─────────────────────────────────────────────────
-      const socials: Record<string, string> = { ...((p.socials as Record<string, string>) ?? {}), ...disc.socials };
-      if (disc.github) socials.github = disc.github;
-      if (disc.website) socials.website = disc.website;
-      if (disc.twitter) socials.twitter = disc.twitter;
-      if (disc.linkedin) socials.linkedin = disc.linkedin;
+      // Rebuild socials from THIS enrich so stale/wrong links from a prior run drop
+      // out; keep the old set only if the web found nothing this time.
+      const webSocials: Record<string, string> = { ...disc.socials };
+      if (disc.github) webSocials.github = disc.github;
+      if (disc.website) webSocials.website = disc.website;
+      if (disc.twitter) webSocials.twitter = disc.twitter;
+      if (disc.linkedin) webSocials.linkedin = disc.linkedin;
+      const socials = Object.keys(webSocials).length ? webSocials : ((p.socials as Record<string, string>) ?? {});
 
       await withTenant(ctx, async (tx) => {
         await tx
@@ -159,6 +162,7 @@ export async function POST(req: Request) {
           .set({
             gender: sal.gender,
             honorific: sal.honorific,
+            ...(disc.title && !p.title ? { title: disc.title } : {}),
             ...(companyId ? { companyId } : {}),
             leadType: cls.leadType,
             leadReason: cls.reason,
