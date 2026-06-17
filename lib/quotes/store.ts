@@ -126,7 +126,7 @@ export async function updateQuote(ctx: TenantContext, id: string, patch: Partial
         taxAmount,
         total,
         ...(patch.currency !== undefined ? { currency: patch.currency } : {}),
-        ...(patch.validUntil !== undefined ? { validUntil: patch.validUntil } : {}),
+        ...(patch.validUntil !== undefined ? { validUntil: patch.validUntil || null } : {}), // "" → null, not junk
         ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
         ...(patch.coverSubject !== undefined ? { coverSubject: patch.coverSubject } : {}),
         ...(patch.coverBody !== undefined ? { coverBody: patch.coverBody } : {}),

@@ -119,9 +119,11 @@ export default function DashboardPage() {
   const kpi = useMemo(() => {
     const openDeals = filtered.deals.filter((d) => d.stage !== "tutup");
     const pipelineValue = openDeals.reduce((s, d) => s + d.value, 0);
-    const closing = filtered.deals.filter(
-      (d) => +new Date(d.expectedClose) <= WEEK_AHEAD && d.stage !== "tutup",
-    );
+    const closing = filtered.deals.filter((d) => {
+      if (!d.expectedClose || d.stage === "tutup") return false;
+      const t = +new Date(d.expectedClose); // guard: null/invalid date must not coerce to 1970
+      return !Number.isNaN(t) && t <= WEEK_AHEAD;
+    });
     const closingValue = closing.reduce((s, d) => s + d.value, 0);
 
     const activeCadences = filtered.cadences.filter((c) => c.status === "active");

@@ -64,7 +64,8 @@ export default function VisitsPage() {
                     </TableRow>
                   ))
                 : (visits ?? []).map((v) => {
-                    const o = OUTCOME[v.outcome];
+                    // Fallback guard — an outcome value outside the map must not crash the row.
+                    const o = OUTCOME[v.outcome] ?? { label: v.outcome || "—", variant: "muted" as const, icon: XCircle };
                     const Icon = o.icon;
                     return (
                       <TableRow key={v.id}>

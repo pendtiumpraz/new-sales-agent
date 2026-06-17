@@ -52,6 +52,13 @@ export default function EscalationsPage() {
         description="Balasan yang ditahan agen untuk ditinjau manusia — kirim sekali klik atau abaikan (doc 36)."
       />
       <div className="space-y-5 p-6">
+        {events.isError && (
+          <Card className="border-destructive/30">
+            <CardContent className="py-6 text-center text-sm text-destructive">
+              Gagal memuat eskalasi — pastikan kamu sudah login dan punya akses (peran dengan izin campaign.manage). Ini berbeda dari antrian yang memang kosong.
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between border-b">
             <CardTitle className="flex items-center gap-2 text-base">

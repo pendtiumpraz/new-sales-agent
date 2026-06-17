@@ -90,8 +90,8 @@ export default function WorkspaceHubPage() {
   const ws = q.data?.data;
 
   // Scoped-flow quick links — carry the workspace id as ?workspace=<id>. The
-  // target pages don't consume the param yet (this just threads the context
-  // through); they can read it later to filter their data to this workspace.
+  // target pages (discovery, profiles, cadences, inbox, pipeline) DO read this
+  // param via useSearchParams and filter their data to this workspace.
   const flowLinks = ws
     ? [
         { href: `/contacts/discovery?workspace=${id}`, icon: Radar, label: "Discovery", desc: "Cari & crawl prospek baru" },
