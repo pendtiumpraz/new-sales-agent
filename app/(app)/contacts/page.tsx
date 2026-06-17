@@ -13,6 +13,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowUpDown,
   CalendarClock,
   ChevronLeft,
@@ -111,7 +113,8 @@ function ContactsPageInner() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const { data: contacts, isLoading } = useContacts();
+  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
+  const { data: contacts, isLoading } = useContacts(showArchived);
   const { data: conversations } = useConversations();
   const { data: cadences } = useCadences();
   // Live counts from the prospecting store so the Penemuan Lead tab can
@@ -484,6 +487,10 @@ function ContactsPageInner() {
         </Link>
         {activeTab === "contacts" && (
           <>
+            <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
+              {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+              {showArchived ? "Lihat aktif" : "Lihat arsip"}
+            </Button>
             <Link
               href="/contacts/discovery"
               className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
@@ -692,9 +699,33 @@ function ContactsPageInner() {
                   <Download className="h-4 w-4" />
                   Export CSV
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const ids = [...selected];
+                    try {
+                      const r = await fetch("/api/data/archive", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ entity: "contact", ids, restore: showArchived }),
+                      });
+                      const j = await r.json();
+                      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+                      toast.success(`${j.count ?? ids.length} kontak ${showArchived ? "dipulihkan" : "diarsipkan"}`);
+                      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+                    } catch (e) {
+                      toast.error(`Gagal (${e instanceof Error ? e.message : e})`);
+                    }
+                    setSelected(new Set());
+                  }}
+                >
+                  {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                  {showArchived ? "Pulihkan" : "Arsipkan"}
+                </Button>
                 <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="h-4 w-4" />
-                  Hapus
+                  Hapus permanen
                 </Button>
               </div>
             </div>

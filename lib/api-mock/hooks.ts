@@ -27,11 +27,11 @@ function settle<T>(data: T, ms = 160): Promise<T> {
 // change behind our back, so no reason to ever auto-refetch.
 const STABLE = { staleTime: Infinity, refetchOnWindowFocus: false } as const;
 
-export function useContacts() {
+export function useContacts(archived = false) {
   return useQuery({
-    queryKey: ["contacts"],
+    queryKey: ["contacts", archived],
     queryFn: async () => {
-      const res = await fetch("/api/db/contacts");
+      const res = await fetch(`/api/db/contacts${archived ? "?archived=1" : ""}`);
       const json = (await res.json()) as { data: Contact[] };
       return json.data;
     },

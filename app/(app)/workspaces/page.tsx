@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  Archive,
+  ArchiveRestore,
   Briefcase,
   ChevronRight,
   Handshake,
@@ -65,6 +67,7 @@ const TYPE_ORDER: WorkspaceType[] = ["lead_gen", "partner", "offering", "retenti
 export default function WorkspacesPage() {
   const qc = useQueryClient();
   const [typeFilter, setTypeFilter] = useState<"all" | WorkspaceType>("all");
+  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<WorkspaceType>("lead_gen");
@@ -104,7 +107,24 @@ export default function WorkspacesPage() {
     onError: () => toast.error("Gagal membuat workspace (cek hak akses & koneksi DB)"),
   });
 
-  const all = (q.data?.data ?? []).filter((w) => w.status !== "archived");
+  // Archive (DELETE → status archived) / restore (PATCH status active), doc 49.
+  const archiveWs = useMutation({
+    mutationFn: async ({ id, restore }: { id: string; restore: boolean }) => {
+      const r = restore
+        ? await fetch(`/api/workspaces/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "active" }) })
+        : await fetch(`/api/workspaces/${id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+      return j;
+    },
+    onSuccess: (_d, { restore }) => {
+      toast.success(restore ? "Workspace dipulihkan" : "Workspace diarsipkan");
+      qc.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+    onError: () => toast.error("Gagal (cek hak akses & DB)"),
+  });
+
+  const all = (q.data?.data ?? []).filter((w) => (showArchived ? w.status === "archived" : w.status !== "archived"));
   const products = q.data?.products ?? [];
   const visible = typeFilter === "all" ? all : all.filter((w) => w.type === typeFilter);
 
@@ -114,6 +134,10 @@ export default function WorkspacesPage() {
         title="Workspaces"
         description="Wadah fokus per sales — pisahkan produk/tujuan biar nggak campur aduk. Manajer melihat semua, sales hanya miliknya (doc 44)."
       >
+        <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
+          {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          {showArchived ? "Lihat aktif" : "Lihat arsip"}
+        </Button>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" /> Buat workspace
         </Button>
@@ -207,7 +231,21 @@ export default function WorkspacesPage() {
                         <span className="inline-flex items-center gap-1">
                           <Users className="h-3 w-3" /> {w.leadCount} lead
                         </span>
-                        {w.ownerName && <span className="truncate">oleh {w.ownerName}</span>}
+                        <div className="flex items-center gap-1.5">
+                          {w.ownerName && <span className="truncate">oleh {w.ownerName}</span>}
+                          <button
+                            type="button"
+                            title={showArchived ? "Pulihkan" : "Arsipkan"}
+                            className="rounded p-1 hover:bg-accent hover:text-foreground"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              archiveWs.mutate({ id: w.id, restore: showArchived });
+                            }}
+                          >
+                            {showArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
