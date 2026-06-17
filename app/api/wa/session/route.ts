@@ -33,6 +33,15 @@ export async function POST() {
   if (mode === "per_platform" && !isManager(guard.ctx.role)) {
     return NextResponse.json({ error: "Mode per-platform — hanya manajer yang boleh hubungkan nomor" }, { status: 403 });
   }
+  // No gateway configured → fail fast instead of leaving the session stuck on
+  // "pending" forever (doc audit #28). Nothing moves it off pending without a VPS
+  // gateway polling the outbox, so the connect button would spin indefinitely.
+  if (!process.env.WA_GATEWAY_TOKEN) {
+    return NextResponse.json(
+      { error: "Gateway WhatsApp belum dikonfigurasi. Set WA_GATEWAY_TOKEN dan jalankan gateway (Baileys/openclaw di VPS) yang nge-poll /api/wa/gateway/outbox." },
+      { status: 400 },
+    );
+  }
   const s = await getOrCreateSession(guard.ctx, mode);
   await setSessionStatus(s.id, "pending");
   await enqueue(guard.ctx.tenantId, s.id, "start_session");

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { hasDb } from "@/lib/db/client";
@@ -199,6 +199,11 @@ export async function POST(req: Request) {
   const jobId = "crawl_" + crypto.randomUUID();
 
   try {
+    // Record the job as "running" BEFORE the slow synchronous crawl (#2) so a
+    // serverless timeout / crash still leaves a history row instead of nothing.
+    await withTenant(ctx, (tx) =>
+      tx.insert(crawlJobTable).values({ id: jobId, tenantId: ctx.tenantId, kind: b.kind, input: { kind: b.kind }, posture: b.posture, status: "running" }),
+    );
     let created = 0;
     let contactsCreated = 0;
     let peopleCreated = 0;
@@ -286,23 +291,20 @@ export async function POST(req: Request) {
     }
 
     await withTenant(ctx, (tx) =>
-      tx.insert(crawlJobTable).values({
-        id: jobId,
-        tenantId: ctx.tenantId,
-        kind: b.kind,
-        input,
-        posture: b.posture,
-        status,
-        result,
-        error,
-        finishedAt: status === "done" ? new Date() : null,
-      }),
+      tx
+        .update(crawlJobTable)
+        .set({ input, status, result, error, finishedAt: status === "done" ? new Date() : null })
+        .where(eq(crawlJobTable.id, jobId)),
     );
 
     await recordAudit(ctx, "discovery.start", b.kind, { posture: b.posture, created, contactsCreated, peopleCreated });
     return NextResponse.json({ ok: true, jobId, status, created, contactsCreated, peopleCreated, result });
   } catch (err) {
     console.error("[api/discovery POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    // Mark the job failed so the history shows it (not stuck on "running").
+    await withTenant(ctx, (tx) =>
+      tx.update(crawlJobTable).set({ status: "error", error: String(err), finishedAt: new Date() }).where(eq(crawlJobTable.id, jobId)),
+    ).catch(() => {});
+    return NextResponse.json({ ok: false, error: String(err), jobId }, { status: 500 });
   }
 }

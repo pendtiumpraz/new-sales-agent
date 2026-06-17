@@ -39,33 +39,29 @@ async function upsertSubscription(tenantId: string, patch: SubPatch) {
   const sysCtx = { tenantId, userId: "stripe-webhook", role: "superadmin" as const };
   const planId = await planIdForKey(patch.planKey);
 
+  // Atomic upsert (doc audit #14): Stripe can deliver checkout.session.completed
+  // and customer.subscription.created near-simultaneously; a select-then-insert
+  // race made both INSERT and the 2nd hit the tenant unique index → 500 + retries.
   await withTenant(sysCtx, async (tx) => {
-    const [existing] = await tx
-      .select()
-      .from(subscriptionTable)
-      .where(eq(subscriptionTable.tenantId, tenantId))
-      .limit(1);
-
-    if (existing) {
-      await tx
-        .update(subscriptionTable)
-        .set({
-          ...(planId ? { planId } : {}),
-          ...(patch.status ? { status: patch.status } : {}),
-          ...(patch.stripeCustomerId !== undefined ? { stripeCustomerId: patch.stripeCustomerId } : {}),
-          ...(patch.stripeSubscriptionId !== undefined ? { stripeSubscriptionId: patch.stripeSubscriptionId } : {}),
-        })
-        .where(eq(subscriptionTable.tenantId, tenantId));
-    } else {
-      await tx.insert(subscriptionTable).values({
+    await tx
+      .insert(subscriptionTable)
+      .values({
         id: "sub_" + crypto.randomUUID(),
         tenantId,
         planId: planId ?? "",
         status: patch.status ?? "active",
         stripeCustomerId: patch.stripeCustomerId ?? null,
         stripeSubscriptionId: patch.stripeSubscriptionId ?? null,
+      })
+      .onConflictDoUpdate({
+        target: subscriptionTable.tenantId,
+        set: {
+          ...(planId ? { planId } : {}),
+          ...(patch.status ? { status: patch.status } : {}),
+          ...(patch.stripeCustomerId !== undefined ? { stripeCustomerId: patch.stripeCustomerId } : {}),
+          ...(patch.stripeSubscriptionId !== undefined ? { stripeSubscriptionId: patch.stripeSubscriptionId } : {}),
+        },
       });
-    }
   });
 }
 

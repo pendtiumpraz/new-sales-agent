@@ -184,7 +184,14 @@ export function CadenceBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: cadence }),
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
+      const json = (await res.json()) as { ok?: boolean; error?: string; source?: string };
+      // Demo / no-DB path returns 200 {ok:false, source:"mock"} — that's expected,
+      // not a failure. Mirror the list page's run buttons (info toast, not red error).
+      if (json.source === "mock") {
+        toast.info("Mode demo — sambungkan database untuk menyimpan cadence.");
+        router.push("/cadences");
+        return;
+      }
       if (!res.ok || json.ok === false) {
         throw new Error(json.error ?? `HTTP ${res.status}`);
       }
