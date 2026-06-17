@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Plus, Save, Send, Sparkles, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, ExternalLink, Plus, Save, Send, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -24,6 +24,7 @@ interface Quote {
   customerName: string | null; customerEmail: string | null; customerCompany: string | null;
   status: string; publicToken: string; toEmail: string | null;
   sentAt: string | null; viewedAt: string | null; acceptedAt: string | null; rejectedAt: string | null;
+  deletedAt?: string | null;
 }
 interface Mailbox { id: string; fromEmail: string; fromName?: string | null }
 
@@ -38,6 +39,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 
 export default function PenawaranEditor() {
   const id = useParams().id as string;
+  const router = useRouter();
   const [q, setQ] = useState<Quote | null>(null);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -159,11 +161,28 @@ export default function PenawaranEditor() {
 
   const meta = STATUS_META[q.status] ?? STATUS_META.draft;
   const link = typeof window !== "undefined" ? `${window.location.origin}/q/${q.publicToken}` : `/q/${q.publicToken}`;
+  const archived = !!q.deletedAt;
+  async function archive() {
+    try {
+      const r = await fetch("/api/data/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entity: "quote", id, restore: archived }) });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+      toast.success(archived ? "Penawaran dipulihkan" : "Penawaran diarsipkan");
+      if (archived) query.refetch();
+      else router.push("/penawaran");
+    } catch {
+      toast.error("Gagal (cek hak akses & DB)");
+    }
+  }
 
   return (
     <div>
       <PageHeader title={`${q.title}`} description={`${q.number} · `}>
         <Badge variant="muted" className={meta.cls}>{meta.label}</Badge>
+        <Button variant="outline" className={!archived ? "text-destructive hover:text-destructive" : ""} onClick={archive}>
+          {archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          {archived ? "Pulihkan" : "Arsipkan"}
+        </Button>
       </PageHeader>
 
       <div className="space-y-4 p-6">
