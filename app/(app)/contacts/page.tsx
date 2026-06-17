@@ -132,6 +132,9 @@ function ContactsPageInner() {
   const [detail, setDetail] = useState<Contact | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false); // manual add-contact (audit UX #3)
+  const [creating, setCreating] = useState(false);
+  const [nf, setNf] = useState({ name: "", company: "", email: "", phone: "" });
   const [cadencePickerOpen, setCadencePickerOpen] = useState(false);
   const [selectedCadenceId, setSelectedCadenceId] = useState<string>("");
   const [enrolling, setEnrolling] = useState(false);
@@ -491,13 +494,10 @@ function ContactsPageInner() {
               {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
               {showArchived ? "Lihat aktif" : "Lihat arsip"}
             </Button>
-            <Link
-              href="/contacts/discovery"
-              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
-            >
+            <Button variant="outline" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
               Tambah kontak
-            </Link>
+            </Button>
             <Button onClick={openHero}>
               <Sparkles className="h-4 w-4" />
               Buka workspace terpadu
@@ -843,6 +843,72 @@ function ContactsPageInner() {
       </Tabs>
 
       <ContactDetailSheet contact={detail} open={sheetOpen} onOpenChange={setSheetOpen} />
+
+      {/* Manual add contact (audit UX #3) — wires the previously-unused PUT upsert */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" /> Tambah kontak
+            </DialogTitle>
+            <DialogDescription>
+              Isi manual, atau{" "}
+              <Link href="/contacts/discovery" className="text-primary underline" onClick={() => setCreateOpen(false)}>
+                crawl massal lewat Discovery
+              </Link>
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Nama *</label>
+              <Input value={nf.name} onChange={(e) => setNf((f) => ({ ...f, name: e.target.value }))} placeholder="Budi Santoso" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Perusahaan</label>
+                <Input value={nf.company} onChange={(e) => setNf((f) => ({ ...f, company: e.target.value }))} placeholder="PT Maju" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Telepon</label>
+                <Input value={nf.phone} onChange={(e) => setNf((f) => ({ ...f, phone: e.target.value }))} placeholder="0812…" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Email</label>
+              <Input type="email" value={nf.email} onChange={(e) => setNf((f) => ({ ...f, email: e.target.value }))} placeholder="budi@ptmaju.co.id" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Batal</Button>
+            <Button
+              disabled={creating || !nf.name.trim()}
+              onClick={async () => {
+                const name = nf.name.trim();
+                if (!name) return;
+                setCreating(true);
+                try {
+                  const contact = { id: "ct_" + crypto.randomUUID().slice(0, 12), name, company: nf.company.trim() || null, email: nf.email.trim() || null, phone: nf.phone.trim() || null, tags: [], consent: "unknown", source: "manual" };
+                  const r = await fetch("/api/db/contacts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: [contact] }) });
+                  const j = await r.json();
+                  if (j?.source === "mock") toast.info("Mode demo — sambungkan DB untuk menyimpan kontak.");
+                  else if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+                  else toast.success("Kontak ditambahkan.");
+                  setCreateOpen(false);
+                  setNf({ name: "", company: "", email: "", phone: "" });
+                  queryClient.invalidateQueries({ queryKey: ["contacts"] });
+                } catch (e) {
+                  toast.error(`Gagal menambah kontak (${e instanceof Error ? e.message : e})`);
+                } finally {
+                  setCreating(false);
+                }
+              }}
+            >
+              {creating ? "Menyimpan…" : "Simpan kontak"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* PDPA-aware delete confirmation */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

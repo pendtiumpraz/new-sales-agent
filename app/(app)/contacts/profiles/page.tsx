@@ -249,6 +249,22 @@ export default function ProfilesPage() {
     onSettled: () => setClassifyingId(null),
   });
 
+  // Classify-only (no websearch) — fast pass over still-unclassified leads (doc 40).
+  // The /api/profiles/classify endpoint existed but had no button (audit UX #3).
+  const classifyAll = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/profiles/classify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+      return j as { count?: number };
+    },
+    onSuccess: (j) => {
+      toast.success(`${j.count ?? 0} lead diklasifikasi`);
+      qc.invalidateQueries({ queryKey: ["people"] });
+    },
+    onError: () => toast.error("Gagal klasifikasi (cek hak akses & DB)"),
+  });
+
   const membersQ = useQuery({
     queryKey: ["team-members"],
     queryFn: async () => {
@@ -549,6 +565,10 @@ export default function ProfilesPage() {
                     {bulk?.kind === "person" && (
                       <Button size="sm" variant="ghost" onClick={() => { bulkCancel.current = true; }}>Hentikan</Button>
                     )}
+                    <Button size="sm" variant="outline" onClick={() => classifyAll.mutate()} disabled={classifyAll.isPending || !!bulk}>
+                      <Handshake className="h-4 w-4" />
+                      {classifyAll.isPending ? "Mengklasifikasi…" : "Klasifikasi semua"}
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => runBulk("person")} disabled={!!bulk}>
                       <Sparkles className="h-4 w-4" />
                       {bulk?.kind === "person" ? `Memproses ${bulk.done}/${bulk.total}…` : "Cari semua kontak & profil (web)"}
