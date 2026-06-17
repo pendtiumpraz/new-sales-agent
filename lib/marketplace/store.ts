@@ -24,6 +24,17 @@ export async function mine(tenantId: string): Promise<Listing[]> {
   return db.select().from(marketplaceListingTable).where(eq(marketplaceListingTable.sellerTenantId, tenantId));
 }
 
+// Delist (status → delisted) or re-list (→ active) one of YOUR listings (doc audit
+// #6). Scoped to the seller tenant so you can only touch your own.
+export async function setListingStatus(ctx: TenantContext, listingId: string, status: "active" | "delisted"): Promise<boolean> {
+  const rows = await db
+    .update(marketplaceListingTable)
+    .set({ status })
+    .where(and(eq(marketplaceListingTable.id, listingId), eq(marketplaceListingTable.sellerTenantId, ctx.tenantId)))
+    .returning({ id: marketplaceListingTable.id });
+  return rows.length > 0;
+}
+
 export class MarketplaceError extends Error {
   constructor(public code: string, msg: string) {
     super(msg);

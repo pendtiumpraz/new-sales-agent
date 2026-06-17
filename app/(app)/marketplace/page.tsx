@@ -98,6 +98,27 @@ export default function MarketplacePage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal"),
   });
 
+  // doc audit #6 — your own listings + delist/relist (was a dead-end: no unpublish).
+  const mineQ = useQuery({
+    queryKey: ["marketplace-mine"],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    queryFn: async () => ((await (await fetch("/api/marketplace?scope=mine")).json()).data ?? []) as any[],
+  });
+  const delistMut = useMutation({
+    mutationFn: async (v: { listingId: string; relist: boolean }) => {
+      const r = await fetch("/api/marketplace/delist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(v) });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+      return j;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v.relist ? "Listing diaktifkan lagi" : "Listing ditarik (delisted)");
+      qc.invalidateQueries({ queryKey: ["marketplace-mine"] });
+      qc.invalidateQueries({ queryKey: ["marketplace-browse"] });
+    },
+    onError: () => toast.error("Gagal (cek hak akses & DB)"),
+  });
+
   const filteredPeople = useMemo(() => {
     const f = pfilter.trim().toLowerCase();
     const loc = ploc.trim().toLowerCase();
@@ -142,6 +163,7 @@ export default function MarketplacePage() {
           <TabsList>
             <TabsTrigger value="jelajah" className="gap-1.5"><ShoppingCart className="h-3.5 w-3.5" /> Jelajah</TabsTrigger>
             <TabsTrigger value="publikasi" className="gap-1.5"><Upload className="h-3.5 w-3.5" /> Publikasikan</TabsTrigger>
+            <TabsTrigger value="saya" className="gap-1.5"><Store className="h-3.5 w-3.5" /> Listing saya</TabsTrigger>
           </TabsList>
 
           {/* Browse + acquire */}
@@ -235,6 +257,44 @@ export default function MarketplacePage() {
                 {(companiesQ.data?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground">Belum ada perusahaan.</p>}
               </div>
             </div>
+          </TabsContent>
+
+          {/* My listings — delist / re-list (doc audit #6) */}
+          <TabsContent value="saya" className="mt-5">
+            {(mineQ.data?.length ?? 0) === 0 ? (
+              <EmptyState icon={Store} title="Belum ada listing milikmu" description="Publikasikan kontak di tab Publikasikan; di sini kamu bisa menariknya kembali (delist)." />
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {(mineQ.data ?? []).map((l) => {
+                  const delisted = l.status === "delisted";
+                  return (
+                    <Card key={l.id} className={delisted ? "opacity-60" : undefined}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <Badge variant="muted" className="gap-1">
+                            {l.entityType === "company" ? <Building2 className="h-3 w-3" /> : <User2 className="h-3 w-3" />}
+                            {l.entityType === "company" ? "Perusahaan" : "Orang"}
+                          </Badge>
+                          <span className="text-xs font-semibold">{l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}</span>
+                        </div>
+                        <p className="mt-2 font-semibold">{l.title}</p>
+                        {l.category && <p className="text-[11px] font-medium text-primary">{l.category}</p>}
+                        <p className="mt-1 text-[11px] text-muted-foreground">Status: {delisted ? "Ditarik (delisted)" : "Aktif"}</p>
+                        <Button
+                          size="sm"
+                          variant={delisted ? "outline" : "destructive"}
+                          className="mt-3 w-full"
+                          disabled={delistMut.isPending}
+                          onClick={() => delistMut.mutate({ listingId: l.id, relist: delisted })}
+                        >
+                          {delisted ? "Aktifkan lagi" : "Tarik dari marketplace"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
