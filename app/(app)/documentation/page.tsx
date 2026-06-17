@@ -11,6 +11,7 @@ import {
   Database,
   Inbox,
   LayoutDashboard,
+  Lightbulb,
   Mail,
   Radar,
   Rocket,
@@ -323,6 +324,23 @@ export default function DocumentationPage() {
         description="Panduan fitur Maira Sales — cara pakai tiap modul, langkah demi langkah."
       />
       <div className="space-y-6 p-6">
+        {/* Use-case showcase — many sales/marketing scenarios per industry */}
+        <Link
+          href="/use-case"
+          className="group flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-card to-tertiary/8 p-4 transition hover:-translate-y-px hover:shadow-md"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_20px_-8px_rgba(251,94,59,0.55)]">
+            <Lightbulb className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Use Case per industri →</p>
+            <p className="text-xs text-muted-foreground">
+              50+ skenario sales &amp; marketing: perhotelan, HR/rekrutmen IT, manufaktur, F&amp;B, properti, fintech, agensi & influencer, dan banyak lagi.
+            </p>
+          </div>
+          <ArrowUpRight className="h-5 w-5 shrink-0 text-primary transition group-hover:translate-x-0.5" />
+        </Link>
+
         {/* High-level architecture — roles, isolation, flow, marketplace (doc 41) */}
         <ArchitectureDiagram />
 

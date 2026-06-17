@@ -10,6 +10,7 @@ export const GLOBAL_PREFIXES = [
   "/reports",
   "/settings",
   "/documentation",
+  "/use-case", // industry use-case reference (doc/guide — global, no workspace needed)
   "/workspaces", // the doc-44 picker/hub itself
   "/workspace", // the per-CONTACT unified workbench (/workspace/[contactId]) — NOT a doc-44 workspace, don't gate it
   "/admin",

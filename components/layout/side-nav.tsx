@@ -12,6 +12,7 @@ import {
   Database,
   FileText,
   Heart,
+  Lightbulb,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -119,6 +120,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/reports", icon: BarChart3, label: "Laporan", desc: "Performa & analitik" },
       { href: "/documentation", icon: BookOpen, label: "Panduan", desc: "Cara pakai tiap fitur, langkah demi langkah" },
+      { href: "/use-case", icon: Lightbulb, label: "Use Case", desc: "Skenario sales & marketing per industri" },
     ],
   },
   {
