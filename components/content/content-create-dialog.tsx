@@ -201,7 +201,7 @@ export function ContentCreateDialog({ open, onOpenChange, defaultDate }: Props) 
                 onClick={generate}
               >
                 <Wand2 className="h-3.5 w-3.5 text-primary" />
-                {generating ? "Menyusun..." : "Pakai template"}
+                {generating ? "Memuat template…" : "Pakai template"}
               </Button>
             </div>
             <Textarea

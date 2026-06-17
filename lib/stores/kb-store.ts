@@ -138,17 +138,19 @@ export const useKbStore = create<KbState>((set, get) => ({
         const res = await fetch("/api/db/kb", { cache: "no-store" });
         if (res.ok) {
           const json = (await res.json()) as { data?: KnowledgeBase };
-          if (json?.data) {
-            set({ kb: json.data, hydrated: true });
-            return;
-          }
+          // Real data loaded, OR an OK-but-empty DB (seed is the legit starting
+          // point) → safe to mark hydrated and allow persistence.
+          set(json?.data ? { kb: json.data, hydrated: true } : { hydrated: true });
         }
-        // Fall through to mark hydrated even if fetch returned no data,
-        // so the in-memory seed can be edited without blocking persistence.
-        set({ hydrated: true });
+        // A non-OK response (auth / 500) does NOT mark hydrated — otherwise the
+        // next edit would persistKb() the in-memory SEED over real DB data (#18).
       } catch (e) {
         console.error("[kb-store hydrate]", e);
-        set({ hydrated: true });
+        // Transient failure — leave hydrated=false so we never clobber the DB.
+      } finally {
+        // Allow a later hydrate() to retry after a failed load (don't cache the
+        // failed attempt). On success, keep the promise so it won't re-run.
+        if (!get().hydrated) hydratePromise = undefined;
       }
     })();
     return hydratePromise;
