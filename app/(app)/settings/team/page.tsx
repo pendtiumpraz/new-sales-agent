@@ -253,7 +253,7 @@ export default function TeamPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeMember.mutate(m.id)}
+                          onClick={() => { if (confirm(`Keluarkan ${m.name ?? "anggota"} dari tim? Tindakan ini tidak bisa dibatalkan.`)) removeMember.mutate(m.id); }}
                           aria-label="Hapus anggota"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />

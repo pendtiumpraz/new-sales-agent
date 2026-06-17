@@ -186,7 +186,7 @@ export default function MailboxesPage() {
                     </p>
                   </div>
                   {canManage && (
-                    <Button variant="ghost" size="icon" onClick={() => removeMbx.mutate(m.id)} aria-label="Hapus">
+                    <Button variant="ghost" size="icon" onClick={() => { if (confirm("Hapus mailbox ini? Pengiriman email lewat akun ini akan berhenti dan job terjadwal akan gagal.")) removeMbx.mutate(m.id); }} aria-label="Hapus">
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   )}

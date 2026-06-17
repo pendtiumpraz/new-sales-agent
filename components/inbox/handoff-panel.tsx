@@ -225,12 +225,13 @@ export function HandoffPanel({ conversationId }: { conversationId: string }) {
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-sm font-medium">
               <Sparkles className="h-3.5 w-3.5 text-tertiary" />
-              Auto-reply AI aktif
+              Auto-reply AI <span className="text-[10px] font-normal text-muted-foreground">(semua percakapan)</span>
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {config.autoReplyEnabled
-                ? "AI menyusun draf jawaban otomatis."
-                : "Anda menulis manual setiap balasan."}
+                ? "AI menyusun draf jawaban otomatis di semua kanal masuk."
+                : "Anda menulis manual setiap balasan."}{" "}
+              Setelan ini berlaku global.
             </p>
           </div>
           <Switch
