@@ -176,7 +176,9 @@ const extractEmails = (raw: string): string[] => {
   for (const m of raw.matchAll(/mailto:([^"'?\s>]+@[^"'?\s>]+)/gi)) set.add(m[1].toLowerCase());
   for (const e of raw.match(EMAIL_RE) ?? []) set.add(e.toLowerCase());
   return [...set].filter(
-    (e) => /\.[a-z]{2,}$/.test(e) && !/(example\.|sentry|wixpress|\.png|\.jpe?g|\.gif|\.svg|\.webp|\.css|\.js|@2x|domain\.com|email\.com|yourdomain|placeholder|your@|name@|user@)/.test(e),
+    (e) =>
+      /\.[a-z]{2,}$/.test(e) &&
+      !/(example\.|sentry|wixpress|\.png|\.jpe?g|\.gif|\.svg|\.webp|\.css|\.js|@2x|domain\.com|email\.com|yourdomain|placeholder|your@|name@|user@|perusahaan\.com|contoh|dummy|johndoe|janedoe|@test\.|@email\.|nama@)/.test(e),
   );
 };
 
@@ -405,9 +407,32 @@ export async function discoverCompany(ctx: TenantContext, input: { name: string;
   const results = await webSearch(`${input.name} website resmi OR kontak OR email OR "tentang kami"`);
   let site = input.website || undefined;
   if (!site) {
-    for (const r of results) {
-      const h = hostname(r.url);
-      if (h && !NO_FETCH.test(h)) { site = "https://" + h; break; }
+    // Pick the result host that best matches the company name, preferring the apex
+    // domain (cekat.ai) over subdomains (web.cekat.ai) — not just the first hit.
+    const nameKey = input.name.toLowerCase().replace(/\b(pt|cv|ud|pd|tbk|persero|indonesia)\b/g, "").replace(/[^a-z0-9]/g, "");
+    const cands = results.map((r) => r.url).filter((u) => { const h = hostname(u); return !!h && !NO_FETCH.test(h); });
+    const scoreOf = (u: string) => {
+      const h = hostname(u);
+      const root = h.replace(/\.(com|net|org|io|ai|id|co|or)(\.[a-z]{2})?$/, "").replace(/[^a-z0-9]/g, "");
+      let s = -h.split(".").length; // fewer dots = closer to apex
+      if (nameKey && root && (root.includes(nameKey) || nameKey.includes(root))) s += 100;
+      return s;
+    };
+    const best = [...cands].sort((a, b) => scoreOf(b) - scoreOf(a))[0];
+    if (best) site = "https://" + hostname(best);
+  }
+  // Last resort: guess the domain from the company name and probe it (handles
+  // names that literally are the domain, e.g. "Cekat.AI" → cekat.ai).
+  if (!site) {
+    const lc = input.name.toLowerCase().replace(/\b(pt|cv|ud|pd|tbk|persero)\b/g, "").trim();
+    const withDot = lc.replace(/[^a-z0-9.]/g, "");
+    const alnum = withDot.replace(/\./g, "");
+    const guesses: string[] = [];
+    if (/\.[a-z]{2,}$/.test(withDot)) guesses.push(withDot);
+    for (const tld of ["com", "co.id", "id", "ai"]) if (alnum) guesses.push(`${alnum}.${tld}`);
+    for (const g of guesses) {
+      const probe = await fetchPage("https://" + g, 800);
+      if (probe.raw) { site = "https://" + g; break; }
     }
   }
   const domain = site ? hostname(site) : undefined;

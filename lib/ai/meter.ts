@@ -52,13 +52,22 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
     throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");
   }
 
+  // Reasoning models (deepseek-v4-flash/pro, *-reasoner, *-r1, *-thinking) spend
+  // output tokens on hidden reasoning BEFORE emitting content — a small
+  // maxOutputTokens is consumed entirely by reasoning and returns EMPTY text
+  // (e.g. enrich's 140/220-token budgets → blank summaries/industry). Floor the
+  // budget for these so short calls still yield a real answer. Non-reasoning
+  // models (deepseek-chat, gpt, …) keep the caller's exact budget.
+  const isReasoning = /v4-flash|v4-pro|reasoner|reasoning|[-_]r1\b|think/i.test(resolved.modelString);
+  const maxOutputTokens = isReasoning ? Math.max(opts.maxOutputTokens ?? 0, 1200) : opts.maxOutputTokens;
+
   const start = Date.now();
   // generateText's prompt is a discriminated union ({prompt} | {messages}) — pass
   // exactly one, never `messages: undefined`, or the overload fails to resolve.
   const base = {
     model: resolved.model,
     system: opts.system,
-    ...(opts.maxOutputTokens ? { maxOutputTokens: opts.maxOutputTokens } : {}),
+    ...(maxOutputTokens ? { maxOutputTokens } : {}),
   };
   const result = await generateText(
     opts.messages
