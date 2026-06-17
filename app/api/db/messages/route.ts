@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -36,13 +36,15 @@ export async function GET(req: Request) {
     });
   }
   try {
+    // RLS is off — scope to this tenant explicitly (keep legacy null-tenant seed rows).
+    const tPred = or(eq(messagesTable.tenantId, ctx.tenantId), isNull(messagesTable.tenantId));
     const rows = await withTenant(ctx, (tx) =>
       conversationId
         ? tx
             .select()
             .from(messagesTable)
-            .where(eq(messagesTable.conversationId, conversationId))
-        : tx.select().from(messagesTable),
+            .where(and(tPred, eq(messagesTable.conversationId, conversationId)))
+        : tx.select().from(messagesTable).where(tPred),
     );
     if (!rows.length) {
       return NextResponse.json({

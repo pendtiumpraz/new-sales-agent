@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { eq, isNull, or } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -21,7 +22,8 @@ export async function GET() {
   }
   try {
     const rows = await withTenant(ctx, (tx) =>
-      tx.select().from(conversationsTable),
+      // RLS is off — scope to this tenant explicitly (keep legacy null-tenant seed rows).
+      tx.select().from(conversationsTable).where(or(eq(conversationsTable.tenantId, ctx.tenantId), isNull(conversationsTable.tenantId))),
     );
     if (!rows.length) {
       return NextResponse.json({ data: seedConversations, source: "seed" });

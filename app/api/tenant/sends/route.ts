@@ -18,7 +18,8 @@ export async function GET() {
   if (!hasDb()) return NextResponse.json({ data: [], source: "mock" });
   try {
     const rows = await withTenant(ctx, (tx) =>
-      tx.select().from(sendJobTable).orderBy(desc(sendJobTable.createdAt)).limit(50),
+      // RLS is off — scope to this tenant explicitly.
+      tx.select().from(sendJobTable).where(eq(sendJobTable.tenantId, ctx.tenantId)).orderBy(desc(sendJobTable.createdAt)).limit(50),
     );
     return NextResponse.json({ data: rows, source: "db" });
   } catch (err) {

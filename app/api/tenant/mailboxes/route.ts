@@ -39,7 +39,8 @@ export async function GET() {
           dailyLimit: sendingAccountTable.dailyLimit,
           sentToday: sendingAccountTable.sentToday,
         })
-        .from(sendingAccountTable),
+        .from(sendingAccountTable)
+        .where(eq(sendingAccountTable.tenantId, ctx.tenantId)), // RLS is off — scope explicitly
     );
     return NextResponse.json({ data: rows, oauth: oauthFlags(), source: "db" });
   } catch (err) {

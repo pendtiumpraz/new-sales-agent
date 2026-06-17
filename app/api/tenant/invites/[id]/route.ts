@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -19,7 +19,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       tx
         .update(invitesTable)
         .set({ status: "revoked" })
-        .where(eq(invitesTable.id, params.id)),
+        .where(and(eq(invitesTable.id, params.id), eq(invitesTable.tenantId, ctx.tenantId))), // tenant guard
     );
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {

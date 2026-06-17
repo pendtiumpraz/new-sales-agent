@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { personTable } from "@/lib/db/schema";
+import { isManager } from "@/lib/team/members";
 import { provinceFromLocation, centroidOf, UNKNOWN_PROVINCE } from "@/lib/geo/province";
 
 export const runtime = "nodejs";
@@ -32,7 +34,19 @@ export async function GET(req: Request) {
   const fSkill = (url.searchParams.get("skill") || "").trim().toLowerCase();
 
   try {
-    const persons = await withTenant(ctx, (tx) => tx.select().from(personTable));
+    // RLS is off — scope to tenant; reps see only their assigned + unassigned (doc 41),
+    // matching /api/db/people so the map and the list agree.
+    const scoped = !isManager(ctx.role);
+    const persons = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(personTable)
+        .where(
+          scoped
+            ? and(eq(personTable.tenantId, ctx.tenantId), or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo)))
+            : eq(personTable.tenantId, ctx.tenantId),
+        ),
+    );
 
     const counts = new Map<string, number>();
     for (const p of persons) {

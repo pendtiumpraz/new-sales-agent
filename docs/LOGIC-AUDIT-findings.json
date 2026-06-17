@@ -1,0 +1,1102 @@
+[
+ {
+  "page": "contacts/profiles",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "The 'Perusahaan' tab is NOT scoped to the active workspace at all. When the page is opened with ?workspace=<id> (the only way reps reach Profil from the workspace hub flowLinks), the workspace filter (`p.workspaceId === workspaceId`) is applied ONLY to people (line 332). companyRows has no workspace predicate (lines 343-352), so the company list shows every company in the tenant regardless of which workspace you are in. company has no workspaceId column at all (schema line 335-358), and personTable.workspaceId is never joined to derive which companies belong to a workspace.",
+  "location": "app/(app)/contacts/profiles/page.tsx:343-352",
+  "realWorld": "A rep who opens a 'Cari lead AI Engineer' workspace and clicks Profil expects to see only the companies relevant to that focus. Instead they see the entire company database mixed across all of their (and, for the company list, the tenant's) workspaces — exactly the 'campur aduk' the workspace feature was built to prevent (doc 44).",
+  "fix": "Either add workspaceId to companyTable and filter companyRows by it, or derive the scoped company set from the scoped people (collect companyId from peopleRows filtered to the workspace and `.filter(c => scopedCompanyIds.has(c.id))`). Apply the same `!workspaceId || wsShowAll || ...` gate that people use.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "critical",
+  "category": "count-aggregation",
+  "issue": "Both tab COUNT badges count the FULL unfiltered datasets, not the scoped/filtered set. 'Perusahaan' badge = companies.data.data.length (line 440) and 'Orang' badge = people.data.data.length (line 447). Neither respects the workspace scope, the source filter, the leadType filter, the search, or even the per-rep assignedTo scope. The visible result count shown elsewhere (peopleRows.length line 562, companyRows.length line 481) is correctly post-filter, so the badge and the visible list disagree.",
+  "location": "app/(app)/contacts/profiles/page.tsx:440,447",
+  "realWorld": "Inside a workspace the Orang badge might read '2,000' while the table shows 3 rows, and Perusahaan shows the global total. The rep cannot trust the counts — they over-report the workspace's real size and conflate every workspace's data into one number.",
+  "fix": "Drive the badges from the filtered arrays: `{companyRows.length}` and `{peopleRows.length}`. If a 'total in scope vs total in tenant' distinction is wanted, compute a workspace-scoped count explicitly (people filtered to workspaceId, companies derived from those people) rather than the raw `.data.length`.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "high",
+  "category": "flow-logic",
+  "issue": "There is no UI to tag a lead to the current workspace despite the banner promising it. The 'Tambah lead…' button only toggles `wsShowAll` (line 530) which shows all leads, but the people table columns (peopleCols, lines 395-411) contain no per-row 'add to this workspace' control. The tagWorkspace mutation (lines 215-230) is defined but never called from any rendered element.",
+  "location": "app/(app)/contacts/profiles/page.tsx:215-230,530-532",
+  "realWorld": "The banner literally says 'klik + workspace untuk menambah', but there is no '+' control anywhere. A rep enters add-mode, sees all leads, and has no way to actually attach one to the workspace. The whole workspace-population flow is a dead end — combined with the seed never tagging anyone, every workspace stays permanently empty.",
+  "fix": "Add a per-row action column (visible only when `workspaceId && wsShowAll`) with a button that calls `tagWorkspace.mutate({ personId: p.id, workspaceId })`, and a 'remove from workspace' button when `p.workspaceId === workspaceId`. Invalidate the ['people'] query (currently invalidated with stale key — see separate finding).",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "All mutations on this page invalidate `queryKey: ['people']` / `['companies']` (e.g. lines 227, 245-246, 263, 288, 387-388) but the actual queries are keyed `['people', showArchived]` and `['companies', showArchived]` (lines 295, 303). React Query partial matching DOES match the prefix, so this happens to work — BUT the wsQ query is keyed `['workspace', workspaceId]` (line 207) which collides with the workspace HUB page's own `['workspace', id]` query that expects `{ data: WorkspaceDetail }`; here it only fetches `{ data: { name } }`. Cross-page cache collision can serve the wrong shape.",
+  "location": "app/(app)/contacts/profiles/page.tsx:206-214",
+  "realWorld": "Navigating workspace hub → Profil → back can hand the hub page a cached object that lacks `leads`/`leadCount`, throwing or rendering 0 leads. The two pages fight over one cache key for two different payload shapes.",
+  "fix": "Use a distinct query key on the profiles page, e.g. `['workspace-name', workspaceId]`, or fetch the full detail shape so both consumers agree. Generally namespace per-page lightweight fetches so they don't shadow the canonical resource query.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "medium",
+  "category": "data-mixing",
+  "issue": "The leadType filter offers 'b2b_client' (line 559) but no lead is ever classified b2b_client — the classifier/schema only use b2c_customer | b2b_partner | unknown (schema line 380, LeadTypeBadge lines 90-108 only handle the latter two). Selecting it always yields 0 rows.",
+  "location": "app/(app)/contacts/profiles/page.tsx:559",
+  "realWorld": "A rep filters by 'B2B Client' expecting their existing-customer accounts and gets an empty table every time — a filter option that can never match real data, eroding trust in the filters.",
+  "fix": "Remove the b2b_client option, or align the classifier + schema + LeadTypeBadge to actually produce/render b2b_client. Keep the filter option set in sync with the values the classifier can emit.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "cadences",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "The cadences workspace filter is permanently dead because a cadence can never carry a workspaceId. cadencesTable has a workspaceId column (schema line 165), but the cadence PUT/POST never writes it (route lines 60-89 omit workspaceId entirely) and the /cadences/new builder has zero workspace handling (grep: no matches). The page filters on `(c as {workspaceId?}).workspaceId === workspaceId` (page line 105), which is always undefined, so opening /cadences?workspace=<id> shows an EMPTY grid unless the rep clicks 'Lihat semua'.",
+  "location": "app/(app)/cadences/page.tsx:105; app/api/db/cadences/route.ts:60-89",
+  "realWorld": "A rep enters a workspace, clicks 'Cadence', and sees no cadences at all even though they have active sequences — because nothing tags a cadence to a workspace. The scoped flow from the workspace hub is broken end-to-end.",
+  "fix": "Add a workspace picker in /cadences/new (default to ?workspace if present), persist workspaceId in the cadence PUT/POST (both insert.values and onConflictDoUpdate.set), and stamp it when creating from a workspace context. Until then the filter should be honest (hide the workspace banner if no cadence can be scoped).",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "cadences",
+  "severity": "high",
+  "category": "count-aggregation",
+  "issue": "The KPI summary (activeCount, enrolled, avgReply) is computed over the FULL cadence list, not the visible/filtered/workspace-scoped set. summary uses `cadences ?? []` (lines 110-122) while the grid renders `visible` (lines 98-108) which applies channel/status/workspace filters. So inside a workspace the pills show tenant-wide totals while the grid shows a subset (or nothing).",
+  "location": "app/(app)/cadences/page.tsx:110-122",
+  "realWorld": "Inside 'Cari partner' workspace the rep sees 'Total enrolled 1,240 / Avg reply 31%' even though zero cadences are shown — the headline numbers describe a completely different population than the cards below them.",
+  "fix": "Compute summary from `visible` instead of `cadences ?? []`, so the KPIs match the filtered grid the user is actually looking at.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "cadences",
+  "severity": "low",
+  "category": "scoping",
+  "issue": "/api/db/cadences returns ALL tenant cadences with no per-rep (owner) scoping (route lines 26-29), unlike /api/db/people which scopes members to assignedTo-or-unassigned (people route lines 26-31). cadences carries an `owner` column but it is never used to filter.",
+  "location": "app/api/db/cadences/route.ts:26-29",
+  "realWorld": "Per doc 41 per-rep isolation, a sales rep should see their own outreach sequences, not every other rep's. Here a member sees the whole tenant's cadences, leaking other reps' campaigns.",
+  "fix": "Mirror the people route: when `!isManager(ctx.role)`, add `where(or(eq(cadencesTable.owner, ctx.userId), isNull(cadencesTable.owner)))` alongside the deletedAt predicate.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "pipeline",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The pipeline workspace filter is effectively dead in practice: KanbanBoard filters deals by `d.workspaceId === workspaceId` (kanban-board.tsx line 30), and the deals PUT DOES persist workspaceId (deals route lines 71,83), but NO UI anywhere ever sets a deal's workspaceId — the pipeline store has no workspaceId field/setter (grep: no matches in pipeline-store.ts) and no add/edit-deal form references it (grep: only kanban-board + conversation-list). The seed never tags deals either (grep in scripts: no matches). So /pipeline?workspace=<id> Kanban is always empty unless the rep clicks 'Lihat semua'.",
+  "location": "components/pipeline/kanban-board.tsx:30; app/(app)/pipeline/page.tsx:152",
+  "realWorld": "A rep opens a workspace, clicks Pipeline, and the Kanban is blank because no deal was ever stamped with this workspace. The scoped pipeline promised by the hub never has data.",
+  "fix": "Add workspaceId to the deal create/edit flow (store + add-deal form), default it from the active workspace, and persist via the existing deals PUT. Optionally auto-stamp deals created from a workspace-scoped contact/quote.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "pipeline",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "Only the Kanban tab respects ?workspace=; the default 'Daftar enrichment' tab (EnrichmentTable + AiAnalysisPanel) and the hero KPI strip (heroStats from `analyses`, lines 43-54) ignore the workspace scope entirely. The page defaults to the list tab, so the first thing a rep sees in a 'workspace pipeline' is tenant-wide enrichment + tenant-wide hot/active/avgDays counts.",
+  "location": "app/(app)/pipeline/page.tsx:43-54,128-139",
+  "realWorld": "Entering a workspace's Pipeline shows global 'Prospek panas / Deal aktif / Rata-rata hari' and a global enrichment list — the workspace banner only appears after switching to Kanban. The rep cannot tell which numbers belong to their workspace.",
+  "fix": "Thread workspaceId into EnrichmentTable, AiAnalysisPanel, and the heroStats derivation (filter analyses to deals tagged to the workspace), or hide/relabel the hero + list as 'all workspaces' when a workspace scope is active. Show the workspace banner above all tabs, not just Kanban.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "workspaces/[id]",
+  "severity": "high",
+  "category": "real-world-fit",
+  "issue": "The workspace hub's leadCount and leads list are sourced exclusively from person.workspaceId (api/workspaces/[id]/route.ts lines 36-47; list page leadCount lines 39-43). Because nothing tags people to workspaces by default (seed has no workspace tagging; discovery is the only writer and only when crawling FROM a workspace; the only manual tagger — the profiles '+ workspace' control — does not exist, see profiles finding), every freshly created workspace shows '0 lead' and an empty leads list forever.",
+  "location": "app/api/workspaces/[id]/route.ts:36-47",
+  "realWorld": "A rep creates 'Cari lead AI Engineer', lands on the hub, and it is empty with 'Belum ada lead' — even though they already have hundreds of matching leads in Profil. There is no 'pull matching leads into this workspace' action, so workspaces feel inert on day one. Real reps expect to seed a workspace from an existing segment/saved filter, not hand-tag leads one by one.",
+  "fix": "Add a 'Tambah lead dari Profil' / bulk-assign-by-segment flow (e.g. match person.title/location to workspace.targetSegment) and wire the missing per-row tag control on Profil. Consider auto-suggesting leads whose attributes match targetSegment so the hub is useful immediately after creation.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "workspaces",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "leadCount on the workspaces list (api/workspaces/route.ts lines 39-43) counts ALL people with that workspaceId regardless of the person's deletedAt (soft-delete) status — the leadRows select has no deletedAt predicate (lines 35-37), unlike the per-rep people list which filters by deletedAt. Archived/soft-deleted leads still inflate the workspace's 'N lead' badge.",
+  "location": "app/api/workspaces/route.ts:35-43",
+  "realWorld": "A rep archives stale leads but the workspace card still claims it has them, overstating live pipeline volume — the card count and the hub's actual (also-unfiltered) list can both include deleted people.",
+  "fix": "Add `where(isNull(personTable.deletedAt))` to the leadRows query (and to the hub's leads query in [id]/route.ts) so workspace lead counts reflect only live leads.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "workspaces/[id]",
+  "severity": "low",
+  "category": "flow-logic",
+  "issue": "The hub leads list shows person.companyId raw is fetched but companyName is never resolved — only fullName/title/leadType render (page lines 238-249), and the LeadRow interface carries companyId but no company name. Meanwhile the flowLinks all hard-depend on `ws` truthiness but Inbox (`/inbox?workspace=`) is listed as a scoped target; inbox/conversations have a workspaceId column but no scoping was verifiable in this cluster.",
+  "location": "app/(app)/workspaces/[id]/page.tsx:238-249",
+  "realWorld": "A rep scanning workspace leads sees names + titles but not which company they're at — for B2B prospecting the company is the primary qualifier, so the list is harder to triage than the Profil table it duplicates.",
+  "fix": "Resolve and render companyName in the leads list (join companyTable like /api/db/people does), so the hub list is at parity with the Profil people table.",
+  "cluster": "Workspaces + per-workspace scoping"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "In workspace mode (?workspace=<id>), the Perusahaan tab list and its data are NEVER scoped to the workspace. companyRows only filters by industry + search; there is no `.filter(c => !workspaceId || ...)` like people have. Worse, companies CANNOT be scoped at all: companyTable has no workspaceId column (schema.ts:335-358), and the crawl pipeline only stamps workspaceId on person rows (app/api/discovery/route.ts:122, person only — confirmed companyTable inserts never set it). So a workspace opened from a rep's flow shows EVERY company in the tenant, mixing other workspaces' / other reps' B2B targets.",
+  "location": "app/(app)/contacts/profiles/page.tsx:344-352 (companyRows); lib/db/schema.ts:335-358 (no workspaceId on company)",
+  "realWorld": "A rep opens 'Workspace: Logistik B2B' to work their focused account set; the Perusahaan tab dumps every company the whole tenant ever crawled (telco, F&B, fintech…). That is exactly the 'gak sesuai lapangan' complaint — a focused workspace is supposed to isolate one sales focus so hundreds of products/segments don't get mixed (doc 44), but companies leak across the board.",
+  "fix": "Add workspaceId to companyTable (and stamp it in crawlAndPersist when a workspaceId is passed), then filter companyRows by `!workspaceId || wsShowAll || c.workspaceId === workspaceId`. Short of a schema change, derive a company's workspace from its people (a company is 'in' the workspace if any of its persons has that workspaceId) and filter companyRows on that derived membership.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "critical",
+  "category": "count-aggregation",
+  "issue": "Both tab COUNT badges count the full unscoped server set, not the visible/scoped rows. Perusahaan badge = companies.data.data.length (page.tsx:439) and Orang badge = people.data.data.length (page.tsx:446). Meanwhile the People list IS workspace-scoped (page.tsx:332) and both lists are search/filter-scoped. So in a workspace the Orang badge says e.g. '480' while the table shows 12, and after any source/leadType/industry/search filter the badges never change.",
+  "location": "app/(app)/contacts/profiles/page.tsx:439, 446",
+  "realWorld": "The tab badge is the at-a-glance 'how many in MY workspace' number a rep trusts; showing the tenant-wide total next to a 12-row table is misleading and is the count half of the founder's confirmed bug. Badges must count the same set the table renders.",
+  "fix": "Use the scoped/filtered arrays for the badges: `{companyRows.length}` and `{peopleRows.length}` (these already apply workspace + search + filter scoping for people; companyRows needs the workspace fix above). At minimum, count post-filter.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "high",
+  "category": "flow-logic",
+  "issue": "The workspace 'Tambah lead…' journey dead-ends. The banner toggles wsShowAll to reveal all leads 'klik + workspace untuk menambah' (page.tsx:523-533), and a tagWorkspace mutation exists (page.tsx:215-230), but tagWorkspace is NEVER called anywhere (grep: single match at its definition). Rows only open ProfileDetailSheet, which has no workspace control and isn't passed workspaceId/onTagWorkspace. So a rep can list all leads but has no button to actually add one to the workspace.",
+  "location": "app/(app)/contacts/profiles/page.tsx:215-230 (defined, unused), 530-532 (toggle), 590-597 (sheet gets no workspace props)",
+  "realWorld": "The instruction literally says 'klik + workspace untuk menambah' but there is no '+' affordance — neither in the row nor the sheet. The rep follows the prompt, finds nothing to click, and the workspace stays empty. A core fieldwork step (curate my account list) is impossible.",
+  "fix": "Wire tagWorkspace: when workspaceId is set, add an inline '+ Workspace' / 'Lepas' action per people row (or pass workspaceId + onTagWorkspace into ProfileDetailSheet and render an add/remove-from-workspace button there). Invalidate ['people'] on success (already done).",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "runBulk('company') ignores BOTH the workspace scope and the visible filters: it enriches `(companies.data?.data ?? []).map(c => c.id)` — the entire unscoped/unfiltered company set (page.tsx:362) — while the button label is 'Cari semua domain & kontak (web)' shown above a filtered table that displays only companyRows. runBulk('person') correctly uses peopleRows. So clicking the company bulk button processes companies you can't even see (wrong industry, other workspace) and reports 'X/total' over that hidden superset.",
+  "location": "app/(app)/contacts/profiles/page.tsx:362 (ids source) vs 493-496 (table renders companyRows)",
+  "realWorld": "A rep filters to industry=Logistik, hits 'Cari semua', and the app silently burns websearch/AI quota enriching every company in the tenant — not the 8 logistics PTs on screen. The progress 'Memproses 1/450' contradicts the '8 hasil' label. Bulk actions must operate on the displayed set.",
+  "fix": "Change line 362 to `kind === 'company' ? companyRows.map(c => c.id) : peopleRows.map(p => p.id)` so bulk enrich operates on exactly the rows the user sees (already workspace/filter-scoped once companyRows is fixed).",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts/map",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The lead map (and its province ranking + total) is NOT per-rep scoped and NOT workspace scoped, while the profiles people list IS. /api/profiles/by-province selects ALL tenant persons (by-province/route.ts:35: `tx.select().from(personTable)`, no assignedTo/workspaceId predicate), whereas /api/db/people applies per-rep isolation (people/route.ts:21-31: a member sees only assignedTo===me OR unassigned). Same inconsistency for company peopleCount and workspace leadCount, but the map is the user-visible one.",
+  "location": "app/api/profiles/by-province/route.ts:35; contrast app/api/db/people/route.ts:26-31",
+  "realWorld": "Per-rep isolation (doc 41 §2) is a stated rule: a sales rep must only see their own leads. The Profil page honors it; the Peta Sebaran shows the whole tenant's lead map to every rep — a privacy/attribution leak and an inconsistent footprint ('Profil shows 30 of my leads, the map says 600'). The map also ignores ?workspace.",
+  "fix": "In by-province, mirror people/route.ts: if !isManager(ctx.role), add `or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo))`; and accept ?workspace to add `eq(personTable.workspaceId, ws)` so the map matches the list the rep is acting on.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts/profiles",
+  "severity": "medium",
+  "category": "data-mixing",
+  "issue": "The people 'Tipe' filter offers b2b_client (page.tsx:559) and the extension/classifier emit b2b_client (extension/background.js:186,206,448; LeadTypeBadge in sheet handles it), but the profiles-page LeadTypeBadge (page.tsx:90-108) only renders b2c_customer and b2b_partner; any b2b_client person falls through to 'Belum diklasifikasi'. So a classified B2B Client lead is mislabeled as unclassified in the table even though it IS classified and IS filterable.",
+  "location": "app/(app)/contacts/profiles/page.tsx:90-108 (LeadTypeBadge) vs 559 (filter option) and components/profiles/profile-detail-sheet.tsx:380-385 (sheet handles b2b_client)",
+  "realWorld": "A rep filters Tipe=B2B Client, gets rows that the table badge calls 'Belum diklasifikasi' — contradictory, and undercounts how much of the book is actually qualified. The detail sheet shows 'B2B Client' for the same row, so the two surfaces disagree.",
+  "fix": "Add a b2b_client branch to the page LeadTypeBadge (violet pill, label 'B2B Client') matching leadLabel/leadCls in profile-detail-sheet.tsx so badge, filter, and sheet agree.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts",
+  "severity": "high",
+  "category": "count-aggregation",
+  "issue": "The 'Dalam cadence' hero KPI sums cadence.enrolled across ALL active cadences (page.tsx:473-476), which double-counts contacts enrolled in more than one cadence and counts contacts that are not in this contact list (it is a cadence-wide enrollment total, not a count of distinct contacts here). It is presented inside the 'Total kontak / Aktif 7 hari / Dalam cadence / Lead panas' contact-KPI strip as if it were a slice of the contact list.",
+  "location": "app/(app)/contacts/page.tsx:473-476",
+  "realWorld": "A rep reads the four pills as a breakdown of the same population ('of my N contacts, M are in a cadence'). Because enrolled is a per-cadence counter that increments on every enroll (to-contact/route.ts:70 and cadence enroll), a contact in 3 cadences counts 3×, and the number can exceed Total kontak — nonsensical on screen.",
+  "fix": "Compute distinct contacts in any active cadence from enrollment data (e.g. a useCadenceEnrollments-backed Set of contactIds whose cadence is active), or relabel the pill to 'Total pendaftaran cadence' so it is honestly a sum, not a contact count.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "Selection state persists across pagination/search/filter changes and the bulk bar acts on stale, invisible selections. selected is a Set of ids that is never reset when search/industry/city/consent filters change or when the page changes (page.tsx:130, filters at 223-251). exportCsv filters `filtered.filter(c => selected.has(c.id))` (page.tsx:435) so it silently DROPS selected rows that the current filter excludes, while the bulk bar still claims '{selected.size} dipilih' (page.tsx:678).",
+  "location": "app/(app)/contacts/page.tsx:130, 435 (export), 674-679 (count label); no reset on filter/page change",
+  "realWorld": "A rep selects 20 contacts on page 1, types in search (now 3 match), clicks Export CSV and gets a 2-row file while the bar still says '20 dipilih'. Or they select across pages, narrow a filter, hit 'Ke cadence', and enroll a different set than the badge implies — the classic 'X dipilih but processes a different set' mismatch.",
+  "fix": "Either clear selection when filters/search/page change, or make the bulk-bar count + actions reflect only currently-visible selected rows (e.g. compute `visibleSelected = filtered.filter(c => selected.has(c.id))` and label/act on its length). Enroll/archive/delete already act on the raw Set, which compounds the issue — reconcile to the visible set.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts",
+  "severity": "medium",
+  "category": "real-world-fit",
+  "issue": "The Penemuan Lead (Discovery) tab badge and 'inbound baru' indicator are driven by a client-only Zustand prospecting store (useProspectingStore, page.tsx:122-124), while the actual Discovery sub-page (contacts/discovery) and Profil page read the real DB (crawl_jobs / personTable). The two data sources are disconnected: the tab badge counts in-memory store.prospects, not DB-crawled leads, so the number reflects nothing a rep actually crawled.",
+  "location": "app/(app)/contacts/page.tsx:122-124, 573 (prospectsCount badge); vs DB-backed app/(app)/contacts/discovery/page.tsx",
+  "realWorld": "A rep crawls 50 real leads via the extension/Discovery (persisted to personTable) but the 'Penemuan Lead' tab still shows the mock store's count (often 0 or a seeded number). The headline number on the contacts page does not match the work the rep did — undermines trust and the discovery→CRM flow.",
+  "fix": "Back the Discovery tab badge with the same DB the Discovery/Profil pages use (count of recent crawl-created persons or pending crawl jobs), or remove the badge until the prospecting store is wired to real data. Reconcile prospectsCount/newInboundCount to a real source.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "contacts/map",
+  "severity": "low",
+  "category": "count-aggregation",
+  "issue": "The ranking header shows '{total} orang · {points.length} provinsi' where total = sum of people over points (page.tsx:57), and points has already had UNKNOWN_PROVINCE filtered out server-side (by-province/route.ts:50). So 'total orang' silently excludes everyone with no resolvable province; the 'X tanpa lokasi' suffix is shown separately but the headline 'orang' reads like a full lead total.",
+  "location": "app/(app)/contacts/map/page.tsx:57, 129-130; app/api/profiles/by-province/route.ts:49-58",
+  "realWorld": "A rep with 600 leads, 250 without a parseable city, sees '350 orang' as the prominent figure and may conclude they have far fewer leads than they do. It's defensible (it's a mapped-people total) but the label 'orang' is ambiguous next to a separate 'tanpa lokasi'.",
+  "fix": "Label it 'X orang terpetakan' (mapped) and/or add the unknown count into a clearly-separate 'total = mapped + tanpa lokasi' so the headline number isn't mistaken for the full lead count.",
+  "cluster": "Contacts & Profiles"
+ },
+ {
+  "page": "pipeline",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/db/deals returns EVERY tenant's deals — there is no tenant_id filter in the query, and it relies entirely on Postgres RLS which is explicitly NOT enabled. drizzle/rls/enable-rls.sql says 'APPLIED IN SLICE 2 — not part of the auto-run drizzle migrations', and lib/db/tenant-context.ts withTenant() comment confirms 'RLS is not enabled on the tables yet (slice 1)... Until then it's a harmless transaction wrapper.' So withTenant only sets app.tenant_id (a no-op with no policy) and the SELECT has no WHERE tenant_id. Every tenant's pipeline shows every other tenant's deals.",
+  "location": "app/api/db/deals/route.ts:26-28 (GET); lib/db/tenant-context.ts:23-25; drizzle/rls/enable-rls.sql:1-4",
+  "realWorld": "This is the exact bug class the founder confirmed on /contacts/profiles. A sales team logs into their workspace and sees competitors'/other clients' live deals, values, owners and close dates in the Kanban and enrichment table. Catastrophic data leak in a multi-tenant app; no real sales org could use this.",
+  "fix": "Add an explicit predicate to every tenant-scoped query instead of trusting unenabled RLS: tx.select().from(dealsTable).where(and(eq(dealsTable.tenantId, ctx.tenantId), archived ? isNotNull(dealsTable.deletedAt) : isNull(dealsTable.deletedAt))). Apply the same pattern to all /api/db/* routes, and/or actually run enable-rls.sql so the wrapper enforces isolation. Belt-and-suspenders: do both.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "pipeline",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/db/companies leaks cross-tenant data on THREE queries, none of which filter by tenant: companyTable select (only deletedAt predicate), contactPointTable select (only eq(ownerType,'company')), and personTable select for the people-count (NO predicate at all — counts every person in the DB). The peopleCount and contacts attached to each company are aggregated over ALL tenants.",
+  "location": "app/api/db/companies/route.ts:21-32 (the three selects)",
+  "realWorld": "Same scoping+count-aggregation bug the founder found: a workspace's 'Perusahaan' list and its contact/people-count badges mix in other tenants' companies and contacts. The peopleCount per company is computed from an unscoped personTable scan, so the count badge is wrong AND leaks other tenants' headcounts.",
+  "fix": "Add eq(companyTable.tenantId, ctx.tenantId) to the company select, eq(contactPointTable.tenantId, ctx.tenantId) to the cps select, and eq(personTable.tenantId, ctx.tenantId) to the persons count select (or enable RLS). The peopleCount map will then count only the scoped set.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "pipeline",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/db/people has the same leak. The per-rep filter uses assignedTo/isNull but NEVER filters tenant_id; the companies lookup (for company-name join) and the contact_point select also have no tenant predicate. With RLS off, a member sees every tenant's unassigned people (because the OR isNull(assignedTo) branch matches other tenants' unassigned leads), and company names/contact points are joined from all tenants.",
+  "location": "app/api/db/people/route.ts:27-38 (persons/companies/cps selects)",
+  "realWorld": "Marketplace 'Publikasikan' tab and any people list read this endpoint (mp-people). A rep can browse and even PUBLISH other tenants' people to the marketplace. The contacts/profiles 'Orang' tab + count badge mix across tenants — the confirmed founder bug, reproduced here.",
+  "fix": "Add eq(personTable.tenantId, ctx.tenantId) to BOTH branches of the persons query, eq(companyTable.tenantId, ctx.tenantId) to the company-name select, and eq(contactPointTable.tenantId, ctx.tenantId) to the cps select (or enable RLS).",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "marketplace",
+  "severity": "high",
+  "category": "real-world-fit",
+  "issue": "Publishing a PERSON does NOT enforce affirmative consent. publishMany only hard-blocks consentStatus === 'opted_out' and cross-pool opt-out, then lists the person with consentStatus = bestConsent(cps), which is 'unknown' when no contact point has ever opted in. The SHAREABLE_CONSENT = ['opted_in','legitimate_interest'] whitelist is defined but never referenced anywhere in the codebase.",
+  "location": "lib/marketplace/store.ts:116-126; lib/platform/settings.ts:30 (unused whitelist)",
+  "realWorld": "Under UU PDP you may only share personal data with consent or a documented legitimate-interest basis — 'they didn't opt out' is not a legal basis. The page even advertises compliance ('Data orang opted-out diblok (UU PDP)'), but the rule it implements is the weak inverse. A rep can sell strangers' WhatsApp/email that were merely scraped (consent=unknown). Real B2C/B2B data sharing in Indonesia needs the opposite default: block unless opted_in/legitimate_interest.",
+  "fix": "Gate person listing on the existing whitelist: after computing best consent, skip when !SHAREABLE_CONSENT.includes(consentStatus) with reason 'tanpa consent'. Surface that reason in the publish toast like the other skip reasons.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "marketplace",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The 'Publikasikan' tab lists ALL of the tenant's companies and people with no workspace scoping, even though the rest of the cluster (Pipeline Kanban, deals, person.workspaceId) is workspace-scoped per doc 44. companiesQ/peopleQ hit /api/db/companies and /api/db/people with no ?workspace param, and those routes have no workspace filter.",
+  "location": "app/(app)/marketplace/page.tsx:70-71, 251-256, 230-235; people route has person.workspaceId but never filters on it",
+  "realWorld": "doc 44's whole premise is a rep's workspace is a focused container 'so hundreds of products/leads don't get mixed up.' A rep working the 'AI Engineer Jakarta' workspace is shown (and can bulk-publish) every lead the tenant owns across all workspaces — backwards for how the founder designed the workspace-first flow. It also makes accidental over-publishing of unrelated leads trivial.",
+  "fix": "Pass the active workspace (useWorkspaceStore / ?workspace=) to the companies/people fetches and add a workspaceId filter in the routes (person.workspaceId; companies via their people or a company workspace tag). At minimum scope the people list to the active workspace, since person rows already carry workspaceId.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "marketplace",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "The Companies publish section shows '{selCos.size} dipilih' with no '/ total' denominator and never resets selection or filters when switching tabs, while the People section shows '{selPeople.size} dipilih dari {filteredPeople.length}'. More importantly, selCos can hold ids that are no longer rendered (companies list is sliced to 200 at line 251), so 'Publikasikan N perusahaan' can claim/attempt to publish ids the user can no longer see or uncheck.",
+  "location": "app/(app)/marketplace/page.tsx:244-248 (companies), 251 (slice 200), 223 (people denominator)",
+  "realWorld": "Inconsistent affordance and a stale-selection trap: with >200 companies a rep checks some, the list slices, and the counter/action no longer correspond to visible rows. A sales person expects 'N selected of M shown' and that the button publishes exactly what's checked and visible.",
+  "fix": "Mirror the People UX: show 'dipilih dari {companiesQ.data?.length}', and either render all companies (virtualized) or prune selCos to the currently rendered set. Reset selPeople/selCos when the tab or filters change so the selection always matches what's on screen.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "ecommerce",
+  "severity": "high",
+  "category": "real-world-fit",
+  "issue": "'Abandoned cart' is conflated with 'cancelled order'. In the mock generator every abandoned order is forced to status 'dibatalkan' (abandoned ? 'dibatalkan' : ...), and all 13 abandoned rows have status dibatalkan. The page then offers 'Pulihkan' (recover cart via WhatsApp) on these. An abandoned cart and a cancelled order are different real-world states.",
+  "location": "app/(app)/ecommerce/page.tsx:196-209 (Pulihkan on o.abandoned); scripts/generate-mock-data.ts:368,378-382",
+  "realWorld": "A real marketplace ops/CS person treats an abandoned cart (customer never checked out — recover with a nudge) very differently from a cancelled order (paid/placed then voided — refund/re-offer, not 'your cart is still saved'). The recovery WA copy ('Keranjang Anda berisi X masih kami simpan, selesaikan pesanan') is wrong for a cancelled order. Tokopedia/Shopee also don't expose pre-checkout abandoned carts via order APIs at all, so 'recover cart' on an order row is unrealistic.",
+  "fix": "Separate the two states: give orders a real status set that includes 'keranjang' (abandoned, pre-checkout) distinct from 'dibatalkan', and only show Pulihkan on the abandoned-cart state with copy that matches. Or relabel the feature to 'Tawarkan ulang' for cancelled orders with appropriate messaging.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "ecommerce",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "Channel cards hide stats for a 'disconnected' channel, but the orders TABLE and the '{orders.length} pesanan' header still include that channel's orders. TikTok is hardcoded CONNECTED.tiktok = false, yet the mock has 30 TikTok orders that render in the table and inflate the total count and revenue context, while the TikTok card shows '—' for count/revenue.",
+  "location": "app/(app)/ecommerce/page.tsx:43-47 (CONNECTED), 116-129 (card shows — when !connected), 142 (orders.length), 168 (table renders all)",
+  "realWorld": "Contradictory: the UI claims TikTok isn't connected (so you 'can't' have its data) but lists 30 TikTok orders with a TikTok channel dot in the same screen. A real operator reading 'Terhubung: no, Pesanan: —' but then seeing 30 TikTok orders below loses trust in the numbers. The header pesanan count also double-states data the cards suppress.",
+  "fix": "Make one source of truth: either treat connection as real (filter the orders table + total to connected channels only, so disconnected channels contribute nothing) or drop the per-channel 'connected' gating on stats. Whichever, the table, the header count, and the cards must agree.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "ecommerce",
+  "severity": "low",
+  "category": "action-mismatch",
+  "issue": "Clicking 'Hubungkan' on a marketplace flips connState locally and toasts '{label} terhubung' but persists nothing and integrates nothing — on reload the channel is disconnected again. Similarly 'Pulihkan' marks the order recovered in local Set state only (recovered) and never records the recovery anywhere.",
+  "location": "app/(app)/ecommerce/page.tsx:99-110 (Hubungkan), 249-258 (Pulihkan → setRecovered local Set)",
+  "realWorld": "Acceptable as a labeled demo, but the toast wording 'terhubung' / 'Dipulihkan' overstates what happened (nothing is connected/recovered). A rep returning later finds their 'connected' channel gone and recovered carts un-recovered with no audit trail.",
+  "fix": "Either persist these via an API (channel connection + a recovery event/cadence enrollment) or soften the copy to demo-honest wording (e.g. 'Mode demo — koneksi belum disimpan'), matching how the WA-recovery dialog already discloses 'Mode demo — pesan belum benar-benar terkirim'.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "pipeline",
+  "severity": "medium",
+  "category": "calculation",
+  "issue": "Product-fit matching uses two arbitrary, business-meaningless transforms. (1) sizeFromValue() maps a deal's IDR value to a company headcount band (600M→'1-10', 1.6B→'500+'), conflating deal size with company size. (2) matchProducts() then ranks products by Math.abs(value/100 - p.priceIDR) — dividing the deal value by 100 to make it comparable to product prices has no real meaning.",
+  "location": "lib/api-mock/enrichment.ts:96-102 (sizeFromValue), 142-156 (matchProducts value/100), 192/246 (callers)",
+  "realWorld": "Real product-fit is driven by the company's actual size/industry/ICP, not 'deal rupiah ÷ 100'. A small UMKM with one large deal gets recommended Enterprise packages; the 'Produk cocok' dots and the AI panel's per-segment top product are derived from this, so the recommendations a rep sees are essentially noise. Doesn't match how a rep qualifies fit.",
+  "fix": "Drive matching from the company's real size/industry (companyTable.size, person/company profile) and the product's targetCompanySize/icp, not from deal value. Drop the /100 fudge; if price-fit matters, compare product price to a real budget signal, not value/100.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "pipeline",
+  "severity": "low",
+  "category": "flow-logic",
+  "issue": "The Kanban 'Lihat semua / Workspace saja' toggle (wsAll) is local component state with no reset, and the hero strip + enrichment table ignore the ?workspace= scope entirely. The hero stats (hot/active/avgDays) and the EnrichmentTable are computed from the full store analyses (all deals), so opening the page inside a workspace shows workspace-filtered Kanban but unfiltered list/hero — inconsistent scope within one page.",
+  "location": "app/(app)/pipeline/page.tsx:28-29,42-54 (hero from all analyses), 131 (EnrichmentTable no workspace prop), 143-153 (only Kanban gets workspaceId)",
+  "realWorld": "A rep who entered via a workspace expects the whole Pipeline page (default 'Daftar enrichment' tab + the AI summary) to reflect that workspace, like the Kanban does. Instead the first thing they see (the list tab is the default) is every workspace's prospects, with only the secondary Kanban tab honoring the filter. Confusing and contradicts doc 44 scoping.",
+  "fix": "Thread workspaceId into EnrichmentTable (filter rows by deal.workspaceId) and into the hero stats so the entire page respects the active workspace, with the same 'Lihat semua' escape hatch the Kanban has.",
+  "cluster": "Pipeline, Deals & Marketplace"
+ },
+ {
+  "page": "cadences",
+  "severity": "critical",
+  "category": "count-aggregation",
+  "issue": "The three hero KPI pills (Cadence aktif / Total enrolled / Avg reply rate) are computed over the FULL unfiltered `cadences` list, not over the `visible` filtered set. They ignore the workspace scope AND the channel/status filter chips. So inside a workspace (`?workspace=`) or after picking a channel/status, the headline numbers still count cadences from every workspace and every channel/status. This is exactly the contacts/profiles 'count everything, not the scoped set' bug.",
+  "location": "app/(app)/cadences/page.tsx:110-122",
+  "realWorld": "A rep who opens a workspace expects 'Cadence aktif' and 'Total enrolled' to reflect THIS workspace's outreach. Showing the org-wide totals next to a list that is filtered to one workspace is misleading — they will over-report activity to their manager and can't trust any number on the page.",
+  "fix": "Compute summary from `visible` instead of `cadences ?? []`: `const list = visible;` in the summary useMemo, and add `visible` to its dependency array. That makes the KPIs respect workspace + channel + status scoping consistently with the grid below.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The workspace filter `(c as {workspaceId?}).workspaceId === workspaceId` can essentially NEVER be true for real data. (a) Seed cadences in lib/api-mock/data.ts carry no workspaceId. (b) The builder (cadence-builder.tsx saveCadence) never sets workspaceId on the new Cadence object. (c) The PUT route /api/db/cadences never writes the workspaceId column even though cadencesTable has it (schema.ts:165). So in the default 'cadence workspace ini saja' state the list is ALWAYS empty, forcing the user to click 'Lihat semua' — which then shows every workspace's cadences (no scoping at all).",
+  "location": "app/(app)/cadences/page.tsx:105; components/cadences/cadence-builder.tsx:170-180; app/api/db/cadences/route.ts:63-88",
+  "realWorld": "The workspace detail page advertises `/cadences?workspace=${id}` as 'Urutan outreach multi-channel' for that sales focus. A rep clicks it expecting their workspace's cadences; they get an empty list, click 'Lihat semua', and now see everyone's cadences mixed together. The per-workspace separation the whole flow promises does not exist.",
+  "fix": "Add workspaceId to the Cadence type and to the builder's saved object (read ?workspace from the builder's URL/store), persist it in the PUT route insert+onConflictUpdate, and backfill seed cadences with a workspaceId. Until cadences actually carry the id, default the list to 'Lihat semua' rather than an empty 'workspace only' view.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences/[id]",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The enroll dialog loads the contact picker from `/api/db/contacts` with no workspace scope, and the contacts table has NO workspaceId column at all (schema.ts:90-113 — unlike deals/conversations/leads/cadences which all have workspace_id). So when a rep enters a cadence from a specific workspace context, the 'Daftarkan kontak' picker lists EVERY tenant contact across all workspaces. There is no way to scope it, and `useQuery(['contacts'])` is also unkeyed by workspace.",
+  "location": "app/(app)/cadences/[id]/page.tsx:82-98; app/api/db/contacts/route.ts:16-38; lib/db/schema.ts:90-113",
+  "realWorld": "A B2B rep working 'Workspace: Manufaktur Jatim' should only be able to enroll that focus's prospects into its cadence. Mixing in contacts from a totally different vertical/workspace means a rep can accidentally blast the wrong audience — the exact cross-workspace data-mixing the founder flagged, here on contacts.",
+  "fix": "Add a workspace_id column to contactsTable, accept ?workspace in /api/db/contacts, and pass the cadence's workspaceId (or the URL ?workspace) into contactsQ so the picker only offers in-workspace contacts. Key the contacts query by workspace.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences/[id]",
+  "severity": "high",
+  "category": "calculation",
+  "issue": "On bulk enroll the POST unconditionally bumps the cadence's `enrolled` counter by `rows.length` (sql `enrolled + ${rows.length}`), even though it uses onConflictDoNothing. More importantly the counter is a denormalized field that drifts from the truth: it is incremented on enroll but never decremented on stop/complete, and the detail page shows the REAL count `enrollments.length` while the list card shows this drifting `cad.enrolled`. The two numbers for the same cadence will disagree.",
+  "location": "app/api/db/cadence-enrollments/route.ts:90-96; app/(app)/cadences/page.tsx:351; app/(app)/cadences/[id]/page.tsx:188,225",
+  "realWorld": "Sales managers read the 'kontak' number on the cadence card to judge reach. If it keeps climbing on every re-enroll attempt and never reflects unsubscribes/completions, the card lies. The list says 120 enrolled, the detail says 84 — nobody trusts the dashboard.",
+  "fix": "Either drop the denormalized `enrolled` column and derive the count from cadence_enrollments (count where status='aktif' or total), or recompute it from the table after each enroll/stop instead of blind increment. At minimum, make the list card and the detail header read from the same source.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences/[id]",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "The 'X terdaftar' badge and 'Kontak terdaftar (N)' list count ALL enrollments regardless of status — `enrollments.length` includes status 'selesai' (completed) and 'berhenti' (stopped/unsubscribed). enrollQ has no status filter and the list renders every row with just a raw status Badge.",
+  "location": "app/(app)/cadences/[id]/page.tsx:149,188,225,230-244",
+  "realWorld": "A rep wants to know how many people are CURRENTLY in the sequence (still being messaged). Counting people who already finished or opted out as 'terdaftar' inflates the active audience and makes it impossible to see who still needs follow-up.",
+  "fix": "Show active count separately, e.g. `aktif = enrollments.filter(e => e.status === 'aktif')`, label the badge 'X aktif / Y total', and offer a status filter (aktif/selesai/berhenti) in the enrolled list.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "When the page is filtered to a workspace (`?workspace=`), the 'Jalankan sekarang' button still POSTs /api/cadences/process which processes ALL due enrollments for the entire tenant (processCadences has no workspace filter). The button sits inside a view the user believes is scoped to one workspace, but it fires outreach for every workspace.",
+  "location": "app/(app)/cadences/page.tsx:420-453; lib/cadence/processor.ts:104-139",
+  "realWorld": "A rep viewing 'Workspace: Retail Jakarta' clicks 'Jalankan sekarang' expecting to run only that focus's cadences. Instead they trigger sends across every workspace in the tenant — wrong contacts get messaged on the wrong campaigns. In real outreach that is a deliverability/compliance incident.",
+  "fix": "Pass the active workspaceId to /api/cadences/process and filter `due` enrollments by joining cadences on workspaceId (once cadences carry it). When no workspace is selected, keep tenant-wide. Also reflect scope in the toast/button label.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences",
+  "severity": "medium",
+  "category": "calculation",
+  "issue": "Avg reply rate excludes any cadence with replyRate === 0 from both the numerator and the denominator (`list.filter(c => c.replyRate > 0)`). A brand-new active cadence with 0% replies is silently dropped from the average, biasing 'Avg reply rate' upward.",
+  "location": "app/(app)/cadences/page.tsx:114-120",
+  "realWorld": "A manager reads 'Avg reply rate 32%' and assumes the whole program performs at 32%. In reality half the cadences got zero replies and were excluded. The KPI overstates performance — the opposite of what you want when deciding where to invest.",
+  "fix": "Average over all cadences that have actually sent (or simply all cadences in the scoped set): include replyRate===0 in the denominator. If the intent is 'only cadences with data', gate on enrolled>0 / steps dispatched, not on replyRate>0.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences/new",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "The entire 'Pengaturan' tab (send window jam mulai/berhenti, hari pengiriman, max per hari, skip-libur) is collected in local state but NEVER persisted — the banner even admits 'belum tersimpan'. saveCadence only sends name + steps + channelMix. So a rep configures a sending schedule and quiet hours, hits 'Aktifkan sekarang', and the cadence runs ignoring all of it.",
+  "location": "components/cadences/cadence-builder.tsx:157-207,305-396; lib/cadence/processor.ts (no send-window logic)",
+  "realWorld": "Send-window and 'lewati hari libur nasional' are exactly the controls an Indonesian rep relies on to avoid messaging at 2am or on tanggal merah (a real WA-ban / annoyance risk). Offering the controls but discarding them trains users to trust scheduling that doesn't exist; the processor sends whenever 'Jalankan sekarang' is clicked.",
+  "fix": "Either persist the schedule (add columns/jsonb to cadencesTable and honor sendWindow + holiday-skip in processCadences), or hide the Pengaturan tab in the prototype instead of presenting non-functional scheduling UI. If keeping the demo banner, disable the inputs so they read as preview-only.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "cadences/new",
+  "severity": "low",
+  "category": "real-world-fit",
+  "issue": "The 'Tunda (hari)' field is per-step and the SortableStep label reads 'X hari setelah langkah sebelumnya', but the AI-assist dialog button says 'Pakai template' while the surrounding copy ('Draf AI', 'Buat ulang', toast 'Draf AI diterapkan') claims AI generation. It just cycles a hardcoded 2-item array (AI_DRAFTS) with a fake 600ms spinner — no model call, even when DEEPSEEK is configured.",
+  "location": "components/cadences/cadence-builder.tsx:567-645,69-87",
+  "realWorld": "A rep expects 'Buat ulang' to actually draft fresh, contact-specific copy. After two clicks it visibly repeats, exposing it as canned. The processor DOES call a real model at send time (personalize()), so the builder under-sells the actual capability and erodes trust by faking it.",
+  "fix": "Wire the AiAssistDialog to the same /api personalization path (or at least a generateText call) so 'Buat ulang' returns genuinely new variants; or rename to 'Template' consistently and drop the 'Draf AI'/spinner framing so it doesn't claim AI it isn't doing.",
+  "cluster": "Cadences & Engagement"
+ },
+ {
+  "page": "inbox",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/db/conversations returns tx.select().from(conversationsTable) with NO explicit tenant filter — it relies entirely on Postgres RLS, but RLS is NOT applied (drizzle/rls/enable-rls.sql lives OUTSIDE drizzle/migrations/, is not wired into any npm script, and the README states it is deliberately not auto-run; Neon's neondb_owner also has BYPASSRLS). So in any environment where RLS hasn't been manually applied or the app connects as owner, every tenant sees every other tenant's conversations.",
+  "location": "app/api/db/conversations/route.ts:22-32",
+  "realWorld": "Same scoping-bug class the founder confirmed on /contacts/profiles: a workspace/tenant shows conversations that do not belong to it. A sales rep at company A would see company B's WhatsApp/email threads in their inbox. The withTenant() wrapper only set_config()s the RLS vars; without enforced policies it is, per its own comment, 'a harmless transaction wrapper'.",
+  "fix": "Add an explicit defense-in-depth filter: tx.select().from(conversationsTable).where(eq(conversationsTable.tenantId, ctx.tenantId)) (and the same in /api/db/messages). Do not depend solely on RLS that isn't enabled. Mirror the isNull/isNotNull pattern already used in /api/db/contacts.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox/[id]",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/db/messages with a conversationId filters ONLY by eq(messagesTable.conversationId, conversationId) — no tenant filter — again relying on un-applied RLS. messageId/conversationId are app-generated text ids; with cross-tenant rows present, any tenant can read another tenant's full message thread by id.",
+  "location": "app/api/db/messages/route.ts:39-46",
+  "realWorld": "Opening /inbox/<someId> fetches the thread by id with no tenant guard. Combined with the conversations leak above, a user can read the entire message history of conversations owned by other companies — a hard tenant-isolation breach in a multi-tenant sales app.",
+  "fix": "Add where(and(eq(messagesTable.tenantId, ctx.tenantId), eq(messagesTable.conversationId, conversationId))). Apply enable-rls.sql in production and connect as a non-BYPASSRLS role, but keep the explicit WHERE as defense-in-depth.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "Workspace scoping for the inbox is purely client-side and broken on the demo/seed path. ConversationList filters list.filter(c.workspaceId === workspaceId), but (a) the seed conversations.json fixture has NO workspaceId field at all (grep: 0 matches), and (b) GET /api/db/conversations never filters by workspaceId server-side. The workspace hub links to /inbox?workspace=<id> labelled 'Balasan omni-channel workspace ini' and its comment claims target pages 'filter their data to this workspace.'",
+  "location": "components/inbox/conversation-list.tsx:32-36; app/(app)/workspaces/[id]/page.tsx:100",
+  "realWorld": "A rep clicks 'Inbox' from their workspace hub expecting that workspace's threads. On the seed/demo data every conversation has workspaceId === undefined, so the === comparison matches nothing and the inbox shows '0 percakapan' — an empty inbox. When DB-backed but workspaceId isn't stamped on conversations, it's also empty. The promised per-workspace inbox doesn't work.",
+  "fix": "Stamp workspaceId on conversations (seed + persistMessage/upsert path) and filter server-side by workspaceId when the param is present, the same way leads are scoped in /api/workspaces/[id]. Until conversations carry a workspaceId, the hub should not advertise a workspace-scoped inbox link.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox/[id]",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The conversation thread page and useConversation hook ignore the active ?workspace= scope entirely. /inbox/[id] resolves the convo via useConversations() (all conversations) and finds by id; the thread loads regardless of which workspace it belongs to. Only the LIST applies the workspace filter, not the detail view.",
+  "location": "app/(app)/inbox/[id]/page.tsx:17-18; lib/api-mock/hooks.ts:62-82",
+  "realWorld": "Even if the list were correctly workspace-scoped, a rep in workspace A could still open a workspace-B thread by id (e.g. via a stale link or the floating 'Buka di workspace' deep link), with no guard. Scope must be enforced on the resource, not just the list UI.",
+  "fix": "Pass the workspace param through to the detail fetch and 404/redirect if the conversation's workspaceId doesn't match the active workspace; enforce tenant+workspace on the server endpoint, not only in the list component.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox",
+  "severity": "high",
+  "category": "flow-logic",
+  "issue": "Opening a conversation never clears its unread count. There is no markRead / setUnread anywhere in the inbox components — the unread badge and the 'Belum dibaca' filter read c.unread, but reading the thread, replying, or even the human taking over never resets unread to 0. (Only the autonomous runAutoReply path sets unread:0, and only when it actually sends.)",
+  "location": "components/inbox/message-thread.tsx (send/persistMessage, no unread mutation); components/inbox/conversation-list.tsx:37,126",
+  "realWorld": "Every real inbox (WhatsApp, email, IG DMs) marks a thread read when you open it or reply. Here a rep opens a chat, replies, and the blue unread pill stays — the 'Belum dibaca' filter keeps showing handled threads forever, so the rep cannot tell what's actually outstanding. It also feeds a wrong dashboard 'WA belum dijawab' KPI.",
+  "fix": "On thread open (and on outbound send) optimistically set unread:0 for that conversation and PUT the conversation row (the conversations PUT upsert already exists). Update the cached ['conversations'] list so the badge and the 'unread' filter reflect reality.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "The conversation list is not ordered by recency. Neither the API (select().from(conversationsTable) with no orderBy) nor the client (filtered is rendered in array order, no sort by lastTimestamp) sorts threads. A new inbound/outbound message does not move its conversation to the top.",
+  "location": "components/inbox/conversation-list.tsx:34-49,98; app/api/db/conversations/route.ts:23",
+  "realWorld": "Every messaging inbox shows most-recent-activity first. Here threads stay in seed/insert order, so after a fresh reply the active conversation is buried mid-list. A rep working WhatsApp can't scan 'what just came in' at the top — backwards from how field sales triage their inbox.",
+  "fix": "Sort filtered by lastTimestamp descending (parse the ISO string) in the useMemo, and/or add orderBy(desc(conversationsTable.lastTimestamp)) server-side.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "The per-conversation auto-reply Switch in the HandoffPanel actually toggles the GLOBAL auto-reply flag. toggleAutoReplyForConversation(conversationId) ignores its argument and does config.autoReplyEnabled = !config.autoReplyEnabled (store comment: 'Per-conversation overrides aren't part of this wave… toggles the global flag').",
+  "location": "components/inbox/handoff-panel.tsx:62,237-241; lib/stores/handoff-store.ts:156-161",
+  "realWorld": "The control sits inside a single conversation's side panel; a rep flipping it for one noisy customer silently turns auto-reply on/off for ALL conversations. The panel text was patched to say '(semua percakapan)'/'berlaku global', but the affordance (a switch inside one thread that takes a conversationId) still strongly implies per-conversation control — an action that does something different from what its placement promises.",
+  "fix": "Either implement true per-conversation overrides (store states[conversationId].autoReplyEnabled, read it in MessageThread's showAutoReply) or move the global switch out of the per-conversation panel into Settings/Handoff so the scope of the control matches its placement.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "escalations",
+  "severity": "high",
+  "category": "count-aggregation",
+  "issue": "The 'Riwayat' (history) list can silently drop real history because of a limit-then-filter mismatch. The API returns the 30 most-recent auto_reply_event rows (orderBy desc, limit 30). The client then filters that 30 down to decision !== 'escalated' and slices to 15. If the 30 newest rows are mostly 'escalated' (the common case for a busy queue, since autosend is OFF by default so almost everything escalates), the history list shows far fewer than 15 — or zero — even though many sent/dismissed events exist beyond the 30-row window.",
+  "location": "app/(app)/escalations/page.tsx:36-46; lib/engagement/autoreply.ts:278-282",
+  "realWorld": "A manager reviewing 'what did the AI send/dismiss' sees an arbitrarily truncated or empty history that doesn't reflect the real volume of resolved replies, because the 30-row cap is applied across BOTH queue and history before the client splits them. The two lists compete for the same 30-row budget.",
+  "fix": "Fetch queue and history with separate, server-side filtered queries (e.g. ?decision=escalated and ?decision=resolved), each with its own limit, instead of pulling a single mixed 30 and splitting client-side. Or raise the limit and paginate.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "escalations",
+  "severity": "medium",
+  "category": "scoping",
+  "issue": "The escalation queue is tenant-scoped (good, via recentAutoReplyEvents/withTenant + the auto_reply_event table actually filters by tenantId in resolveEscalation), but it is NOT workspace-scoped and is not reachable from a workspace flow. There's no /escalations?workspace= handling; a rep who works inside a workspace sees the whole tenant's escalation queue mixed across all reps/workspaces, and a single CURRENT_AGENT = 'Anda' means there's no per-rep ownership.",
+  "location": "app/(app)/escalations/page.tsx:34-46; lib/engagement/autoreply.ts:278-281",
+  "realWorld": "Per the architecture note (execution + attribution per individual rep's account), escalated replies should belong to the rep/workspace that owns the conversation. Here every rep sees and can send/dismiss every other rep's escalations with no assignment, which doesn't match how a real shared-but-owned sales inbox works.",
+  "fix": "Join escalations to conversations and filter by the conversation's workspaceId/assignedTo for the current rep (or expose a workspace filter), and record who resolved each escalation instead of a hardcoded 'Anda'.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "Sentiment, handoff triggers, AI drafts, and 'minutes since last AI response' are computed from a hardcoded mock keyed to specific seed conversation ids (cv_0015, cv_0008, …). getSentiment() returns a neutral default for any unknown id, and lastAiResponseAt is Date.now()-minutes computed at module load. Any DB-created or non-seed conversation always reads as neutral score 0 with a stale 'menit lalu', and the timeout trigger fires/clears based on wall-clock drift since the JS module was evaluated, not real message timing.",
+  "location": "lib/api-mock/handoff.ts:36-201; lib/stores/handoff-store.ts:43-67; components/inbox/handoff-panel.tsx:66-71",
+  "realWorld": "The handoff panel presents sentiment trend, 'tanpa respons' timeout, and AI-response timing as live signals driving escalation, but they're frozen fixtures tied to 16 specific ids. For real or newly-created conversations the rep sees flat neutral sentiment and a meaningless minutes-elapsed counter, so the headline feature (auto-escalate on falling sentiment/timeout) doesn't actually track the conversation in front of them.",
+  "fix": "Derive sentiment/last-AI-response time from the actual messages (timestamps + a real sentiment pass) instead of an id-keyed fixture, so triggers reflect the loaded thread rather than seed ids and module-load time.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "inbox",
+  "severity": "medium",
+  "category": "data-mixing",
+  "issue": "Conversation channel filters expose LinkedIn (and the seed has linkedin/sms conversations) but the composer/send path and AutoReplyCard treat everything non-email as WhatsApp-styled and label it accordingly, and the autonomous engine collapses channel to email-or-whatsapp (channel = convo.channel === 'email' ? 'email' : 'whatsapp'). A LinkedIn or SMS thread renders with WhatsApp green bubbles and 'Ketik pesan WhatsApp…' style send, and the auto-reply prompt is hardcoded 'Tulis balasan WhatsApp singkat'.",
+  "location": "components/inbox/message-thread.tsx:168,278,364; app/api/auto-reply/route.ts:92; lib/engagement/autoreply.ts:189",
+  "realWorld": "A rep replying to a LinkedIn or SMS lead gets a WhatsApp-themed UI and a WhatsApp-worded AI draft, and the autonomous sender would try to deliver a LinkedIn reply over WhatsApp. Channels with very different tone/length/format conventions are conflated, which doesn't match how a B2B rep writes on LinkedIn vs WhatsApp vs SMS.",
+  "fix": "Make the composer styling/placeholder and the auto-reply prompt channel-aware for all channels (linkedin/instagram/sms), and have the engine route to the correct channel integration rather than defaulting non-email to WhatsApp.",
+  "cluster": "Inbox, Conversations & Escalations"
+ },
+ {
+  "page": "penawaran",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The list reads the active workspace ONLY from the URL (?workspace=), never from the persisted Zustand workspace store. When the URL has no workspace param the API falls back to listing EVERY quote of the tenant across ALL workspaces (listQuotes only applies the workspace filter `if (opts?.workspaceId)`). So any entry into /penawaran that loses the query string (direct URL, refresh that strips it, an internal Link without withWorkspace, a back-nav) shows quotes from OTHER workspaces while the switcher still shows one workspace as active — the same cross-workspace MIXING class as the contacts bug.",
+  "location": "app/(app)/penawaran/page.tsx:48,60-71 + lib/quotes/store.ts:51-58",
+  "realWorld": "A rep working inside the 'CRM SaaS' workspace expects to see only that workspace's penawaran. Because the list silently un-scopes when the param is absent, they see penawaran from the 'Asuransi' workspace too — confusing and a tenant-internal data-leak across business lines. Real reps treat each workspace as a separate book of business; the list must always be scoped to the active one, not to whatever happens to be in the URL.",
+  "fix": "Resolve the active workspace from a single source of truth: read useWorkspaceStore().active?.id (with the URL param only as an override) and pass it to the query; in listQuotes, when no workspaceId is supplied for a scoped page, do NOT return all tenant rows — either require a workspace or return [] until one is chosen, consistent with WorkspaceGate gating /penawaran.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "penawaran",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "Quote cards link to `/penawaran/${x.id}` with no ?workspace= param, dropping the active-workspace from the URL. The detail page is itself a scoped route (isScopedRoute('/penawaran/[id]') === true) yet never reads or carries workspace context. Navigation out of the detail (the 'Semua penawaran' back link to /penawaran, also param-less) then lands on the un-scoped list described above.",
+  "location": "app/(app)/penawaran/page.tsx:157 (card Link), app/(app)/penawaran/[id]/page.tsx:189-191 (back link)",
+  "realWorld": "Clicking a quote then clicking 'Semua penawaran' should return the rep to the SAME workspace-scoped list they came from. Instead the workspace scope is lost mid-flow, so the round-trip silently widens the view to all workspaces — the journey doesn't preserve the context the rep is mentally in.",
+  "fix": "Build card and back-link hrefs with withWorkspace(href, workspaceId) so scope is carried through detail navigation; or hoist active-workspace resolution to the store so it survives a missing param.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "settings/billing",
+  "severity": "high",
+  "category": "calculation",
+  "issue": "Usage is summed ALL-TIME but compared against quotas presented as monthly. aiTokens = SUM over every ai_usage row for the tenant with no `at >= startOfMonth` window (route line 28-31,43); emails = COUNT of every send_job with status='sent' ever (line 32-35); these are metered against plan.quotas.ai_tokens / .emails and rendered with the '/ kursi / bln' (per seat / month) price framing.",
+  "location": "app/api/tenant/billing/route.ts:28-43,61-68 + app/(app)/settings/billing/page.tsx:108,112-113",
+  "realWorld": "Indonesian SaaS billing quotas reset monthly. A tenant that sent 9,000 emails over a year against a 5,000/month quota will show the email meter pegged at the red 100% (Meter caps pct at 100) forever, even on the 1st of a fresh month with zero usage. The meter is meaningless for the thing it claims to track (this month's consumption vs this month's allowance).",
+  "fix": "Filter both aggregations to the current billing period: add `and(eq(...tenantId...), gte(aiUsageTable.at, startOfMonth))` and `gte(sendJobTable.sentAt, startOfMonth)` (or the subscription anchor day). Keep credit balance all-time if it's intentionally cumulative, but the monthly meters must use a month window.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "settings/billing",
+  "severity": "medium",
+  "category": "real-world-fit",
+  "issue": "The price shown is plan.priceMonthIdr labeled '/ kursi / bln' (per seat per month), but nowhere is total monthly cost computed (priceMonthIdr × seats). The header shows seats and per-seat price side by side but never the actual amount the tenant pays.",
+  "location": "app/(app)/settings/billing/page.tsx:104,107-109",
+  "realWorld": "A billing/quota screen's primary job is answering 'how much am I paying this month?'. An Indonesian buyer/finance owner reading 'Rp X / kursi / bln' and '8 kursi' has to do mental math to get the real Rp X×8 invoice figure. Real billing pages lead with the total charge.",
+  "fix": "Add a computed line: total = priceMonthIdr × (seats ?? members) rendered as IDR, e.g. 'Total Rp N / bln (8 kursi × Rp X)'.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "settings/billing",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "seatsQuota falls back to data.sub?.seats when quotas.seats is absent (route line 67), so the 'Anggota / kursi' meter compares members used against the subscribed seat count and the bar is at/over 100% exactly when the team is full — but plans are never seeded with quotas (db-seed.ts has no plan rows; planTable.quotas defaults to {}), so in the running demo quotas.ai_tokens / .emails are null and those two meters render with NO bar while only the seats meter shows. The page silently degrades to a single working meter.",
+  "location": "app/api/tenant/billing/route.ts:44,63-67 + lib/db/schema.ts:743-750 (no plan seed) + app/(app)/settings/billing/page.tsx:43-44,54-58 (Meter renders bar only when quota truthy)",
+  "realWorld": "A founder demoing 'Tagihan & Kuota' expects three live usage bars. Because no plan/quota data is seeded, two of the three meters silently have no bar and no limit, so the quota story the page is selling (doc 27) doesn't actually render. The feature looks half-built in the demo.",
+  "fix": "Seed plan rows with realistic monthly quotas (ai_tokens/emails/seats) in db-seed.ts and attach a subscription to the demo tenant; and have Meter show an explicit 'tanpa batas / belum diset' state instead of a bare number when quota is null, so a missing quota is intentional, not invisible.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "penawaran/[id]",
+  "severity": "high",
+  "category": "flow-logic",
+  "issue": "When a customer ACCEPTS a quote, respondToQuote unconditionally sets the linked deal stage to 'negosiasi'. In STAGES the order is prospek→kualifikasi→penawaran→negosiasi→tutup, so acceptance moves the deal only to 'Negosiasi' (one step short of the closing stage), AND it does so unconditionally — a deal already at 'tutup' (won) is REGRESSED back to negotiation when the accept webhook fires (e.g. a re-POST or a second accept on a re-used token path).",
+  "location": "lib/quotes/store.ts:256-259 + lib/stores/pipeline-store.ts:187-193",
+  "realWorld": "In real Indonesian B2B sales, the customer accepting/signing the penawaran IS the closing signal — the deal should advance to 'Tutup' (won), not land in 'Negosiasi'. Negotiation happens BEFORE acceptance, not after. Moving an accepted deal to negotiation, and worse pulling an already-won deal backward, contradicts how a rep's pipeline progresses and corrupts funnel/closing metrics.",
+  "fix": "On accept, advance to 'tutup' (and consider stamping closedAt / value-won); on reject, optionally move to a lost/berhenti state. Guard the update so it never moves a deal backward (e.g. only set stage if the current stage index is < target index).",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "penawaran/[id]",
+  "severity": "medium",
+  "category": "action-mismatch",
+  "issue": "'Susun ulang dgn AI' (compose) overwrites items/title/notes/cover in local state via set({...}) but does NOT persist; only 'Simpan' or 'Kirim' write to the server. A rep who composes, sees the toast 'Draf AI dimasukkan', then navigates away (back link / closes tab) loses the AI draft entirely with no save prompt. Same for all field edits — there is no autosave and no dirty-state guard.",
+  "location": "app/(app)/penawaran/[id]/page.tsx:121-138 (compose, no save), 93-94 (local set), 189-191 (back link, no unsaved guard)",
+  "realWorld": "Reps expect the AI-generated draft they just accepted to be safe. The toast says it was 'dimasukkan' (inserted), strongly implying persistence, but it's only in React state. Losing a generated quote on an accidental navigation is exactly the kind of 'gak sesuai lapangan' friction that erodes trust in the AI feature.",
+  "fix": "Either auto-save after compose (await save(true) inside compose()), or add an unsaved-changes guard on navigation, and soften the toast to 'Draf AI dimasukkan — jangan lupa Simpan' until persistence is added.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "penawaran/[id]",
+  "severity": "low",
+  "category": "flow-logic",
+  "issue": "The editor lets the rep freely edit items, customer, taxRate, cover email etc. AFTER a quote is already 'sent'/'viewed'/'accepted', and Simpan recomputes subtotal/tax/total server-side. The public token page shows live quote fields, so editing a sent quote silently changes what the customer sees (and the totals they may have already accepted) with no lock or versioning.",
+  "location": "app/(app)/penawaran/[id]/page.tsx:205-230 (always-editable items), lib/quotes/store.ts:112-144 (updateQuote ignores status), app/api/public/quote/[token]/route.ts:10-26 (public view reads live fields)",
+  "realWorld": "A penawaran that has been sent/accepted is a commercial document the customer is acting on. Allowing the rep to silently change line items or price after sending — and having the customer's public link reflect the new numbers — is both a trust and an audit problem. Real quoting tools lock or version a quote once sent.",
+  "fix": "Make sent/accepted quotes read-only in the editor (or require an explicit 'revise → new version' action that issues a new number/token), and block updateQuote of financial fields when status is not draft.",
+  "cluster": "Quotes/Penawaran & Billing"
+ },
+ {
+  "page": "content",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "/content is a workspace-SCOPED route (it is not in GLOBAL_PREFIXES; lib/workspace/scope.ts:25 explicitly lists /content as scoped), so WorkspaceGate forces the rep to pick a workspace and redirects to /content?workspace=<id>. But neither the page nor any of its components ever read ?workspace= or useWorkspaceStore. ContentLibrary, ContentCalendar and the KPI strip all read the full useContentStore().items with zero workspace filter. Every workspace shows the SAME global content list.",
+  "location": "app/(app)/content/page.tsx:27 (items = useContentStore((s)=>s.items)); components/content/content-library.tsx:32; components/content/content-calendar.tsx:40",
+  "realWorld": "Identical to the confirmed /contacts/profiles bug. A rep who creates a workspace 'Promo Lebaran B2C' and another 'Outreach Korporat' expects each to hold only that focus's broadcasts/campaigns. Instead both workspaces display all 32 seed items mixed together. The gate promises 'biar konten ter-fokus per tujuan' but the focus is never applied — the workspace selection is cosmetic.",
+  "fix": "Add workspaceId to ContentItem (lib/types.ts:290) and to the seed/create flow, then read the active workspace (searchParams ?workspace= or useWorkspaceStore) in content/page.tsx and filter items to it before computing stats AND before passing to ContentLibrary/ContentCalendar. Or, if content is genuinely tenant-global, remove /content from the scoped set so the gate stops lying.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "content",
+  "severity": "critical",
+  "category": "count-aggregation",
+  "issue": "All five KPI tiles (Draf, Menunggu review, Terjadwal 7 hari, Diterbitkan bulan ini, Total reach) are computed over the unfiltered global items array, not the scoped (workspace) set, and not even over the currently filtered library view. So the badge numbers count content from every workspace.",
+  "location": "app/(app)/content/page.tsx:31-51",
+  "realWorld": "Same count-aggregation class as the contacts tab badges. A rep inside one workspace sees 'Draf 8 / Terjadwal 10' that includes other reps'/other foci's content. The headline numbers don't reflect what the rep is actually responsible for in this workspace.",
+  "fix": "Compute stats from the workspace-filtered list (after the scoping fix above). The useMemo at line 31 should iterate the scoped subset, not items.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "content",
+  "severity": "high",
+  "category": "calculation",
+  "issue": "The KPI date windows are anchored to hardcoded constants NOW=2026-05-25, WEEK_AHEAD=NOW+7d, MONTH_START=2026-05-01. 'Terjadwal 7 hari' counts scheduled items in [2026-05-25 .. 2026-06-01]; 'Diterbitkan bulan ini' counts published items with scheduledFor >= 2026-05-01. The real current date is 2026-06. These windows are frozen in May and never advance.",
+  "location": "app/(app)/content/page.tsx:22-24, 40-47",
+  "realWorld": "A marketer opens the page today (June) and 'Terjadwal 7 hari' shows last month's window — items scheduled for the actual next 7 days are excluded, and 'Diterbitkan bulan ini' silently includes all of May + June instead of the current calendar month. The numbers are wrong against any real clock.",
+  "fix": "Derive NOW from Date.now() (or a single shared demo-clock constant used everywhere) and compute MONTH_START via startOfMonth(now). If the dataset must stay anchored at May 2026 for the demo, anchor the seed dates relative to a clock that the KPI math also uses, so the window tracks the data.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "content",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "There are 5 content statuses (draft, review, approved, scheduled, published — content-config.ts:70) but the KPI strip surfaces only draft/review/scheduled/published. 'approved' (8 of 32 seed items) is counted by NO tile. Items that are approved-but-not-yet-scheduled are invisible in the headline metrics.",
+  "location": "app/(app)/content/page.tsx:31-51 (stats) vs lib/utils/content-config.ts:70-76 (CONTENT_STATUSES)",
+  "realWorld": "In a real content pipeline 'approved, awaiting scheduling' is exactly the queue a marketer acts on next (the to-be-scheduled backlog). Omitting it from KPIs hides the most actionable bucket; 8/32 items fall through the cracks.",
+  "fix": "Add an 'Disetujui / siap dijadwalkan' tile (count status==='approved'), or fold approved into a 'Belum terjadwal' actionable count so the strip covers the whole funnel.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "content",
+  "severity": "medium",
+  "category": "real-world-fit",
+  "issue": "Content has an 'audience' free-text field (e.g. 'Pelanggan VIP', 'Lead BUMN') but the library has no audience filter — only type and status. There's also no segment linkage to the KB segments (UMKM/Menengah/Korporat). The create dialog defaults audience to 'Pelanggan VIP' and never validates or links it.",
+  "location": "components/content/content-library.tsx:36-54 (only typeFilter/statusFilter/search); components/content/content-create-dialog.tsx:48,173-178",
+  "realWorld": "An Indonesian marketing rep segments broadcasts by audience (VIP vs cold lead vs reseller) and by KB segment to respect pricing/talking-points. They can't filter the library by audience, and audience is disconnected from the KB segment model the rest of the app uses, so content can't be targeted coherently.",
+  "fix": "Make audience a select bound to KB segments / a known audience taxonomy, add an audience filter chip row in ContentLibrary, and consider scoping reach/engagement by audience.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "content",
+  "severity": "low",
+  "category": "action-mismatch",
+  "issue": "The create dialog date input hardcodes min='2026-05-25' (content-create-dialog.tsx:235) and scheduledFor is built as `${date}T09:00:00+07:00`. The min is the same stale demo date as the page constant, so on the real date (June) the picker still 'allows' past dates relative to today while blocking valid May dates the user may legitimately want, and 09:00 is silently forced regardless of intent.",
+  "location": "components/content/content-create-dialog.tsx:107-109, 235",
+  "realWorld": "Scheduling UX should gate on 'today', not a frozen May date. A rep scheduling a real campaign gets a min boundary unrelated to the actual calendar.",
+  "fix": "Set min to today's date (new Date().toISOString().slice(0,10)) and let the user pick a time, or document the demo clock and keep all date logic on one shared constant.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/ai",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "The page header says 'Pilih 1 model aktif per workspace' (settings/ai/page.tsx:122) but the active model is stored per TENANT, not per workspace. tenant_active_model has tenantId as PRIMARY KEY (schema.ts:487-491) and the API upserts on tenantId only (app/api/tenant/ai/route.ts:92-100). There is no workspaceId anywhere in the active-model write/read path.",
+  "location": "app/(app)/settings/ai/page.tsx:122; app/api/tenant/ai/route.ts:31-34,92-100; lib/db/schema.ts:487-491",
+  "realWorld": "The whole doc-44 premise is that a rep runs different workspaces (lead_gen, retention, partner) that may warrant different models/costs. The UI promises per-workspace model selection but silently sets it tenant-wide — changing it in one workspace changes it for everyone in the tenant. Label and behavior diverge.",
+  "fix": "Either (a) make tenant_active_model keyed by (tenantId, workspaceId) and have the page read/write the active workspace's model, or (b) correct the copy to 'per tenant' and remove the per-workspace promise.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/ai",
+  "severity": "high",
+  "category": "count-aggregation",
+  "issue": "The usage rollup (Panggilan AI / Total token / Estimasi biaya) sums ALL ai_usage rows for the tenant with no time window, no per-user, and no per-feature/per-workspace filter. The GET selects every row (app/api/tenant/ai/route.ts:40-43) and reduces them all (lines 55-68). 'calls' is just rows.length (line 66).",
+  "location": "app/api/tenant/ai/route.ts:40-43, 55-68; rendered at settings/ai/page.tsx:127-141",
+  "realWorld": "A sales manager monitoring cost needs this-month spend and per-rep breakdown (doc 24 / per-rep attribution, MEMORY architecture note). An all-time lifetime sum that mixes every rep's chat+draft+autopilot+kb-test usage is not a number anyone manages against — it only ever grows and can't drive budgeting or rep accountability. ai_usage already stores userId, feature and an indexed `at` column (schema.ts:496-506) that go unused.",
+  "fix": "Add a time window (e.g. current month via the tenant_at_idx) and group by userId/feature; surface 'biaya bulan ini' + a per-rep/per-feature table instead of one lifetime total. Label the headline accordingly.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/ai",
+  "severity": "low",
+  "category": "flow-logic",
+  "issue": "fmtPrice prints raw per-1M USD as `$X / $Y per 1M` with no formatting, and the usage 'Estimasi biaya' is shown in USD ($) with toFixed(4) while the entire app is IDR-first (Bahasa Indonesia default). There is no IDR conversion or thousands formatting for a price like $0.27.",
+  "location": "app/(app)/settings/ai/page.tsx:45-46 (fmtPrice), 139 (cost in USD)",
+  "realWorld": "An Indonesian tenant owner reasons in Rupiah; a four-decimal USD figure ($0.0123) is not actionable for them and is inconsistent with every other money surface in the product (IDRAmount component used elsewhere).",
+  "fix": "Show cost in IDR (convert with a configured FX rate) or at minimum present USD with locale formatting plus an IDR estimate, matching the app's currency conventions.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/knowledge-base",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "The 'AI Test' panel's Live toggle is hardcoded to claim Deepseek: subtext 'Memakai Deepseek-flash via Gateway' (ai-test-panel.tsx:350) and the result badge 'Live · Deepseek-flash' (line 442). But the route prefers the tenant's ACTIVE model from the registry (app/api/kb-test/route.ts:90-105 meteredGenerateText → resolveActiveModel), which can be Anthropic/OpenAI/Google chosen in Settings → AI. The same hardcoded lie exists in the global assistant: SourceBadge renders 'Live · Deepseek' (components/ai/ai-chat.tsx:512) regardless of the real model.",
+  "location": "components/kb/ai-test-panel.tsx:348-351,440-446; components/ai/ai-chat.tsx:512; resolved by app/api/kb-test/route.ts:90-105 and app/api/chat/route.ts:133-142",
+  "realWorld": "A tenant owner who set their active model to Claude Opus (or pasted their OpenAI BYOK key) is told the answer came from Deepseek. The provenance label — the whole point of the 'Live vs Demo' badge — is false, which is misleading for cost/attribution and erodes trust in the RAG provenance UI.",
+  "fix": "Return the resolved model/provider string from the kb-test and chat routes (meteredGenerateText already has resolved.modelString) and render it in the badge instead of the hardcoded 'Deepseek'.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/knowledge-base",
+  "severity": "high",
+  "category": "flow-logic",
+  "issue": "In the AI Test panel's MOCK (non-live) path, the composed response is driven entirely by the selected scenario's hardcoded segment, not by the editable 'Pertanyaan prospek' textarea. `response` useMemo depends on [kb, scenario.segment] (ai-test-panel.tsx:210) and never reads `prompt`. runMock() (lines 275-284) just flips submitted=true. So a user can edit the prompt to a totally different question and the answer stays the UMKM/Menengah/Korporat canned reply for the picked scenario.",
+  "location": "components/kb/ai-test-panel.tsx:102-210 (response ignores prompt), 275-292 (runMock), 386-395 (editable prompt)",
+  "realWorld": "Someone testing 'does my KB answer a Korporat compliance question correctly?' edits the prompt while the UMKM scenario is selected and gets a confident UMKM pricing answer — the test gives a false sense the KB handled their actual question. The editable field implies it matters; it doesn't (offline).",
+  "fix": "In mock mode, run composeKbReply(prompt, kb) (which actually parses the prompt — already used in the live fallback at line 263) instead of the scenario-segment canned layout, or disable prompt editing in mock mode and make scenario the sole input.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/knowledge-base",
+  "severity": "medium",
+  "category": "data-mixing",
+  "issue": "The KB hero shows kb.clientName ('Basis pengetahuan untuk <clientName>', page line 119) sourced from the per-tenant KB blob, but a fresh tenant with no kb row falls back to the SEED (api/db/kb GET returns mockKb when row missing, route.ts:35), whose clientName is the demo client. So Tenant B (before first edit) sees Tenant A's / the demo client's brand name as their own KB owner. Same for every stat that derives from the seeded blob.",
+  "location": "app/(app)/settings/knowledge-base/page.tsx:119; app/api/db/kb/route.ts:35 (fall back to mockKb); lib/stores/kb-store.ts:75-101 (cloneSeed)",
+  "realWorld": "A new SaaS tenant opening their Knowledge Base sees another company's name and another company's products/pricing/segments pre-filled as 'theirs'. They could unknowingly edit and persist those as their own KB. Cross-tenant brand leakage in a multi-tenant product.",
+  "fix": "On first load for a tenant with no kb row, seed a blank KB scoped to that tenant (clientName = tenant.name, empty products/pricing) rather than returning the demo seed; or clearly mark the seed as sample data the tenant must replace.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/knowledge-base",
+  "severity": "medium",
+  "category": "scoping",
+  "issue": "The KB store hydrates exactly once per browser session via a module-level singleton guard (kb-store.ts:114 `if (get().hydrated) return`, called from app/(app)/layout.tsx:51) and never re-hydrates on identity/tenant change. persistKb() then PUTs the in-memory kb to kb_<currentTenantId> (api/db/kb PUT:52,61). If the effective tenant context changes within a session (superadmin acting across tenants, or membership switch without full reload), the store keeps the prior tenant's KB and the next edit overwrites the new tenant's kb row with the old tenant's data.",
+  "location": "lib/stores/kb-store.ts:110-157; app/(app)/layout.tsx:50-52; app/api/db/kb/route.ts:52,58-65",
+  "realWorld": "Knowledge Base is gated to superadmin (page wraps RequireSuperadmin) — exactly the role most likely to move between tenants. A superadmin who views/edits Tenant A's KB then moves to Tenant B risks silently clobbering B's KB with A's products/pricing on the first keystroke, because nothing resets the store on context change.",
+  "fix": "Key the hydration/persist on the current tenantId: reset hydrated=false and re-hydrate when the session tenant changes, and include the tenantId the snapshot was loaded under so persistKb refuses to write to a different tenant than it read from.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "settings/knowledge-base",
+  "severity": "low",
+  "category": "count-aggregation",
+  "issue": "The stat strip counts kb.sources.filter(s=>s.active).length as 'Sumber aktif' but the AI Test RAG retrieval only uses sources that are BOTH active AND status==='indexed' (ai-test-panel.tsx:171-176). An active-but-not-indexed source counts toward 'Sumber aktif' yet is never retrievable, so the KPI overstates usable knowledge.",
+  "location": "app/(app)/settings/knowledge-base/page.tsx:52 vs components/kb/ai-test-panel.tsx:171-176",
+  "realWorld": "The headline implies N sources are powering answers, but indexing/stale/error sources silently don't contribute. An operator trusts a number that's larger than the RAG-eligible set.",
+  "fix": "Count sources that are active && status==='indexed' for 'Sumber aktif' (or relabel it 'Sumber aktif (siap dipakai: X)') so the KPI matches retrieval eligibility.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "ai-assistant",
+  "severity": "medium",
+  "category": "data-mixing",
+  "issue": "The global assistant sends the FULL client KB snapshot from the in-memory kb-store as ground truth (ai-chat.tsx:149 body:{kbSnapshot: kb}; consumed by app/api/chat/route.ts:125-129 buildKbSystemPrompt). /ai-assistant is intentionally a GLOBAL route (scope.ts:17), so the assistant answers using the tenant-wide KB regardless of which workspace the rep is focused on — there is no per-workspace product/segment narrowing.",
+  "location": "components/ai/ai-chat.tsx:71-72,149; app/api/chat/route.ts:114-129; lib/workspace/scope.ts:17",
+  "realWorld": "A rep working a specific workspace (e.g. one product line for UMKM) asks 'produk apa yang cocok' and the assistant draws from the whole company catalog/all segments, not the workspace's product/segment focus — the opposite of doc-44's 'don't mix hundreds of products'. Recommendations bleed across the rep's other foci.",
+  "fix": "Pass the active workspace's productId/targetSegment into the chat body and have buildKbSystemPrompt narrow the KB context to that workspace's product/segment when an active workspace exists, while still allowing a global mode.",
+  "cluster": "AI, Content & Knowledge Base"
+ },
+ {
+  "page": "autopilot",
+  "severity": "critical",
+  "category": "action-mismatch",
+  "issue": "The 'Jeda sebelum kirim pesan' (human-in-the-loop approval) toggle, 'Maks. koneksi LinkedIn / hari' cap, and 'Jam tenang' quiet-hours window are all stored in config.guardrails but the orchestrator NEVER reads config.guardrails. The run blasts a connection request + DM to every selected prospect regardless of the daily cap, never pauses for approval even when the switch is ON, and ignores quiet hours entirely.",
+  "location": "lib/autopilot/orchestrator.ts (whole file — no reference to config.guardrails); components/autopilot/guardrails-panel.tsx:104-130; grep 'guardrail|maxLiPerDay|quietHours|pauseBeforeSending' in lib/autopilot → 0 matches",
+  "realWorld": "A real SDR turns ON 'pause before sending' precisely so nothing goes out to a prospect without their eyes on it, and sets maxLiPerDay=50 to avoid a LinkedIn ban. Here both promises are lies: the toggle does nothing, the cap is ignored (the run is capped by audienceCap instead), and quiet hours never apply. This is the worst kind of mismatch — a safety control that silently does nothing.",
+  "fix": "In runAutopilot, before Step 3 (send-li-requests) check config.guardrails.pauseBeforeSendingMessages — if true, emit a 'menunggu persetujuan' event and set status 'paused' until the user resumes. Cap the selected set by Math.min(audienceCap, guardrails.maxLiPerDay) for the send steps. Compute current Asia/Jakarta time and skip/defer sends inside quietHoursStart..quietHoursEnd. At minimum, if these can't be wired, remove the controls so the UI doesn't promise behavior that doesn't exist.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "autopilot",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "Autopilot reads the ENTIRE global prospect list (useProspectingStore.getState().prospects, seeded from prospects.json) with no workspace/tenant scoping. There is no ?workspace= read and no filter by workspaceId, so a run launched from any rep's workspace selects from every prospect in the app.",
+  "location": "lib/autopilot/orchestrator.ts:217 (const all = useProspectingStore.getState().prospects); app/(app)/autopilot/page.tsx:49,61-72 (prospects = useProspectingStore((s)=>s.prospects)); component/autopilot/audience-picker.tsx:29",
+  "realWorld": "Per doc 44, a rep runs the flow scoped to a workspace (a product/segment focus) precisely 'so hundreds of products don't get mixed up' — same class as the confirmed /contacts/profiles cross-workspace mixing bug. Here Autopilot ignores workspace entirely: rep A's autopilot can contact rep B's leads. The 'Y prospek cocok' estimate also counts the global pool, so the operator sees and engages leads that don't belong to their focus.",
+  "fix": "Read the active workspace (useSearchParams().get('workspace') or the workspace store) on the page, filter prospects to that workspace's leads before computing estimatedProspects and before passing into selectProspects(). Tag ProspectLead with workspaceId (person.workspaceId already exists in schema) and filter on it; show 'semua workspace' only for managers/superadmin.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "autopilot",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "Run history (GET /api/db/autopilot-runs) returns the last 50 runs for the whole tenant with no workspace filter, and autopilot_runs has no workspaceId column at all (schema lib/db/schema.ts:143-153). The 'Riwayat run' card therefore mixes runs from every workspace/rep in the tenant, and there is no way to scope or even attribute a run to the rep/workspace that launched it.",
+  "location": "app/api/db/autopilot-runs/route.ts:24-30 (select … orderBy … limit(50), no workspace/owner filter); lib/db/schema.ts:143-153 (autopilotRunsTable has no workspaceId / ownerUserId); lib/stores/autopilot-store.ts:227-242 (merge by id only)",
+  "realWorld": "A rep opening Autopilot inside their workspace expects to see THEIR past runs, not the whole company's. With per-rep attribution being a core principle (MEMORY: execution + attribution per individual sales rep's account), an unscoped tenant-wide history is both a privacy/scoping leak and confusing — a count/list over the wrong set, exactly like the contacts count-badge bug.",
+  "fix": "Add workspaceId + ownerUserId columns to autopilot_runs; set them in the PUT from the active workspace/session; filter the GET by workspaceId (when provided) and by ownerUserId for non-managers. In the store, hydrate per-workspace.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "autopilot",
+  "severity": "medium",
+  "category": "calculation",
+  "issue": "metrics.prospectsEngaged is bumped by selected.length at audience-selection time (before any outreach), so 'prospek engaged' counts everyone the run TARGETED, not everyone it actually contacted. liSent is the real 'engaged' number. The Riwayat-run row and RunSummary present prospectsEngaged as if it were an outcome.",
+  "location": "lib/autopilot/orchestrator.ts:242 (store().bumpMetric('prospectsEngaged', selected.length)); app/(app)/autopilot/page.tsx:264-267 (HistoryRow shows run.metrics.prospectsEngaged with a Users icon)",
+  "realWorld": "In a real funnel, 'engaged' means a request actually went out (or a reply happened). Counting the selected audience as 'engaged' overstates activity — if LinkedIn throttles/blocks sends, prospectsEngaged still shows the full target count. The number should reflect sent/accepted, not selected.",
+  "fix": "Either rename the metric/label to 'Prospek terpilih' for prospectsEngaged, or bump it from the send-li-requests loop on a successful 'sent' result (mirroring liSent), so 'engaged' reflects real outreach.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "field",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The field page shows ALL field reps (useFieldReps → entire field-reps.json) and the visits log shows ALL visits (useVisits → entire visits.json) with no scoping to the logged-in user, tenant, or team. A Sales Rep sees every other rep's live location, visit counts, and visit outcomes.",
+  "location": "app/(app)/field/page.tsx:30,34-37; app/(app)/field/visits/page.tsx:31,66; lib/api-mock/hooks.ts:120-126 (useFieldReps/useVisits — no tenant/owner param); lib/api-mock/data.ts:75-76",
+  "realWorld": "Per doc 41 per-rep isolation, a rep should see only their own route/visits; a manager sees their team; superadmin sees all. Showing the whole company's field movements to every rep is both a scoping leak and not how an Indonesian field-sales org operates (a rep tracks their own kunjungan, a Kepala Cabang tracks their cabang's team).",
+  "fix": "Scope useFieldReps/useVisits by the session's role: Sales Rep → own id, Manager → team member ids, Superadmin → all. Add a role/owner filter to the mock hooks (and the eventual DB query), defaulting to the current user.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "field",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "Selecting a rep on the 'Semua' tab then switching to 'Live' filters the list to status==='kunjungan' but does NOT clear selectedId. The detail panel at the bottom and the map still render the now-hidden selected rep (selected = reps.find(...), not list.find(...)), so the sidebar shows no highlighted row yet a detail card + route polyline for a rep that isn't in the visible list.",
+  "location": "app/(app)/field/page.tsx:34-37 (list filtered by tab; selected resolved from full reps, not list), 104-117 (detail panel uses selected), 121 (FieldMap reps={list} but selectedId still points at a non-list rep)",
+  "realWorld": "Switching the Live filter and still seeing a selected rep who is on 'istirahat'/'selesai' (not live) is incoherent — the filter visibly fails to affect the selection state. A user expects the filter to either keep the rep visible or drop the selection.",
+  "fix": "When tab changes, reset selectedId if the selected rep is no longer in list (useEffect on [tab] that clears selection when !list.some(r=>r.id===selectedId)), or resolve selected from list instead of reps so the detail/map stay consistent with the filter.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "retention",
+  "severity": "high",
+  "category": "count-aggregation",
+  "issue": "kpi.activeCustomers (351, labeled 'terdaftar di seluruh alur') and per-flow flow.enrolled are seeded independently and never reconcile. Enrolling a candidate bumps the recommended flow's enrolled (+1) but never touches kpi.activeCustomers, and the sum of all flow.enrolled (142+38+21+86+64=351 by coincidence of seed) drifts the moment you enroll. The headline 'pelanggan aktif retensi' is a static number that contradicts the live flow counts after any action.",
+  "location": "lib/api-mock/retention.ts:204-212 (seedKpi.activeCustomers=351); lib/stores/retention-store.ts:133-142 (enrollCandidate bumps flow.enrolled only, never kpi); app/(app)/retention/page.tsx:126-129 (KPI tile shows kpi.activeCustomers 'terdaftar di seluruh alur')",
+  "realWorld": "A manager reads 'pelanggan aktif retensi: 351 — terdaftar di seluruh alur' as the live sum of enrollments. After daftarkan-ing a kandidat the per-flow count goes up but the headline stays 351, so the two numbers openly disagree — a count over the wrong (static) set, like the contacts count-badge bug.",
+  "fix": "Derive kpi.activeCustomers from the flows (sum of flow.enrolled) instead of a frozen seed value, OR increment kpi.activeCustomers inside enrollCandidate. Make the headline a computed selector so it tracks the same source as the per-flow counts.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "retention/[flowId]",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "Saving the audience filter does nothing except store segment/min/max/tags for the flow; there is no action anywhere that enrolls the filtered audience into the flow. The 'Catatan AI' panel claims 'Filter di atas akan menentukan pelanggan mana yang diikutsertakan' and the save toast says 'X pelanggan memenuhi', but no customer is ever included as a result of saving — enrollment only happens one-by-one via the dashboard CandidateTable's Daftarkan button.",
+  "location": "app/(app)/retention/[flowId]/page.tsx:310-338 (Catatan AI copy + estimate); components/retention/audience-filter.tsx:70-78 (onSaveFilter only setAudienceFilter); lib/stores/retention-store.ts:144-147 (setAudienceFilter just writes the map)",
+  "realWorld": "A marketer sets a segment + day-range filter expecting 'apply this audience to the flow' (bulk enroll). Here Simpan filter is a dead end — it changes an estimate number and nothing else. The promised cause→effect (filter → diikutsertakan) never happens.",
+  "fix": "Add an 'Daftarkan audiens ini' action that enrolls all candidates matching the saved filter into the flow (bump flow.enrolled by the matched count and remove them from candidates), or relabel the panel/toast to make clear the filter is only a preview/targeting note with no enrollment side effect.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "retention/[flowId]",
+  "severity": "medium",
+  "category": "calculation",
+  "issue": "estimateAudience ignores segment AND tags — it filters candidates by daysSincePurchase only. The save toast 'Filter audiens disimpan — X pelanggan memenuhi' and both 'Estimasi audiens' panels present X as if it honored the chosen Segmen (UMKM/Korporat/etc.) and Tag (VIP/Repeat/…). Changing segment or tags never changes the number.",
+  "location": "lib/api-mock/retention.ts:296-305 (estimateAudience uses only min/max days); components/retention/audience-filter.tsx:52-59,77 (estimate + toast); app/(app)/retention/[flowId]/page.tsx:331 (~estimateAudience(candidates, audienceFilter))",
+  "realWorld": "Although a small footnote admits 'Segmen & tag bersifat pratinjau', the prominent estimate + the save toast still read as a real audience size. A rep tightening to 'Segmen: Korporat, Tag: VIP' and seeing the same count will (correctly) distrust the whole estimate. Segmentation that doesn't reflect the chosen criteria is the core retention targeting feature being non-functional.",
+  "fix": "Give candidates segment/tag attributes (or join to person/company) and filter on them in estimateAudience; until then, make the estimate visually 'preview only' and word the toast as 'rentang hari saja' so it doesn't claim segment/tag were applied.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "retention",
+  "severity": "medium",
+  "category": "scoping",
+  "issue": "Retention candidates are built from seedContacts.slice(0,14).slice(0,8) — a fixed first-8 of the GLOBAL contact seed — with no tenant or workspace scoping, and daysSincePurchase/recommendedFlow are synthesized from a hash, not from any real purchase/deal data. The 'X kandidat' badge and 'Kandidat siap didaftarkan' table therefore show the same 8 cross-tenant contacts for everyone.",
+  "location": "lib/api-mock/retention.ts:241-267 (buildCandidates from seedContacts.slice); app/(app)/retention/page.tsx:240-241 (candidates.length badge); components/retention/candidate-table.tsx:50-54",
+  "realWorld": "Retention candidates should be real post-purchase customers of THIS tenant/workspace, derived from closed deals/orders, not the first 8 rows of a shared contacts fixture. Like the contacts cross-workspace mixing, the candidate list isn't scoped, and the AI-note/flow recommendation is hash-noise, not a real fit signal.",
+  "fix": "Build candidates from won deals/orders for the active tenant (and workspace if scoped), compute daysSincePurchase from the real last-purchase date, and pick recommendedFlow from actual segment/recency rather than i % FLOW_POOL.length.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "retention",
+  "severity": "low",
+  "category": "flow-logic",
+  "issue": "Type filter chips filter visibleFlows but the 'activeFlowCount' badge in the header ('N alur aktif') and the KPI tiles always count/aggregate over the unfiltered flows. After filtering to e.g. 'Upsell' the grid shows 1 flow while the header still says '4 alur aktif', so the badge doesn't reflect the visible set.",
+  "location": "app/(app)/retention/page.tsx:42-44 (visibleFlows filtered, activeFlowCount over all flows), 56-58 (badge), 197-201 (grid renders visibleFlows)",
+  "realWorld": "Minor, but it's the same pattern as the confirmed count-badge bug: a count shown next to a filtered list that ignores the filter. A user filtering to Upsell expects the active-count context to follow the filter (or the badge to clearly be a global total).",
+  "fix": "Either compute activeFlowCount from visibleFlows (so it tracks the filter) or label it explicitly as a global total ('N alur aktif total') so it's not read as the count of what's on screen.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "retention/[flowId]",
+  "severity": "low",
+  "category": "real-world-fit",
+  "issue": "The flow detail Save button persists name/description/triggerCondition to the store, but the toast 'Alur \"X\" disimpan' implies durable persistence while the retention store is localStorage-only (persist middleware) and nothing is written to a backend. Trigger condition is free-text with no validation/structure, so it can never actually drive enrollment.",
+  "location": "app/(app)/retention/[flowId]/page.tsx:103-110 (onSave + toast); lib/stores/retention-store.ts:54-56,160-169 (persist to localStorage 'maira-retention-v1' only); flow.triggerCondition is a plain string",
+  "realWorld": "A real after-sales flow's trigger ('30 hari sejak pembelian terakhir') must be a structured, evaluable rule that actually enrolls customers. Here it's prose saved to the browser only — editing it changes a label, not behavior, and 'disimpan' overstates durability for a multi-user tool.",
+  "fix": "Model triggerCondition as a structured rule (type + threshold + segment) that a job can evaluate, persist flows to the DB (cadences/flow tables) so edits survive across devices/users, and word the toast to match what's actually saved.",
+  "cluster": "Autopilot, Prospecting, Field & Retention"
+ },
+ {
+  "page": "reports",
+  "severity": "critical",
+  "category": "count-aggregation",
+  "issue": "The 'Funnel per channel' and 'Channel quick stats' silently DROP every deal whose sourceChannel isn't one of whatsapp/email/instagram/tokopedia, while the headline KPIs (Pendapatan MTD, Deal ditutup MTD, Tingkat konversi) count ALL deals. In the seed, deals are tokopedia 5, linkedin 11, sms 9, email 2, shopee 9, whatsapp 4, instagram 10 — so 29 of 50 deals (58%) vanish from the funnel/per-channel cards but still inflate revenue and conversion. The funnel total will never reconcile with the KPI strip.",
+  "location": "app/(app)/reports/page.tsx:247-261 (const label = CHANNEL_LABEL[raw] ?? null; if (!label) continue;)",
+  "realWorld": "A sales manager reading this report sees 'Pendapatan MTD' from 50 deals but a funnel built from only 21. linkedin and shopee are first-class channels in this market (the dashboard itself lists Tokopedia; shopee/linkedin/sms deals are real seed rows), yet they're erased from channel performance. The numbers literally don't add up, which destroys trust in the whole report.",
+  "fix": "Add 'linkedin', 'shopee', 'sms' (and a 'Lainnya' bucket for anything unmapped) to CHANNEL_LABEL/channelOrder/CHANNEL_ACCENT so the funnel covers every deal, OR explicitly compute the KPIs from the same channel-filtered set the funnel uses and label the funnel 'channel utama' honestly. Don't `continue` rows into oblivion.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "dashboard",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "The channel quick-filter only offers all/whatsapp/email/instagram/tokopedia. Deals (and conversations/tasks/activity) on linkedin, sms, and shopee — 29 of 50 seeded deals — can never be filtered to and are invisibly folded into the 'Semua' totals with no chip to surface them. There's no 'Lainnya' option, so the user has no way to see or reconcile those deals.",
+  "location": "app/(app)/dashboard/page.tsx:72-78 (CHANNEL_FILTERS) + :100-116 (filtered)",
+  "realWorld": "An Indonesian B2B rep working LinkedIn outreach or a B2C rep on Shopee literally cannot view their own pipeline from the dashboard's channel lens — the majority channel by deal count (linkedin) isn't even a tab. The filter set is hardcoded to four channels that don't match the actual data the seed/RPA produces.",
+  "fix": "Derive CHANNEL_FILTERS from the distinct sourceChannel values present in the data (plus an 'all'), or add linkedin/shopee/sms chips and a 'Lainnya' catch-all so every deal is reachable and the per-channel slices sum back to 'Semua'.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "reports",
+  "severity": "high",
+  "category": "calculation",
+  "issue": "'Deal tanpa nilai', 'Deal tanpa kontak', 'Kontak tanpa email/telepon' are computed from fields that are never empty in the data: every seeded deal has value>0, contactId, owner, expectedClose (verified: 0/50 missing each). So noValue=0, noContact=0 always, and cleanRate would be 100% — except 'Deal stagnan > 30 hari' is faked with `Math.max(stale, Math.min(8, hashStr('stale-'+totalDeals) % 14))`, injecting a non-existent count. The 'X masalah' badge and severity chips are therefore fabricated, not measured.",
+  "location": "app/(app)/reports/page.tsx:480-492 (noValue/noContact + stagnant hash) and :470-478 (cleanDeals)",
+  "realWorld": "A data-quality screen whose counts are a hash of the dataset size, not the actual dirty rows, will send a manager to 'Tinjau' a list of 8 stagnant deals that don't exist. Real pipeline hygiene must reflect real missing fields; here it's theater.",
+  "fix": "Drop the hashStr fallback for stagnant; report the true `stale` count. If the demo seed has no dirty rows, either seed some (a few deals with null value/contactId, contacts with null email/phone) or label the section honestly as '0 masalah — data bersih' instead of manufacturing counts.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "team",
+  "severity": "high",
+  "category": "data-mixing",
+  "issue": "Deal attribution joins members (from DB, identified by userId) to deals by free-text owner NAME (`dealsByName.get(m.name.toLowerCase())`), while leads join by userId (personTable.assignedTo). deals.owner is free text ('Andi Hidayat', 'Maya Kusuma', 'Teguh Saputra', 'Rina Permata' in seed) with no FK to users. Any name mismatch (typo, married name, 'Andi H.', two reps named Budi) silently yields 0 deals/closing for that rep, or merges two people. There's also no workspace/tenant scoping of deals beyond RLS — deals have no assignedTo column at all.",
+  "location": "app/api/team/monitoring/route.ts:50-62 (dealsByName keyed by owner name) + :66-67 (dl = dealsByName.get(m.name.toLowerCase()))",
+  "realWorld": "Monitoring is the manager's source of truth for 'closing dari siapa'. Attributing money by display-name string is how a rep gets credited 0 closings (or another rep's closings) the moment names don't match exactly — a guaranteed dispute in any real Indonesian sales team where names are non-unique and free-typed.",
+  "fix": "Attribute deals by a stable ownerUserId FK, not name. Add deals.assignedTo/ownerUserId (the person/quote tables already use assignedTo/ownerUserId) and key dealsByUser on userId. Until the schema has it, at minimum normalize+warn on unmatched owner strings rather than silently zeroing.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "reports",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "Every KPI delta is a hardcoded string unrelated to the data: revenue '+18,2%' / 'vs. bulan lalu', deals '+4 deal', conversion '+2,1 pp', cycle '-3 hari'. avgCycleDays is `22 + (hashStr(...) % 14)` — a hash of dataset size, not an actual cycle time (deals have createdAt + expectedClose, so a real cycle is computable). The page presents these as live analytics under a 'Diperbarui …' timestamp.",
+  "location": "app/(app)/reports/page.tsx:639 ('+18,2%'), :649 ('+4 deal'), :660 ('+2,1 pp'), :670 ('-3 hari'); :238-240 (avgCycleDays hash)",
+  "realWorld": "A manager will quote '+18,2% vs bulan lalu' in a board update — a number that is literally a constant in the source. The 'Data demo' badge mitigates this, but the deltas sit on tiles next to genuinely-derived values (revenue from real deals), so the mix is deceptive. avgCycle can and should be real.",
+  "fix": "Compute avgCycleDays from closed deals' (expectedClose - createdAt) average. Either compute real period-over-period deltas (needs a prior window) or remove the delta badges. Don't render fabricated deltas beside derived KPIs.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "dashboard",
+  "severity": "medium",
+  "category": "flow-logic",
+  "issue": "'Closing minggu ini' filters `t <= WEEK_AHEAD` with NO lower bound, so any open (non-tutup) deal whose expectedClose is in the PAST (overdue) is counted as 'closing this week'. With the pinned NOW=2026-05-25 the seed happens to have 0 overdue, so it's latent, but the logic is wrong and will misreport the moment data has an overdue open deal.",
+  "location": "app/(app)/dashboard/page.tsx:122-126 (closing filter) and the same in lib/api-mock/hooks.ts:195-197 (useDashboard)",
+  "realWorld": "Overdue deals are not 'closing this week' — they're slipping and need escalation, the opposite signal. A rep relies on this tile to plan the week; counting stale overdue deals as imminent wins is exactly the kind of 'gak sesuai lapangan' miscount that hides risk.",
+  "fix": "Bound the window on both sides: `t >= NOW && t <= WEEK_AHEAD`. Surface overdue/open deals separately (e.g. a 'terlambat' count) rather than folding them into closing-this-week.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "team",
+  "severity": "medium",
+  "category": "real-world-fit",
+  "issue": "When the DB is not configured (the prototype's default — `!hasDb()`), the monitoring route returns `{ data: [] }`, so the page renders an empty roster and the summary tiles show 'Total lead 0 / Total closing 0 / Nilai closing Rp 0'. Unlike contacts/conversations routes which fall back to seed fixtures, team monitoring has no mock fallback, so the headline manager screen looks broken/empty in the standard demo.",
+  "location": "app/api/team/monitoring/route.ts:20 (`if (!hasDb()) return ... data: []`)",
+  "realWorld": "The whole point of this screen (doc 41) is to let a manager see who's active and who's closing. In a no-DB demo it shows zeros — a manager would conclude the team did nothing. Every other list in the app degrades to seed data; this one doesn't.",
+  "fix": "Provide a mock roster fallback (derive reps from the seed deals' distinct owners + a fieldReps fixture, aggregate leads/closings from seed deals/contacts) so the page is populated in mock mode, mirroring the contacts/conversations fallback pattern.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "reports",
+  "severity": "medium",
+  "category": "scoping",
+  "issue": "Reports is visible to Sales Reps (member) — it is NOT managerOnly in side-nav (unlike /team) — yet the Sales leaderboard, per-rep revenue, and full pipeline are computed from ALL tenant deals with no per-rep restriction. deriveSales groups every closed deal by owner and shows the top-5 reps' names and money to any rep. doc 41 explicitly says members are 'scoped to their own assigned leads'.",
+  "location": "app/(app)/reports/page.tsx:285-299 (leaderboard over all closed deals) + components/layout/side-nav.tsx:121 (/reports has no managerOnly)",
+  "realWorld": "Per doc 41 per-rep isolation, a Sales Rep should not see the whole team's closings and rankings (a competitive/privacy concern in real sales orgs). Here any rep opens Laporan and sees every colleague's revenue and the leaderboard. Either gate the rep-comparison sections to managers, or filter the report to the rep's own deals.",
+  "fix": "Either mark the leaderboard + cross-rep sections managerOnly (gate via role from session like /team does), or filter deriveSales inputs to the current user's owned deals for non-managers. Match the isolation model already enforced on /team.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "reports",
+  "severity": "medium",
+  "category": "real-world-fit",
+  "issue": "The Akurasi AI tab redefines 'AI error' as 'an autopilot step that fell back to the mock/template provider' (e.source === 'mock'). This conflates 'Deepseek was unreachable so we used a template' with 'the AI gave a wrong answer'. When there's no autopilot history it shows a static 3.79% from fixtures. So the 'Tingkat kesalahan AI' headline is really a provider-availability rate, not an accuracy/error rate.",
+  "location": "app/(app)/reports/page.tsx:335-372 (deriveAi: mockEvents = source==='mock' → errorCount/errorRate)",
+  "realWorld": "A manager reads 'Tingkat kesalahan AI 3.79%' as 'AI got it wrong 3.79% of the time' and may pause automation. In reality it can be 100% 'errors' simply because no API key is set (mock provider) — the offline demo's normal state. This mislabels infra fallback as quality failure, the inverse of the static fixture's meaning ('Salah informasi produk', 'Harga tidak akurat').",
+  "fix": "Rename the metric to 'AI fallback rate' / 'Tingkat fallback template' when derived from source==='mock', or actually track flagged/incorrect responses (the auto_reply_event/escalation tables carry confidence + decision) and compute accuracy from human-reviewed flags. Don't equate 'template used' with 'wrong answer'.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "dashboard",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "Response rate is defined as conversations with unread===0 over total conversations ('replied = unread 0'). A brand-new inbound lead that no one has opened/replied to also has unread>0 (correctly unanswered), but a conversation we never replied to where the customer's last message was read (unread 0) counts as 'replied'. unread is a read-receipt counter, not a reply indicator, so responseRate measures 'inbox zero' not 'we responded'.",
+  "location": "app/(app)/dashboard/page.tsx:135-138 (replied = c.unread === 0; responseRate)",
+  "realWorld": "A rep can mark everything read without replying and the dashboard reports a high 'Respon WhatsApp %'. Real response-rate is outbound-reply / inbound-threads. Using unread-count as a proxy rewards clearing badges, not answering customers — a classic vanity-metric that doesn't match how a CS/sales rep is actually measured.",
+  "fix": "Compute response rate from messages: share of inbound threads that have at least one outbound message after the latest inbound (the messages table has direction in/out). Failing that, rename the tile to 'Inbox terbaca' so it's honest about counting unread===0, not replies.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "team",
+  "severity": "low",
+  "category": "scoping",
+  "issue": "Leads-owned counts persons by assignedTo across the whole tenant with no workspace dimension, even though person rows carry workspaceId (doc 44) and the rest of the app scopes leads per workspace. A rep working two workspaces has all their leads summed into one number with no breakdown, and a deal/lead reassigned to a different workspace still counts here. The summary 'Total lead dipegang' therefore can't be reconciled against any workspace view.",
+  "location": "app/api/team/monitoring/route.ts:36-37 (leadsByUser over all persons, no workspaceId group) ",
+  "realWorld": "Managers think in terms of 'leads in the Logistik B2B workspace' vs 'AI Engineer Jakarta'. A single flat per-rep lead count that ignores workspace can't answer 'who's covering which workspace', which is the real monitoring question doc 44 introduced workspaces to answer.",
+  "fix": "Optionally group/lead counts by (userId, workspaceId) or accept a ?workspace= filter so the roster can be scoped to a workspace, consistent with the workspace-first model used elsewhere.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "reports",
+  "severity": "low",
+  "category": "calculation",
+  "issue": "Per-channel win rate is `won / prospect` (won deals / deals currently in 'prospek' stage), not won / total-entered-funnel. Since won deals are no longer in 'prospek', this divides outcomes by a snapshot of the current prospect backlog and can exceed 100% or read nonsensically (e.g. a channel with many wins but few current prospects shows >100% win rate).",
+  "location": "app/(app)/reports/page.tsx:822-823 (winRate = c.prospect > 0 ? (c.won / c.prospect) * 100 : 0)",
+  "realWorld": "Win rate must be wins / total opportunities that entered the funnel for that channel, not wins / current-prospect-stage count. A manager comparing channel effectiveness gets a ratio that mixes a flow (wins) with a point-in-time stock (prospects), which is meaningless and can show absurd percentages.",
+  "fix": "Compute denominator as the total deals that entered the channel funnel (prospect+qualified+offer+won, i.e. the `total` already computed on line 821), or track historical entries. Use `c.won / total * 100`.",
+  "cluster": "Dashboard, Reports &amp; Team Monitoring"
+ },
+ {
+  "page": "settings/mailboxes",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/tenant/mailboxes selects sending_account with NO WHERE clause at all (no tenantId, no userId). It relies on withTenant() RLS to scope rows, but RLS is explicitly NOT enabled yet (drizzle/rls/enable-rls.sql says 'APPLIED IN SLICE 2 — not part of the auto-run migrations' and tenant-context.ts says 'Until then it is a harmless transaction wrapper'). So the Mailbox list returns EVERY sending account in the whole database — across all tenants and all reps.",
+  "location": "app/api/tenant/mailboxes/route.ts:31-43 (select has no .where); lib/db/tenant-context.ts:24-25",
+  "realWorld": "Same class as the confirmed /contacts/profiles bug: a workspace shows rows that don't belong to it. A sales rep opening Email & Jangkauan sees other reps' (and other companies') connected sending identities, can pick them in the 'Dari mailbox' dropdown, and can DELETE them. Reps in real life each own their own mailbox; they must never see or delete a colleague's — let alone another tenant's.",
+  "fix": "Add an explicit predicate even before RLS lands: .where(and(eq(sendingAccountTable.tenantId, ctx.tenantId), eq(sendingAccountTable.userId, ctx.userId))) for members, and eq(tenantId) only for admins/owners. The POST already stamps userId: ctx.userId, so the data supports per-rep scoping; the GET just never uses it.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/mailboxes",
+  "severity": "critical",
+  "category": "scoping",
+  "issue": "GET /api/tenant/sends queries send_job with only .orderBy(createdAt).limit(50) — no tenantId filter. With RLS off, 'Riwayat kirim' shows the last 50 send jobs across ALL tenants (recipient emails, subjects, error strings).",
+  "location": "app/api/tenant/sends/route.ts:20-22",
+  "realWorld": "Cross-tenant data leak of outbound email history (PII: prospect addresses + subjects). A rep's 'Riwayat kirim' would interleave other companies' sends. Compare members/route.ts which DOES filter (eq(membershipsTable.tenantId, ctx.tenantId)); this route forgot.",
+  "fix": "Add .where(eq(sendJobTable.tenantId, ctx.tenantId)) (and ideally scope to the rep's own sending accounts) before the orderBy/limit.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/team",
+  "severity": "high",
+  "category": "scoping",
+  "issue": "DELETE /api/tenant/invites/:id updates invitesTable SET status='revoked' WHERE invitesTable.id = params.id ONLY — no tenantId guard (unlike members/[id] which uses and(eq(id), eq(tenantId))). RLS is off, so any tenant_admin/owner who knows/guesses an invite id can revoke an invite belonging to a different tenant.",
+  "location": "app/api/tenant/invites/[id]/route.ts:18-23",
+  "realWorld": "Tenant isolation hole on a mutation. Even within the demo it means the scope boundary is enforced inconsistently across sibling routes (members PATCH/DELETE guard tenantId; invites DELETE does not). A cross-tenant attacker can quietly cancel a competitor's pending invites.",
+  "fix": "Add the tenant predicate: .where(and(eq(invitesTable.id, params.id), eq(invitesTable.tenantId, ctx.tenantId))).",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/mailboxes",
+  "severity": "high",
+  "category": "calculation",
+  "issue": "Mailbox dailyLimit is enforced via sentToday (processSendJobs: 'if (acc.sentToday >= acc.dailyLimit) leave pending') and incremented on every send, but sentToday is NEVER reset. grep across lib/ shows the only writes are the +1 increment in send.ts:127 and the schema default 0 — there is no cron, no date check, no midnight reset anywhere.",
+  "location": "lib/mail/send.ts:107 and 124-128; lib/db/schema.ts:697 (no reset job exists)",
+  "realWorld": "The UI literally says '{sentToday}/{dailyLimit} hari ini' (today) but the counter is a lifetime total. After a mailbox cumulatively sends 200 messages it is permanently jammed — every future job stays 'pending' forever and never sends, even on a brand-new day. A real sender expects the cap to roll over daily; here outreach silently dies after the lifetime threshold.",
+  "fix": "Track a sentTodayDate (or lastResetAt) column; in processSendJobs, if the stored date != today reset sentToday=0 before the cap check. Or compute today's count from send_job rows where status='sent' and sentAt::date = current_date instead of a stored counter.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/mailboxes / settings/extension",
+  "severity": "high",
+  "category": "action-mismatch",
+  "issue": "Two completely different, conflicting WhatsApp connect systems exist with overlapping claims. Mailboxes page WhatsAppCard uses WAHA via /api/wa/status + /api/wa/send, where the session is a single GLOBAL env var (wahaSession() = process.env.WAHA_SESSION || 'default') shared by every tenant and every rep; it says 'Cadence step WhatsApp kirim via sesi ini'. The Extension page WaConnectCard uses the VPS-gateway path /api/wa/session, which is correctly per-rep/per-tenant (sessionIdFor → rep:<userId> or platform:<tenantId>) and ALSO says 'Cadence WA steps send via this session'.",
+  "location": "app/(app)/settings/mailboxes/page.tsx:352-427 (WAHA, global) vs components/wa/wa-connect-card.tsx + app/api/wa/session/route.ts:22-24 + lib/wa/store.ts:29-31 (per-rep). wahaSession at lib/wa/waha.ts:10-12.",
+  "realWorld": "A rep cannot tell which WhatsApp they're actually connecting, and the two can't both be the sending session. In per_sales mode (architecture memory: attribution per individual rep's account) the WAHA card sends from one shared platform number, breaking per-rep attribution and the 'terpantau per sales' promise made in the very same UI. Two settings pages each claim to own the cadence WA channel.",
+  "fix": "Pick one model. For per-sales attribution, drop the global-WAHA test card from Mailboxes (or make WAHA per-rep by passing a session id derived from ctx like the gateway store does) and route all WA through /api/wa/session. At minimum, /api/wa/status and /api/wa/send must scope the WAHA session per rep/tenant instead of one shared WAHA_SESSION.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "The Settings 'Pengguna' tab header shows USERS.length (= 5: 4 hardcoded DEMO_ACCOUNTS + a hand-added 'Maya Kusuma') as 'pengguna aktif di workspace ini', while the 'Tagihan' tab on the SAME page hardcodes 'Pengguna aktif 10 / 10' and '10 kursi'. Meanwhile the real /settings/team page reads actual tenant members from the DB (a completely different set). Three different sources of truth for 'how many users', none reconciled.",
+  "location": "app/(app)/settings/page.tsx:37-52 (USERS), :319 ({USERS.length}), :453-472 (hardcoded 10 kursi / 10 of 10)",
+  "realWorld": "An admin checking seat usage sees '5 pengguna aktif' on one tab and '10/10 kursi terpakai' on the next — directly contradictory, and neither matches the live team list. Seat/billing decisions can't be made from contradictory numbers. The Pengguna list is also not scoped to any tenant/workspace at all (static demo accounts).",
+  "fix": "Drive the Pengguna tab from the same /api/tenant/members source the Team page uses (tenant-scoped), and compute the Tagihan 'Pengguna aktif X / seats' from that member count vs the subscription seats — don't hardcode 5/10.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/compliance",
+  "severity": "medium",
+  "category": "count-aggregation",
+  "issue": "The Ringkasan MiniStats hardcode 'Kontak disetujui 78%', 'Menunggu persetujuan 18%', 'Tanpa izin 4%', but these are supposed to summarize the very consent log shown in the 'Jejak Persetujuan' tab (useConsentLog → mock-data/consent-log.json). The actual data is 50 rows: consented 30 (60%), pending 14 (28%), none 6 (12%). The headline KPI does not match its own underlying table.",
+  "location": "app/(app)/settings/compliance/page.tsx:183-186 (hardcoded 78/18/4); data verified from lib/mock-data/consent-log.json (60/28/12)",
+  "realWorld": "A DPO reads '78% disetujui' at the top, then counts the consent table and finds 60%. For a regulator-facing GRC screen, a fabricated headline that contradicts the auditable log destroys the credibility of the whole 'audit-ready' claim. 'Permintaan hapus 3' and the 94/100 score are likewise static.",
+  "fix": "Compute the percentages from consentLog: consented/pending/none counts ÷ consentLog.length, and derive 'Permintaan hapus' from the actual delete-queue source. If the score is meant to be real, compute it from these inputs rather than the SCORE=94 constant.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/compliance",
+  "severity": "low",
+  "category": "real-world-fit",
+  "issue": "The compliance dataset (consent log, DPIA, vendors) comes from global mock hooks (useConsentLog/useDpia/useVendors → lib/api-mock/data.ts), with no tenant/workspace scoping. The page is also gated to Superadmin only (RequireSuperadmin), but UU PDP compliance (DPO duties, consent logs, DPIA) is a per-tenant obligation.",
+  "location": "app/(app)/settings/compliance/page.tsx:49,108-111 (global hooks); :102-106 (RequireSuperadmin gate)",
+  "realWorld": "In a multi-tenant SaaS each client company is its own data controller and needs ITS OWN consent log / DPIA / vendor register and DSAR. A platform Superadmin-only, single global compliance view means a tenant's DPO can't actually see or run their own PDP compliance — backwards from how PDP accountability works (controller-level, not platform-level).",
+  "fix": "Make the compliance data tenant-scoped (read from tenant-scoped tables like suppression/consent + a per-tenant DPIA/vendor store) and open the page to tenant_owner/tenant_admin (the tenant's DPO), not just platform Superadmin.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ },
+ {
+  "page": "settings/compliance",
+  "severity": "low",
+  "category": "flow-logic",
+  "issue": "The 'Antrean hak hapus data' header badge reads {DELETE_QUEUE.length} menunggu and Ringkasan shows 'Permintaan hapus 3', but DELETE_QUEUE is a static 3-row constant unrelated to the live DSAR system the same page links to (/settings/compliance/dsar, described as 'live'). The 'Tolak' button is disabled and the only working action ('Proses di DSAR') is a link.",
+  "location": "app/(app)/settings/compliance/page.tsx:79-83 (static DELETE_QUEUE), :219, :186; DSAR is live per :234-240 entry card",
+  "realWorld": "A DPO sees '3 menunggu' that never changes and can never be reconciled with the actual live DSAR erasure requests. Processing one in DSAR won't decrement this badge. The right-to-erasure queue — a legally time-bound obligation — is decorative here, which is worse than absent because it implies the queue is being tracked.",
+  "fix": "Feed the delete queue and its count from the live DSAR/erasure source so the badge reflects real pending requests and decrements when processed; remove the static DELETE_QUEUE array.",
+  "cluster": "Settings, Compliance, WhatsApp & Mailboxes"
+ }
+]

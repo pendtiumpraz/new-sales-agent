@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isNull, isNotNull } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, or } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -24,7 +24,16 @@ export async function GET(req: Request) {
   const archived = new URL(req.url).searchParams.get("archived") === "1";
   try {
     const rows = await withTenant(ctx, (tx) =>
-      tx.select().from(dealsTable).where(archived ? isNotNull(dealsTable.deletedAt) : isNull(dealsTable.deletedAt)),
+      tx
+        .select()
+        .from(dealsTable)
+        .where(
+          and(
+            // RLS is off — scope to this tenant explicitly (keep legacy null-tenant seed rows).
+            or(eq(dealsTable.tenantId, ctx.tenantId), isNull(dealsTable.tenantId)),
+            archived ? isNotNull(dealsTable.deletedAt) : isNull(dealsTable.deletedAt),
+          ),
+        ),
     );
     if (rows.length === 0) {
       return archived ? NextResponse.json({ data: [], source: "db" }) : NextResponse.json({ data: seedDeals, source: "seed" });

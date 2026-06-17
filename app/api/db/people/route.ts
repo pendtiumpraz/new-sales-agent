@@ -23,19 +23,22 @@ export async function GET(req: Request) {
   const delPred = archived ? isNotNull(personTable.deletedAt) : isNull(personTable.deletedAt);
   try {
     const { persons, companies, cps } = await withTenant(ctx, async (tx) => {
+      // RLS is off — scope every select to this tenant explicitly.
+      const tPred = eq(personTable.tenantId, ctx.tenantId);
       const persons = scoped
         ? await tx
             .select()
             .from(personTable)
-            .where(and(or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo)), delPred))
-        : await tx.select().from(personTable).where(delPred);
+            .where(and(tPred, or(eq(personTable.assignedTo, ctx.userId), isNull(personTable.assignedTo)), delPred))
+        : await tx.select().from(personTable).where(and(tPred, delPred));
       const companies = await tx
         .select({ id: companyTable.id, name: companyTable.name })
-        .from(companyTable);
+        .from(companyTable)
+        .where(eq(companyTable.tenantId, ctx.tenantId));
       const cps = await tx
         .select()
         .from(contactPointTable)
-        .where(eq(contactPointTable.ownerType, "person"));
+        .where(and(eq(contactPointTable.tenantId, ctx.tenantId), eq(contactPointTable.ownerType, "person")));
       return { persons, companies, cps };
     });
 

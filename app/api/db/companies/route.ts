@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, isNull, isNotNull } from "drizzle-orm";
+import { and, eq, isNull, isNotNull } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -18,17 +18,19 @@ export async function GET(req: Request) {
   const archived = new URL(req.url).searchParams.get("archived") === "1";
   try {
     const { companies, cps, persons } = await withTenant(ctx, async (tx) => {
+      // RLS is off — scope every select to this tenant explicitly.
       const companies = await tx
         .select()
         .from(companyTable)
-        .where(archived ? isNotNull(companyTable.deletedAt) : isNull(companyTable.deletedAt));
+        .where(and(eq(companyTable.tenantId, ctx.tenantId), archived ? isNotNull(companyTable.deletedAt) : isNull(companyTable.deletedAt)));
       const cps = await tx
         .select()
         .from(contactPointTable)
-        .where(eq(contactPointTable.ownerType, "company"));
+        .where(and(eq(contactPointTable.tenantId, ctx.tenantId), eq(contactPointTable.ownerType, "company")));
       const persons = await tx
         .select({ companyId: personTable.companyId })
-        .from(personTable);
+        .from(personTable)
+        .where(eq(personTable.tenantId, ctx.tenantId));
       return { companies, cps, persons };
     });
 
