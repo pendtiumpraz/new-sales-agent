@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -187,6 +187,10 @@ export default function ProfilesPage() {
   const [sourceFilter, setSourceFilter] = useState("all"); // all | Crawl | Impor | Hunter
   const [wsShowAll, setWsShowAll] = useState(false); // workspace mode: show all leads to add
   const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
+  // Bulk web-enrich runs as a CLIENT-SIDE SEQUENTIAL QUEUE: one row at a time,
+  // start→finish, refetching after each so the table updates live (doc 46).
+  const [bulk, setBulk] = useState<{ kind: "person" | "company"; done: number; total: number } | null>(null);
+  const bulkCancel = useRef(false);
 
   // Workspace scope (doc 44): ?workspace=<id> filters to that workspace's leads.
   const workspaceId = useSearchParams().get("workspace");
@@ -301,6 +305,43 @@ export default function ProfilesPage() {
     .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
     .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId);
 
+  // Enrich EVERY visible row one-by-one (queue), refetching after each so the row
+  // updates live. Each call is slow (websearch + AI), so this runs start→finish in
+  // the background; "Hentikan" cancels gracefully after the current row.
+  async function runBulk(kind: "person" | "company") {
+    const ids = kind === "person" ? peopleRows.map((p) => p.id) : (companies.data?.data ?? []).map((c) => c.id);
+    if (!ids.length) {
+      toast.info("Tidak ada data untuk diproses");
+      return;
+    }
+    bulkCancel.current = false;
+    setBulk({ kind, done: 0, total: ids.length });
+    let ok = 0;
+    for (let i = 0; i < ids.length; i++) {
+      if (bulkCancel.current) break;
+      try {
+        const r = await fetch("/api/profiles/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(kind === "person" ? { personId: ids[i] } : { companyId: ids[i] }),
+        });
+        if (r.ok) {
+          const j = await r.json();
+          if (j?.ok !== false) ok++;
+        }
+      } catch {
+        /* skip a failed row, keep the queue moving */
+      }
+      setBulk({ kind, done: i + 1, total: ids.length });
+      // Live update — the just-enriched row reflects new data immediately.
+      qc.invalidateQueries({ queryKey: ["people"] });
+      qc.invalidateQueries({ queryKey: ["companies"] });
+    }
+    const cancelled = bulkCancel.current;
+    setBulk(null);
+    toast.success(`${cancelled ? "Dihentikan" : "Selesai"} — ${ok}/${ids.length} ${kind === "person" ? "orang" : "perusahaan"} diperbarui`);
+  }
+
   const peopleCols: Column<PersonRow>[] = [
     { key: "fullName", label: "Nama", sortable: true, sortValue: (p) => p.fullName, render: (p) => (
       <span><span className="font-medium">{p.fullName}</span>{p.honorific ? <span className="ml-1 text-[10px] text-muted-foreground">({p.honorific})</span> : null}</span>
@@ -375,15 +416,16 @@ export default function ProfilesPage() {
               />
             ) : (
               <>
-                <div className="mb-3 flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { setClassifyingId("__cos__"); enrich.mutate({ allCompanies: true }); }}
-                    disabled={enrich.isPending}
-                  >
+                <div className="mb-3 flex items-center justify-end gap-2">
+                  {bulk?.kind === "company" && (
+                    <>
+                      <span className="text-xs text-muted-foreground">Memproses {bulk.done}/{bulk.total}…</span>
+                      <Button size="sm" variant="ghost" onClick={() => { bulkCancel.current = true; }}>Hentikan</Button>
+                    </>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => runBulk("company")} disabled={!!bulk}>
                     <Sparkles className="h-4 w-4" />
-                    {classifyingId === "__cos__" && enrich.isPending ? "Mencari di web…" : "Cari domain & kontak (web)"}
+                    {bulk?.kind === "company" ? `Memproses ${bulk.done}/${bulk.total}…` : "Cari semua domain & kontak (web)"}
                   </Button>
                 </div>
                 <DataTable
@@ -441,18 +483,15 @@ export default function ProfilesPage() {
                       <option value="Hunter">Hunter</option>
                     </select>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setClassifyingId("__all__");
-                      enrich.mutate({ all: true });
-                    }}
-                    disabled={enrich.isPending}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {classifyingId === "__all__" && enrich.isPending ? "Mencari di web…" : "Cari kontak & profil (web)"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {bulk?.kind === "person" && (
+                      <Button size="sm" variant="ghost" onClick={() => { bulkCancel.current = true; }}>Hentikan</Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => runBulk("person")} disabled={!!bulk}>
+                      <Sparkles className="h-4 w-4" />
+                      {bulk?.kind === "person" ? `Memproses ${bulk.done}/${bulk.total}…` : "Cari semua kontak & profil (web)"}
+                    </Button>
+                  </div>
                 </div>
                 <DataTable
                   columns={peopleCols}
