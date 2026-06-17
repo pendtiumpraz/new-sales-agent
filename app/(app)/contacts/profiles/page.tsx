@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, AlertTriangle, ArchiveRestore, Briefcase, Building2, Handshake, MapPin, Radar, Sparkles, User2, UserCircle2, Users } from "lucide-react";
+import { Archive, AlertTriangle, ArchiveRestore, Briefcase, Building2, Handshake, MapPin, Radar, Search, Sparkles, User2, UserCircle2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
@@ -15,7 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/shared/empty-state";
+import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 import type { ContactPoint } from "@/lib/types/profiling";
 
@@ -29,6 +31,7 @@ interface CompanyRow {
   source?: string | null;
   capturedMode?: string | null;
   deletedAt?: string | null;
+  updatedAt?: string | null;
   contacts: ContactPoint[];
   peopleCount: number;
 }
@@ -53,6 +56,7 @@ interface PersonRow {
   socials?: Record<string, string> | null;
   profileSummary?: string | null;
   deletedAt?: string | null;
+  updatedAt?: string | null;
   contacts: ContactPoint[];
 }
 
@@ -186,6 +190,11 @@ export default function ProfilesPage() {
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState("all"); // all | Crawl | Impor | Hunter
   const [wsShowAll, setWsShowAll] = useState(false); // workspace mode: show all leads to add
+  // Search + filter per tab.
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyIndustry, setCompanyIndustry] = useState("all");
+  const [peopleSearch, setPeopleSearch] = useState("");
+  const [peopleLeadType, setPeopleLeadType] = useState("all");
   const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
   // Bulk web-enrich runs as a CLIENT-SIDE SEQUENTIAL QUEUE: one row at a time,
   // start→finish, refetching after each so the table updates live (doc 46).
@@ -301,9 +310,34 @@ export default function ProfilesPage() {
       }
     : null;
 
+  const peopleSearchQ = peopleSearch.trim().toLowerCase();
   const peopleRows = (people.data?.data ?? [])
     .filter((p) => sourceFilter === "all" || sourceBucket(p.source)?.label === sourceFilter)
-    .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId);
+    .filter((p) => !workspaceId || wsShowAll || p.workspaceId === workspaceId)
+    .filter((p) => peopleLeadType === "all" || (p.leadType ?? "unknown") === peopleLeadType)
+    .filter(
+      (p) =>
+        !peopleSearchQ ||
+        p.fullName.toLowerCase().includes(peopleSearchQ) ||
+        (p.title ?? "").toLowerCase().includes(peopleSearchQ) ||
+        (p.companyName ?? "").toLowerCase().includes(peopleSearchQ) ||
+        (p.location ?? "").toLowerCase().includes(peopleSearchQ),
+    );
+
+  const companySearchQ = companySearch.trim().toLowerCase();
+  const companyRows = (companies.data?.data ?? [])
+    .filter((c) => companyIndustry === "all" || (c.industry ?? "") === companyIndustry)
+    .filter(
+      (c) =>
+        !companySearchQ ||
+        c.name.toLowerCase().includes(companySearchQ) ||
+        (c.domain ?? "").toLowerCase().includes(companySearchQ) ||
+        (c.industry ?? "").toLowerCase().includes(companySearchQ),
+    );
+  const industryOptions = useMemo(
+    () => [...new Set((companies.data?.data ?? []).map((c) => c.industry).filter(Boolean) as string[])].sort(),
+    [companies.data],
+  );
 
   // Enrich EVERY visible row one-by-one (queue), refetching after each so the row
   // updates live. Each call is slow (websearch + AI), so this runs start→finish in
@@ -352,6 +386,7 @@ export default function ProfilesPage() {
     { key: "location", label: "Lokasi", sortable: true, sortValue: (p) => p.location ?? "", render: (p) => p.location ?? "—" },
     { key: "contacts", label: "Kontak", sortValue: (p) => p.contacts.length, render: (p) => (p.contacts.length ? `${p.contacts.length}` : "—") },
     { key: "source", label: "Sumber", sortValue: (p) => p.source ?? "", render: (p) => { const s = sourceBucket(p.source); return s ? <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", s.cls)}>{s.label}</span> : "—"; } },
+    { key: "updatedAt", label: "Diperbarui", sortable: true, sortValue: (p) => (p.updatedAt ? new Date(p.updatedAt).getTime() : 0), render: (p) => (p.updatedAt ? <span className="text-xs text-muted-foreground">{formatRelativeID(p.updatedAt)}</span> : "—") },
     { key: "assign", label: "Sales", render: (p) => (
       <select onClick={(e) => e.stopPropagation()} value={p.assignedTo ?? ""} onChange={(e) => assign.mutate({ personId: p.id, assignedTo: e.target.value || null })} className="rounded border bg-background px-1 py-0.5 text-[11px]">
         <option value="">—</option>
@@ -365,6 +400,7 @@ export default function ProfilesPage() {
     { key: "domain", label: "Domain", sortValue: (c) => c.domain ?? "", render: (c) => c.domain ?? "—" },
     { key: "peopleCount", label: "Orang", sortable: true, align: "right", sortValue: (c) => c.peopleCount, render: (c) => String(c.peopleCount) },
     { key: "contacts", label: "Kontak", sortValue: (c) => c.contacts.length, render: (c) => (c.contacts.length ? `${c.contacts.length}` : "—") },
+    { key: "updatedAt", label: "Diperbarui", sortable: true, sortValue: (c) => (c.updatedAt ? new Date(c.updatedAt).getTime() : 0), render: (c) => (c.updatedAt ? <span className="text-xs text-muted-foreground">{formatRelativeID(c.updatedAt)}</span> : "—") },
   ];
 
   return (
@@ -416,23 +452,34 @@ export default function ProfilesPage() {
               />
             ) : (
               <>
-                <div className="mb-3 flex items-center justify-end gap-2">
-                  {bulk?.kind === "company" && (
-                    <>
-                      <span className="text-xs text-muted-foreground">Memproses {bulk.done}/{bulk.total}…</span>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input value={companySearch} onChange={(e) => setCompanySearch(e.target.value)} placeholder="Cari nama/domain/industri…" className="h-8 w-56 pl-8 text-sm" />
+                    </div>
+                    <select value={companyIndustry} onChange={(e) => setCompanyIndustry(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs text-foreground">
+                      <option value="all">Semua industri</option>
+                      {industryOptions.map((ind) => (<option key={ind} value={ind}>{ind}</option>))}
+                    </select>
+                    <span className="text-xs text-muted-foreground">{companyRows.length} hasil</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {bulk?.kind === "company" && (
                       <Button size="sm" variant="ghost" onClick={() => { bulkCancel.current = true; }}>Hentikan</Button>
-                    </>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => runBulk("company")} disabled={!!bulk}>
-                    <Sparkles className="h-4 w-4" />
-                    {bulk?.kind === "company" ? `Memproses ${bulk.done}/${bulk.total}…` : "Cari semua domain & kontak (web)"}
-                  </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => runBulk("company")} disabled={!!bulk}>
+                      <Sparkles className="h-4 w-4" />
+                      {bulk?.kind === "company" ? `Memproses ${bulk.done}/${bulk.total}…` : "Cari semua domain & kontak (web)"}
+                    </Button>
+                  </div>
                 </div>
                 <DataTable
                   columns={companyCols}
-                  rows={companies.data?.data ?? []}
+                  rows={companyRows}
                   getRowId={(c) => c.id}
                   onRowClick={(c) => setSelected({ kind: "company", id: c.id, data: c })}
+                  defaultSort={{ key: "updatedAt", dir: "desc" }}
                 />
               </>
             )}
@@ -470,18 +517,33 @@ export default function ProfilesPage() {
                   </div>
                 )}
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Sumber:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input value={peopleSearch} onChange={(e) => setPeopleSearch(e.target.value)} placeholder="Cari nama/jabatan/perusahaan…" className="h-8 w-56 pl-8 text-sm" />
+                    </div>
                     <select
                       value={sourceFilter}
                       onChange={(e) => setSourceFilter(e.target.value)}
                       className="h-8 rounded-md border bg-background px-2 text-xs text-foreground"
                     >
-                      <option value="all">Semua</option>
+                      <option value="all">Semua sumber</option>
                       <option value="Crawl">Crawl</option>
                       <option value="Impor">Impor</option>
                       <option value="Hunter">Hunter</option>
                     </select>
+                    <select
+                      value={peopleLeadType}
+                      onChange={(e) => setPeopleLeadType(e.target.value)}
+                      className="h-8 rounded-md border bg-background px-2 text-xs text-foreground"
+                    >
+                      <option value="all">Semua tipe</option>
+                      <option value="b2c_customer">B2C Customer</option>
+                      <option value="b2b_partner">B2B Partner</option>
+                      <option value="b2b_client">B2B Client</option>
+                      <option value="unknown">Belum diklasifikasi</option>
+                    </select>
+                    <span className="text-xs text-muted-foreground">{peopleRows.length} hasil</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {bulk?.kind === "person" && (
@@ -498,6 +560,7 @@ export default function ProfilesPage() {
                   rows={peopleRows}
                   getRowId={(p) => p.id}
                   onRowClick={(p) => setSelected({ kind: "person", id: p.id, data: p })}
+                  defaultSort={{ key: "updatedAt", dir: "desc" }}
                 />
               </>
             )}

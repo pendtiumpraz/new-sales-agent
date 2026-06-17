@@ -17,6 +17,8 @@ export interface Column<T> {
   sortValue?: (row: T) => string | number;
 }
 
+type SortDir = "asc" | "desc";
+
 export interface DataTableProps<T> {
   columns: Column<T>[];
   rows: T[];
@@ -24,15 +26,15 @@ export interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   pageSize?: number;
   empty?: React.ReactNode;
+  /** Initial sort (e.g. newest updatedAt first). User can still click to re-sort. */
+  defaultSort?: { key: string; dir: SortDir };
 }
-
-type SortDir = "asc" | "desc";
 
 // Sortable + paginated table, styled to match the /contacts table (shadcn Table,
 // rounded border card, zebra rows, primary hover).
-export function DataTable<T>({ columns, rows, getRowId, onRowClick, pageSize = 15, empty }: DataTableProps<T>) {
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+export function DataTable<T>({ columns, rows, getRowId, onRowClick, pageSize = 15, empty, defaultSort }: DataTableProps<T>) {
+  const [sortKey, setSortKey] = useState<string | null>(defaultSort?.key ?? null);
+  const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? "asc");
   const [page, setPage] = useState(0);
 
   const sorted = useMemo(() => {
