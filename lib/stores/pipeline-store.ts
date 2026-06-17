@@ -16,9 +16,13 @@ interface PipelineState {
   // Persistence flag — only the deals slice round-trips to /api/db/deals.
   dealsHydrated: boolean;
   hydrateDeals: () => Promise<void>;
+  /** Force a re-fetch (bypasses the hydrated guard) — used after restoring a deal. */
+  refreshDeals: () => Promise<void>;
 
   // Deals
   moveDeal: (id: string, stage: DealStage) => void;
+  /** Soft-delete a deal (doc 49): drop it from the board + set deleted_at in the DB. */
+  archiveDeal: (id: string) => Promise<void>;
 
   // Products
   addProduct: (p: Omit<EnrichmentProduct, "id">) => void;
@@ -80,6 +84,18 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     return hydratePromise;
   },
 
+  refreshDeals: async () => {
+    if (typeof window === "undefined") return;
+    try {
+      const res = await fetch("/api/db/deals");
+      if (!res.ok) return;
+      const body = (await res.json()) as { data: Deal[] };
+      if (Array.isArray(body?.data)) set((s) => ({ deals: body.data, analyses: deriveAnalyses(body.data, s.products), dealsHydrated: true }));
+    } catch (err) {
+      console.error("[pipeline refresh]", err);
+    }
+  },
+
   moveDeal: (id, stage) => {
     set((s) => {
       const deals = s.deals.map((d) =>
@@ -88,6 +104,20 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       return { deals, analyses: deriveAnalyses(deals, s.products) };
     });
     persistDeals();
+  },
+
+  archiveDeal: async (id) => {
+    // Drop from the board immediately (Kanban + table); the debounced PUT never
+    // touches deleted_at, so a stale persist can't resurrect it.
+    set((s) => {
+      const deals = s.deals.filter((d) => d.id !== id);
+      return { deals, analyses: deriveAnalyses(deals, s.products) };
+    });
+    try {
+      await fetch("/api/data/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entity: "deal", id }) });
+    } catch (err) {
+      console.error("[pipeline archive]", err);
+    }
   },
 
   addProduct: (p) =>

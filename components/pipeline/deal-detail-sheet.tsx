@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Archive,
   Building2,
   CalendarClock,
   Flame,
@@ -78,6 +79,7 @@ export function DealDetailSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const moveDeal = usePipelineStore((s) => s.moveDeal);
+  const archiveDeal = usePipelineStore((s) => s.archiveDeal);
   const analyses = usePipelineStore((s) => s.analyses);
   const products = usePipelineStore((s) => s.products);
 
@@ -148,6 +150,18 @@ export function DealDetailSheet({
                   </SelectContent>
                 </Select>
               </div>
+
+              <Button
+                variant="ghost"
+                className="w-full justify-center text-destructive hover:text-destructive"
+                onClick={() => {
+                  void archiveDeal(deal.id);
+                  toast.success(`${deal.name} diarsipkan`);
+                  onOpenChange(false);
+                }}
+              >
+                <Archive className="h-4 w-4" /> Arsipkan deal
+              </Button>
 
               <div className="rounded-xl border border-tertiary/30 bg-tertiary/5 p-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-tertiary">

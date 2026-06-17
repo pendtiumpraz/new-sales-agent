@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { Archive, ArchiveRestore, RotateCcw, Search, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import { TempBadge } from "@/components/shared/temp-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { DealDetailSheet } from "@/components/pipeline/deal-detail-sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -62,9 +64,11 @@ export function EnrichmentTable() {
   const deals = usePipelineStore((s) => s.deals);
   const analyses = usePipelineStore((s) => s.analyses);
   const products = usePipelineStore((s) => s.products);
+  const refreshDeals = usePipelineStore((s) => s.refreshDeals);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [page, setPage] = useState(0);
@@ -150,8 +154,16 @@ export function EnrichmentTable() {
         <span className="ml-auto text-sm text-muted-foreground">
           {rows.length} prospek
         </span>
+        <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived((v) => !v)}>
+          {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          {showArchived ? "Lihat aktif" : "Lihat arsip"}
+        </Button>
       </div>
 
+      {showArchived ? (
+        <ArchivedDealsPanel onRestored={refreshDeals} />
+      ) : (
+      <>
       <div className="overflow-hidden rounded-xl border border-primary/10 bg-card shadow-sm">
         <Table>
           <TableHeader>
@@ -330,12 +342,82 @@ export function EnrichmentTable() {
         onNext={() => setPage((p) => p + 1)}
         label="prospek"
       />
+      </>
+      )}
 
       <DealDetailSheet
         deal={openDeal}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
+    </div>
+  );
+}
+
+// Arsip view (doc 49): soft-deleted deals fetched directly (they're excluded from
+// the store) with one-click restore back to the active board.
+function ArchivedDealsPanel({ onRestored }: { onRestored: () => void }) {
+  const [rows, setRows] = useState<Deal[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const r = await fetch("/api/db/deals?archived=1");
+      const j = (await r.json()) as { data: Deal[] };
+      setRows(Array.isArray(j?.data) ? j.data : []);
+    } catch {
+      setRows([]);
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function restore(id: string, name: string) {
+    setBusy(id);
+    try {
+      const r = await fetch("/api/data/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entity: "deal", id, restore: true }) });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+      toast.success(`${name} dipulihkan`);
+      setRows((rs) => (rs ?? []).filter((d) => d.id !== id));
+      onRestored();
+    } catch {
+      toast.error("Gagal memulihkan");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (rows === null) return <p className="py-8 text-center text-sm text-muted-foreground">Memuat arsip…</p>;
+  if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">Arsip kosong.</p>;
+
+  return (
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Deal</TableHead>
+            <TableHead>Perusahaan</TableHead>
+            <TableHead>Tahap</TableHead>
+            <TableHead className="text-right">Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((d) => (
+            <TableRow key={d.id} className="even:bg-muted/20">
+              <TableCell className="font-medium">{d.name}</TableCell>
+              <TableCell className="text-muted-foreground">{d.company}</TableCell>
+              <TableCell className="text-muted-foreground">{STAGE_LABEL[d.stage] ?? d.stage}</TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" variant="outline" disabled={busy === d.id} onClick={() => restore(d.id, d.name)}>
+                  <RotateCcw className="h-3.5 w-3.5" /> {busy === d.id ? "…" : "Pulihkan"}
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
