@@ -1259,21 +1259,17 @@ const VALIDATION_RULES = [
 
 // ── Small UI helpers ──────────────────────────────────────────────────────
 
-/** "Data live" badge + auto-updating "Diperbarui …" caption. */
+/** "Data demo" badge + "Diperbarui …" caption. Labeled honestly (audit UX #6):
+ *  the KPI deltas ("+18,2%", "vs bulan lalu") are illustrative, not live metrics. */
 function LiveBadge({ generatedAt }: { generatedAt: Date }) {
-  // Re-render once a minute is handled by the parent's state tick; the badge
-  // itself is purely presentational.
   return (
     <div className="hidden items-center gap-3 sm:flex">
-      <span className="flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
-        </span>
-        Data live
+      <span className="flex items-center gap-1.5 rounded-full border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+        <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
+        Data demo
       </span>
       <span className="text-xs text-muted-foreground">
-        Diperbarui {formatRelativeID(generatedAt)}
+        Dibuat {formatRelativeID(generatedAt)}
       </span>
     </div>
   );
