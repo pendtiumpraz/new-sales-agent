@@ -24,11 +24,20 @@ interface PipelineState {
   /** Soft-delete a deal (doc 49): drop it from the board + set deleted_at in the DB. */
   archiveDeal: (id: string) => Promise<void>;
 
-  // Products
+  // Products — now DB-backed via /api/db/products (audit #5).
+  productsHydrated: boolean;
+  hydrateProducts: () => Promise<void>;
   addProduct: (p: Omit<EnrichmentProduct, "id">) => void;
   updateProduct: (id: string, patch: Partial<Omit<EnrichmentProduct, "id">>) => void;
   removeProduct: (id: string) => void;
   resetProducts: () => void;
+}
+
+// Persist one product (create/edit). Fire-and-forget; the store already updated
+// optimistically so the UI + AI re-mapping stay instant.
+function persistProduct(p: EnrichmentProduct) {
+  if (typeof window === "undefined") return;
+  fetch("/api/db/products", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: p }) }).catch((e) => console.error("[product persist]", e));
 }
 
 // Debounced PUT — collapses rapid drag-drop / inline edits into a single round-trip.
@@ -57,6 +66,25 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   analyses: deriveAnalyses(seed, seedProducts),
 
   dealsHydrated: false,
+  productsHydrated: false,
+
+  hydrateProducts: async () => {
+    if (get().productsHydrated || typeof window === "undefined") return;
+    try {
+      const res = await fetch("/api/db/products");
+      if (res.ok) {
+        const body = (await res.json()) as { data?: EnrichmentProduct[] };
+        if (Array.isArray(body?.data)) {
+          set((s) => ({ products: body.data!, analyses: deriveAnalyses(s.deals, body.data!), productsHydrated: true }));
+          return;
+        }
+      }
+      set({ productsHydrated: true });
+    } catch (err) {
+      console.error("[pipeline hydrateProducts]", err);
+      set({ productsHydrated: true });
+    }
+  },
 
   hydrateDeals: async () => {
     if (get().dealsHydrated) return;
@@ -120,30 +148,34 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     }
   },
 
-  addProduct: (p) =>
+  addProduct: (p) => {
+    const id = `pd_user_${Date.now().toString(36)}`;
+    const product = { id, ...p } as EnrichmentProduct;
     set((s) => {
-      const id = `pd_user_${Date.now().toString(36)}`;
-      const products = [...s.products, { id, ...p }];
-      // Rebuild analyses' matched products against the new product set.
-      const analyses = deriveAnalyses(s.deals, products);
-      return { products, analyses };
-    }),
+      const products = [...s.products, product];
+      return { products, analyses: deriveAnalyses(s.deals, products) };
+    });
+    persistProduct(product); // DB-backed (audit #5)
+  },
 
-  updateProduct: (id, patch) =>
+  updateProduct: (id, patch) => {
     set((s) => {
-      const products = s.products.map((p) =>
-        p.id === id ? { ...p, ...patch } : p,
-      );
-      const analyses = deriveAnalyses(s.deals, products);
-      return { products, analyses };
-    }),
+      const products = s.products.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      return { products, analyses: deriveAnalyses(s.deals, products) };
+    });
+    const updated = get().products.find((p) => p.id === id);
+    if (updated) persistProduct(updated);
+  },
 
-  removeProduct: (id) =>
+  removeProduct: (id) => {
     set((s) => {
       const products = s.products.filter((p) => p.id !== id);
-      const analyses = deriveAnalyses(s.deals, products);
-      return { products, analyses };
-    }),
+      return { products, analyses: deriveAnalyses(s.deals, products) };
+    });
+    if (typeof window !== "undefined") {
+      fetch("/api/db/products", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch((e) => console.error("[product delete]", e));
+    }
+  },
 
   resetProducts: () =>
     set((s) => ({

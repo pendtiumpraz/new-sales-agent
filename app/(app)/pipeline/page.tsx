@@ -33,9 +33,11 @@ export default function PipelinePage() {
   // promise) so this is safe across re-mounts and concurrent callers.
   const hydrateDeals = usePipelineStore((s) => s.hydrateDeals);
   const dealsHydrated = usePipelineStore((s) => s.dealsHydrated);
+  const hydrateProducts = usePipelineStore((s) => s.hydrateProducts);
   useEffect(() => {
     void hydrateDeals();
-  }, [hydrateDeals]);
+    void hydrateProducts(); // products are DB-backed now (audit #5)
+  }, [hydrateDeals, hydrateProducts]);
 
   // ── Hero strip stats — derive from store (visual-only, no new hooks) ──────
   const analyses = usePipelineStore((s) => s.analyses);
