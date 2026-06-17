@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, Plus, Sparkles } from "lucide-react";
+import { Archive, ArchiveRestore, FileText, Plus, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,7 @@ export default function PenawaranPage() {
   const router = useRouter();
   const workspaceId = useSearchParams().get("workspace");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -57,9 +58,13 @@ export default function PenawaranPage() {
   const [notes, setNotes] = useState("");
 
   const q = useQuery({
-    queryKey: ["quotes", workspaceId],
+    queryKey: ["quotes", workspaceId, showArchived],
     queryFn: async () => {
-      const r = await fetch(`/api/quotes${workspaceId ? `?workspace=${workspaceId}` : ""}`);
+      const params = new URLSearchParams();
+      if (workspaceId) params.set("workspace", workspaceId);
+      if (showArchived) params.set("archived", "1");
+      const qs = params.toString();
+      const r = await fetch(`/api/quotes${qs ? `?${qs}` : ""}`);
       if (r.status === 403) throw new Error("forbidden");
       if (!r.ok) throw new Error("gagal");
       return (await r.json()) as { data: QuoteRow[] };
@@ -110,6 +115,10 @@ export default function PenawaranPage() {
   return (
     <div>
       <PageHeader title="Penawaran" description="Susun penawaran (AI bantu draft), kirim lewat mailbox-mu, lacak dibuka & diterima — otomatis update deal.">
+        <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
+          {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          {showArchived ? "Lihat aktif" : "Lihat arsip"}
+        </Button>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" /> Buat penawaran
         </Button>

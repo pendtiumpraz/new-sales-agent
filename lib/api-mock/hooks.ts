@@ -81,11 +81,11 @@ export function useConversation(id: string) {
   });
 }
 
-export function useCadences() {
+export function useCadences(archived = false) {
   return useQuery({
-    queryKey: ["cadences"],
+    queryKey: ["cadences", archived],
     queryFn: async () => {
-      const res = await fetch("/api/db/cadences");
+      const res = await fetch(`/api/db/cadences${archived ? "?archived=1" : ""}`);
       const json = (await res.json()) as { data: Cadence[] };
       return json.data;
     },

@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Mail, Plus, Search, Users, Workflow } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Mail, Plus, Search, Users, Workflow } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ interface Cadence {
   channelMix?: string[];
   enrolled?: number;
   replyRate?: number;
+  deletedAt?: string | null;
 }
 interface Enrollment {
   id: string;
@@ -55,6 +56,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 
 export default function CadenceDetailPage() {
   const id = useParams().id as string;
+  const router = useRouter();
   const qc = useQueryClient();
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -116,6 +118,33 @@ export default function CadenceDetailPage() {
     onError: (e) => toast.error(e instanceof Error && e.message === "gagal" ? "Mode demo / DB belum aktif" : "Gagal mendaftarkan"),
   });
 
+  // Soft-delete / restore the cadence (doc 49). Archived cadences stay openable
+  // here so they can be restored.
+  const archiveCad = useMutation({
+    mutationFn: async () => {
+      const isArchived = !!cadQ.data?.data?.deletedAt;
+      const r = await fetch("/api/data/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "cadence", id, restore: isArchived }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j.error ?? "gagal");
+      return j as { archived: boolean };
+    },
+    onSuccess: (j) => {
+      if (j.archived) {
+        toast.success("Cadence diarsipkan");
+        router.push("/cadences");
+      } else {
+        toast.success("Cadence dipulihkan");
+        qc.invalidateQueries({ queryKey: ["cadence", id] });
+        qc.invalidateQueries({ queryKey: ["cadences"] });
+      }
+    },
+    onError: () => toast.error("Gagal (cek hak akses & DB)"),
+  });
+
   const cad = cadQ.data?.data;
   const enrollments = enrollQ.data?.data ?? [];
 
@@ -132,9 +161,20 @@ export default function CadenceDetailPage() {
   return (
     <div>
       <PageHeader title={cad.name} description={`${cad.steps.length} langkah · ${cad.replyRate ?? 0}% balas`}>
-        <Button onClick={() => setEnrollOpen(true)}>
-          <Plus className="h-4 w-4" /> Daftarkan kontak
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className={!cad.deletedAt ? "text-destructive hover:text-destructive" : ""}
+            onClick={() => archiveCad.mutate()}
+            disabled={archiveCad.isPending}
+          >
+            {cad.deletedAt ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+            {cad.deletedAt ? "Pulihkan" : "Arsipkan"}
+          </Button>
+          <Button onClick={() => setEnrollOpen(true)}>
+            <Plus className="h-4 w-4" /> Daftarkan kontak
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="space-y-5 p-6">

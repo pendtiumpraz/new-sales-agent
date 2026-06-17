@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
@@ -48,12 +48,13 @@ async function nextNumber(ctx: TenantContext): Promise<string> {
   return `PNW-${year}-${seq}`;
 }
 
-export async function listQuotes(ctx: TenantContext, opts?: { workspaceId?: string | null }): Promise<Quote[]> {
+export async function listQuotes(ctx: TenantContext, opts?: { workspaceId?: string | null; archived?: boolean }): Promise<Quote[]> {
   return withTenant(ctx, (tx) => {
-    const where = opts?.workspaceId
-      ? and(eq(quoteTable.tenantId, ctx.tenantId), eq(quoteTable.workspaceId, opts.workspaceId))
-      : eq(quoteTable.tenantId, ctx.tenantId);
-    return tx.select().from(quoteTable).where(where).orderBy(desc(quoteTable.createdAt));
+    const conds = [eq(quoteTable.tenantId, ctx.tenantId)];
+    if (opts?.workspaceId) conds.push(eq(quoteTable.workspaceId, opts.workspaceId));
+    // doc 49 — hide soft-deleted by default; ?archived shows ONLY the arsip.
+    conds.push(opts?.archived ? isNotNull(quoteTable.deletedAt) : isNull(quoteTable.deletedAt));
+    return tx.select().from(quoteTable).where(and(...conds)).orderBy(desc(quoteTable.createdAt));
   });
 }
 

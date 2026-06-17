@@ -12,8 +12,10 @@ export async function GET(req: Request) {
   const guard = await requirePermission("data.read");
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ data: [] });
-  const workspaceId = new URL(req.url).searchParams.get("workspace");
-  const data = await listQuotes(guard.ctx, { workspaceId });
+  const url = new URL(req.url);
+  const workspaceId = url.searchParams.get("workspace");
+  const archived = url.searchParams.get("archived") === "1";
+  const data = await listQuotes(guard.ctx, { workspaceId, archived });
   return NextResponse.json({ data });
 }
 

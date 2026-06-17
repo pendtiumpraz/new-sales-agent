@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
+  Archive,
+  ArchiveRestore,
   MessageCircle,
   Play,
   Plus,
@@ -80,7 +82,8 @@ const STATUS_CHIPS: {
 ];
 
 export default function CadencesPage() {
-  const { data: cadences, isLoading } = useCadences();
+  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
+  const { data: cadences, isLoading } = useCadences(showArchived);
   const reduce = useReducedMotion();
   const [channelFilter, setChannelFilter] = useState<
     (typeof CHANNEL_CHIPS)[number]["key"]
@@ -125,6 +128,10 @@ export default function CadencesPage() {
           <RunAutoReplyButton />
           <RunUpsellButton />
           <RunCadencesButton />
+          <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
+            {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+            {showArchived ? "Aktif" : "Arsip"}
+          </Button>
           <Button
             asChild
             className="shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)] transition-all hover:-translate-y-px hover:shadow-[0_6px_18px_-4px_rgba(251,94,59,0.7)]"
