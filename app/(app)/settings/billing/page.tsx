@@ -48,14 +48,20 @@ function Meter({ label, used, quota }: { label: string; used: number; quota: num
         <span className="text-muted-foreground">{label}</span>
         <span className="tabular-nums">
           {used.toLocaleString("id-ID")}
-          {quota ? ` / ${quota.toLocaleString("id-ID")}` : ""}
+          {quota ? ` / ${quota.toLocaleString("id-ID")}` : (
+            <span className="ml-1 text-xs text-muted-foreground">· kuota belum diset</span>
+          )}
         </span>
       </div>
       {quota ? (
         <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
           <div className={pct >= 90 ? "h-full bg-destructive" : "h-full bg-primary"} style={{ width: `${pct}%` }} />
         </div>
-      ) : null}
+      ) : (
+        // No bar to draw when the plan didn't seed a quota — say so instead of
+        // silently rendering an empty meter that looks broken.
+        <div className="mt-1 h-2 rounded-full border border-dashed border-muted" />
+      )}
     </div>
   );
 }
