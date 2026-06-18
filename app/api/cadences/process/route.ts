@@ -26,16 +26,19 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const guard = await requirePermission("campaign.manage");
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   try {
-    const summary = await processCadences(guard.ctx);
+    // Scope the run to a workspace when the caller is filtered to one (doc 44),
+    // so "Jalankan sekarang" doesn't blast every workspace's enrollments.
+    const workspaceId = new URL(req.url).searchParams.get("workspace");
+    const summary = await processCadences(guard.ctx, { workspaceId });
     await recordAudit(
       guard.ctx,
       "cadence.process",
-      "all",
+      workspaceId ? `workspace:${workspaceId}` : "all",
       summary as unknown as Record<string, unknown>,
     );
     return NextResponse.json({ ok: true, summary, source: "db" });

@@ -11,7 +11,7 @@
 // Dispatch is process-on-demand for now; the same entrypoint can be driven by
 // Inngest later (doc 28) without touching callers.
 
-import { and, desc, eq, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, or } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import {
@@ -103,7 +103,7 @@ export interface CadenceRunSummary {
  */
 export async function processCadences(
   ctx: TenantContext,
-  opts?: { limit?: number; now?: Date },
+  opts?: { limit?: number; now?: Date; workspaceId?: string | null },
 ): Promise<CadenceRunSummary> {
   const now = opts?.now ?? new Date();
   const limit = opts?.limit ?? 50;
@@ -120,29 +120,55 @@ export async function processCadences(
   // Kill-switch: a suspended tenant dispatches nothing.
   if (!(await isTenantActive(ctx))) return summary;
 
+  // Optional workspace scope (doc 44): only process enrollments whose cadence
+  // lives in the active workspace. Without this, "Jalankan sekarang" pressed
+  // inside one workspace blasts EVERY workspace's due enrollments.
+  let wsCadenceIds: string[] | null = null;
+  if (opts?.workspaceId) {
+    const wsCads = await withTenant(ctx, (tx) =>
+      tx
+        .select({ id: cadencesTable.id })
+        .from(cadencesTable)
+        .where(and(eq(cadencesTable.tenantId, ctx.tenantId), eq(cadencesTable.workspaceId, opts.workspaceId!))),
+    );
+    wsCadenceIds = wsCads.map((c) => c.id);
+    if (wsCadenceIds.length === 0) return summary; // no cadences here → nothing due
+  }
+
   // Due = aktif AND (nextStepDueAt IS NULL OR nextStepDueAt <= now). A null due
-  // date means step 0 just enrolled and is due immediately.
+  // date means step 0 just enrolled and is due immediately. RLS is off, so the
+  // tenant predicate is explicit (keep legacy null-tenant seed rows).
   const due = await withTenant(ctx, (tx) =>
     tx
       .select()
       .from(cadenceEnrollmentsTable)
       .where(
         and(
+          or(
+            eq(cadenceEnrollmentsTable.tenantId, ctx.tenantId),
+            isNull(cadenceEnrollmentsTable.tenantId),
+          ),
           eq(cadenceEnrollmentsTable.status, "aktif"),
           or(
             isNull(cadenceEnrollmentsTable.nextStepDueAt),
             lte(cadenceEnrollmentsTable.nextStepDueAt, now),
           ),
+          ...(wsCadenceIds ? [inArray(cadenceEnrollmentsTable.cadenceId, wsCadenceIds)] : []),
         ),
       )
       .limit(limit),
   );
   summary.dueEnrollments = due.length;
 
-  // The tenant's first sending account (email channel). Null is fine — the SMTP
-  // worker fails that job gracefully ("no sending account / config").
+  // The tenant's first sending account (email channel). Scope to this tenant —
+  // RLS is off, so an unscoped pick could dispatch from another tenant's mailbox.
+  // Null is fine — the SMTP worker fails that job gracefully.
   const accs = await withTenant(ctx, (tx) =>
-    tx.select({ id: sendingAccountTable.id }).from(sendingAccountTable).limit(1),
+    tx
+      .select({ id: sendingAccountTable.id })
+      .from(sendingAccountTable)
+      .where(eq(sendingAccountTable.tenantId, ctx.tenantId))
+      .limit(1),
   );
   const defaultAccId = accs[0]?.id ?? null;
 

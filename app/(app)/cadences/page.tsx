@@ -129,7 +129,7 @@ export default function CadencesPage() {
         <div className="flex items-center gap-2">
           <RunAutoReplyButton />
           <RunUpsellButton />
-          <RunCadencesButton />
+          <RunCadencesButton scopeWorkspaceId={workspaceId && !wsAll ? workspaceId : null} />
           <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
             {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
             {showArchived ? "Aktif" : "Arsip"}
@@ -419,12 +419,16 @@ export default function CadencesPage() {
 
 // Runs all due enrollments now (Fase 5 slice 2): personalize → dispatch email
 // to the send queue / queue other channels → advance each enrollment.
-function RunCadencesButton() {
+function RunCadencesButton({ scopeWorkspaceId }: { scopeWorkspaceId?: string | null }) {
   const [pending, setPending] = useState(false);
   async function run() {
     setPending(true);
     try {
-      const r = await fetch("/api/cadences/process", { method: "POST" });
+      // Scope the run to the active workspace so we don't blast every workspace.
+      const url = scopeWorkspaceId
+        ? `/api/cadences/process?workspace=${encodeURIComponent(scopeWorkspaceId)}`
+        : "/api/cadences/process";
+      const r = await fetch(url, { method: "POST" });
       const j = await r.json();
       if (j?.source === "mock") {
         toast.info("Mode demo — sambungkan database untuk benar-benar menjalankan cadence.");
