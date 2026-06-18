@@ -469,7 +469,9 @@ export default function SettingsPage() {
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-center justify-between rounded-lg bg-tertiary/8 px-3 py-2 text-sm">
                   <span className="text-muted-foreground">Pengguna aktif</span>
-                  <span className="font-semibold text-tertiary">10 / 10</span>
+                  {/* Derive from the same list as the Pengguna tab so the two
+                      sections don't contradict (was a hardcoded "10 / 10"). */}
+                  <span className="font-semibold text-tertiary">{USERS.length} / 10</span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-info/8 px-3 py-2 text-sm">
                   <span className="text-muted-foreground">Tagihan berikutnya</span>
