@@ -60,7 +60,7 @@ const STAGE_PILL: Record<string, string> = {
 // Rotates coral → teal → amber so the chips visibly punctuate the row.
 const PRODUCT_ACCENT_FALLBACK = ["#FB5E3B", "#14B8A6", "#F59E0B"];
 
-export function EnrichmentTable() {
+export function EnrichmentTable({ workspaceId }: { workspaceId?: string | null }) {
   const deals = usePipelineStore((s) => s.deals);
   const analyses = usePipelineStore((s) => s.analyses);
   const products = usePipelineStore((s) => s.products);
@@ -85,6 +85,10 @@ export function EnrichmentTable() {
         (r): r is { deal: Deal; analysis: EnrichmentDealAnalysis } =>
           !!r.analysis,
       );
+    // Scope to the active workspace (doc 44) like the Kanban + hero.
+    if (workspaceId) {
+      list = list.filter((r) => (r.deal as { workspaceId?: string | null }).workspaceId === workspaceId);
+    }
     if (status !== "all") {
       list = list.filter((r) => r.analysis.status === status);
     }
@@ -98,7 +102,7 @@ export function EnrichmentTable() {
       );
     }
     return list.sort((a, b) => b.analysis.priorityScore - a.analysis.priorityScore);
-  }, [deals, analyses, status, search]);
+  }, [deals, analyses, status, search, workspaceId]);
 
   // Reset to the first page whenever the filter/search shrinks the result
   // set — otherwise the user can land on an empty page.

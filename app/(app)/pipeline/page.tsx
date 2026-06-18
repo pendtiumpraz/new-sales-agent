@@ -39,17 +39,18 @@ export default function PipelinePage() {
     void hydrateProducts(); // products are DB-backed now (audit #5)
   }, [hydrateDeals, hydrateProducts]);
 
-  // ── Hero strip stats — derive from store (visual-only, no new hooks) ──────
+  // ── Hero strip stats — scoped to the active workspace like the Kanban (doc 44).
   const analyses = usePipelineStore((s) => s.analyses);
+  const deals = usePipelineStore((s) => s.deals);
+  const scope = workspaceId && !wsAll ? workspaceId : null;
+  const scopedDealIds = scope ? new Set(deals.filter((d) => (d as { workspaceId?: string | null }).workspaceId === scope).map((d) => d.id)) : null;
+  const scopedAnalyses = scopedDealIds ? analyses.filter((a) => scopedDealIds.has(a.dealId)) : analyses;
   const heroStats = {
-    hot: analyses.filter((a) => a.temperature === "panas").length,
-    active: analyses.filter((a) => a.status === "aktif").length,
+    hot: scopedAnalyses.filter((a) => a.temperature === "panas").length,
+    active: scopedAnalyses.filter((a) => a.status === "aktif").length,
     avgDays:
-      analyses.length > 0
-        ? Math.round(
-            analyses.reduce((s, a) => s + (a.daysInStage ?? 0), 0) /
-              analyses.length,
-          )
+      scopedAnalyses.length > 0
+        ? Math.round(scopedAnalyses.reduce((s, a) => s + (a.daysInStage ?? 0), 0) / scopedAnalyses.length)
         : 0,
   };
 
@@ -128,7 +129,7 @@ export default function PipelinePage() {
           <TabsContent value="list" className="mt-4">
             <div className="grid gap-4 lg:grid-cols-12">
               <div className="lg:col-span-8 xl:col-span-9">
-                {dealsHydrated ? <EnrichmentTable /> : <TableSkeleton rows={8} cols={6} />}
+                {dealsHydrated ? <EnrichmentTable workspaceId={scope} /> : <TableSkeleton rows={8} cols={6} />}
               </div>
               <aside className="lg:col-span-4 xl:col-span-3">
                 <div className="lg:sticky lg:top-4">
