@@ -113,7 +113,10 @@ export default function CadencesPage() {
     const list = visible;
     const active = list.filter((c) => c.status === "active");
     const enrolled = list.reduce((s, c) => s + c.enrolled, 0);
-    const replyRates = list.filter((c) => c.replyRate > 0).map((c) => c.replyRate);
+    // Average reply rate across cadences that actually have an audience
+    // (enrolled > 0), INCLUDING the 0%-reply ones — filtering those out of the
+    // denominator biased the headline upward (e.g. "32%" while half reply 0%).
+    const replyRates = list.filter((c) => c.enrolled > 0).map((c) => c.replyRate);
     const avgReply =
       replyRates.length > 0
         ? Math.round(

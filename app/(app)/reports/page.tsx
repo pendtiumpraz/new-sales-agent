@@ -234,10 +234,19 @@ function deriveSales(
   const conversionRate =
     dealList.length > 0 ? (closed.length / dealList.length) * 100 : 0;
 
-  // Average cycle — derive a stable number from a hash of the dataset so it
-  // stays consistent across renders but varies by what's actually loaded.
-  const seed = hashStr(`${dealList.length}-${closed.length}-${cadenceList.length}`);
-  const avgCycleDays = 22 + (seed % 14); // 22 → 35
+  // Average cycle — REAL: mean of (expectedClose − createdAt) across closed
+  // deals that carry both dates. 0 (rendered "—") when unmeasurable, never a
+  // hash-derived fake presented as live analytics.
+  const cycleSamples = closed
+    .map((d) => {
+      const start = d.createdAt ? +new Date(d.createdAt) : NaN;
+      const end = d.expectedClose ? +new Date(d.expectedClose) : NaN;
+      return Number.isFinite(start) && Number.isFinite(end) ? (end - start) / 864e5 : NaN;
+    })
+    .filter((n) => Number.isFinite(n) && n >= 0);
+  const avgCycleDays = cycleSamples.length
+    ? Math.round(cycleSamples.reduce((s, n) => s + n, 0) / cycleSamples.length)
+    : 0;
 
   // Channel funnel — group by sourceChannel + stage. Stage → funnel bucket
   // mapping: prospek → prospect, kualifikasi → qualified, penawaran|negosiasi
@@ -483,16 +492,15 @@ function deriveQuality(
   const noValue = dealList.filter((d) => !d.value || d.value === 0).length;
   const noContact = dealList.filter((d) => !d.contactId).length;
 
-  // Stagnant deals — expectedClose in the past and not yet closed. We add a
-  // small deterministic boost so the demo always has *something* to triage.
+  // Stagnant deals — expectedClose in the past and not yet closed. Report the
+  // REAL count (no hash boost); "0 masalah" is a valid, honest answer.
   const now = Date.now();
-  const stale = dealList.filter(
+  const stagnant = dealList.filter(
     (d) =>
       d.stage !== "tutup" &&
       d.expectedClose &&
       now - +new Date(d.expectedClose) > 30 * 864e5,
   ).length;
-  const stagnant = Math.max(stale, Math.min(8, hashStr(`stale-${totalDeals}`) % 14));
 
   const noEmail = contactList.filter((c) => !c.email).length;
   const noPhone = contactList.filter((c) => !c.phone).length;
@@ -579,7 +587,7 @@ export default function ReportsPage() {
       <div>
         <PageHeader
           title="Laporan & Analitik"
-          description="Performa penjualan menyeluruh, akurasi AI, dan kualitas data pipeline."
+          description="Performa penjualan menyeluruh, keandalan AI, dan kualitas data pipeline."
         />
         <div className="space-y-6 p-6">
           <StatRowSkeleton n={4} />
@@ -598,7 +606,7 @@ export default function ReportsPage() {
     <div>
       <PageHeader
         title="Laporan & Analitik"
-        description="Performa penjualan menyeluruh, akurasi AI, dan kualitas data pipeline."
+        description="Performa penjualan menyeluruh, keandalan AI, dan kualitas data pipeline."
       >
         <div className="flex flex-wrap items-center gap-2 print-hide">
           <LiveBadge generatedAt={generatedAt} />
@@ -620,7 +628,7 @@ export default function ReportsPage() {
         <Tabs defaultValue="penjualan" className="print-show-all">
           <TabsList className="flex-wrap print-hide">
             <TabsTrigger value="penjualan">Penjualan</TabsTrigger>
-            <TabsTrigger value="akurasi-ai">Akurasi AI</TabsTrigger>
+            <TabsTrigger value="akurasi-ai">Keandalan AI</TabsTrigger>
             <TabsTrigger value="sentimen-pasar">Sentimen Pasar</TabsTrigger>
             <TabsTrigger value="kualitas-data">Kualitas Data</TabsTrigger>
           </TabsList>
@@ -637,9 +645,7 @@ export default function ReportsPage() {
                 value={
                   <IDRAmount value={sales.revenueMtdIDR} compact />
                 }
-                sub="vs. bulan lalu"
-                delta="+18,2%"
-                deltaTone="up"
+                sub="bulan berjalan"
               />
               <StatTileCount
                 icon={<CheckCircle2 className="h-5 w-5" />}
@@ -647,9 +653,7 @@ export default function ReportsPage() {
                 label="Deal ditutup MTD"
                 target={sales.dealsClosedMtd}
                 suffix=""
-                sub="vs. bulan lalu"
-                delta="+4 deal"
-                deltaTone="up"
+                sub="bulan berjalan"
               />
               <StatTileCount
                 icon={<Percent className="h-5 w-5" />}
@@ -659,8 +663,6 @@ export default function ReportsPage() {
                 suffix="%"
                 decimals={1}
                 sub="prospek → tutup"
-                delta="+2,1 pp"
-                deltaTone="up"
               />
               <StatTileCount
                 icon={<CalendarClock className="h-5 w-5" />}
@@ -668,9 +670,7 @@ export default function ReportsPage() {
                 label="Rata-rata siklus deal"
                 target={sales.avgCycleDays}
                 suffix=" hari"
-                sub="vs. bulan lalu"
-                delta="-3 hari"
-                deltaTone="down-good"
+                sub="dibuat → perkiraan tutup"
               />
             </div>
 
@@ -822,8 +822,10 @@ export default function ReportsPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {sales.byChannel.map((c) => {
                 const total = c.prospect + c.qualified + c.offer + c.won;
-                const winRate =
-                  c.prospect > 0 ? (c.won / c.prospect) * 100 : 0;
+                // Win rate = won / ALL deals that entered this channel's funnel,
+                // not won / those currently parked in 'prospek' (which can read
+                // >100% once deals advance out of the prospek stage).
+                const winRate = total > 0 ? (c.won / total) * 100 : 0;
                 return (
                   <Card key={c.channel} className="transition-shadow hover:shadow-md">
                     <CardContent className="p-4">
@@ -851,9 +853,9 @@ export default function ReportsPage() {
             </div>
           </TabsContent>
 
-          {/* ── Akurasi AI ───────────────────────────────────────────── */}
+          {/* ── Keandalan AI (fallback-to-template rate) ─────────────── */}
           <TabsContent value="akurasi-ai" className="mt-5 space-y-6">
-            <SectionTitle>Akurasi AI</SectionTitle>
+            <SectionTitle>Keandalan AI</SectionTitle>
             <div className="grid gap-4 lg:grid-cols-3">
               {/* Headline KPI */}
               <Card className="lg:col-span-1">
@@ -878,20 +880,20 @@ export default function ReportsPage() {
                     </Badge>
                   </div>
                   <p className="mt-5 text-sm text-muted-foreground">
-                    Tingkat kesalahan AI
+                    Tingkat fallback ke template
                   </p>
                   <p className="tnum mt-1 text-4xl font-semibold tracking-tight">
                     {ai.errorRate.toFixed(2)}%
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {ai.errorCount.toLocaleString("id-ID")} dari{" "}
-                    {ai.totalResponses.toLocaleString("id-ID")} respon · diambil
-                    dari run Autopilot
+                    {ai.totalResponses.toLocaleString("id-ID")} respon AI memakai
+                    template (Deepseek tak terjangkau) · dari run Autopilot
                   </p>
 
                   <div className="mt-auto pt-6">
                     <p className="text-xs font-medium text-muted-foreground">
-                      Status akurasi
+                      Status keandalan
                     </p>
                     <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-success">
                       <ShieldCheck className="h-4 w-4" />
@@ -917,9 +919,9 @@ export default function ReportsPage() {
             {/* Breakdown by type */}
             <Card>
               <CardHeader>
-                <CardTitle>Kesalahan berdasarkan tipe</CardTitle>
+                <CardTitle>Fallback berdasarkan tahap</CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Distribusi kasus per kategori — fokus mitigasi pada tipe teratas.
+                  Distribusi fallback ke template per tahap pipeline AI — fokus mitigasi pada tahap teratas.
                 </p>
               </CardHeader>
               <CardContent>
