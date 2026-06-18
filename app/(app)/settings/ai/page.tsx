@@ -122,8 +122,11 @@ export default function AiSettingsPage() {
         description="Pilih 1 model aktif untuk seluruh tim (berlaku per tenant — semua workspace memakai model yang sama), kelola API key sendiri (BYOK), dan pantau pemakaian (doc 24)."
       />
       <div className="space-y-4 p-6">
-        {/* Usage rollup */}
+        {/* Usage rollup — current month (Asia/Jakarta), not lifetime */}
         <Card>
+          <div className="border-b px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Pemakaian bulan ini
+          </div>
           <CardContent className="grid grid-cols-3 gap-4 p-4 text-center">
             <div>
               <p className="text-2xl font-semibold">{usage?.calls ?? 0}</p>
@@ -137,7 +140,7 @@ export default function AiSettingsPage() {
             </div>
             <div>
               <p className="text-2xl font-semibold tabular-nums">${(usage?.cost ?? 0).toFixed(4)}</p>
-              <p className="text-xs text-muted-foreground">Estimasi biaya</p>
+              <p className="text-xs text-muted-foreground">Estimasi biaya (USD)</p>
             </div>
           </CardContent>
         </Card>

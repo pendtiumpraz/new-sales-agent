@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
@@ -15,6 +15,14 @@ import {
 import { platformKey } from "@/lib/ai/adapters";
 
 export const runtime = "nodejs";
+
+/** Start of the current month in Asia/Jakarta (UTC+7) as a UTC Date — the AI
+ *  usage rollup windows to this so it shows the manageable current-month spend,
+ *  not an ever-growing lifetime total. */
+function jakartaMonthStart(now: Date = new Date()): Date {
+  const j = new Date(now.getTime() + 7 * 3_600_000);
+  return new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), 1, 0, 0, 0) - 7 * 3_600_000);
+}
 
 // GET /api/tenant/ai → catalog (global) + this tenant's active model, BYOK key
 // status per provider, and usage rollup (doc 24).
@@ -37,10 +45,11 @@ export async function GET() {
         .select({ providerId: aiCredentialTable.providerId })
         .from(aiCredentialTable)
         .where(eq(aiCredentialTable.tenantId, ctx.tenantId));
+      // Window to the current month so the rollup is manageable (not lifetime).
       const usageRows = await tx
         .select({ tokensIn: aiUsageTable.tokensIn, tokensOut: aiUsageTable.tokensOut, cost: aiUsageTable.cost })
         .from(aiUsageTable)
-        .where(eq(aiUsageTable.tenantId, ctx.tenantId));
+        .where(and(eq(aiUsageTable.tenantId, ctx.tenantId), gte(aiUsageTable.at, jakartaMonthStart())));
       return { providers, models, active, creds, usageRows };
     });
 
