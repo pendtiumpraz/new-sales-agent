@@ -106,6 +106,18 @@ export default function BillingPage() {
                 <div className="text-right">
                   <IDRAmount value={data?.plan?.priceMonthIdr ?? 0} className="text-2xl font-bold tnum" />
                   <p className="text-[10px] uppercase tracking-wide text-primary-foreground/80">/ kursi / bln</p>
+                  {data?.plan && data?.seats ? (
+                    <p className="mt-1.5 text-sm font-medium text-primary-foreground/95">
+                      Total{" "}
+                      <IDRAmount
+                        value={(data.plan.priceMonthIdr ?? 0) * (data.seats ?? 0)}
+                        className="font-bold tnum"
+                      />
+                      <span className="text-[11px] font-normal text-primary-foreground/75">
+                        {" "}/ bln · {data.seats} kursi
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <CardContent className="space-y-4 p-5">
