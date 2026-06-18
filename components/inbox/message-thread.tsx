@@ -135,7 +135,9 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
     }
     return merged;
   }, [data, sent]);
-  const sentiment = useMemo(() => getSentiment(conversationId), [conversationId]);
+  // Pass the thread's messages so non-fixture (DB/new) conversations derive a
+  // real-ish sentiment from their text instead of a stale neutral default.
+  const sentiment = useMemo(() => getSentiment(conversationId, all), [conversationId, all]);
   const handedOff = handoffState?.status === "handed-off";
   const lastMessage = all[all.length - 1];
   const aiDraft = useMemo(

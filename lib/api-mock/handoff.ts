@@ -6,6 +6,7 @@ import type {
   HandoffEvent,
   ProductSentiment,
 } from "@/lib/types/handoff";
+import type { Message } from "@/lib/types";
 
 /** Build a small history sparkline ending at `score`. */
 function buildHistory(score: number, bias: number, hours: number[]): {
@@ -183,12 +184,77 @@ export const conversationSentiments: ConversationSentiment[] = [
   },
 ];
 
-/** Look up the sentiment for a conversation (returns a neutral default if none). */
-export function getSentiment(conversationId: string): ConversationSentiment {
+// Lightweight Bahasa-Indonesia sentiment lexicon for deriving a real-ish score
+// from actual message text (used for DB/new conversations not in the fixture).
+const POSITIVE_WORDS = [
+  "terima kasih", "makasih", "mantap", "oke", "baik", "setuju", "tertarik",
+  "bagus", "siap", "deal", "lanjut", "minat", "senang", "puas", "cocok", "👍", "🙏",
+];
+const NEGATIVE_WORDS = [
+  "kecewa", "lambat", "mahal", "komplain", "keluhan", "refund", "batal", "marah",
+  "buruk", "jelek", "tidak puas", "kapok", "gagal", "error", "masalah", "protes",
+  "hukum", "lapor",
+];
+const COMPLEXITY_PATTERNS: { topic: string; kw: string[] }[] = [
+  { topic: "refund", kw: ["refund", "kembalikan uang", "uang kembali"] },
+  { topic: "hukum", kw: ["hukum", "lapor", "pengacara", "tuntut"] },
+  { topic: "keluhan serius", kw: ["komplain", "keluhan", "kecewa", "marah"] },
+  { topic: "negosiasi khusus", kw: ["nego", "negosiasi", "diskon khusus"] },
+];
+const PRODUCT_NAMES = ["Paket Growth", "Paket Starter", "Paket Enterprise", "Demo", "Onboarding"];
+
+/** Derive a sentiment snapshot from the conversation's real messages: score from
+ *  a keyword pass over inbound text, lastAiResponseAt from the last OUTBOUND
+ *  message, topics/product mentions from the text. */
+function deriveSentimentFromMessages(
+  conversationId: string,
+  messages: Message[],
+): ConversationSentiment {
+  const text = messages
+    .filter((m) => m.direction === "in")
+    .map((m) => (m.body ?? "").toLowerCase())
+    .join(" ");
+  let score = 0;
+  for (const w of POSITIVE_WORDS) if (text.includes(w)) score += 18;
+  for (const w of NEGATIVE_WORDS) if (text.includes(w)) score -= 22;
+  score = Math.max(-100, Math.min(100, score));
+  const trend = score > 12 ? "up" : score < -12 ? "down" : "stable";
+  const lastOut = [...messages].reverse().find((m) => m.direction === "out");
+  const lastAiResponseAt =
+    lastOut?.timestamp ??
+    messages[messages.length - 1]?.timestamp ??
+    new Date().toISOString();
+  const topics = COMPLEXITY_PATTERNS.filter((c) => c.kw.some((k) => text.includes(k))).map((c) => c.topic);
+  const productMentions = PRODUCT_NAMES.filter((p) => text.includes(p.toLowerCase()));
+  return {
+    conversationId,
+    score,
+    trend,
+    history: buildHistory(score, trend === "up" ? 20 : trend === "down" ? -20 : 0, HOURS),
+    lastAiResponseAt,
+    topics,
+    productMentions,
+  };
+}
+
+/**
+ * Look up the sentiment for a conversation. Fixture conversations keep their
+ * curated demo sentiment; otherwise — when the caller has the thread's messages
+ * — derive a real-ish snapshot from them (so DB/new conversations aren't stuck
+ * at neutral-0 with a stale "5 menit lalu"). Falls back to neutral only when
+ * there are no messages to read.
+ */
+export function getSentiment(
+  conversationId: string,
+  messages?: Message[],
+): ConversationSentiment {
   const hit = conversationSentiments.find(
     (s) => s.conversationId === conversationId,
   );
   if (hit) return hit;
+  if (messages && messages.length > 0) {
+    return deriveSentimentFromMessages(conversationId, messages);
+  }
   return {
     conversationId,
     score: 0,
