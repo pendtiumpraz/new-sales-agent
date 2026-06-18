@@ -16,6 +16,8 @@ import type {
 interface HandoffStore {
   config: HandoffConfig;
   states: Record<string, ConversationHandoffState>;
+  /** Per-conversation auto-reply override (undefined → follow the global default). */
+  autoReplyOverrides: Record<string, boolean>;
   hydrated: boolean;
 
   /** Load persisted config from the server (once). Call on the settings page mount. */
@@ -28,6 +30,8 @@ interface HandoffStore {
   removeComplexityTopic: (topic: string) => void;
   setAutoReplyEnabled: (enabled: boolean) => void;
   toggleAutoReplyForConversation: (conversationId: string) => void;
+  /** Effective auto-reply for one conversation: override if set, else global. */
+  isAutoReplyEnabled: (conversationId: string) => boolean;
 
   // Per-conversation actions
   takeOver: (conversationId: string, agentName: string) => void;
@@ -91,6 +95,7 @@ function seedStates(
 export const useHandoffStore = create<HandoffStore>((set, get) => ({
   config: initialConfig,
   states: seedStates(initialConfig),
+  autoReplyOverrides: {},
   hydrated: false,
 
   hydrate: async () => {
@@ -153,12 +158,21 @@ export const useHandoffStore = create<HandoffStore>((set, get) => ({
   setAutoReplyEnabled: (enabled) =>
     set((s) => ({ config: { ...s.config, autoReplyEnabled: enabled } })),
 
-  toggleAutoReplyForConversation: () =>
-    // Per-conversation overrides aren't part of this wave — keep the API
-    // here so the panel UI can call it; toggles the global flag.
-    set((s) => ({
-      config: { ...s.config, autoReplyEnabled: !s.config.autoReplyEnabled },
-    })),
+  toggleAutoReplyForConversation: (conversationId) =>
+    // Flip THIS conversation's auto-reply only (override the global default).
+    // Previously this toggled the global flag — flipping one customer silently
+    // turned auto-reply on/off for every conversation.
+    set((s) => {
+      const current = s.autoReplyOverrides[conversationId] ?? s.config.autoReplyEnabled;
+      return {
+        autoReplyOverrides: { ...s.autoReplyOverrides, [conversationId]: !current },
+      };
+    }),
+
+  isAutoReplyEnabled: (conversationId) => {
+    const s = get();
+    return s.autoReplyOverrides[conversationId] ?? s.config.autoReplyEnabled;
+  },
 
   takeOver: (conversationId, agentName) =>
     set((s) => ({

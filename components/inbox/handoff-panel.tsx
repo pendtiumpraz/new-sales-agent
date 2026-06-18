@@ -60,6 +60,11 @@ export function HandoffPanel({ conversationId }: { conversationId: string }) {
   const takeOver = useHandoffStore((s) => s.takeOver);
   const releaseHandoff = useHandoffStore((s) => s.releaseHandoff);
   const toggleAutoReply = useHandoffStore((s) => s.toggleAutoReplyForConversation);
+  // Per-conversation effective auto-reply + whether it overrides the global.
+  const autoReplyOn = useHandoffStore(
+    (s) => s.autoReplyOverrides[conversationId] ?? s.config.autoReplyEnabled,
+  );
+  const autoReplyOverridden = useHandoffStore((s) => conversationId in s.autoReplyOverrides);
 
   const handedOff = state?.status === "handed-off";
   const tone = toneFromScore(sentiment.score);
@@ -225,17 +230,33 @@ export function HandoffPanel({ conversationId }: { conversationId: string }) {
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-sm font-medium">
               <Sparkles className="h-3.5 w-3.5 text-tertiary" />
-              Auto-reply AI <span className="text-[10px] font-normal text-muted-foreground">(semua percakapan)</span>
+              Auto-reply AI <span className="text-[10px] font-normal text-muted-foreground">(percakapan ini)</span>
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {config.autoReplyEnabled
-                ? "AI menyusun draf jawaban otomatis di semua kanal masuk."
-                : "Anda menulis manual setiap balasan."}{" "}
-              Setelan ini berlaku global.
+              {autoReplyOn
+                ? "AI menyusun draf jawaban otomatis untuk percakapan ini."
+                : "Anda menulis manual balasan untuk percakapan ini."}{" "}
+              {autoReplyOverridden ? (
+                <>
+                  Override khusus percakapan ini.{" "}
+                  <Link href="/settings/handoff" className="underline">
+                    Setelan global
+                  </Link>
+                  : {config.autoReplyEnabled ? "aktif" : "nonaktif"}.
+                </>
+              ) : (
+                <>
+                  Mengikuti{" "}
+                  <Link href="/settings/handoff" className="underline">
+                    setelan global
+                  </Link>
+                  .
+                </>
+              )}
             </p>
           </div>
           <Switch
-            checked={config.autoReplyEnabled}
+            checked={autoReplyOn}
             onCheckedChange={() => toggleAutoReply(conversationId)}
             disabled={handedOff}
           />

@@ -36,7 +36,7 @@ import { useUiStore } from "@/lib/stores/ui-store";
 import { channelMeta } from "@/lib/utils/channel-config";
 import { formatTimeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
-import type { Message } from "@/lib/types";
+import type { Conversation, Message } from "@/lib/types";
 
 // Canned AI-suggested replies (channel-agnostic, shown when the draft is empty).
 const AI_SUGGESTIONS = [
@@ -49,7 +49,10 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
   const { data, isLoading } = useConversation(conversationId);
   const togglePanel = useUiStore((s) => s.toggleInboxPanel);
   const panelOpen = useUiStore((s) => s.inboxPanelOpen);
-  const autoReplyEnabled = useHandoffStore((s) => s.config.autoReplyEnabled);
+  // Per-conversation effective auto-reply (override → else global default).
+  const autoReplyEnabled = useHandoffStore(
+    (s) => s.autoReplyOverrides[conversationId] ?? s.config.autoReplyEnabled,
+  );
   const handoffState = useHandoffStore((s) => s.states[conversationId]);
   const activeTriggers = useHandoffStore((s) =>
     s.getActiveTriggers(conversationId),
@@ -84,6 +87,34 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
     setDraft("");
     setDismissedDraft(false);
   }, [conversationId]);
+
+  // Mark the conversation read when its thread is open. Before this, opening /
+  // replying never cleared `unread`, so the "Belum dibaca" badge stayed lit
+  // forever. Optimistically clear the badge in both query caches (works for
+  // seed + DB), then best-effort PUT the full row so it persists when DB-backed.
+  const persistedRead = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const convo = data?.conversation;
+    if (!convo || convo.unread <= 0) return;
+    qc.setQueryData<Conversation[]>(["conversations"], (prev) =>
+      prev?.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
+    );
+    qc.setQueryData<{ conversation: Conversation | null; messages: Message[] }>(
+      ["conversation", conversationId],
+      (prev) =>
+        prev?.conversation
+          ? { ...prev, conversation: { ...prev.conversation, unread: 0 } }
+          : prev,
+    );
+    if (!persistedRead.current.has(conversationId)) {
+      persistedRead.current.add(conversationId);
+      fetch("/api/db/conversations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: [{ ...convo, unread: 0 }] }),
+      }).catch(() => {});
+    }
+  }, [data?.conversation, conversationId, qc]);
 
   // Memoize `all` so its identity is stable when neither slice changes —
   // a fresh array literal each render was causing the conversationContext
