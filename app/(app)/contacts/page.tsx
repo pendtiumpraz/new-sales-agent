@@ -29,6 +29,7 @@ import {
   Plus,
   Radar,
   Search,
+  Send,
   Sparkles,
   Trash2,
   Wand2,
@@ -42,6 +43,7 @@ import { ConsentBadge } from "@/components/shared/consent-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TempBadge } from "@/components/shared/temp-badge";
 import { ContactDetailSheet } from "@/components/contacts/contact-detail-sheet";
+import { SendMessageDialog } from "@/components/contacts/send-message-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -133,6 +135,7 @@ function ContactsPageInner() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false); // manual add-contact (audit UX #3)
+  const [sendOpen, setSendOpen] = useState(false); // kirim email/WA ke kontak terpilih
   const [creating, setCreating] = useState(false);
   const [nf, setNf] = useState({ name: "", company: "", email: "", phone: "" });
   const [cadencePickerOpen, setCadencePickerOpen] = useState(false);
@@ -680,6 +683,14 @@ function ContactsPageInner() {
               <div className="ml-auto flex gap-2">
                 <Button
                   size="sm"
+                  className="bg-primary text-primary-foreground hover:brightness-105"
+                  onClick={() => setSendOpen(true)}
+                >
+                  <Send className="h-4 w-4" />
+                  Kirim Email/WA
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
                   onClick={() => {
@@ -843,6 +854,15 @@ function ContactsPageInner() {
       </Tabs>
 
       <ContactDetailSheet contact={detail} open={sheetOpen} onOpenChange={setSheetOpen} />
+
+      {/* Kirim Email/WA ke kontak terpilih — platform (mailbox/WA gateway) + manual (wa.me/mailto/Gmail) */}
+      <SendMessageDialog
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        contacts={(contacts ?? [])
+          .filter((c) => selected.has(c.id))
+          .map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone, company: c.company }))}
+      />
 
       {/* Manual add contact (audit UX #3) — wires the previously-unused PUT upsert */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
