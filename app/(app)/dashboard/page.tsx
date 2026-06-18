@@ -122,19 +122,29 @@ export default function DashboardPage() {
   const kpi = useMemo(() => {
     const openDeals = filtered.deals.filter((d) => d.stage !== "tutup");
     const pipelineValue = openDeals.reduce((s, d) => s + d.value, 0);
+    // "Closing minggu ini" = due in the NEXT 7 days. The old filter had no lower
+    // bound, so every OVERDUE deal (expectedClose in the past) was counted as
+    // closing this week. Overdue is now tracked separately.
     const closing = filtered.deals.filter((d) => {
       if (!d.expectedClose || d.stage === "tutup") return false;
       const t = +new Date(d.expectedClose); // guard: null/invalid date must not coerce to 1970
-      return !Number.isNaN(t) && t <= WEEK_AHEAD;
+      return !Number.isNaN(t) && t >= NOW && t <= WEEK_AHEAD;
     });
     const closingValue = closing.reduce((s, d) => s + d.value, 0);
+    const overdueCount = filtered.deals.filter((d) => {
+      if (!d.expectedClose || d.stage === "tutup") return false;
+      const t = +new Date(d.expectedClose);
+      return !Number.isNaN(t) && t < NOW;
+    }).length;
 
     const activeCadences = filtered.cadences.filter((c) => c.status === "active");
     const enrolled = activeCadences.reduce((s, c) => s + c.enrolled, 0);
 
-    // Response rate from the filtered conversations — replied = unread 0.
-    // For "all" this is across every channel; for a specific channel it's the
-    // share of conversations on that channel without unread messages.
+    // Read-through, not reply rate: `unread` is a read-receipt (unread INBOUND
+    // messages), so this is the share of conversations with nothing left unread,
+    // and `unread` count = messages still needing attention. Labelled "Dibaca"
+    // accordingly — a true reply rate would need the message log this view
+    // doesn't load.
     const totalConvos = filtered.conversations.length;
     const replied = filtered.conversations.filter((c) => c.unread === 0).length;
     const responseRate =
@@ -157,6 +167,7 @@ export default function DashboardPage() {
       pipelineChange: 12.4, // mocked trend — same regardless of slice
       closingCount: closing.length,
       closingValue,
+      overdueCount,
       responseRate,
       unanswered,
       activeCadences: activeCadences.length,
@@ -182,17 +193,18 @@ export default function DashboardPage() {
   const activeLabel = CHANNEL_FILTERS.find((f) => f.key === channel)?.label;
   const isAll = channel === "all";
 
-  // Per-channel labels keep the KPI tile copy honest.
+  // Per-channel labels keep the KPI tile copy honest. This tile measures
+  // read-through (no unread inbound left), not a reply rate — hence "Dibaca".
   const responseLabel =
     channel === "whatsapp"
-      ? "Respon WhatsApp"
+      ? "Dibaca WhatsApp"
       : channel === "email"
-        ? "Respon Email"
+        ? "Dibaca Email"
         : channel === "instagram"
-          ? "Respon Instagram"
+          ? "Dibaca Instagram"
           : channel === "tokopedia"
             ? "Pesanan Tokopedia"
-            : "Respon pelanggan";
+            : "Dibaca pelanggan";
   const responseAccent =
     channel === "whatsapp"
       ? "#25D366"
@@ -383,7 +395,7 @@ export default function DashboardPage() {
               }
               sub={
                 kpi.totalConvos > 0
-                  ? `${Math.round(unansweredAnim)} belum dibalas`
+                  ? `${Math.round(unansweredAnim)} belum dibaca`
                   : "Tidak ada percakapan di channel ini"
               }
             />
@@ -393,7 +405,11 @@ export default function DashboardPage() {
               accent="#14B8A6"
               label={isAll ? "Closing minggu ini" : `Closing · ${activeLabel}`}
               value={`${Math.round(closingCountAnim)}`}
-              sub={formatIDR(Math.round(closingValueCount))}
+              sub={
+                kpi.overdueCount > 0
+                  ? `${formatIDR(Math.round(closingValueCount))} · ${kpi.overdueCount} lewat tempo`
+                  : formatIDR(Math.round(closingValueCount))
+              }
             />
             <StatTile
               loading={dealsLoading}

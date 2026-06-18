@@ -192,15 +192,39 @@ export function useDashboard() {
       const pipelineValue = open.reduce((s, d) => s + d.value, 0);
       const now = new Date("2026-05-25T10:00:00+07:00").getTime();
       const weekAhead = now + 7 * 864e5;
-      const closing = db.deals.filter(
-        (d) => +new Date(d.expectedClose) <= weekAhead && d.stage !== "tutup",
-      );
+      // "Closing minggu ini" = due within the NEXT 7 days, not anything ≤ a week
+      // out (which swept in every overdue deal). Overdue is reported separately.
+      const closing = db.deals.filter((d) => {
+        const t = +new Date(d.expectedClose);
+        return d.stage !== "tutup" && t >= now && t <= weekAhead;
+      });
       const closingValue = closing.reduce((s, d) => s + d.value, 0);
+      const overdueCount = db.deals.filter(
+        (d) => d.stage !== "tutup" && +new Date(d.expectedClose) < now,
+      ).length;
       const activeCadences = db.cadences.filter((c) => c.status === "active");
       const enrolled = activeCadences.reduce((s, c) => s + c.enrolled, 0);
-      const unreadConvos = db.conversations.filter(
-        (c) => c.channel === "whatsapp" && c.unread > 0,
-      ).length;
+
+      // WA response rate / unanswered — derived from the real message log, not a
+      // hardcoded 87 or a read-receipt. A thread counts as "answered" when its
+      // most recent message is outbound (we replied to the last inbound).
+      const lastDir = new Map<string, { dir: "in" | "out"; t: number }>();
+      for (const m of db.messages) {
+        const t = +new Date(m.timestamp);
+        const prev = lastDir.get(m.conversationId);
+        if (!prev || t >= prev.t) lastDir.set(m.conversationId, { dir: m.direction, t });
+      }
+      const waConvos = db.conversations.filter((c) => c.channel === "whatsapp");
+      let waWithMsgs = 0;
+      let waAnswered = 0;
+      for (const c of waConvos) {
+        const last = lastDir.get(c.id);
+        if (!last) continue;
+        waWithMsgs++;
+        if (last.dir === "out") waAnswered++;
+      }
+      const unreadConvos = waWithMsgs - waAnswered;
+      const waResponseRate = waWithMsgs > 0 ? Math.round((waAnswered / waWithMsgs) * 100) : 0;
       const funnel = STAGE_ORDER.map((stage) => ({
         stage,
         count: db.deals.filter((d) => d.stage === stage).length,
@@ -213,7 +237,8 @@ export function useDashboard() {
         pipelineChange: 12.4,
         closingCount: closing.length,
         closingValue,
-        waResponseRate: 87,
+        overdueCount,
+        waResponseRate,
         waUnanswered: unreadConvos,
         activeCadences: activeCadences.length,
         enrolled,
