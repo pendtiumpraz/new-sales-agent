@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { personTable } from "@/lib/db/schema";
+import { companyTable, personTable } from "@/lib/db/schema";
 import { isManager, listTenantMembers } from "@/lib/team/members";
 import {
   getWorkspace,
@@ -40,10 +40,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
           fullName: personTable.fullName,
           title: personTable.title,
           companyId: personTable.companyId,
+          // B2B qualifier — resolve the company name so the hub table can show
+          // it (was only id+title, hard to triage). LEFT JOIN: leads without a
+          // company still appear.
+          companyName: companyTable.name,
           leadType: personTable.leadType,
         })
         .from(personTable)
-        .where(eq(personTable.workspaceId, params.id)),
+        .leftJoin(companyTable, eq(companyTable.id, personTable.companyId))
+        // Don't count/list soft-deleted people in the workspace hub.
+        .where(and(eq(personTable.workspaceId, params.id), isNull(personTable.deletedAt))),
     );
 
     return NextResponse.json({ data: { ...ws, ownerName, leadCount: leads.length, leads }, source: "db" });

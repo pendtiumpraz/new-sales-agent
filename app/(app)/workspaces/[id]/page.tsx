@@ -33,6 +33,7 @@ interface LeadRow {
   fullName: string;
   title: string | null;
   companyId: string | null;
+  companyName: string | null;
   leadType: string | null;
 }
 interface WorkspaceDetail {
@@ -239,7 +240,11 @@ export default function WorkspaceHubPage() {
                       <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                         <div className="min-w-0">
                           <p className="truncate font-medium">{p.fullName}</p>
-                          {p.title && <p className="truncate text-xs text-muted-foreground">{p.title}</p>}
+                          {(p.title || p.companyName) && (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {[p.title, p.companyName].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
                         </div>
                         {p.leadType && (
                           <Badge variant="muted" className="shrink-0 bg-muted text-muted-foreground">
