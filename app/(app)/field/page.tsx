@@ -34,7 +34,10 @@ export default function FieldPage() {
   const list = (reps ?? []).filter((r) =>
     tab === "live" ? r.status === "kunjungan" : true,
   );
-  const selected = reps?.find((r) => r.id === selectedId) ?? null;
+  // Resolve the selection from the VISIBLE list, not all reps — otherwise a rep
+  // picked under "Semua" keeps rendering in the detail/map after switching to
+  // "Live" even though they're no longer in the list.
+  const selected = list.find((r) => r.id === selectedId) ?? null;
 
   return (
     <div>

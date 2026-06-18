@@ -147,6 +147,9 @@ export default function CadenceDetailPage() {
 
   const cad = cadQ.data?.data;
   const enrollments = enrollQ.data?.data ?? [];
+  // Only "aktif" enrollments are actually running — 'selesai'/'berhenti' are
+  // done. Show both so "terdaftar" doesn't conflate finished with in-flight.
+  const activeEnrollments = enrollments.filter((e) => (e.status ?? "aktif") === "aktif").length;
 
   if (cadQ.isLoading) return <div className="space-y-4 p-6"><Skeleton className="h-7 w-64" /><Skeleton className="h-40 w-full rounded-xl" /></div>;
   if (cadQ.isError || !cad) {
@@ -185,7 +188,7 @@ export default function CadenceDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="muted" className={st.cls}>{st.label}</Badge>
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Users className="h-4 w-4" /> {enrollments.length} terdaftar
+            <Users className="h-4 w-4" /> {activeEnrollments} aktif · {enrollments.length} total
           </span>
           <div className="flex items-center gap-1">
             {(cad.channelMix ?? []).map((ch) => <ChannelDot key={ch} channel={ch} size={10} />)}
@@ -222,7 +225,7 @@ export default function CadenceDetailPage() {
           {/* Enrolled */}
           <Card>
             <CardContent className="p-5">
-              <h3 className="mb-4 flex items-center gap-2 font-semibold"><Users className="h-4 w-4" /> Kontak terdaftar ({enrollments.length})</h3>
+              <h3 className="mb-4 flex items-center gap-2 font-semibold"><Users className="h-4 w-4" /> Kontak terdaftar ({activeEnrollments} aktif / {enrollments.length} total)</h3>
               {enrollments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Belum ada kontak. Klik “Daftarkan kontak”.</p>
               ) : (
