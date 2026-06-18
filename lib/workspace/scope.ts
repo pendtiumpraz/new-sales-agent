@@ -11,6 +11,7 @@ export const GLOBAL_PREFIXES = [
   "/settings",
   "/documentation",
   "/use-case", // industry use-case reference (doc/guide — global, no workspace needed)
+  "/content", // content store isn't workspace-aware — global (audit: was gated but showed global data)
   "/workspaces", // the doc-44 picker/hub itself
   "/workspace", // the per-CONTACT unified workbench (/workspace/[contactId]) — NOT a doc-44 workspace, don't gate it
   "/admin",

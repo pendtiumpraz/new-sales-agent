@@ -533,7 +533,7 @@ function ContactsPageInner() {
             />
             <KpiPill
               icon={Sparkles}
-              label="Dalam cadence"
+              label="Total enrollment cadence"
               value={inCadence}
               tone="amber"
             />

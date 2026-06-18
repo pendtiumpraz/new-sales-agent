@@ -73,8 +73,11 @@ const CHANNEL_FILTERS = [
   { key: "all", label: "Semua" },
   { key: "whatsapp", label: "WhatsApp" },
   { key: "email", label: "Email" },
+  { key: "linkedin", label: "LinkedIn" },
   { key: "instagram", label: "Instagram" },
   { key: "tokopedia", label: "Tokopedia" },
+  { key: "shopee", label: "Shopee" },
+  { key: "sms", label: "SMS" },
 ] as const;
 
 type ChannelKey = (typeof CHANNEL_FILTERS)[number]["key"];

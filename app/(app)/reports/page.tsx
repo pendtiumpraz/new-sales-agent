@@ -246,8 +246,9 @@ function deriveSales(
   const channelGroups = new Map<string, ChannelFunnelDatum>();
   for (const d of dealList) {
     const raw = String(d.sourceChannel ?? "").toLowerCase();
-    const label = CHANNEL_LABEL[raw] ?? null;
-    if (!label) continue; // skip channels we don't render (keeps colours clean)
+    // Don't silently DROP deals on channels we don't colour-code — bucket them as
+    // "Lainnya" so the funnel total matches the headline deal count.
+    const label = CHANNEL_LABEL[raw] ?? "Lainnya";
     let row = channelGroups.get(label);
     if (!row) {
       row = { channel: label, prospect: 0, qualified: 0, offer: 0, won: 0 };
@@ -260,12 +261,14 @@ function deriveSales(
     else if (d.stage === "tutup") row.won += 1;
   }
   // Preserve a stable channel order to match the colour map.
-  const channelOrder = ["WhatsApp", "Email", "Instagram", "Tokopedia"];
+  const channelOrder = ["WhatsApp", "Email", "Instagram", "Tokopedia", "Lainnya"];
   const byChannel: ChannelFunnelDatum[] =
     channelGroups.size > 0
-      ? channelOrder
-          .map((c) => channelGroups.get(c))
-          .filter((r): r is ChannelFunnelDatum => Boolean(r))
+      ? [
+          ...channelOrder.map((c) => channelGroups.get(c)).filter((r): r is ChannelFunnelDatum => Boolean(r)),
+          // any channel not in the fixed order (defensive — shouldn't happen with the Lainnya bucket)
+          ...[...channelGroups.values()].filter((r) => !channelOrder.includes(r.channel)),
+        ]
       : salesReportFallback.byChannel;
 
   // Top cadences — sort by replyRate desc, top 5.
