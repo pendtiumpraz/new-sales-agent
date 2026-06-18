@@ -6,6 +6,8 @@ import {
   Calendar,
   CheckCircle2,
   History,
+  PauseCircle,
+  Play,
   Sparkles,
   Users,
   XCircle,
@@ -13,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { ActivityTimeline } from "@/components/autopilot/activity-timeline";
 import { AudiencePicker } from "@/components/autopilot/audience-picker";
 import { GuardrailsPanel } from "@/components/autopilot/guardrails-panel";
@@ -55,7 +58,11 @@ export default function AutopilotPage() {
   }, []);
 
   const running = currentRun?.status === "running";
+  const paused = currentRun?.status === "paused";
   const done = currentRun?.status === "done";
+  // Config panels + hero stay locked while the run is active OR parked at a
+  // guardrail pause (so the operator can't edit audience mid-flight).
+  const busy = running || paused;
 
   // Live "Y prospek cocok" estimate used in the hero summary copy.
   const estimatedProspects = useMemo(() => {
@@ -151,6 +158,13 @@ export default function AutopilotPage() {
     });
   };
 
+  const resumeAutopilot = () => {
+    useAutopilotStore.getState().resumeRun();
+    toast("Melanjutkan pengiriman…", {
+      description: "DM pembuka akan dikirim sekarang.",
+    });
+  };
+
   return (
     <div>
       <PageHeader
@@ -169,21 +183,49 @@ export default function AutopilotPage() {
             onChangeGoal={(goal) => setConfig({ goal })}
             onStart={startAutopilot}
             onStop={stopAutopilot}
-            running={running}
+            running={busy}
             done={done}
             estimatedProspects={estimatedProspects}
             meetingsBooked={currentRun?.metrics.meetingsBooked ?? 0}
           />
         </CardErrorBoundary>
 
+        {paused && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <PauseCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Autopilot dijeda — menunggu persetujuan Anda
+                </p>
+                <p className="text-xs text-amber-800">
+                  Guardrail “Jeda sebelum kirim” aktif. Tinjau timeline, lalu
+                  lanjutkan untuk mengirim DM pembuka.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={resumeAutopilot}
+                className="bg-amber-600 text-white hover:bg-amber-700"
+              >
+                <Play className="h-4 w-4" /> Lanjutkan kirim
+              </Button>
+              <Button variant="outline" onClick={stopAutopilot}>
+                Batalkan
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 lg:grid-cols-12">
           {/* Left column — config */}
           <div className="space-y-4 lg:col-span-4">
             <CardErrorBoundary name="Audience Picker">
-              <AudiencePicker disabled={running} />
+              <AudiencePicker disabled={busy} />
             </CardErrorBoundary>
             <CardErrorBoundary name="Guardrails Panel">
-              <GuardrailsPanel disabled={running} />
+              <GuardrailsPanel disabled={busy} />
             </CardErrorBoundary>
           </div>
 

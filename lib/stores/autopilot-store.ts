@@ -37,6 +37,12 @@ export interface AutopilotState {
   bumpMetric: (key: keyof AutopilotRun["metrics"], by?: number) => void;
   /** Stop the current run, mark it stopped, and archive it to history. */
   stopRun: () => void;
+  /**
+   * Resume a run paused by the "Jeda sebelum kirim" guardrail. Flips status
+   * back to "running" so the orchestrator's pause loop continues. No-op unless
+   * the current run is actually paused.
+   */
+  resumeRun: () => void;
   /** Clear the current run without archiving (used by "ulangi" reset). */
   resetRun: () => void;
   /**
@@ -215,6 +221,12 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
     });
     if (stopped) persistRun(stopped);
   },
+
+  resumeRun: () =>
+    set((s) => {
+      if (!s.currentRun || s.currentRun.status !== "paused") return s;
+      return { currentRun: { ...s.currentRun, status: "running" } };
+    }),
 
   resetRun: () => set({ currentRun: null }),
 

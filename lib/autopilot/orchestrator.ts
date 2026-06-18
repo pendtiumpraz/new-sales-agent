@@ -81,6 +81,45 @@ function clampDetail(text: string, max = 280): string {
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
+// ---- Guardrails -------------------------------------------------------------
+//
+// These read `config.guardrails` (set in the GuardrailsPanel) and actually
+// enforce it. Before this, the guardrails were collected but never honored —
+// a silent no-op that risked LinkedIn bans + sending during quiet hours.
+
+/** Current wall-clock time in Asia/Jakarta as zero-padded "HH:MM" (24h). */
+function jakartaHHMM(): string {
+  // en-GB + 24h yields "HH:MM"; zero-padded so lexical comparison is valid.
+  return new Date().toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** True if `hhmm` falls inside [start,end), handling windows that wrap midnight. */
+function withinWindow(hhmm: string, start: string, end: string): boolean {
+  if (!start || !end || start === end) return false;
+  if (start < end) return hhmm >= start && hhmm < end; // same-day window
+  return hhmm >= start || hhmm < end; // wraps midnight, e.g. 20:00–08:00
+}
+
+/** Whether sending is currently blocked by the quiet-hours guardrail. */
+function isQuietHours(g: AutopilotRunConfig["guardrails"] | undefined): boolean {
+  if (!g) return false;
+  return withinWindow(jakartaHHMM(), g.quietHoursStart, g.quietHoursEnd);
+}
+
+/** Block while the run sits in "paused" (human-in-the-loop). Returns when the
+ *  operator resumes (→ running) or stops (→ stopped). Polls the store the same
+ *  way `isStopped` does, so no extra callback plumbing is needed. */
+async function waitWhilePaused(): Promise<void> {
+  while (useAutopilotStore.getState().currentRun?.status === "paused") {
+    await sleep(400);
+  }
+}
+
 /**
  * POST to the AI text route with the standard payload. On any network / parse
  * failure we degrade gracefully into a mock-tagged stub so the pipeline keeps
@@ -210,12 +249,38 @@ export async function runAutopilot(
   callbacks: OrchestratorCallbacks,
 ): Promise<void> {
   const store = useAutopilotStore.getState;
+  const guardrails = config.guardrails;
+
+  // ── Guardrail: quiet hours ────────────────────────────────────────────────
+  // Autopilot must not send during the operator's quiet window (Asia/Jakarta).
+  // We block the whole run up front so we never burn AI tokens on drafts we
+  // can't send — honest to the "tidak mengirim" promise on the panel.
+  if (isQuietHours(guardrails)) {
+    appendOneShot({
+      step: "select-audience",
+      status: "skipped",
+      title: "Jam tenang aktif — Autopilot tidak mengirim",
+      detail: `Sekarang ${jakartaHHMM()} (Asia/Jakarta) berada di jam tenang ${guardrails.quietHoursStart}–${guardrails.quietHoursEnd}. Jalankan lagi di luar jam tenang, atau ubah Guardrails.`,
+      source: "mock",
+    });
+    store().setRunStatus("stopped");
+    return;
+  }
 
   // ── Step 1 — select-audience ───────────────────────────────────────────────
   let selected: ProspectLead[] = [];
   try {
     const all = useProspectingStore.getState().prospects;
     selected = selectProspects(config, all);
+
+    // Guardrail: cap LinkedIn requests per day. Each selected prospect is one
+    // connection request, so the daily LI cap is a hard ceiling on `selected`.
+    const liCap = guardrails?.maxLiPerDay;
+    let liCapNote = "";
+    if (typeof liCap === "number" && liCap > 0 && selected.length > liCap) {
+      liCapNote = ` · dibatasi guardrail LinkedIn ${liCap}/hari (dari ${selected.length})`;
+      selected = selected.slice(0, liCap);
+    }
 
     if (selected.length === 0) {
       appendOneShot({
@@ -236,7 +301,7 @@ export async function runAutopilot(
       step: "select-audience",
       status: "done",
       title: `${selected.length} prospek terpilih`,
-      detail: `${selected.length} prospek terpilih dari segmen ${segmentLabel} dengan skor ≥ ${minScore}`,
+      detail: `${selected.length} prospek terpilih dari segmen ${segmentLabel} dengan skor ≥ ${minScore}${liCapNote}`,
       source: "mock",
     });
     store().bumpMetric("prospectsEngaged", selected.length);
@@ -436,6 +501,28 @@ export async function runAutopilot(
   if (callbacks.isStopped()) {
     emitStopped();
     return;
+  }
+
+  // ── Guardrail: pause before sending DMs (human-in-the-loop) ────────────────
+  // The operator asked to approve outbound DMs first. Park the run in "paused",
+  // surface a waiting row, and block until they resume (or stop) from the page.
+  if (guardrails?.pauseBeforeSendingMessages) {
+    appendRunning({
+      step: "send-intro-dms",
+      title: "Menunggu persetujuan sebelum mengirim DM",
+      source: "mock",
+      detail: `${accepted.length} DM pembuka siap dikirim. Tinjau di timeline, lalu klik "Lanjutkan kirim" untuk meneruskan.`,
+    });
+    store().setRunStatus("paused");
+    await waitWhilePaused();
+    if (callbacks.isStopped()) {
+      emitStopped();
+      return;
+    }
+    patchLast({
+      status: "done",
+      detail: "Pengiriman DM disetujui operator — pipeline dilanjutkan.",
+    });
   }
 
   // ── Step 6 — send-intro-dms (sequential) ───────────────────────────────────
