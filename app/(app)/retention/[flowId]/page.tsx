@@ -38,6 +38,40 @@ const TYPE_ACCENT_HEX: Record<RetentionFlowType, string> = {
   "after-sales": "#14B8A6", // teal
 };
 
+// Structured trigger — replaces free-text prose so the condition is consistent
+// and machine-readable (a scheduler could act on type+days), instead of an
+// arbitrary sentence that nothing can parse.
+const TRIGGER_TYPES: { value: string; label: string; needsDays: boolean }[] = [
+  { value: "days_since_purchase", label: "Hari sejak pembelian terakhir", needsDays: true },
+  { value: "days_since_completed", label: "Hari setelah transaksi selesai", needsDays: true },
+  { value: "purchase_completed", label: "Saat transaksi selesai", needsDays: false },
+  { value: "active_over_days", label: "Pengguna aktif lebih dari N hari", needsDays: true },
+];
+
+function composeTrigger(type: string, days: number): string {
+  switch (type) {
+    case "days_since_completed":
+      return `${days} hari setelah transaksi selesai`;
+    case "purchase_completed":
+      return "Transaksi berstatus selesai";
+    case "active_over_days":
+      return `Pengguna aktif lebih dari ${days} hari`;
+    case "days_since_purchase":
+    default:
+      return `${days} hari sejak pembelian terakhir`;
+  }
+}
+
+/** Best-effort parse of the seeded prose back into a structured trigger. */
+function parseTrigger(s: string): { type: string; days: number } {
+  const lower = (s ?? "").toLowerCase();
+  const days = Number(lower.match(/(\d+)\s*hari/)?.[1] ?? 30);
+  if (lower.includes("aktif")) return { type: "active_over_days", days };
+  if (lower.includes("setelah") && lower.includes("selesai")) return { type: "days_since_completed", days };
+  if (lower.includes("selesai")) return { type: "purchase_completed", days };
+  return { type: "days_since_purchase", days };
+}
+
 export default function RetentionFlowDetailPage() {
   const params = useParams<{ flowId: string }>();
   const router = useRouter();
@@ -54,13 +88,16 @@ export default function RetentionFlowDetailPage() {
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState("");
   const [descDraft, setDescDraft] = useState("");
-  const [triggerDraft, setTriggerDraft] = useState("");
+  const [triggerType, setTriggerType] = useState("days_since_purchase");
+  const [triggerDays, setTriggerDays] = useState(30);
 
   useEffect(() => {
     if (flow) {
       setNameDraft(flow.name);
       setDescDraft(flow.description);
-      setTriggerDraft(flow.triggerCondition);
+      const parsed = parseTrigger(flow.triggerCondition);
+      setTriggerType(parsed.type);
+      setTriggerDays(parsed.days);
       setSelectedStepId((current) =>
         current && flow.steps.some((s) => s.id === current)
           ? current
@@ -104,7 +141,7 @@ export default function RetentionFlowDetailPage() {
     updateFlow(flow!.id, {
       name: nameDraft,
       description: descDraft,
-      triggerCondition: triggerDraft,
+      triggerCondition: composeTrigger(triggerType, triggerDays),
     });
     toast.success(`Alur "${nameDraft}" disimpan.`);
   }
@@ -221,11 +258,33 @@ export default function RetentionFlowDetailPage() {
                   <Label htmlFor="flow-trigger" className="mb-1.5 block">
                     Kondisi pemicu
                   </Label>
-                  <Input
-                    id="flow-trigger"
-                    value={triggerDraft}
-                    onChange={(e) => setTriggerDraft(e.target.value)}
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      id="flow-trigger"
+                      value={triggerType}
+                      onChange={(e) => setTriggerType(e.target.value)}
+                      className="h-9 flex-1 rounded-md border bg-background px-3 text-sm"
+                    >
+                      {TRIGGER_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                    {TRIGGER_TYPES.find((t) => t.value === triggerType)?.needsDays && (
+                      <Input
+                        type="number"
+                        min={1}
+                        aria-label="Jumlah hari"
+                        className="w-24"
+                        value={triggerDays}
+                        onChange={(e) => setTriggerDays(Math.max(1, Number(e.target.value) || 1))}
+                      />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Pemicu: <span className="font-medium text-foreground">{composeTrigger(triggerType, triggerDays)}</span>
+                  </p>
                 </div>
                 <div className="sm:col-span-2">
                   <Label htmlFor="flow-desc" className="mb-1.5 block">
