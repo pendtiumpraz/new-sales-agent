@@ -38,5 +38,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!parsed.success) return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
   const q = await updateQuote(guard.ctx, params.id, parsed.data);
   if (!q) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if ("locked" in q) {
+    return NextResponse.json(
+      {
+        error: `Penawaran sudah ${q.status} — terkunci. Duplikat sebagai draf baru untuk mengubah.`,
+        locked: true,
+        status: q.status,
+        fields: q.fields,
+      },
+      { status: 409 },
+    );
+  }
   return NextResponse.json({ data: q });
 }

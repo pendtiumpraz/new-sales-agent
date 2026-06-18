@@ -109,9 +109,46 @@ export async function createQuote(ctx: TenantContext, input: QuoteInput): Promis
   return rows[0];
 }
 
-export async function updateQuote(ctx: TenantContext, id: string, patch: Partial<QuoteInput>): Promise<Quote | null> {
+/** Commercial / customer-visible fields that get locked once a quote leaves
+ *  draft — editing them would silently change what the customer already saw on
+ *  the public page (or already accepted). Internal links (dealId/workspaceId)
+ *  stay editable. */
+const LOCKED_QUOTE_FIELDS: (keyof QuoteInput)[] = [
+  "title",
+  "items",
+  "taxRate",
+  "currency",
+  "validUntil",
+  "notes",
+  "coverSubject",
+  "coverBody",
+  "customerName",
+  "customerEmail",
+  "customerCompany",
+];
+
+/** Returned by updateQuote when a non-draft quote is edited on locked fields. */
+export interface QuoteLocked {
+  locked: true;
+  status: string;
+  fields: string[];
+}
+
+export async function updateQuote(
+  ctx: TenantContext,
+  id: string,
+  patch: Partial<QuoteInput>,
+): Promise<Quote | QuoteLocked | null> {
   const cur = await getQuote(ctx, id);
   if (!cur) return null;
+  // Lock the quote once it has been sent/viewed/accepted/rejected — the customer
+  // is looking at live fields on /q/<token>, so commercial edits must be blocked
+  // (duplicate as a new draft to change). Audit: editor must not mutate a quote
+  // the customer already saw or approved.
+  if (cur.status !== "draft") {
+    const fields = LOCKED_QUOTE_FIELDS.filter((k) => patch[k] !== undefined);
+    if (fields.length) return { locked: true, status: cur.status, fields };
+  }
   const items = patch.items ?? cur.items;
   const taxRate = patch.taxRate ?? cur.taxRate;
   const { subtotal, taxAmount, total } = calcTotals(items, taxRate);
@@ -253,9 +290,21 @@ export async function respondToQuote(token: string, action: "accept" | "reject")
     .set(action === "accept" ? { status: "accepted", acceptedAt: now, updatedAt: now } : { status: "rejected", rejectedAt: now, updatedAt: now })
     .where(eq(quoteTable.publicToken, token))
     .returning();
-  // Accept → advance the linked deal toward closing (doc 45).
+  // Accept is a closing signal → advance the linked deal to "tutup" (won), but
+  // NEVER regress one that's already further along. The old code forced
+  // "negosiasi" unconditionally, which moved already-won deals backward.
   if (action === "accept" && q.dealId) {
-    await db.update(dealsTable).set({ stage: "negosiasi", updatedAt: now }).where(eq(dealsTable.id, q.dealId));
+    const STAGE_ORDER = ["prospek", "kualifikasi", "penawaran", "negosiasi", "tutup"];
+    const [deal] = await db
+      .select({ stage: dealsTable.stage })
+      .from(dealsTable)
+      .where(eq(dealsTable.id, q.dealId))
+      .limit(1);
+    const curIdx = deal ? STAGE_ORDER.indexOf(deal.stage) : -1;
+    const target = STAGE_ORDER.length - 1; // "tutup"
+    if (deal && curIdx >= 0 && curIdx < target) {
+      await db.update(dealsTable).set({ stage: "tutup", updatedAt: now }).where(eq(dealsTable.id, q.dealId));
+    }
   }
   return updated ?? q;
 }

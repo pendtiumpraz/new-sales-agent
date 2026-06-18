@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, ArchiveRestore, ArrowLeft, ExternalLink, Plus, Save, Send, Sparkles, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, ExternalLink, Lock, Plus, Save, Send, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -90,11 +90,18 @@ export default function PenawaranEditor() {
   const subtotal = q.items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unitPrice) || 0), 0);
   const taxAmount = Math.round(subtotal * (Number(q.taxRate) || 0));
   const total = subtotal + taxAmount;
+  // Once a quote leaves draft the customer is looking at live fields on the
+  // public page — lock commercial editing (server enforces this with a 409).
+  const locked = q.status !== "draft";
   const set = (patch: Partial<Quote>) => setQ({ ...q, ...patch });
   const setItem = (i: number, patch: Partial<Item>) => set({ items: q.items.map((it, k) => (k === i ? { ...it, ...patch } : it)) });
 
   async function save(silent = false) {
     if (!q) return;
+    if (locked) {
+      if (!silent) toast.error("Penawaran terkunci — duplikat sebagai draf baru untuk mengubah.");
+      return;
+    }
     setSaving(true);
     try {
       const r = await fetch(`/api/quotes/${id}`, {
@@ -106,6 +113,11 @@ export default function PenawaranEditor() {
           customerName: q.customerName, customerEmail: q.customerEmail, customerCompany: q.customerCompany,
         }),
       });
+      if (r.status === 409) {
+        const j = await r.json().catch(() => null);
+        if (!silent) toast.error(j?.error ?? "Penawaran terkunci");
+        return;
+      }
       if (!r.ok) throw new Error();
       const updated = (await r.json()).data as Quote;
       setQ(updated);
@@ -143,7 +155,9 @@ export default function PenawaranEditor() {
     if (!mailboxId) return toast.error("Pilih mailbox pengirim");
     setSending(true);
     try {
-      await save(true);
+      // Skip the pre-save flush when locked (nothing editable to persist, and
+      // the PATCH would 409). A fresh draft still saves before sending.
+      if (!locked) await save(true);
       const r = await fetch(`/api/quotes/${id}/send`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sendingAccountId: mailboxId, toEmail: q.customerEmail }),
@@ -190,6 +204,17 @@ export default function PenawaranEditor() {
           <ArrowLeft className="h-4 w-4" /> Semua penawaran
         </Link>
 
+        {locked && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Penawaran sudah <strong>{meta.label.toLowerCase()}</strong> dan
+              terkunci — pelanggan melihat angka di halaman publik secara
+              langsung. Untuk mengubah, duplikat sebagai draf baru.
+            </span>
+          </div>
+        )}
+
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Left: items + details */}
           <div className="space-y-4 lg:col-span-2">
@@ -197,22 +222,22 @@ export default function PenawaranEditor() {
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Item penawaran</h3>
-                  <Button size="sm" variant="secondary" onClick={compose} disabled={composing}>
+                  <Button size="sm" variant="secondary" onClick={compose} disabled={composing || locked}>
                     <Sparkles className="h-4 w-4" /> {composing ? "Menyusun…" : "Susun ulang dgn AI"}
                   </Button>
                 </div>
                 <div className="space-y-2">
                   {q.items.map((it, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <Input className="flex-1" value={it.desc} onChange={(e) => setItem(i, { desc: e.target.value })} placeholder="Deskripsi" />
-                      <Input className="w-16" type="number" value={it.qty} onChange={(e) => setItem(i, { qty: Number(e.target.value) })} />
-                      <Input className="w-32" type="number" value={it.unitPrice} onChange={(e) => setItem(i, { unitPrice: Number(e.target.value) })} placeholder="Harga" />
-                      <button onClick={() => set({ items: q.items.filter((_, k) => k !== i) })} className="text-muted-foreground hover:text-rose-600">
+                      <Input className="flex-1" disabled={locked} value={it.desc} onChange={(e) => setItem(i, { desc: e.target.value })} placeholder="Deskripsi" />
+                      <Input className="w-16" disabled={locked} type="number" value={it.qty} onChange={(e) => setItem(i, { qty: Number(e.target.value) })} />
+                      <Input className="w-32" disabled={locked} type="number" value={it.unitPrice} onChange={(e) => setItem(i, { unitPrice: Number(e.target.value) })} placeholder="Harga" />
+                      <button onClick={() => set({ items: q.items.filter((_, k) => k !== i) })} disabled={locked} className="text-muted-foreground hover:text-rose-600 disabled:opacity-40 disabled:hover:text-muted-foreground">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
-                  <Button size="sm" variant="outline" onClick={() => set({ items: [...q.items, { desc: "", qty: 1, unitPrice: 0 }] })}>
+                  <Button size="sm" variant="outline" disabled={locked} onClick={() => set({ items: [...q.items, { desc: "", qty: 1, unitPrice: 0 }] })}>
                     <Plus className="h-4 w-4" /> Tambah item
                   </Button>
                 </div>
@@ -222,7 +247,7 @@ export default function PenawaranEditor() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">PPN ({Math.round((q.taxRate || 0) * 100)}%)</span>
                     <div className="flex items-center gap-2">
-                      <Input className="w-20" type="number" step="0.01" value={q.taxRate} onChange={(e) => set({ taxRate: Number(e.target.value) })} />
+                      <Input className="w-20" disabled={locked} type="number" step="0.01" value={q.taxRate} onChange={(e) => set({ taxRate: Number(e.target.value) })} />
                       <span className="w-28 text-right">{fmtMoney(taxAmount, q.currency)}</span>
                     </div>
                   </div>
@@ -234,20 +259,22 @@ export default function PenawaranEditor() {
             <Card>
               <CardContent className="space-y-3 p-4">
                 <h3 className="font-semibold">Email pengantar</h3>
-                <Input value={q.coverSubject ?? ""} onChange={(e) => set({ coverSubject: e.target.value })} placeholder="Subjek email" />
+                <Input disabled={locked} value={q.coverSubject ?? ""} onChange={(e) => set({ coverSubject: e.target.value })} placeholder="Subjek email" />
                 <textarea
                   value={q.coverBody ?? ""}
                   onChange={(e) => set({ coverBody: e.target.value })}
+                  disabled={locked}
                   rows={5}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm disabled:opacity-60"
                   placeholder="Halo Pak Budi, berikut penawaran kami…"
                 />
                 <h3 className="pt-2 font-semibold">Syarat & ketentuan</h3>
                 <textarea
                   value={q.notes ?? ""}
                   onChange={(e) => set({ notes: e.target.value })}
+                  disabled={locked}
                   rows={3}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm disabled:opacity-60"
                   placeholder="Berlaku 14 hari, pembayaran 50% di muka…"
                 />
               </CardContent>
@@ -259,10 +286,10 @@ export default function PenawaranEditor() {
             <Card>
               <CardContent className="space-y-3 p-4">
                 <h3 className="font-semibold">Pelanggan</h3>
-                <div className="space-y-1.5"><Label>Nama</Label><Input value={q.customerName ?? ""} onChange={(e) => set({ customerName: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Perusahaan</Label><Input value={q.customerCompany ?? ""} onChange={(e) => set({ customerCompany: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={q.customerEmail ?? ""} onChange={(e) => set({ customerEmail: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Berlaku s/d</Label><Input type="date" value={q.validUntil ?? ""} onChange={(e) => set({ validUntil: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Nama</Label><Input disabled={locked} value={q.customerName ?? ""} onChange={(e) => set({ customerName: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Perusahaan</Label><Input disabled={locked} value={q.customerCompany ?? ""} onChange={(e) => set({ customerCompany: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Email</Label><Input disabled={locked} type="email" value={q.customerEmail ?? ""} onChange={(e) => set({ customerEmail: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Berlaku s/d</Label><Input disabled={locked} type="date" value={q.validUntil ?? ""} onChange={(e) => set({ validUntil: e.target.value })} /></div>
               </CardContent>
             </Card>
 
@@ -282,7 +309,7 @@ export default function PenawaranEditor() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => save()} disabled={saving}>
+                  <Button variant="outline" className="flex-1" onClick={() => save()} disabled={saving || locked}>
                     <Save className="h-4 w-4" /> {saving ? "…" : "Simpan"}
                   </Button>
                   <Button className="flex-1" onClick={send} disabled={sending}>
