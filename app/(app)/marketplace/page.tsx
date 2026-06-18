@@ -43,17 +43,9 @@ function ChannelBadges({ channels }: { channels: string[] }) {
     </div>
   );
 }
-function ConsentBadge({ s }: { s: string | null }) {
-  if (!s || s === "unknown") return <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">consent: unknown</span>;
-  if (s === "opted_in") return <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">opt-in</span>;
-  return <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700">{s}</span>;
-}
 
 export default function MarketplacePage() {
   const qc = useQueryClient();
-  const [pfilter, setPfilter] = useState(""); // jabatan/title
-  const [ploc, setPloc] = useState(""); // lokasi
-  const [plead, setPlead] = useState("all");
   const [selCos, setSelCos] = useState<Set<string>>(new Set());
   // Bundle builder (company-only) — people can't be sold.
   const [bundleName, setBundleName] = useState("");
