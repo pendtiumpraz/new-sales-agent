@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -110,6 +110,15 @@ function CompliancePageInner() {
   const { data: dpia, isLoading: dpiaLoading } = useDpia();
   const { data: vendors, isLoading: vendorsLoading } = useVendors();
 
+  // Consent breakdown computed from the REAL log, not hardcoded (the headline
+  // used to claim 78/18/4% while the audit log itself told a different story).
+  const consentPct = useMemo(() => {
+    const log = consentLog ?? [];
+    const n = log.length;
+    const pct = (s: string) => (n > 0 ? Math.round((log.filter((c) => c.status === s).length / n) * 100) : 0);
+    return { consented: pct("consented"), pending: pct("pending"), none: pct("none") };
+  }, [consentLog]);
+
   return (
     <div>
       <PageHeader
@@ -180,9 +189,9 @@ function CompliancePageInner() {
               </Card>
 
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <MiniStat label="Kontak disetujui" value="78%" tone="success" />
-                <MiniStat label="Menunggu persetujuan" value="18%" tone="warning" />
-                <MiniStat label="Tanpa izin" value="4%" tone="danger" />
+                <MiniStat label="Kontak disetujui" value={`${consentPct.consented}%`} tone="success" />
+                <MiniStat label="Menunggu persetujuan" value={`${consentPct.pending}%`} tone="warning" />
+                <MiniStat label="Tanpa izin" value={`${consentPct.none}%`} tone="danger" />
                 <MiniStat label="Permintaan hapus" value="3" tone="default" />
                 <MiniStat label="DPIA aktif" value={`${dpia?.length ?? 0}`} tone="default" />
                 <MiniStat label="Vendor dinilai" value={`${vendors?.length ?? 0}`} tone="default" />

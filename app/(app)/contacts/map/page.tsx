@@ -126,7 +126,7 @@ export default function LeadsMapPage() {
             </div>
             <div className="rounded-lg border">
               <div className="border-b px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {total} orang · {points.length} provinsi
+                {total} orang terpetakan · {points.length} provinsi
                 {q.data?.unknown ? ` · ${q.data.unknown} tanpa lokasi` : ""}
               </div>
               <ul className="max-h-[412px] divide-y overflow-auto">

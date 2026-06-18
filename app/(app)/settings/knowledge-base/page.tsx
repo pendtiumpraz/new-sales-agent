@@ -49,7 +49,9 @@ function KnowledgeBasePageInner() {
       {
         icon: Database,
         label: "Sumber aktif",
-        value: kb.sources.filter((s) => s.active).length,
+        // RAG only retrieves from active AND indexed sources — count what's
+        // actually usable, not just toggled-on-but-not-yet-indexed.
+        value: kb.sources.filter((s) => s.active && s.status === "indexed").length,
         tone: "tertiary" as const,
       },
       {
