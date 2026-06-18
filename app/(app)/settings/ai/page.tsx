@@ -119,7 +119,7 @@ export default function AiSettingsPage() {
     <div>
       <PageHeader
         title="AI"
-        description="Pilih 1 model aktif per workspace, kelola API key sendiri (BYOK), dan pantau pemakaian (doc 24)."
+        description="Pilih 1 model aktif untuk seluruh tim (berlaku per tenant — semua workspace memakai model yang sama), kelola API key sendiri (BYOK), dan pantau pemakaian (doc 24)."
       />
       <div className="space-y-4 p-6">
         {/* Usage rollup */}
