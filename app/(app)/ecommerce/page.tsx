@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Plug, ShoppingCart } from "lucide-react";
+import { Check, Plug, RefreshCw, ShoppingCart } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
@@ -39,6 +39,12 @@ const STATUS: Record<Order["status"], { label: string; variant: "success" | "war
   diterima: { label: "Diterima", variant: "success" },
   dibatalkan: { label: "Dibatalkan", variant: "destructive" },
 };
+
+// Abandoned carts are stored as "dibatalkan" in the demo data but are a DIFFERENT
+// real-world state from a cancelled order: the cart was never checked out, so it
+// can be RECOVERED ("keranjang masih kami simpan"). A genuinely cancelled order
+// gets a re-offer instead. We branch on the `abandoned` flag to keep the two honest.
+const CART_STATUS = { label: "Keranjang ditinggalkan", variant: "warning" as const };
 
 const CONNECTED: Record<Marketplace, boolean> = {
   tokopedia: true,
@@ -101,7 +107,7 @@ export default function EcommercePage() {
                         variant="outline"
                         onClick={() => {
                           setConnState((s) => ({ ...s, [mp]: true }));
-                          toast.success(`${meta.label} terhubung.`);
+                          toast.info(`${meta.label} terhubung (mode demo — koneksi belum disimpan, akan ter-reset saat reload).`);
                         }}
                       >
                         <Plug className="h-3.5 w-3.5" />
@@ -188,24 +194,25 @@ export default function EcommercePage() {
                         {formatDayMonthID(o.date)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={STATUS[o.status].variant}>
-                          {STATUS[o.status].label}
+                        <Badge variant={o.abandoned ? CART_STATUS.variant : STATUS[o.status].variant}>
+                          {o.abandoned ? CART_STATUS.label : STATUS[o.status].label}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {o.abandoned && !recovered.has(o.id) ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setRecover(o)}
-                          >
+                        {recovered.has(o.id) ? (
+                          <Badge variant="success" className="gap-1">
+                            <Check className="h-3 w-3" /> {o.abandoned ? "Dipulihkan" : "Ditawarkan ulang"}
+                          </Badge>
+                        ) : o.abandoned ? (
+                          <Button size="sm" variant="outline" onClick={() => setRecover(o)}>
                             <ShoppingCart className="h-3.5 w-3.5" />
                             Pulihkan
                           </Button>
-                        ) : o.abandoned ? (
-                          <Badge variant="success" className="gap-1">
-                            <Check className="h-3 w-3" /> Dipulihkan
-                          </Badge>
+                        ) : o.status === "dibatalkan" ? (
+                          <Button size="sm" variant="outline" onClick={() => setRecover(o)}>
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            Tawarkan ulang
+                          </Button>
                         ) : null}
                       </TableCell>
                     </TableRow>
@@ -222,13 +229,13 @@ export default function EcommercePage() {
         </Card>
       </div>
 
-      {/* Cart recovery WA draft */}
+      {/* WA draft — cart recovery (abandoned) OR re-offer (cancelled) */}
       <Dialog open={!!recover} onOpenChange={(o) => !o && setRecover(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ChannelDot channel="whatsapp" size={10} />
-              Pulihkan keranjang via WhatsApp
+              {recover?.abandoned ? "Pulihkan keranjang via WhatsApp" : "Tawarkan ulang via WhatsApp"}
             </DialogTitle>
             <DialogDescription>
               Draf pesan otomatis untuk {recover?.customer}. Mode demo — pesan
@@ -237,10 +244,21 @@ export default function EcommercePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg p-3 text-sm leading-relaxed" style={{ backgroundColor: "#D9FDD3" }}>
-            Halo {recover?.customer} 👋 Keranjang Anda berisi{" "}
-            <strong>{recover?.product}</strong> masih kami simpan. Selesaikan
-            pesanan sekarang dan dapatkan gratis ongkir hari ini! Balas pesan ini
-            untuk bantuan ya 🙏
+            {recover?.abandoned ? (
+              <>
+                Halo {recover?.customer} 👋 Keranjang Anda berisi{" "}
+                <strong>{recover?.product}</strong> masih kami simpan. Selesaikan
+                pesanan sekarang dan dapatkan gratis ongkir hari ini! Balas pesan
+                ini untuk bantuan ya 🙏
+              </>
+            ) : (
+              <>
+                Halo {recover?.customer} 👋 Pesanan{" "}
+                <strong>{recover?.product}</strong> sebelumnya dibatalkan. Bila
+                masih dibutuhkan, kami bisa bantu proses ulang dengan harga
+                spesial hari ini. Balas pesan ini ya 🙏
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRecover(null)}>
