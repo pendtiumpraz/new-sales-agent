@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { sendingAccountTable } from "@/lib/db/schema";
+import { sendJobTable, sendingAccountTable } from "@/lib/db/schema";
 import { encryptSecret } from "@/lib/ai/crypto";
+import { jakartaDayStart } from "@/lib/mail/send";
 import { mailProviderConfigured } from "@/lib/mail/oauth";
 import { espConfigured } from "@/lib/mail/esp";
 
@@ -37,12 +38,29 @@ export async function GET() {
           fromName: sendingAccountTable.fromName,
           status: sendingAccountTable.status,
           dailyLimit: sendingAccountTable.dailyLimit,
-          sentToday: sendingAccountTable.sentToday,
         })
         .from(sendingAccountTable)
         .where(eq(sendingAccountTable.tenantId, ctx.tenantId)), // RLS is off — scope explicitly
     );
-    return NextResponse.json({ data: rows, oauth: oauthFlags(), source: "db" });
+    // "Sent today" is derived from the send log (Asia/Jakarta day) so the UI
+    // matches the cap that processSendJobs actually enforces — not a lifetime
+    // counter that never resets.
+    const counts = await withTenant(ctx, (tx) =>
+      tx
+        .select({ accId: sendJobTable.sendingAccountId, n: sql<number>`count(*)::int` })
+        .from(sendJobTable)
+        .where(
+          and(
+            eq(sendJobTable.tenantId, ctx.tenantId),
+            eq(sendJobTable.status, "sent"),
+            gte(sendJobTable.sentAt, jakartaDayStart()),
+          ),
+        )
+        .groupBy(sendJobTable.sendingAccountId),
+    );
+    const byAcc = new Map(counts.map((c) => [c.accId, c.n]));
+    const data = rows.map((r) => ({ ...r, sentToday: byAcc.get(r.id) ?? 0 }));
+    return NextResponse.json({ data, oauth: oauthFlags(), source: "db" });
   } catch (err) {
     console.error("[api/tenant/mailboxes GET]", err);
     return NextResponse.json({ data: [], oauth: oauthFlags(), source: "error" });
