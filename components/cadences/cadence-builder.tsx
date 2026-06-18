@@ -22,6 +22,7 @@ import {
   Clock,
   GripVertical,
   Plus,
+  RefreshCw,
   Sparkles,
   Trash2,
   Wand2,
@@ -575,16 +576,13 @@ function AiAssistDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
-  const [generating, setGenerating] = useState(false);
   const drafts = AI_DRAFTS[channel] ?? AI_DRAFTS.whatsapp;
   const draft = drafts[idx % drafts.length];
 
-  function regenerate() {
-    setGenerating(true);
-    setTimeout(() => {
-      setIdx((i) => i + 1);
-      setGenerating(false);
-    }, 600);
+  // Honest template picker — cycle the curated templates. (Real personalization
+  // happens at SEND time in the cadence processor via the active AI model.)
+  function nextTemplate() {
+    setIdx((i) => i + 1);
   }
 
   return (
@@ -605,40 +603,26 @@ function AiAssistDialog({
             Template — {channelMeta(channel).label}
           </DialogTitle>
           <DialogDescription>
-            Draf disesuaikan dengan channel dan praktik terbaik sales Indonesia.
+            Template siap pakai per channel — praktik terbaik sales Indonesia.
+            AI mempersonalisasi tiap pesan saat cadence dijalankan.
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-[140px] whitespace-pre-line rounded-lg border bg-muted/40 p-4 text-sm leading-relaxed">
-          {generating ? (
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <span className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </span>
-              Menyusun draf...
-            </span>
-          ) : (
-            draft
-          )}
+          {draft}
         </div>
         <DialogFooter className="sm:justify-between">
-          <Button variant="ghost" onClick={regenerate} disabled={generating}>
-            <Sparkles className="h-4 w-4" />
-            Buat ulang
+          <Button variant="ghost" onClick={nextTemplate} disabled={drafts.length < 2}>
+            <RefreshCw className="h-4 w-4" />
+            Template lain ({(idx % drafts.length) + 1}/{drafts.length})
           </Button>
           <Button
             onClick={() => {
               onApply(draft);
               setOpen(false);
-              toast.success("Draf AI diterapkan ke langkah.");
+              toast.success("Template diterapkan ke langkah.");
             }}
           >
-            Gunakan draf ini
+            Gunakan template ini
           </Button>
         </DialogFooter>
       </DialogContent>
