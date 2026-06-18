@@ -7,9 +7,8 @@ import { publishMany } from "@/lib/marketplace/store";
 
 export const runtime = "nodejs";
 
-// POST /api/marketplace/publish (doc 41 §6) — list company/person(s) to the pool.
-// Single: { entityType, entityId } · Bulk: { entityType, entityIds[], category }.
-// Person opted-out (explicit or cross-pool) is skipped; consent shown on listing.
+// POST /api/marketplace/publish (doc 41 §6) — list COMPANIES to the pool.
+// People may NOT be sold (privacy / UU PDP) — only companies are listable.
 export async function POST(req: Request) {
   const guard = await requirePermission("data.write");
   if ("error" in guard) return guard.error;
@@ -23,12 +22,16 @@ export async function POST(req: Request) {
     category?: string;
     priceIdr?: number;
   };
+  // Hard block: only companies. People can never be sold.
+  if (b.entityType === "person") {
+    return NextResponse.json({ error: "Data orang tidak boleh dijual — hanya perusahaan." }, { status: 400 });
+  }
   const ids = b.entityIds?.length ? b.entityIds : b.entityId ? [b.entityId] : [];
-  if ((b.entityType !== "company" && b.entityType !== "person") || ids.length === 0) {
-    return NextResponse.json({ error: "entityType (company|person) + entityId/entityIds wajib" }, { status: 400 });
+  if (ids.length === 0) {
+    return NextResponse.json({ error: "Pilih minimal satu perusahaan." }, { status: 400 });
   }
   try {
-    const result = await publishMany(guard.ctx, { entityType: b.entityType, entityIds: ids, category: b.category, priceIdr: b.priceIdr });
+    const result = await publishMany(guard.ctx, { entityType: "company", entityIds: ids, category: b.category, priceIdr: b.priceIdr });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("[api/marketplace/publish]", err);

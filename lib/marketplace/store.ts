@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { marketplaceListingTable, companyTable, personTable, contactPointTable } from "@/lib/db/schema";
@@ -154,6 +154,68 @@ export async function publishMany(ctx: TenantContext, input: PublishInput): Prom
   return out;
 }
 
+// Marketplace bundle of COMPANIES (doc 41 §6). People can't be sold — bundles are
+// company-only. One listing references N companies; pricing is per_bundle (total) or
+// per_company (unit × size). Multi-bundle = call this many times with different names.
+export interface PublishBundleInput {
+  name: string;
+  industry?: string | null;
+  companyIds: string[];
+  pricingMode: "per_bundle" | "per_company";
+  unitPrice: number;
+}
+export async function publishBundle(ctx: TenantContext, input: PublishBundleInput): Promise<{ bundleId: string; count: number }> {
+  const T = ctx.tenantId;
+  const wanted = [...new Set(input.companyIds)].filter(Boolean);
+  if (!wanted.length) throw new MarketplaceError("empty", "Pilih minimal satu perusahaan untuk bundle");
+  // Keep only companies that actually belong to the seller tenant.
+  const owned = await db.select({ id: companyTable.id }).from(companyTable).where(and(eq(companyTable.tenantId, T), inArray(companyTable.id, wanted)));
+  const companyIds = owned.map((c) => c.id);
+  if (!companyIds.length) throw new MarketplaceError("empty", "Tidak ada perusahaan valid milik Anda");
+  const cps = await db
+    .select({ channel: contactPointTable.channel })
+    .from(contactPointTable)
+    .where(and(eq(contactPointTable.tenantId, T), eq(contactPointTable.ownerType, "company"), inArray(contactPointTable.ownerId, companyIds)));
+  const channels = [...new Set(cps.map((c) => c.channel))];
+  const bundleId = stableId("mkt", `${T}:bundle:${input.name.trim().toLowerCase()}`);
+  const summary = `${companyIds.length} perusahaan${input.industry ? ` · ${input.industry}` : ""}`;
+  await db
+    .insert(marketplaceListingTable)
+    .values({
+      id: bundleId,
+      sellerTenantId: T,
+      entityType: "bundle",
+      entityId: bundleId,
+      title: input.name.trim(),
+      summary,
+      category: input.industry?.trim() || null,
+      channels,
+      priceIdr: Math.max(0, Math.round(input.unitPrice || 0)),
+      bundleItems: companyIds,
+      pricingMode: input.pricingMode,
+      consentStatus: null,
+      status: "active",
+    })
+    .onConflictDoUpdate({
+      target: marketplaceListingTable.id,
+      set: { title: input.name.trim(), summary, category: input.industry?.trim() || null, channels, priceIdr: Math.max(0, Math.round(input.unitPrice || 0)), bundleItems: companyIds, pricingMode: input.pricingMode, status: "active" },
+    });
+  return { bundleId, count: companyIds.length };
+}
+
+// Copy ONE company (+ contact points) seller→buyer. Returns its name, or null if gone.
+async function copyCompany(S: string, B: string, companyId: string): Promise<string | null> {
+  const [co] = await db.select().from(companyTable).where(and(eq(companyTable.id, companyId), eq(companyTable.tenantId, S))).limit(1);
+  if (!co) return null;
+  const newId = stableId("co", companyDedupKey({ tenantId: B, name: co.name, domain: co.domain }));
+  await db
+    .insert(companyTable)
+    .values({ ...co, id: newId, tenantId: B, source: "marketplace", updatedAt: new Date() })
+    .onConflictDoUpdate({ target: companyTable.id, set: { name: co.name, updatedAt: new Date() } });
+  await copyContactPoints(S, B, "company", companyId, newId);
+  return co.name;
+}
+
 // Copy the listed entity (+ its contact points) into the buyer's tenant.
 export async function acquire(buyer: TenantContext, listingId: string): Promise<{ entityType: string; name: string }> {
   const [listing] = await db.select().from(marketplaceListingTable).where(eq(marketplaceListingTable.id, listingId)).limit(1);
@@ -162,16 +224,20 @@ export async function acquire(buyer: TenantContext, listingId: string): Promise<
   const B = buyer.tenantId;
   const S = listing.sellerTenantId;
 
+  if (listing.entityType === "bundle") {
+    const ids = (listing.bundleItems ?? []) as string[];
+    let count = 0;
+    for (const cid of ids) {
+      if (await copyCompany(S, B, cid)) count++;
+    }
+    if (!count) throw new MarketplaceError("gone", "Bundle kosong / sumber sudah tidak ada");
+    return { entityType: "bundle", name: `${listing.title} (${count} perusahaan)` };
+  }
+
   if (listing.entityType === "company") {
-    const [co] = await db.select().from(companyTable).where(eq(companyTable.id, listing.entityId)).limit(1);
-    if (!co) throw new MarketplaceError("gone", "Sumber data sudah tidak ada");
-    const newId = stableId("co", companyDedupKey({ tenantId: B, name: co.name, domain: co.domain }));
-    await db
-      .insert(companyTable)
-      .values({ ...co, id: newId, tenantId: B, source: "marketplace", updatedAt: new Date() })
-      .onConflictDoUpdate({ target: companyTable.id, set: { name: co.name, updatedAt: new Date() } });
-    await copyContactPoints(S, B, "company", listing.entityId, newId);
-    return { entityType: "company", name: co.name };
+    const name = await copyCompany(S, B, listing.entityId);
+    if (!name) throw new MarketplaceError("gone", "Sumber data sudah tidak ada");
+    return { entityType: "company", name };
   } else {
     const [pe] = await db.select().from(personTable).where(eq(personTable.id, listing.entityId)).limit(1);
     if (!pe) throw new MarketplaceError("gone", "Sumber data sudah tidak ada");

@@ -557,7 +557,9 @@ export const marketplaceListingTable = pgTable("marketplace_listing", {
   summary: text("summary"),
   category: text("category"),                        // jabatan/bidang, e.g. "AI Engineer" (doc 41 §6)
   channels: jsonb("channels").$type<string[]>().notNull().default([]), // email|whatsapp|linkedin|instagram tersedia
-  priceIdr: real("price_idr").notNull().default(0),
+  priceIdr: real("price_idr").notNull().default(0),  // bundle: per_bundle=total, per_company=harga satuan
+  bundleItems: jsonb("bundle_items").$type<string[]>(), // company ids in a bundle (entity_type='bundle')
+  pricingMode: text("pricing_mode"),                 // per_bundle | per_company (bundles only)
   consentStatus: text("consent_status"),            // shown to buyer; opted_out blocked
   status: text("status").notNull().default("active"), // active | delisted
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

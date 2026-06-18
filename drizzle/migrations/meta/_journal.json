@@ -183,6 +183,13 @@
       "when": 1781653660824,
       "tag": "0025_add_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1781744694860,
+      "tag": "0026_marketplace_bundle",
+      "breakpoints": true
     }
   ]
 }

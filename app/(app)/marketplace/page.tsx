@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Building2, ShoppingCart, Store, Upload, User2 } from "lucide-react";
+import { Boxes, Building2, ShoppingCart, Store, Upload } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +17,18 @@ import { formatIDR } from "@/lib/utils/format-idr";
 
 interface Listing {
   id: string;
-  entityType: "company" | "person";
+  entityType: "company" | "person" | "bundle";
   title: string;
   summary: string | null;
   category: string | null;
   channels: string[];
   priceIdr: number;
   consentStatus: string | null;
+  status?: string;
+  bundleItems?: string[] | null;
+  pricingMode?: string | null;
 }
 interface CompanyRow { id: string; name: string; industry?: string | null; domain?: string | null }
-interface PersonRow { id: string; fullName: string; title?: string | null; leadType?: string | null; location?: string | null }
 
 const CHANNEL_LABEL: Record<string, string> = {
   email: "Email", whatsapp: "WA", phone: "Telp", linkedin: "LinkedIn", instagram: "IG", web: "Website", website: "Website",
@@ -52,9 +54,13 @@ export default function MarketplacePage() {
   const [pfilter, setPfilter] = useState(""); // jabatan/title
   const [ploc, setPloc] = useState(""); // lokasi
   const [plead, setPlead] = useState("all");
-  const [category, setCategory] = useState("");
-  const [selPeople, setSelPeople] = useState<Set<string>>(new Set());
   const [selCos, setSelCos] = useState<Set<string>>(new Set());
+  // Bundle builder (company-only) — people can't be sold.
+  const [bundleName, setBundleName] = useState("");
+  const [pricingMode, setPricingMode] = useState<"per_bundle" | "per_company">("per_bundle");
+  const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [cfilter, setCfilter] = useState("");
+  const [cindustry, setCindustry] = useState("all");
 
   const browseQ = useQuery({
     queryKey: ["marketplace-browse"],
@@ -68,7 +74,6 @@ export default function MarketplacePage() {
   // ["people"] as {data:[…]} objects — sharing the key crashes marketplace (.filter
   // on an object). Keep them separate (doc 41 §6).
   const companiesQ = useQuery({ queryKey: ["mp-companies"], queryFn: async () => ((await (await fetch("/api/db/companies")).json()).data ?? []) as CompanyRow[] });
-  const peopleQ = useQuery({ queryKey: ["mp-people"], queryFn: async () => ((await (await fetch("/api/db/people")).json()).data ?? []) as PersonRow[] });
 
   const acquire = useMutation({
     mutationFn: async (listingId: string) => {
@@ -83,19 +88,26 @@ export default function MarketplacePage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal"),
   });
-  const publish = useMutation({
-    mutationFn: async (v: { entityType: "company" | "person"; entityIds: string[]; category?: string }) => {
-      const r = await fetch("/api/marketplace/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(v) });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "gagal");
-      return (await r.json()) as { published: number; skipped: { id: string; reason: string }[] };
+  // Create a COMPANY bundle (multi-bundle = run repeatedly). People can't be sold.
+  const bundleMut = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/marketplace/bundle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: bundleName.trim(), industry: cindustry === "all" ? null : cindustry, companyIds: [...selCos], pricingMode, unitPrice }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+      return j as { count: number };
     },
     onSuccess: (d) => {
-      const skip = d.skipped.length ? ` · ${d.skipped.length} dilewati (${[...new Set(d.skipped.map((s) => s.reason))].join(", ")})` : "";
-      toast.success(`${d.published} dipublikasikan${skip}`);
-      setSelPeople(new Set()); setSelCos(new Set());
+      toast.success(`Bundle "${bundleName.trim()}" dibuat — ${d.count} perusahaan`);
+      setSelCos(new Set());
+      setBundleName("");
       qc.invalidateQueries({ queryKey: ["marketplace-browse"] });
+      qc.invalidateQueries({ queryKey: ["marketplace-mine"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat bundle"),
   });
 
   // doc audit #6 — your own listings + delist/relist (was a dead-end: no unpublish).
@@ -119,16 +131,18 @@ export default function MarketplacePage() {
     onError: () => toast.error("Gagal (cek hak akses & DB)"),
   });
 
-  const filteredPeople = useMemo(() => {
-    const f = pfilter.trim().toLowerCase();
-    const loc = ploc.trim().toLowerCase();
-    return (peopleQ.data ?? []).filter((p) => {
-      if (plead !== "all" && (p.leadType ?? "") !== plead) return false;
-      if (f && !`${p.title ?? ""} ${p.fullName}`.toLowerCase().includes(f)) return false;
-      if (loc && !(p.location ?? "").toLowerCase().includes(loc)) return false;
+  const coIndustries = useMemo(
+    () => [...new Set((companiesQ.data ?? []).map((c) => c.industry).filter(Boolean) as string[])].sort(),
+    [companiesQ.data],
+  );
+  const filteredCompanies = useMemo(() => {
+    const f = cfilter.trim().toLowerCase();
+    return (companiesQ.data ?? []).filter((c) => {
+      if (cindustry !== "all" && (c.industry ?? "") !== cindustry) return false;
+      if (f && !`${c.name} ${c.domain ?? ""} ${c.industry ?? ""}`.toLowerCase().includes(f)) return false;
       return true;
     });
-  }, [peopleQ.data, pfilter, ploc, plead]);
+  }, [companiesQ.data, cfilter, cindustry]);
 
   if (browseQ.isLoading) {
     return (
@@ -147,7 +161,8 @@ export default function MarketplacePage() {
       </div>
     );
   }
-  const listings = browseQ.data?.data ?? [];
+  // People can't be sold — only companies + bundles appear in the pool.
+  const listings = (browseQ.data?.data ?? []).filter((l) => l.entityType !== "person");
   const toggle = (set: Set<string>, id: string, setter: (s: Set<string>) => void) => {
     const n = new Set(set);
     if (n.has(id)) n.delete(id);
@@ -177,20 +192,23 @@ export default function MarketplacePage() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
                         <Badge variant="muted" className="gap-1">
-                          {l.entityType === "company" ? <Building2 className="h-3 w-3" /> : <User2 className="h-3 w-3" />}
-                          {l.entityType === "company" ? "Perusahaan" : "Orang"}
+                          {l.entityType === "bundle" ? <Boxes className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
+                          {l.entityType === "bundle" ? `Bundle · ${(l as { bundleItems?: string[] }).bundleItems?.length ?? 0} PT` : "Perusahaan"}
                         </Badge>
-                        <span className="text-xs font-semibold">{l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}</span>
+                        <span className="text-xs font-semibold">
+                          {l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}
+                          {l.entityType === "bundle" && (l as { pricingMode?: string }).pricingMode === "per_company" ? " /PT" : ""}
+                        </span>
                       </div>
                       <p className="mt-2 font-semibold">{l.title}</p>
                       {l.category && <p className="text-[11px] font-medium text-primary">{l.category}</p>}
                       {l.summary && <p className="text-xs text-muted-foreground">{l.summary}</p>}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <ChannelBadges channels={l.channels} />
-                        {l.entityType === "person" && <ConsentBadge s={l.consentStatus} />}
                       </div>
                       <Button size="sm" className="mt-3 w-full" onClick={() => acquire.mutate(l.id)} disabled={acquire.isPending}>
-                        <ShoppingCart className="h-3.5 w-3.5" /> Ambil ke kontak saya
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        {l.entityType === "bundle" ? `Ambil semua (${(l as { bundleItems?: string[] }).bundleItems?.length ?? 0} PT)` : "Ambil ke kontak saya"}
                       </Button>
                     </CardContent>
                   </Card>
@@ -199,62 +217,66 @@ export default function MarketplacePage() {
             )}
           </TabsContent>
 
-          {/* Publish — bulk by filter + category */}
-          <TabsContent value="publikasi" className="mt-5 space-y-5">
-            <div className="rounded-lg border bg-card p-3">
-              <p className="mb-2 text-xs text-muted-foreground">
-                Pilih kontak (centang) lalu publikasikan sekaligus. <b>Perusahaan</b>: nama+website+email+HP. <b>Orang</b>: sosmed+WA+email
-                (opted-out diblok). Harga default platform: <b>perusahaan Rp100</b> · <b>orang Rp50</b>.
-              </p>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Nama publikasi (mis. AI Engineer Jakarta)" className="h-9" />
+          {/* Buat bundle perusahaan — orang TIDAK boleh dijual */}
+          <TabsContent value="publikasi" className="mt-5 space-y-4">
+            <div className="rounded-lg border bg-card p-3 text-xs text-muted-foreground">
+              <b className="text-foreground">Hanya perusahaan</b> yang bisa dijual — data orang tidak boleh (UU PDP). Pilih perusahaan (filter bidang), beri nama bundle & harga, lalu publikasikan. Bisa buat <b className="text-foreground">banyak bundle</b> sekaligus — 50, 100, berapa pun.
             </div>
 
-            {/* People */}
+            {/* Bundle config */}
+            <div className="grid gap-3 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground">Nama bundle</label>
+                <Input value={bundleName} onChange={(e) => setBundleName(e.target.value)} placeholder="mis. Logistik Jabodetabek 100" className="h-9" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground">Mode harga</label>
+                <select value={pricingMode} onChange={(e) => setPricingMode(e.target.value as "per_bundle" | "per_company")} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                  <option value="per_bundle">Per bundle (harga total)</option>
+                  <option value="per_company">Per perusahaan (× jumlah)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground">{pricingMode === "per_company" ? "Harga / perusahaan (Rp)" : "Harga bundle (Rp)"}</label>
+                <Input type="number" min={0} value={unitPrice || ""} onChange={(e) => setUnitPrice(Number(e.target.value) || 0)} placeholder="0" className="h-9" />
+              </div>
+              <div className="flex items-end">
+                <Button className="w-full" disabled={!selCos.size || !bundleName.trim() || bundleMut.isPending} onClick={() => bundleMut.mutate()}>
+                  {bundleMut.isPending ? "Membuat…" : `Buat bundle (${selCos.size})`}
+                </Button>
+              </div>
+            </div>
+            {unitPrice > 0 && selCos.size > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                {pricingMode === "per_company" ? (
+                  <>Total: <b>{formatIDR(unitPrice * selCos.size)}</b> ({selCos.size} × {formatIDR(unitPrice)})</>
+                ) : (
+                  <>Harga bundle: <b>{formatIDR(unitPrice)}</b> untuk {selCos.size} perusahaan</>
+                )}
+              </p>
+            )}
+
+            {/* Company selector — filter bidang + pilih bebas */}
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Orang</p>
-                <Input value={pfilter} onChange={(e) => setPfilter(e.target.value)} placeholder="filter jabatan/nama…" className="h-7 w-40 text-xs" />
-                <Input value={ploc} onChange={(e) => setPloc(e.target.value)} placeholder="filter lokasi…" className="h-7 w-32 text-xs" />
-                <select value={plead} onChange={(e) => setPlead(e.target.value)} className="h-7 rounded-md border bg-background px-2 text-xs">
-                  <option value="all">Semua tipe</option>
-                  <option value="b2c_customer">B2C</option>
-                  <option value="b2b_partner">B2B</option>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Perusahaan</p>
+                <Input value={cfilter} onChange={(e) => setCfilter(e.target.value)} placeholder="cari nama/domain…" className="h-7 w-44 text-xs" />
+                <select value={cindustry} onChange={(e) => setCindustry(e.target.value)} className="h-7 rounded-md border bg-background px-2 text-xs">
+                  <option value="all">Semua bidang</option>
+                  {coIndustries.map((i) => (<option key={i} value={i}>{i}</option>))}
                 </select>
-                <span className="text-[11px] text-muted-foreground">{selPeople.size} dipilih dari {filteredPeople.length}</span>
-                <Button size="sm" className="ml-auto h-7 text-xs" disabled={!selPeople.size || publish.isPending}
-                  onClick={() => publish.mutate({ entityType: "person", entityIds: [...selPeople], category })}>
-                  Publikasikan {selPeople.size} orang
-                </Button>
+                <span className="text-[11px] text-muted-foreground">{selCos.size} dipilih dari {filteredCompanies.length}</span>
+                <button type="button" onClick={() => setSelCos(new Set(filteredCompanies.map((c) => c.id)))} className="text-[11px] text-primary hover:underline">Pilih semua ({filteredCompanies.length})</button>
+                <button type="button" onClick={() => setSelCos(new Set())} className="text-[11px] text-muted-foreground hover:underline">Kosongkan</button>
               </div>
               <div className="grid max-h-72 gap-1.5 overflow-auto sm:grid-cols-2">
-                {filteredPeople.slice(0, 200).map((p) => (
-                  <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-lg border p-2 text-sm hover:bg-accent">
-                    <input type="checkbox" checked={selPeople.has(p.id)} onChange={() => toggle(selPeople, p.id, setSelPeople)} />
-                    <span className="min-w-0 truncate">{p.fullName}<span className="text-muted-foreground"> · {p.title ?? "—"}</span></span>
-                  </label>
-                ))}
-                {filteredPeople.length === 0 && <p className="text-xs text-muted-foreground">Tidak ada orang cocok filter.</p>}
-              </div>
-            </div>
-
-            {/* Companies */}
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Perusahaan</p>
-                <span className="text-[11px] text-muted-foreground">{selCos.size} dipilih</span>
-                <Button size="sm" className="ml-auto h-7 text-xs" disabled={!selCos.size || publish.isPending}
-                  onClick={() => publish.mutate({ entityType: "company", entityIds: [...selCos], category })}>
-                  Publikasikan {selCos.size} perusahaan
-                </Button>
-              </div>
-              <div className="grid max-h-60 gap-1.5 overflow-auto sm:grid-cols-2">
-                {(companiesQ.data ?? []).slice(0, 200).map((c) => (
+                {filteredCompanies.slice(0, 500).map((c) => (
                   <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg border p-2 text-sm hover:bg-accent">
                     <input type="checkbox" checked={selCos.has(c.id)} onChange={() => toggle(selCos, c.id, setSelCos)} />
                     <span className="min-w-0 truncate">{c.name}<span className="text-muted-foreground"> · {c.industry ?? "—"}</span></span>
                   </label>
                 ))}
-                {(companiesQ.data?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground">Belum ada perusahaan.</p>}
+                {filteredCompanies.length === 0 && <p className="text-xs text-muted-foreground">Tidak ada perusahaan cocok filter.</p>}
               </div>
             </div>
           </TabsContent>
@@ -272,10 +294,10 @@ export default function MarketplacePage() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-2">
                           <Badge variant="muted" className="gap-1">
-                            {l.entityType === "company" ? <Building2 className="h-3 w-3" /> : <User2 className="h-3 w-3" />}
-                            {l.entityType === "company" ? "Perusahaan" : "Orang"}
+                            {l.entityType === "bundle" ? <Boxes className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
+                            {l.entityType === "bundle" ? `Bundle · ${(l.bundleItems?.length ?? 0)} PT` : l.entityType === "person" ? "Orang (lama)" : "Perusahaan"}
                           </Badge>
-                          <span className="text-xs font-semibold">{l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}</span>
+                          <span className="text-xs font-semibold">{l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}{l.entityType === "bundle" && l.pricingMode === "per_company" ? " /PT" : ""}</span>
                         </div>
                         <p className="mt-2 font-semibold">{l.title}</p>
                         {l.category && <p className="text-[11px] font-medium text-primary">{l.category}</p>}
