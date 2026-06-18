@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import {
+  matchesAudience,
   seedCandidates,
   seedFlows,
   seedKpi,
@@ -45,6 +46,9 @@ interface RetentionState {
 
   // Audience
   setAudienceFilter: (flowId: string, filter: RetentionAudienceFilter) => void;
+  /** Bulk-enroll every candidate matching `filter` into `flowId`. Returns void;
+   *  the caller computes the count via estimateAudience for its toast. */
+  enrollAudience: (flowId: string, filter: RetentionAudienceFilter) => void;
 
   reset: () => void;
 }
@@ -131,20 +135,42 @@ export const useRetentionStore = create<RetentionState>()(
     })),
 
   enrollCandidate: (contactId) =>
-    set((s) => ({
-      candidates: s.candidates.filter((c) => c.contactId !== contactId),
-      flows: s.flows.map((f) => {
-        const target = s.candidates.find((c) => c.contactId === contactId);
-        return target && target.recommendedFlowId === f.id
-          ? { ...f, enrolled: f.enrolled + 1, updatedAt: now() }
-          : f;
-      }),
-    })),
+    set((s) => {
+      const target = s.candidates.find((c) => c.contactId === contactId);
+      if (!target) return s;
+      return {
+        candidates: s.candidates.filter((c) => c.contactId !== contactId),
+        flows: s.flows.map((f) =>
+          target.recommendedFlowId === f.id
+            ? { ...f, enrolled: f.enrolled + 1, updatedAt: now() }
+            : f,
+        ),
+        // Keep the headline KPI reconciled with per-flow enrolment (they used
+        // to drift: enroll bumped the flow but never the dashboard count).
+        kpi: { ...s.kpi, activeCustomers: s.kpi.activeCustomers + 1 },
+      };
+    }),
 
   setAudienceFilter: (flowId, filter) =>
     set((s) => ({
       audienceFilters: { ...s.audienceFilters, [flowId]: filter },
     })),
+
+  enrollAudience: (flowId, filter) =>
+    set((s) => {
+      const matched = s.candidates.filter((c) => matchesAudience(c, filter));
+      if (matched.length === 0) return s;
+      const matchedIds = new Set(matched.map((c) => c.contactId));
+      return {
+        candidates: s.candidates.filter((c) => !matchedIds.has(c.contactId)),
+        flows: s.flows.map((f) =>
+          f.id === flowId
+            ? { ...f, enrolled: f.enrolled + matched.length, updatedAt: now() }
+            : f,
+        ),
+        kpi: { ...s.kpi, activeCustomers: s.kpi.activeCustomers + matched.length },
+      };
+    }),
 
   reset: () =>
     set(() => ({

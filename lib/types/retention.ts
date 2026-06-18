@@ -69,6 +69,10 @@ export interface RetentionCandidate {
   recommendedFlowName: string;
   /** Short AI rationale shown next to the recommendation. */
   aiNote: string;
+  /** Product segment (UMKM/Menengah/Korporat/Enterprise) — backs the filter. */
+  segment?: string;
+  /** Customer tags (VIP/Repeat/…) — backs the tag filter. */
+  tags?: string[];
 }
 
 /** KPI tiles on the retention dashboard. */

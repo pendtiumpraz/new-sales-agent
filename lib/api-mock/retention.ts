@@ -237,6 +237,9 @@ const AI_NOTES = [
   "Pengguna setia 6+ bulan — cocok untuk cross-sell modul WhatsApp API.",
 ];
 
+const CANDIDATE_SEGMENTS = ["UMKM", "Menengah", "Korporat", "Enterprise"];
+const CANDIDATE_TAGS = ["VIP", "Repeat", "Baru", "Korporat", "Referral"];
+
 /** Build deterministic candidates from shared contact mock data (read-only). */
 export function buildCandidates(): RetentionCandidate[] {
   // Pick a stable subset of contacts to act as "post-purchase" customers.
@@ -250,6 +253,15 @@ export function buildCandidates(): RetentionCandidate[] {
     ).toISOString();
     const flow = FLOW_POOL[i % FLOW_POOL.length];
     const aiNote = AI_NOTES[(h >> 5) % AI_NOTES.length];
+    // Deterministic segment + 1–2 tags so the segment/tag filter has real
+    // backing data (was preview-only, which made the estimate ignore them).
+    const segment = CANDIDATE_SEGMENTS[(h >> 8) % CANDIDATE_SEGMENTS.length];
+    const tags = Array.from(
+      new Set([
+        CANDIDATE_TAGS[(h >> 11) % CANDIDATE_TAGS.length],
+        CANDIDATE_TAGS[(h >> 14) % CANDIDATE_TAGS.length],
+      ]),
+    );
 
     return {
       contactId: c.id,
@@ -260,6 +272,8 @@ export function buildCandidates(): RetentionCandidate[] {
       recommendedFlowId: flow.id,
       recommendedFlowName: flow.name,
       aiNote,
+      segment,
+      tags,
     };
   });
 }
@@ -288,20 +302,31 @@ export function sampleAiMessage(flow: RetentionFlow, step?: RetentionStep): stri
 }
 
 /**
- * Real audience estimate for a flow's filter, computed from the candidate
- * pool (read-only). Only the day-since-interaction range has backing data on
- * candidates, so that's what narrows the count; segment/tags are preview-only
- * (no per-candidate segment/tag field in the demo dataset).
+ * Whether a candidate matches an audience filter: day-since-interaction range
+ * AND segment (unless "Semua") AND at least one selected tag (when any tags are
+ * selected). Single source of truth shared by the estimate and the enroll
+ * action so the count and what gets enrolled never disagree.
  */
+export function matchesAudience(
+  c: RetentionCandidate,
+  filter?: RetentionAudienceFilter,
+): boolean {
+  const min = filter?.minDaysSinceInteraction ?? 0;
+  const max = filter?.maxDaysSinceInteraction ?? Infinity;
+  if (c.daysSincePurchase < min || c.daysSincePurchase > max) return false;
+  const seg = filter?.segment;
+  if (seg && seg !== "Semua" && c.segment !== seg) return false;
+  const tags = filter?.tags ?? [];
+  if (tags.length > 0 && !tags.some((t) => c.tags?.includes(t))) return false;
+  return true;
+}
+
+/** Real audience estimate for a flow's filter, computed from the candidate pool. */
 export function estimateAudience(
   candidates: RetentionCandidate[],
   filter?: RetentionAudienceFilter,
 ): number {
-  const min = filter?.minDaysSinceInteraction ?? 0;
-  const max = filter?.maxDaysSinceInteraction ?? Infinity;
-  return candidates.filter(
-    (c) => c.daysSincePurchase >= min && c.daysSincePurchase <= max,
-  ).length;
+  return candidates.filter((c) => matchesAudience(c, filter)).length;
 }
 
 /** Counters used by the dashboard header. */

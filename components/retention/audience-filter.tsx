@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Filter, Save, Tag } from "lucide-react";
+import { Filter, Save, Tag, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { estimateAudience } from "@/lib/api-mock/retention";
@@ -38,6 +38,7 @@ export function AudienceFilter({
   const candidates = useRetentionStore((s) => s.candidates);
   const saved = useRetentionStore((s) => s.audienceFilters[flowId]);
   const setAudienceFilter = useRetentionStore((s) => s.setAudienceFilter);
+  const enrollAudience = useRetentionStore((s) => s.enrollAudience);
 
   const [segment, setSegment] = useState(
     saved?.segment ?? initialSegment ?? "Semua",
@@ -48,14 +49,22 @@ export function AudienceFilter({
     new Set(saved?.tags ?? ["Repeat"]),
   );
 
-  // Real count from the candidate pool — only the day-range has backing data.
+  const currentFilter = useMemo(
+    () => ({
+      segment,
+      minDaysSinceInteraction: minDays,
+      maxDaysSinceInteraction: maxDays,
+      tags: Array.from(tags),
+    }),
+    [segment, minDays, maxDays, tags],
+  );
+
+  // Real count from the candidate pool — now honors segment + tags + day-range
+  // (candidates carry backing segment/tag data), so the number matches what
+  // "Daftarkan audiens" actually enrolls.
   const estimate = useMemo(
-    () =>
-      estimateAudience(candidates, {
-        minDaysSinceInteraction: minDays,
-        maxDaysSinceInteraction: maxDays,
-      }),
-    [candidates, minDays, maxDays],
+    () => estimateAudience(candidates, currentFilter),
+    [candidates, currentFilter],
   );
 
   function toggleTag(tag: string) {
@@ -68,13 +77,20 @@ export function AudienceFilter({
   }
 
   function onSaveFilter() {
-    setAudienceFilter(flowId, {
-      segment,
-      minDaysSinceInteraction: minDays,
-      maxDaysSinceInteraction: maxDays,
-      tags: Array.from(tags),
-    });
+    setAudienceFilter(flowId, currentFilter);
     toast.success(`Filter audiens disimpan — ${estimate} pelanggan memenuhi.`);
+  }
+
+  function onEnrollAudience() {
+    if (estimate === 0) {
+      toast.error("Tidak ada kandidat yang cocok dengan filter ini.");
+      return;
+    }
+    setAudienceFilter(flowId, currentFilter);
+    enrollAudience(flowId, currentFilter);
+    toast.success(
+      `${estimate} pelanggan didaftarkan ke flow ini & keluar dari daftar kandidat.`,
+    );
   }
 
   return (
@@ -189,18 +205,25 @@ export function AudienceFilter({
             <p className="tnum text-lg font-semibold text-foreground">
               ~{estimate}{" "}
               <span className="text-xs font-normal text-muted-foreground">
-                kandidat dalam rentang hari
+                kandidat cocok
               </span>
             </p>
           </div>
-          <Button size="sm" onClick={onSaveFilter}>
-            <Save className="h-3.5 w-3.5" />
-            Simpan filter
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={onSaveFilter}>
+              <Save className="h-3.5 w-3.5" />
+              Simpan filter
+            </Button>
+            <Button size="sm" onClick={onEnrollAudience} disabled={estimate === 0}>
+              <UserPlus className="h-3.5 w-3.5" />
+              Daftarkan audiens
+            </Button>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Estimasi dihitung dari rentang hari sejak interaksi pada data kandidat.
-          Segmen & tag bersifat pratinjau (data demo belum punya atribut ini).
+          Filter menyaring kandidat berdasarkan segmen, tag, dan rentang hari
+          sejak interaksi. “Daftarkan audiens” mendaftarkan semua kandidat yang
+          cocok ke flow ini dan mengeluarkannya dari daftar kandidat.
         </p>
       </CardContent>
     </Card>
