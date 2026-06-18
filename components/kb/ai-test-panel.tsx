@@ -85,6 +85,8 @@ interface LiveResponse {
   answer: string;
   sources: string[];
   source: ResponseSource;
+  /** Resolved model that answered (from /api/kb-test). */
+  model?: string;
 }
 
 export function AiTestPanel() {
@@ -342,11 +344,11 @@ export function AiTestPanel() {
               htmlFor="kb-test-live-toggle"
               className="cursor-pointer text-xs font-medium"
             >
-              Live (Deepseek)
+              Live (AI aktif)
             </Label>
             <span className="text-[11px] text-muted-foreground">
               {liveMode
-                ? "Memakai Deepseek-flash via Gateway"
+                ? "Memakai model aktif tenant (Pengaturan → AI)"
                 : "Memakai heuristik KB offline"}
             </span>
           </div>
@@ -439,7 +441,7 @@ export function AiTestPanel() {
               </div>
               {liveResponse.source === "real" ? (
                 <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Live · Deepseek-flash
+                  Live · {liveResponse.model ?? "model aktif"}
                 </Badge>
               ) : (
                 <Badge variant="muted">Demo · KB heuristic</Badge>
@@ -488,7 +490,7 @@ export function AiTestPanel() {
               <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Database className="h-3 w-3" />
                 {liveResponse.source === "real"
-                  ? "Dirangkai oleh Deepseek dari "
+                  ? `Dirangkai oleh ${liveResponse.model ?? "model aktif"} dari `
                   : "RAG: jawaban dirangkai dari "}
                 <span className="font-medium text-foreground">
                   {liveSources.length}

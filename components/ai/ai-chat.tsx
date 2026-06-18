@@ -509,7 +509,7 @@ function SourceBadge({
         }
         className={cn("h-1.5 w-1.5 rounded-full", dotColor)}
       />
-      {isLive ? "Live · Deepseek" : "Demo · KB heuristic"}
+      {isLive ? "Live · AI aktif" : "Demo · KB heuristic"}
     </motion.span>
   );
 }

@@ -45,6 +45,9 @@ interface KbTestResponse {
   answer: string;
   sources: string[];
   source: "real" | "mock";
+  /** Resolved model that actually answered (e.g. "deepseek-v4-flash",
+   *  "claude-…", "gpt-…"). Lets the UI badge show the truth, not a guess. */
+  model?: string;
 }
 
 function mockResponse(prompt: string, kb: KnowledgeBase): KbTestResponse {
@@ -89,15 +92,15 @@ export async function POST(req: Request) {
   const ctx = await getTenantContext();
   if (ctx && hasDb()) {
     try {
-      const { text } = await meteredGenerateText(ctx, {
+      const result = await meteredGenerateText(ctx, {
         feature: "kb-test",
         system,
         prompt,
         maxOutputTokens: 500,
       });
-      const trimmed = stripMarkdown((text ?? "").trim()); // doc 43 §1
+      const trimmed = stripMarkdown((result.text ?? "").trim()); // doc 43 §1
       if (trimmed) {
-        return NextResponse.json({ answer: trimmed, sources, source: "real" } satisfies KbTestResponse);
+        return NextResponse.json({ answer: trimmed, sources, source: "real", model: result.model } satisfies KbTestResponse);
       }
     } catch (err) {
       console.error("[kb-test] registry call failed, trying gateway/mock:", err);
@@ -115,7 +118,7 @@ export async function POST(req: Request) {
       prompt,
       temperature: 0.3,
     });
-    return NextResponse.json({ answer: stripMarkdown(text.trim()), sources, source: "real" } satisfies KbTestResponse);
+    return NextResponse.json({ answer: stripMarkdown(text.trim()), sources, source: "real", model: "deepseek-v4-flash" } satisfies KbTestResponse);
   } catch (err) {
     console.error("[kb-test] gateway AI call failed — falling back to mock", err);
     return NextResponse.json(mockResponse(prompt, kb));
