@@ -732,12 +732,52 @@ export const suppressionTable = pgTable("suppression", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id").notNull(),
   email: text("email").notNull(),
-  reason: text("reason").notNull().default("opt_out"), // opt_out | bounce | complaint | manual
+  reason: text("reason").notNull().default("opt_out"), // opt_out | bounce | complaint | manual | dsar_erasure
   at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({
   tenantEmailUq: uniqueIndex("suppression_tenant_email_uq").on(t.tenantId, t.email),
   tenantIdx: index("suppression_tenant_idx").on(t.tenantId),
 }));
+
+// Compliance register (UU PDP No. 27/2022) — TENANT-SCOPED. Each tenant is its
+// own data controller, so consent log / DPIA register / vendor risk are scoped
+// per tenant (was global mock). RLS is off → routes filter tenantId explicitly
+// and fall back to seed when a tenant has no rows yet (demo stays populated).
+export const consentLogTable = pgTable("consent_log", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  contactName: text("contact_name").notNull(),
+  source: text("source").notNull(),                 // event | form | wa-optin
+  channel: text("channel"),                         // capture channel
+  ip: text("ip"),                                   // immutable audit trail
+  version: text("version"),                         // policy version at capture
+  status: text("status").notNull(),                 // consented | pending | none
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ tenantIdx: index("consent_log_tenant_idx").on(t.tenantId) }));
+
+export const dpiaTable = pgTable("dpia", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  process: text("process").notNull(),
+  dataCategory: text("data_category").notNull(),
+  riskLevel: text("risk_level").notNull(),          // rendah | sedang | tinggi
+  status: text("status").notNull(),                 // selesai | berjalan | perlu-tinjauan
+  owner: text("owner").notNull(),
+  date: text("date"),                               // ISO
+  mitigations: integer("mitigations").notNull().default(0),
+}, (t) => ({ tenantIdx: index("dpia_tenant_idx").on(t.tenantId) }));
+
+export const vendorRiskTable = pgTable("vendor_risk", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  vendor: text("vendor").notNull(),
+  category: text("category").notNull(),
+  riskScore: integer("risk_score").notNull().default(0),
+  riskLevel: text("risk_level").notNull(),          // rendah | sedang | tinggi
+  dpaSigned: boolean("dpa_signed").notNull().default(false),
+  residency: text("residency"),
+  lastReview: text("last_review"),                  // ISO
+}, (t) => ({ tenantIdx: index("vendor_risk_tenant_idx").on(t.tenantId) }));
 
 // ── Superadmin / billing (Fase 8, doc 26/27) ──────────────────────────────
 // plan is a GLOBAL catalog (no RLS). subscription is tenant-scoped (RLS).

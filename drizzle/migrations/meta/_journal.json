@@ -190,6 +190,13 @@
       "when": 1781744694860,
       "tag": "0026_marketplace_bundle",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1781797607051,
+      "tag": "0027_compliance_register",
+      "breakpoints": true
     }
   ]
 }

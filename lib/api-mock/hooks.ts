@@ -8,10 +8,13 @@ import type {
   Cadence,
   CadenceEnrollment,
   CadenceStep,
+  ConsentEntry,
   Contact,
   Conversation,
   DealStage,
+  DpiaEntry,
   Message,
+  VendorRisk,
 } from "@/lib/types";
 
 // Small simulated latency so loading skeletons flash briefly (kept short so
@@ -142,6 +145,30 @@ export function useDpia() {
 
 export function useVendors() {
   return useQuery({ queryKey: ["vendors"], queryFn: () => settle(db.vendors) });
+}
+
+export interface ComplianceData {
+  consentLog: ConsentEntry[];
+  dpia: DpiaEntry[];
+  vendors: VendorRisk[];
+  deletionQueue: { label: string; detail: string; at: string }[];
+  audit: { id?: string; action?: string; target?: string | null; actorUserId?: string; at?: string }[];
+  source: string;
+}
+
+/** Per-tenant compliance register (consent/DPIA/vendor) + live erasure queue +
+ *  audit trail, from /api/tenant/compliance (data.export gated). Live data, so
+ *  no Infinity staleTime — refetch on mount. */
+export function useCompliance() {
+  return useQuery({
+    queryKey: ["compliance"],
+    queryFn: async () => {
+      const r = await fetch("/api/tenant/compliance");
+      if (!r.ok) throw new Error("gagal memuat data kepatuhan");
+      return (await r.json()) as ComplianceData;
+    },
+    retry: false,
+  });
 }
 
 export function useTasks() {

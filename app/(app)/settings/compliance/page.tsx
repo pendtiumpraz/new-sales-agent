@@ -16,7 +16,7 @@ import {
   UserCog,
 } from "lucide-react";
 
-import { RequireSuperadmin } from "@/components/auth/require-superadmin";
+import { RequireRole } from "@/components/auth/require-role";
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { ConsentBadge } from "@/components/shared/consent-badge";
@@ -46,7 +46,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useConsentLog, useDpia, useVendors } from "@/lib/api-mock/hooks";
+import { useCompliance } from "@/lib/api-mock/hooks";
 import { channelMeta } from "@/lib/utils/channel-config";
 import {
   formatDateID,
@@ -76,12 +76,6 @@ const DPIA_STATUS: Record<string, { label: string; variant: "success" | "warning
   "perlu-tinjauan": { label: "Perlu tinjauan", variant: "warning" },
 };
 
-const DELETE_QUEUE = [
-  { name: "Hendra Wijaya", company: "PT Sinar Mas", requested: 2 },
-  { name: "Nurul Aini", company: "CV Mitra Sejahtera", requested: 4 },
-  { name: "Bambang Sutrisno", company: "Koperasi Karyawan", requested: 6 },
-];
-
 const AUDIT = [
   { actor: "Andi Hidayat (DPO)", action: "membuat Laporan Audit PDPA Q2", when: 0.2 },
   { actor: "Sistem", action: "mencatat opt-in WhatsApp baru (immutable)", when: 0.6 },
@@ -99,16 +93,26 @@ const GENERATED_REPORTS = [
 
 export default function CompliancePage() {
   return (
-    <RequireSuperadmin>
+    // Compliance is a per-controller obligation → open to the DPO roles
+    // (Owner/Admin/Manager), not just the platform Superadmin.
+    <RequireRole
+      allow={["Superadmin", "Admin", "Sales Manager"]}
+      message="Halaman kepatuhan untuk DPO (Owner / Admin / Manajer)."
+    >
       <CompliancePageInner />
-    </RequireSuperadmin>
+    </RequireRole>
   );
 }
 
 function CompliancePageInner() {
-  const { data: consentLog, isLoading } = useConsentLog();
-  const { data: dpia, isLoading: dpiaLoading } = useDpia();
-  const { data: vendors, isLoading: vendorsLoading } = useVendors();
+  const comp = useCompliance();
+  const isLoading = comp.isLoading;
+  const dpiaLoading = comp.isLoading;
+  const vendorsLoading = comp.isLoading;
+  const consentLog = comp.data?.consentLog;
+  const dpia = comp.data?.dpia;
+  const vendors = comp.data?.vendors;
+  const deletionQueue = comp.data?.deletionQueue ?? [];
 
   // Consent breakdown computed from the REAL log, not hardcoded (the headline
   // used to claim 78/18/4% while the audit log itself told a different story).
@@ -192,7 +196,7 @@ function CompliancePageInner() {
                 <MiniStat label="Kontak disetujui" value={`${consentPct.consented}%`} tone="success" />
                 <MiniStat label="Menunggu persetujuan" value={`${consentPct.pending}%`} tone="warning" />
                 <MiniStat label="Tanpa izin" value={`${consentPct.none}%`} tone="danger" />
-                <MiniStat label="Permintaan hapus" value="3" tone="default" />
+                <MiniStat label="Permintaan hapus" value={`${deletionQueue.length}`} tone="default" />
                 <MiniStat label="DPIA aktif" value={`${dpia?.length ?? 0}`} tone="default" />
                 <MiniStat label="Vendor dinilai" value={`${vendors?.length ?? 0}`} tone="default" />
               </div>
@@ -225,16 +229,21 @@ function CompliancePageInner() {
               <Card>
                 <CardHeader className="flex-row items-center justify-between space-y-0">
                   <CardTitle>Antrean hak hapus data</CardTitle>
-                  <Badge variant="warning">{DELETE_QUEUE.length} menunggu</Badge>
+                  <Badge variant="warning">{deletionQueue.length} menunggu</Badge>
                 </CardHeader>
                 <CardContent className="p-0">
+                  {deletionQueue.length === 0 ? (
+                    <p className="px-6 py-8 text-center text-sm text-muted-foreground">
+                      Tidak ada permintaan hapus tertunda.
+                    </p>
+                  ) : (
                   <ul className="divide-y">
-                    {DELETE_QUEUE.map((r) => (
-                      <li key={r.name} className="flex items-center gap-3 px-6 py-3">
+                    {deletionQueue.map((r, i) => (
+                      <li key={`${r.label}-${i}`} className="flex items-center gap-3 px-6 py-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{r.name}</p>
+                          <p className="truncate text-sm font-medium">{r.label}</p>
                           <p className="truncate text-xs text-muted-foreground">
-                            {r.company} · diminta {r.requested} hari lalu
+                            {r.detail} · {formatRelativeID(r.at)}
                           </p>
                         </div>
                         <TooltipProvider>
@@ -257,6 +266,7 @@ function CompliancePageInner() {
                       </li>
                     ))}
                   </ul>
+                  )}
                 </CardContent>
               </Card>
 

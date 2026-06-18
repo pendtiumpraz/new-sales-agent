@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { auditLogTable } from "@/lib/db/schema";
@@ -24,7 +24,14 @@ export async function recordAudit(
 }
 
 export async function recentAudit(ctx: TenantContext, limit = 50) {
+  // RLS is off — scope the audit trail to this tenant explicitly, otherwise the
+  // compliance log leaks every tenant's sensitive actions to each other.
   return withTenant(ctx, (tx) =>
-    tx.select().from(auditLogTable).orderBy(desc(auditLogTable.at)).limit(limit),
+    tx
+      .select()
+      .from(auditLogTable)
+      .where(eq(auditLogTable.tenantId, ctx.tenantId))
+      .orderBy(desc(auditLogTable.at))
+      .limit(limit),
   );
 }
