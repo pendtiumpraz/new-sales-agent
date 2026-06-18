@@ -5,10 +5,51 @@ import { withTenant } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
 import { personTable, aiUsageTable, dealsTable } from "@/lib/db/schema";
 import { listTenantMembers } from "@/lib/team/members";
+import { deals as seedDeals } from "@/lib/api-mock/data";
 
 export const runtime = "nodejs";
 
 const ACTIVE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Demo roster built from the seed deals' distinct owners, so the manager screen
+// shows a populated team (with real per-rep deal totals) instead of an empty
+// "Total closing Rp 0" table when no DB is connected — matching how the other
+// list routes fall back to seed.
+const ROSTER_COLORS = ["#FB5E3B", "#14B8A6", "#6366F1", "#F59E0B", "#EC4899", "#0EA5E9"];
+function mockRoster() {
+  const byOwner = new Map<string, { total: number; won: number; wonValue: number }>();
+  for (const d of seedDeals) {
+    const name = (d.owner ?? "").trim();
+    if (!name) continue;
+    const cur = byOwner.get(name) ?? { total: 0, won: 0, wonValue: 0 };
+    cur.total += 1;
+    if (d.stage === "tutup") {
+      cur.won += 1;
+      cur.wonValue += d.value ?? 0;
+    }
+    byOwner.set(name, cur);
+  }
+  return Array.from(byOwner.entries())
+    .map(([name, d], i) => {
+      const activeFlag = i % 3 !== 0;
+      return {
+        userId: `mock_${i}`,
+        name,
+        email: `${name.toLowerCase().replace(/\s+/g, ".")}@demo.mairasales.com`,
+        role: i === 0 ? "tenant_admin" : "member",
+        avatarColor: ROSTER_COLORS[i % ROSTER_COLORS.length],
+        leadsOwned: d.total,
+        deals: d.total,
+        won: d.won,
+        wonValue: d.wonValue,
+        aiCalls: 0,
+        aiCost: 0,
+        lastActiveAt: activeFlag ? new Date(Date.now() - (i + 1) * 37 * 60_000).toISOString() : null,
+        active: activeFlag,
+      };
+    })
+    .sort((a, b) => b.leadsOwned - a.leadsOwned);
+}
 
 // GET /api/team/monitoring (doc 41) — manager-only sales monitoring: per rep,
 // leads owned + deals/closings + AI activity (active vs idle). Manager-gated via
@@ -17,7 +58,7 @@ export async function GET() {
   const guard = await requirePermission("tenant.members.manage");
   if ("error" in guard) return guard.error;
   const ctx = guard.ctx;
-  if (!hasDb()) return NextResponse.json({ data: [], source: "mock" });
+  if (!hasDb()) return NextResponse.json({ data: mockRoster(), source: "mock" });
 
   try {
     const members = await listTenantMembers(ctx);
