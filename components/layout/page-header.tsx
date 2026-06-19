@@ -1,12 +1,17 @@
 import { cn } from "@/lib/utils";
 
-/** Consistent page title block (build.md §3.2 — display headers 28–32px / 600). */
+/** Consistent page title block (build.md §3.2 — display headers 28–32px / 600).
+ *  Redesign system §5: optional breadcrumb above the title; actions in `children`
+ *  follow the "≤1 primary + ≤2 secondary (rest in ⋯)" convention. */
 export function PageHeader({
+  breadcrumb,
   title,
   description,
   children,
   className,
 }: {
+  /** Optional breadcrumb node rendered above the H1 (for nested/detail pages). */
+  breadcrumb?: React.ReactNode;
   title: string;
   description?: string;
   children?: React.ReactNode;
@@ -20,6 +25,9 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
+        {breadcrumb && (
+          <div className="mb-1 text-xs text-muted-foreground">{breadcrumb}</div>
+        )}
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">
           {title}
         </h1>
