@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Maira Sales — Mockup Cluster 01 (Beranda &amp; Wawasan)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: { DEFAULT: "#FB5E3B", 50: "#FFF1ED", 100: "#FFE0D6" },
+        },
+        fontFamily: { sans: ["Inter", "system-ui", "sans-serif"] },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: Inter, system-ui, sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .nav-item.active { background:#FB5E3B; color:#fff; }
+  .nav-item.active:hover { background:#FB5E3B; }
+  .tab.active { color:#0f172a; border-color:#FB5E3B; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius: 8px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ───────────── SIDEBAR (IA baru: 5 seksi) ───────────── -->
+  <aside class="hidden md:flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <div class="flex h-14 items-center gap-2 border-b border-slate-200 px-4">
+      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand font-bold text-white">M</span>
+      <span class="font-semibold">Maira Sales</span>
+    </div>
+
+    <!-- Workspace context (eksplisit) -->
+    <div class="border-b border-slate-200 px-3 py-2">
+      <button class="flex w-full items-center justify-between rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm hover:bg-slate-50">
+        <span class="flex items-center gap-2 truncate"><i data-lucide="briefcase" class="h-4 w-4 text-slate-500"></i> Ekspor Manufaktur</span>
+        <i data-lucide="chevrons-up-down" class="h-3.5 w-3.5 text-slate-400"></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-2 py-2 text-sm">
+      <p class="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Beranda</p>
+      <a href="#" data-page="dashboard" class="nav-item active flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="layout-dashboard" class="h-4 w-4"></i> Dashboard</a>
+
+      <p class="mt-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Lead</p>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="users" class="h-4 w-4"></i> Kontak &amp; Lead</a>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="database" class="h-4 w-4"></i> Riset Prospek</a>
+
+      <p class="mt-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Jangkau</p>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="inbox" class="h-4 w-4"></i> Inbox</a>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="workflow" class="h-4 w-4"></i> Cadence</a>
+      <a class="nav-item flex items-center justify-between rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><span class="flex items-center gap-2.5"><i data-lucide="rocket" class="h-4 w-4"></i> Autopilot</span><span class="rounded-full bg-brand-50 px-1.5 py-0.5 text-[9px] font-semibold text-brand">AI</span></a>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="bot" class="h-4 w-4"></i> Eskalasi AI</a>
+
+      <p class="mt-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Closing</p>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="kanban" class="h-4 w-4"></i> Pipeline</a>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="file-text" class="h-4 w-4"></i> Penawaran</a>
+      <a class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="heart" class="h-4 w-4"></i> Retensi</a>
+
+      <p class="mt-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Pantau</p>
+      <a href="#" data-page="reports" class="nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100"><i data-lucide="bar-chart-3" class="h-4 w-4"></i> Laporan</a>
+    </nav>
+
+    <div class="space-y-1.5 border-t border-slate-200 p-3">
+      <a href="#" data-page="assistant" class="flex w-full items-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105"><i data-lucide="sparkles" class="h-4 w-4"></i> Asisten AI</a>
+      <div class="flex items-center gap-3 px-1 pt-1 text-xs text-slate-400">
+        <a class="hover:text-slate-600">Panduan</a><a class="hover:text-slate-600">Use Case</a><a class="hover:text-slate-600">Pengaturan</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ───────────── MAIN ───────────── -->
+  <div class="flex flex-1 flex-col overflow-hidden">
+
+    <!-- TOPBAR -->
+    <header class="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4">
+      <button class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50">
+        <i data-lucide="search" class="h-4 w-4"></i> Cari… <kbd class="ml-2 rounded bg-slate-100 px-1.5 text-[10px]">⌘K</kbd>
+      </button>
+      <div class="flex-1"></div>
+      <span class="hidden items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600 sm:inline-flex">
+        <i data-lucide="briefcase" class="h-3.5 w-3.5 text-slate-400"></i> Workspace: <b class="font-semibold">Ekspor</b> <i data-lucide="chevron-down" class="h-3 w-3"></i>
+      </span>
+      <a href="#" data-page="dashboard" class="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:brightness-105"><i data-lucide="rocket" class="h-4 w-4"></i> Autopilot</a>
+      <button class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"><i data-lucide="bell" class="h-5 w-5"></i><span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white"></span></button>
+      <button class="ml-1 flex items-center gap-2 rounded-full pr-2 hover:bg-slate-100">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500 text-sm font-semibold text-white">G</span>
+        <span class="hidden text-left leading-tight md:block"><span class="block text-sm font-medium">Galih P.</span><span class="block text-xs text-slate-400">Owner</span></span>
+      </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto">
+
+      <!-- ════════════ DASHBOARD ════════════ -->
+      <section id="page-dashboard" class="page active">
+        <!-- PageHeader -->
+        <div class="flex flex-col gap-3 border-b border-slate-200 bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 class="text-[28px] font-semibold leading-tight tracking-tight">Dashboard</h1>
+            <p class="mt-1 text-sm text-slate-500">Selamat pagi, Galih · Workspace: Ekspor Manufaktur</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">Channel: Semua <i data-lucide="chevron-down" class="h-4 w-4"></i></button>
+            <button class="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105"><i data-lucide="rocket" class="h-4 w-4"></i> Mulai Autopilot</button>
+          </div>
+        </div>
+
+        <div class="space-y-5 p-6">
+          <!-- KPI strip (maks 4) -->
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand"><i data-lucide="trending-up" class="h-5 w-5"></i></span>
+              <p class="mt-4 text-sm text-slate-500">Nilai pipeline</p>
+              <p class="tnum mt-1 text-2xl font-semibold">Rp 1,24 M</p>
+              <p class="mt-1 text-xs text-slate-400">42 deal terbuka</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i data-lucide="check-circle-2" class="h-5 w-5"></i></span>
+              <p class="mt-4 text-sm text-slate-500">Closing minggu ini</p>
+              <p class="tnum mt-1 text-2xl font-semibold">8</p>
+              <p class="mt-1 text-xs text-slate-400">Rp 320 jt · 2 lewat tempo</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><i data-lucide="message-circle" class="h-5 w-5"></i></span>
+              <p class="mt-4 text-sm text-slate-500">Dibaca WhatsApp</p>
+              <p class="tnum mt-1 text-2xl font-semibold">87%</p>
+              <p class="mt-1 text-xs text-slate-400">3 belum dibaca</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><i data-lucide="workflow" class="h-5 w-5"></i></span>
+              <p class="mt-4 text-sm text-slate-500">Cadence aktif</p>
+              <p class="tnum mt-1 text-2xl font-semibold">12</p>
+              <p class="mt-1 text-xs text-slate-400">1.240 kontak terdaftar</p>
+            </div>
+          </div>
+
+          <div class="grid gap-4 lg:grid-cols-12">
+            <!-- Tugas prioritas (pusat aksi) -->
+            <div class="rounded-xl border border-slate-200 bg-white lg:col-span-7">
+              <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+                <h2 class="font-semibold">Tugas prioritas hari ini</h2>
+                <a class="text-xs font-medium text-brand hover:underline">Lihat semua</a>
+              </div>
+              <ul class="divide-y divide-slate-100">
+                <li class="flex items-center gap-3 px-5 py-3">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand" />
+                  <div class="min-w-0 flex-1"><p class="text-sm font-medium">Follow-up Budi Santoso (WA)</p><p class="text-xs text-slate-400">PT Astra · jatuh tempo hari ini</p></div>
+                  <span class="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-600">Mendesak</span>
+                  <button class="rounded-lg bg-brand px-2.5 py-1 text-xs font-semibold text-white hover:brightness-105">Buka</button>
+                </li>
+                <li class="flex items-center gap-3 px-5 py-3">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand" />
+                  <div class="min-w-0 flex-1"><p class="text-sm font-medium">Kirim penawaran PT Sinar Mas</p><p class="text-xs text-slate-400">Draf siap · tinggal kirim</p></div>
+                  <button class="rounded-lg bg-brand px-2.5 py-1 text-xs font-semibold text-white hover:brightness-105">Buka</button>
+                </li>
+                <li class="flex items-center gap-3 px-5 py-3">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand" />
+                  <div class="min-w-0 flex-1"><p class="text-sm font-medium">Balas 3 chat belum dibaca</p><p class="text-xs text-slate-400">WhatsApp · 2 sentimen turun</p></div>
+                  <button class="rounded-lg bg-brand px-2.5 py-1 text-xs font-semibold text-white hover:brightness-105">Buka</button>
+                </li>
+                <li class="flex items-center gap-3 px-5 py-3">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand" />
+                  <div class="min-w-0 flex-1"><p class="text-sm font-medium">Tinjau 1 eskalasi AI</p><p class="text-xs text-slate-400">Topik: refund</p></div>
+                  <button class="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">Buka</button>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Funnel -->
+            <div class="rounded-xl border border-slate-200 bg-white lg:col-span-5">
+              <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+                <h2 class="font-semibold">Funnel pipeline</h2>
+                <a class="text-xs font-medium text-brand hover:underline">Pipeline →</a>
+              </div>
+              <div class="space-y-3 p-5">
+                <div><div class="mb-1 flex justify-between text-xs"><span class="text-slate-500">Prospek</span><span class="tnum font-medium">120</span></div><div class="h-2.5 rounded-full bg-slate-100"><div class="h-full rounded-full bg-brand" style="width:100%"></div></div></div>
+                <div><div class="mb-1 flex justify-between text-xs"><span class="text-slate-500">Kualifikasi</span><span class="tnum font-medium">64</span></div><div class="h-2.5 rounded-full bg-slate-100"><div class="h-full rounded-full bg-brand/80" style="width:53%"></div></div></div>
+                <div><div class="mb-1 flex justify-between text-xs"><span class="text-slate-500">Penawaran</span><span class="tnum font-medium">28</span></div><div class="h-2.5 rounded-full bg-slate-100"><div class="h-full rounded-full bg-brand/60" style="width:23%"></div></div></div>
+                <div><div class="mb-1 flex justify-between text-xs"><span class="text-slate-500">Negosiasi</span><span class="tnum font-medium">14</span></div><div class="h-2.5 rounded-full bg-slate-100"><div class="h-full rounded-full bg-brand/50" style="width:12%"></div></div></div>
+                <div><div class="mb-1 flex justify-between text-xs"><span class="text-slate-500">Tutup</span><span class="tnum font-medium">12</span></div><div class="h-2.5 rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width:10%"></div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aktivitas -->
+          <div class="rounded-xl border border-slate-200 bg-white">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h2 class="font-semibold">Aktivitas terbaru</h2>
+              <a class="text-xs font-medium text-brand hover:underline">Lihat semua</a>
+            </div>
+            <ul class="divide-y divide-slate-100 text-sm">
+              <li class="flex items-center gap-3 px-5 py-2.5"><span class="h-2 w-2 rounded-full bg-blue-500"></span> PT Astra membuka penawaran Anda <span class="ml-auto text-xs text-slate-400">1 jam lalu</span></li>
+              <li class="flex items-center gap-3 px-5 py-2.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Order baru masuk dari Tokopedia <span class="ml-auto text-xs text-slate-400">18 mnt lalu</span></li>
+              <li class="flex items-center gap-3 px-5 py-2.5"><span class="h-2 w-2 rounded-full bg-amber-500"></span> Budi Santoso membalas WhatsApp <span class="ml-auto text-xs text-slate-400">2 mnt lalu</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ LAPORAN ════════════ -->
+      <section id="page-reports" class="page">
+        <div class="flex flex-col gap-3 border-b border-slate-200 bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 class="text-[28px] font-semibold leading-tight tracking-tight">Laporan &amp; Analitik</h1>
+            <p class="mt-1 text-sm text-slate-500">Performa penjualan, keandalan AI, dan kualitas data pipeline.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">Data demo</span>
+            <span class="text-xs text-slate-400">Diperbarui 10:24</span>
+            <button class="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105"><i data-lucide="printer" class="h-4 w-4"></i> Ekspor PDF</button>
+          </div>
+        </div>
+
+        <div class="space-y-5 p-6">
+          <!-- Tabs -->
+          <div class="flex gap-6 border-b border-slate-200 text-sm">
+            <button class="tab active border-b-2 px-1 pb-2 font-medium" style="border-color:#FB5E3B">Penjualan</button>
+            <button class="tab border-b-2 border-transparent px-1 pb-2 font-medium text-slate-400 hover:text-slate-600">Keandalan AI</button>
+            <button class="tab border-b-2 border-transparent px-1 pb-2 font-medium text-slate-400 hover:text-slate-600">Kualitas Data</button>
+          </div>
+
+          <!-- KPI (tanpa delta palsu) -->
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-5"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand"><i data-lucide="coins" class="h-5 w-5"></i></span><p class="mt-4 text-sm text-slate-500">Pendapatan MTD</p><p class="tnum mt-1 text-2xl font-semibold">Rp 845 jt</p><p class="mt-1 text-xs text-slate-400">bulan berjalan</p></div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i data-lucide="check-circle-2" class="h-5 w-5"></i></span><p class="mt-4 text-sm text-slate-500">Deal ditutup MTD</p><p class="tnum mt-1 text-2xl font-semibold">12</p><p class="mt-1 text-xs text-slate-400">bulan berjalan</p></div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i data-lucide="percent" class="h-5 w-5"></i></span><p class="mt-4 text-sm text-slate-500">Tingkat konversi</p><p class="tnum mt-1 text-2xl font-semibold">24,0%</p><p class="mt-1 text-xs text-slate-400">prospek → tutup</p></div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><i data-lucide="calendar-clock" class="h-5 w-5"></i></span><p class="mt-4 text-sm text-slate-500">Rata-rata siklus</p><p class="tnum mt-1 text-2xl font-semibold">28 hr</p><p class="mt-1 text-xs text-slate-400">dibuat → perkiraan tutup</p></div>
+          </div>
+
+          <div class="grid gap-4 lg:grid-cols-2">
+            <div class="rounded-xl border border-slate-200 bg-white">
+              <div class="border-b border-slate-200 px-5 py-3"><h2 class="font-semibold">Funnel per channel</h2></div>
+              <table class="w-full text-sm">
+                <thead><tr class="text-left text-xs text-slate-400"><th class="px-5 py-2 font-medium">Channel</th><th class="py-2 text-right font-medium">Prospek</th><th class="py-2 text-right font-medium">Penawaran</th><th class="px-5 py-2 text-right font-medium">Won</th></tr></thead>
+                <tbody class="divide-y divide-slate-100 tnum">
+                  <tr><td class="px-5 py-2 font-medium">WhatsApp</td><td class="py-2 text-right">48</td><td class="py-2 text-right">14</td><td class="px-5 py-2 text-right">6</td></tr>
+                  <tr><td class="px-5 py-2 font-medium">Email</td><td class="py-2 text-right">32</td><td class="py-2 text-right">8</td><td class="px-5 py-2 text-right">3</td></tr>
+                  <tr><td class="px-5 py-2 font-medium">Instagram</td><td class="py-2 text-right">18</td><td class="py-2 text-right">4</td><td class="px-5 py-2 text-right">1</td></tr>
+                  <tr><td class="px-5 py-2 font-medium text-slate-500">Lainnya</td><td class="py-2 text-right">22</td><td class="py-2 text-right">2</td><td class="px-5 py-2 text-right">2</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white">
+              <div class="border-b border-slate-200 px-5 py-3"><h2 class="font-semibold">Top cadence (reply rate)</h2></div>
+              <ul class="divide-y divide-slate-100 text-sm">
+                <li class="flex items-center justify-between px-5 py-2.5"><span>Demo Growth</span><span class="tnum font-medium text-emerald-600">32%</span></li>
+                <li class="flex items-center justify-between px-5 py-2.5"><span>Repeat 30 Hari</span><span class="tnum font-medium text-emerald-600">28%</span></li>
+                <li class="flex items-center justify-between px-5 py-2.5"><span>Upsell Starter→Growth</span><span class="tnum font-medium">19%</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-white">
+            <div class="border-b border-slate-200 px-5 py-3"><h2 class="font-semibold">Leaderboard sales</h2></div>
+            <table class="w-full text-sm">
+              <thead><tr class="text-left text-xs text-slate-400"><th class="px-5 py-2 font-medium">Rep</th><th class="py-2 text-right font-medium">Deal</th><th class="py-2 text-right font-medium">Won</th><th class="px-5 py-2 text-right font-medium">Nilai</th></tr></thead>
+              <tbody class="divide-y divide-slate-100 tnum">
+                <tr><td class="px-5 py-2.5 font-medium">Andi Hidayat</td><td class="py-2.5 text-right">12</td><td class="py-2.5 text-right">5</td><td class="px-5 py-2.5 text-right">Rp 320 jt</td></tr>
+                <tr><td class="px-5 py-2.5 font-medium">Maya Kusuma</td><td class="py-2.5 text-right">9</td><td class="py-2.5 text-right">4</td><td class="px-5 py-2.5 text-right">Rp 248 jt</td></tr>
+                <tr><td class="px-5 py-2.5 font-medium">Rina Permata</td><td class="py-2.5 text-right">7</td><td class="py-2.5 text-right">3</td><td class="px-5 py-2.5 text-right">Rp 180 jt</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ ASISTEN AI ════════════ -->
+      <section id="page-assistant" class="page">
+        <div class="flex flex-col gap-3 border-b border-slate-200 bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 class="text-[28px] font-semibold leading-tight tracking-tight">Asisten Sales</h1>
+            <p class="mt-1 text-sm text-slate-500">Tanya basis pengetahuan &amp; data sales secara percakapan.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Live · AI aktif</span>
+            <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Bersihkan</button>
+          </div>
+        </div>
+
+        <div class="grid h-[calc(100%-89px)] grid-cols-12">
+          <!-- Riwayat -->
+          <aside class="col-span-3 border-r border-slate-200 bg-white p-3">
+            <button class="mb-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:brightness-105"><i data-lucide="plus" class="h-4 w-4"></i> Percakapan baru</button>
+            <p class="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Riwayat</p>
+            <a class="block rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium">Paket untuk tim 15 orang</a>
+            <a class="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Ringkas lead PT Astra</a>
+            <a class="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Bandingkan Growth vs Enterprise</a>
+          </aside>
+
+          <!-- Chat -->
+          <div class="col-span-9 flex flex-col">
+            <div class="flex-1 space-y-4 overflow-y-auto p-6">
+              <div class="flex justify-end"><div class="max-w-lg rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-white">Paket apa yang cocok untuk tim sales 15 orang?</div></div>
+              <div class="flex justify-start">
+                <div class="max-w-lg rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-4 py-2.5 text-sm">
+                  Untuk tim 15 orang, <b>Paket Growth</b> biasanya paling pas — cadence outbound multi-channel + skor AI, biasanya menaikkan reply rate ~3×.
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">sumber: KB Harga</span>
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">sumber: ICP Menengah</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="border-t border-slate-200 p-4">
+              <div class="mx-auto flex max-w-3xl items-center gap-2">
+                <input class="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-brand" placeholder="Tulis pesan…" />
+                <button class="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105"><i data-lucide="send" class="h-4 w-4"></i> Kirim</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+  // Page switching
+  const pages = document.querySelectorAll(".page");
+  const navs = document.querySelectorAll("[data-page]");
+  navs.forEach((el) => el.addEventListener("click", (e) => {
+    e.preventDefault();
+    const id = el.getAttribute("data-page");
+    pages.forEach((p) => p.classList.toggle("active", p.id === "page-" + id));
+    document.querySelectorAll("aside .nav-item").forEach((n) => n.classList.toggle("active", n.getAttribute("data-page") === id));
+    document.querySelector("main").scrollTop = 0;
+  }));
+</script>
+</body>
+</html>
