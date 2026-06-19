@@ -8,7 +8,6 @@ import {
   Bell,
   BookOpen,
   Bot,
-  Briefcase,
   Database,
   FileText,
   Heart,
@@ -20,7 +19,6 @@ import {
   Megaphone,
   Menu,
   PanelLeft,
-  Puzzle,
   Rocket,
   Search,
   Settings,
@@ -68,6 +66,7 @@ import { useUiStore } from "@/lib/stores/ui-store";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { withWorkspace } from "@/lib/workspace/scope";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
+import { CommandPalette } from "@/components/layout/command-palette";
 import { cn } from "@/lib/utils";
 
 // Grouped navigation with plain-Indonesian labels — sections make the menu
@@ -79,61 +78,62 @@ interface NavItem {
   label: string;
   desc: string; // shown as a tooltip — explains the menu in one line
   managerOnly?: boolean; // hidden from Sales Rep (member) — doc 41
+  badge?: string; // small pill (e.g. "AI" on Autopilot)
 }
+// Redesign IA (docs/wireframes §3): 5 task-oriented sections following the sales
+// flow — Cari (Lead) → Jangkau → Closing → Pantau → Atur. Sub-pages (Profil,
+// Discovery, Peta) live as TABS inside their parent, and everything is also
+// reachable via the ⌘K command palette, so the sidebar stays scannable.
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Utama",
+    label: "Beranda",
     items: [
       { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", desc: "Ringkasan harian: KPI, tugas, funnel" },
     ],
   },
   {
-    label: "Cari & Riset Lead",
+    label: "Lead",
     items: [
-      { href: "/workspaces", icon: Briefcase, label: "Workspace", desc: "Fokus jualan per produk/tujuan — flow ter-scope" },
-      { href: "/contacts", icon: Users, label: "Kontak & Lead", desc: "Kontak, penemuan lead, & profil" },
+      { href: "/contacts", icon: Users, label: "Kontak & Lead", desc: "Kontak, profil, discovery & peta" },
       { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
-      { href: "/marketplace", icon: Store, label: "Marketplace", desc: "Jual-beli data perusahaan & orang antar-tenant (SaaS)", managerOnly: true },
+      { href: "/marketplace", icon: Store, label: "Marketplace Data", desc: "Jual-beli data perusahaan antar-tenant", managerOnly: true },
     ],
   },
   {
-    label: "Jangkau & Otomasi AI",
+    label: "Jangkau",
     items: [
       { href: "/inbox", icon: Inbox, label: "Inbox", desc: "Percakapan omni-channel (WA, email, LinkedIn, IG)" },
       { href: "/cadences", icon: Workflow, label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
+      { href: "/autopilot", icon: Rocket, label: "Autopilot", desc: "Pipeline AI penuh — satu klik", badge: "AI" },
       { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
       { href: "/content", icon: Megaphone, label: "Konten", desc: "Buat & rencanakan konten" },
     ],
   },
   {
-    label: "Pelanggan & Penjualan",
+    label: "Closing",
     items: [
       { href: "/penawaran", icon: FileText, label: "Penawaran", desc: "Susun, kirim & lacak penawaran — AI bantu + update deal" },
-      { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead per sales", managerOnly: true },
       { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
       { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
-      { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
     ],
   },
   {
-    label: "Analitik & Bantuan",
+    label: "Pantau",
     items: [
+      { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead per sales", managerOnly: true },
+      { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
       { href: "/reports", icon: BarChart3, label: "Laporan", desc: "Performa & analitik" },
+    ],
+  },
+  {
+    label: "Lainnya",
+    items: [
       { href: "/documentation", icon: BookOpen, label: "Panduan", desc: "Cara pakai tiap fitur, langkah demi langkah" },
       { href: "/use-case", icon: Lightbulb, label: "Use Case", desc: "Skenario sales & marketing per industri" },
-    ],
-  },
-  {
-    label: "Pengaturan",
-    items: [
-      { href: "/settings/ai", icon: Bot, label: "AI & Model", desc: "Ganti provider & model AI aktif, BYOK, pemakaian token" },
-      { href: "/settings/extension", icon: Puzzle, label: "Extension LinkedIn", desc: "Unduh, hubungkan, & status collector" },
-      { href: "/settings", icon: Settings, label: "Pengaturan", desc: "Akun, tim, mailbox, billing, kepatuhan" },
+      { href: "/settings", icon: Settings, label: "Pengaturan", desc: "Akun, tim, mailbox, AI, billing, kepatuhan" },
     ],
   },
 ];
-// Autopilot is intentionally NOT in NAV — it surfaces as a "special" coral
-// button in both the top bar and the bottom of the sidebar (above the AI dock).
 
 const NOTIFS = [
   { ch: "whatsapp", text: "Budi Santoso membalas pesan WhatsApp Anda", time: "2 mnt" },
@@ -220,7 +220,7 @@ export function SideNav() {
             )}
             {collapsed && gi > 0 && <div className="mx-2 mb-1.5 border-t border-border/60" />}
             <div className="flex flex-col gap-0.5">
-              {visible(group.items).map(({ href, icon: Icon, label, desc }) => {
+              {visible(group.items).map(({ href, icon: Icon, label, desc, badge }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
                 const item = (
                   <Link
@@ -234,7 +234,17 @@ export function SideNav() {
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>{label}</span>}
+                    {!collapsed && <span className="flex-1 truncate">{label}</span>}
+                    {!collapsed && badge && (
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                          active ? "bg-white/20 text-primary-foreground" : "bg-primary/15 text-primary",
+                        )}
+                      >
+                        {badge}
+                      </span>
+                    )}
                   </Link>
                 );
                 return (
@@ -252,37 +262,9 @@ export function SideNav() {
         ))}
       </nav>
 
-      {/* Special Autopilot button — coral primary, sits above the AI dock as
-          the headline action. Replaces the sidebar nav entry. */}
-      <div className={cn("border-t", collapsed ? "p-2" : "p-3 pb-1.5")}>
-        {collapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="/autopilot"
-                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-105"
-              >
-                <Rocket className="h-4 w-4" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Autopilot — pipeline AI satu klik</TooltipContent>
-          </Tooltip>
-        ) : (
-          <Link
-            href="/autopilot"
-            className="group flex w-full items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[#F6845C] px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md"
-          >
-            <Rocket className="h-4 w-4" />
-            <span className="flex-1 text-left">Autopilot</span>
-            <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide">
-              Baru
-            </span>
-          </Link>
-        )}
-      </div>
-
-      {/* AI assistant dock — anchored at the bottom of the sidebar */}
-      <div className={cn(collapsed ? "p-2" : "p-3 pt-1.5")}>
+      {/* AI assistant dock — anchored at the bottom of the sidebar. Autopilot is
+          now a normal nav item (Jangkau) + the topbar CTA, not a floating button. */}
+      <div className={cn("border-t", collapsed ? "p-2" : "p-3")}>
         <Sheet>
           {collapsed ? (
             <Tooltip>
@@ -418,19 +400,23 @@ export function TopBar() {
         <TooltipContent side="bottom">Autopilot — pipeline AI satu klik</TooltipContent>
       </Tooltip>
 
-      {/* Search */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/contacts")}
-          >
-            <Search className="h-5 w-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Cari (⌘K)</TooltipContent>
-      </Tooltip>
+      {/* Command palette opener (⌘K) — replaces the old search-that-routed-to-contacts */}
+      <button
+        onClick={() => window.dispatchEvent(new Event("maira:command"))}
+        className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-accent sm:flex"
+      >
+        <Search className="h-4 w-4" />
+        <span>Cari…</span>
+        <kbd className="ml-1 rounded bg-muted px-1.5 text-[10px]">⌘K</kbd>
+      </button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="sm:hidden"
+        onClick={() => window.dispatchEvent(new Event("maira:command"))}
+      >
+        <Search className="h-5 w-5" />
+      </Button>
 
       {/* AI assistant — visible on every viewport so it's never missing on
           mobile where the sidebar (and its bottom dock) is hidden. */}
@@ -551,6 +537,8 @@ export function TopBar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {/* Global ⌘K command palette — mounted once via the topbar */}
+      <CommandPalette />
     </header>
   );
 }
