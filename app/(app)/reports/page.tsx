@@ -29,7 +29,6 @@ import {
 import { toast } from "sonner";
 
 import { STEP_KIND } from "@/components/autopilot/step-card";
-import { useCountUp } from "@/components/dashboard/use-count-up";
 import { SentimentMap } from "@/components/inbox/sentiment-map";
 import { PageHeader } from "@/components/layout/page-header";
 import { IDRAmount } from "@/components/shared/idr-amount";
@@ -38,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatRowSkeleton, TableSkeleton } from "@/components/shared/skeletons";
+import { KpiTile, KpiStrip } from "@/components/shared/kpi-tile";
 import {
   Table,
   TableBody,
@@ -636,43 +636,40 @@ export default function ReportsPage() {
           {/* ── Penjualan (default) ──────────────────────────────────── */}
           <TabsContent value="penjualan" className="mt-5 space-y-6">
             <SectionTitle>Penjualan</SectionTitle>
-            {/* KPI strip — 4-up */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatTile
+            {/* KPI strip — shared KpiTile (count-up built in, no fake delta) */}
+            <KpiStrip>
+              <KpiTile
                 icon={<Coins className="h-5 w-5" />}
                 accent="#FB5E3B"
                 label="Pendapatan MTD"
-                value={
-                  <IDRAmount value={sales.revenueMtdIDR} compact />
-                }
+                value={<IDRAmount value={sales.revenueMtdIDR} compact />}
                 sub="bulan berjalan"
               />
-              <StatTileCount
+              <KpiTile
                 icon={<CheckCircle2 className="h-5 w-5" />}
                 accent="#14B8A6"
                 label="Deal ditutup MTD"
-                target={sales.dealsClosedMtd}
-                suffix=""
+                count={sales.dealsClosedMtd}
                 sub="bulan berjalan"
               />
-              <StatTileCount
+              <KpiTile
                 icon={<Percent className="h-5 w-5" />}
                 accent="#14B8A6"
                 label="Tingkat konversi"
-                target={sales.conversionRate}
+                count={sales.conversionRate}
                 suffix="%"
                 decimals={1}
                 sub="prospek → tutup"
               />
-              <StatTileCount
+              <KpiTile
                 icon={<CalendarClock className="h-5 w-5" />}
                 accent="#F59E0B"
                 label="Rata-rata siklus deal"
-                target={sales.avgCycleDays}
+                count={sales.avgCycleDays}
                 suffix=" hari"
                 sub="dibuat → perkiraan tutup"
               />
-            </div>
+            </KpiStrip>
 
             {/* Funnel chart */}
             <Card>
@@ -1283,45 +1280,6 @@ function LiveBadge({ generatedAt }: { generatedAt: Date }) {
 /** Section title that only appears in the printed PDF — hidden on screen. */
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="print-only-title">{children}</h2>;
-}
-
-function StatTileCount({
-  icon,
-  accent,
-  label,
-  target,
-  suffix,
-  decimals = 0,
-  sub,
-  delta,
-  deltaTone,
-}: {
-  icon: React.ReactNode;
-  accent: string;
-  label: string;
-  target: number;
-  suffix?: string;
-  decimals?: number;
-  sub: React.ReactNode;
-  delta?: string;
-  deltaTone?: "up" | "down-good" | "down-bad";
-}) {
-  const animated = useCountUp(target, 900);
-  const displayed =
-    decimals > 0
-      ? animated.toFixed(decimals)
-      : Math.round(animated).toLocaleString("id-ID");
-  return (
-    <StatTile
-      icon={icon}
-      accent={accent}
-      label={label}
-      value={`${displayed}${suffix ?? ""}`}
-      sub={sub}
-      delta={delta}
-      deltaTone={deltaTone}
-    />
-  );
 }
 
 function StatTile({

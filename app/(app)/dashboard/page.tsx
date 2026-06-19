@@ -5,25 +5,32 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowUpRight,
+  ArrowRight,
   CheckCircle2,
   MessageCircle,
   Rocket,
   TrendingUp,
-  Users,
   Workflow,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { KpiTile, KpiStrip } from "@/components/shared/kpi-tile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AnimatedHeroBg } from "@/components/dashboard/animated-hero-bg";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { useCountUp } from "@/components/dashboard/use-count-up";
 import {
   useActivity,
@@ -96,6 +103,7 @@ export default function DashboardPage() {
   // Tracks tasks just-completed so the row can briefly flash success-green.
   const [flashing, setFlashing] = useState<Set<string>>(new Set());
   const [channel, setChannel] = useState<ChannelKey>("all");
+  const activeWs = useWorkspaceStore((s) => s.active);
 
   // ── Channel-filtered slices ────────────────────────────────────────────
   // Every section below derives from these — flipping the channel re-renders
@@ -228,218 +236,99 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Dasbor" description="Ringkasan performa sales tim Anda hari ini.">
+      <PageHeader
+        title="Dashboard"
+        description={`Ringkasan hari ini${activeWs ? ` · Workspace: ${activeWs.name}` : ""}`}
+      >
+        <Select value={channel} onValueChange={(v) => setChannel(v as ChannelKey)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CHANNEL_FILTERS.map((f) => (
+              <SelectItem key={f.key} value={f.key}>
+                {f.key === "all" ? "Semua channel" : f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button asChild>
-          <Link href="/cadences/new">
-            <Workflow className="h-4 w-4" />
-            Buat cadence
+          <Link href="/autopilot">
+            <Rocket className="h-4 w-4" />
+            Mulai Autopilot
           </Link>
         </Button>
       </PageHeader>
 
-      <div className="space-y-4 p-6">
+      <div className="space-y-5 p-6">
         {/* First-run setup checklist (auto-hides when complete or dismissed) */}
         <OnboardingChecklist />
 
-        {/* Channel quick filters */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {CHANNEL_FILTERS.map((f) => {
-            const isActive = channel === f.key;
-            return (
-              <button
-                key={f.key}
-                onClick={() => setChannel(f.key)}
-                className={cn(
-                  "relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
-                  isActive
-                    ? "border-primary bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)]"
-                    : "bg-card text-muted-foreground hover:-translate-y-px hover:text-foreground hover:shadow-sm",
-                )}
-              >
-                {/* Soft coral pulse ring on the active chip. */}
-                {isActive && (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 -z-0 rounded-full ring-2 ring-primary/40 animate-[pulse_2.4s_ease-in-out_infinite]"
-                  />
-                )}
-                {f.key !== "all" && <ChannelDot channel={f.key} size={8} />}
-                <span className="relative z-10">{f.label}</span>
-              </button>
-            );
-          })}
-          <AnimatePresence initial={false}>
-            {!isAll && (
-              <motion.span
-                key={channel}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="ml-1"
-              >
-                <Badge variant="secondary" className="gap-1.5 text-[11px]">
-                  <ChannelDot channel={channel} size={7} />
-                  Memfilter ke {activeLabel}
-                </Badge>
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Autopilot AI hero CTA — the headline feature, surfaced front-and-center */}
-        <Card className="overflow-hidden border-primary/20 bg-gradient-to-r from-primary/10 via-tertiary/8 to-transparent">
-          <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Rocket className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
-                    Autopilot AI
-                  </h2>
-                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-                    Baru
-                  </Badge>
-                </div>
-                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                  Dari pemilihan audiens hingga booking meeting — satu klik, AI menjalankan seluruh pipeline.
-                </p>
-              </div>
-            </div>
-            <Button asChild className="shrink-0">
-              <Link href="/autopilot">
-                <Rocket className="h-4 w-4" />
-                Mulai Autopilot
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Band 1: hero + stat cluster */}
-        <div className="grid gap-4 lg:grid-cols-12">
-          {/* Pipeline hero — animated mesh gradient backdrop */}
-          <Card className="relative overflow-hidden lg:col-span-5">
-            <AnimatedHeroBg />
-            <CardContent className="relative z-10 flex h-full flex-col p-6">
-              <div className="flex items-center justify-between">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <TrendingUp className="h-5 w-5" />
-                </span>
-              </div>
-              <p className="mt-5 text-sm text-muted-foreground">
-                Nilai Pipeline{!isAll ? ` · ${activeLabel}` : ""}
-              </p>
-              {dealsLoading ? (
-                <Skeleton className="mt-1 h-10 w-44" />
-              ) : (
-                <p className="tnum mt-1 text-4xl font-semibold tracking-tight">
-                  {formatIDRCompact(Math.round(pipelineCount))}
-                </p>
-              )}
-              <p className="tnum mt-1 text-xs text-muted-foreground">
-                {Math.round(closingCountAnim)} deal closing minggu ini ·{" "}
-                {formatIDR(Math.round(closingValueCount))}
-              </p>
-
-              {/* Stage distribution mini-bar — segments grow in from 0 width. */}
-              <div className="mt-auto pt-6">
-                {totalDeals === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Tidak ada deal aktif di channel ini.
-                  </p>
-                ) : (
-                  <>
-                    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/40">
-                      {funnelData.map((f, i) => {
-                        const pct = (f.value / totalDeals) * 100;
-                        return (
-                          <StageSegment
-                            key={`${channel}-${i}-${f.label}`}
-                            pct={pct}
-                            fill={f.fill}
-                            title={`${f.label}: ${f.value}`}
-                            delay={i * 0.08}
-                          />
-                        );
-                      })}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                      {funnelData.map((f, i) => (
-                        <span key={i} className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: f.fill }} />
-                          {f.label} {f.value}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Stat cluster (2x2) */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-7">
-            <StatTile
-              loading={dealsLoading}
-              icon={<MessageCircle className="h-5 w-5" />}
-              accent={responseAccent}
-              label={responseLabel}
-              value={
-                kpi.totalConvos > 0
-                  ? channel === "tokopedia"
-                    ? `${Math.round(totalConvosAnim)}`
-                    : `${Math.round(responseRateAnim)}%`
-                  : "—"
-              }
-              sub={
-                kpi.totalConvos > 0
-                  ? `${Math.round(unansweredAnim)} belum dibaca`
-                  : "Tidak ada percakapan di channel ini"
-              }
-            />
-            <StatTile
-              loading={dealsLoading}
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              accent="#14B8A6"
-              label={isAll ? "Closing minggu ini" : `Closing · ${activeLabel}`}
-              value={`${Math.round(closingCountAnim)}`}
-              sub={
-                kpi.overdueCount > 0
-                  ? `${formatIDR(Math.round(closingValueCount))} · ${kpi.overdueCount} lewat tempo`
-                  : formatIDR(Math.round(closingValueCount))
-              }
-            />
-            <StatTile
-              loading={dealsLoading}
-              icon={<Workflow className="h-5 w-5" />}
-              accent="#F59E0B"
-              label={isAll ? "Cadence aktif" : `Cadence · ${activeLabel}`}
-              value={`${Math.round(activeCadencesAnim)}`}
-              sub={`${Math.round(enrolledAnim)} kontak terdaftar`}
-            />
-            <StatTile
-              loading={dealsLoading}
-              icon={<Users className="h-5 w-5" />}
-              accent="#FB5E3B"
-              label="Kontak dalam cadence"
-              value={`${Math.round(enrolledAnim)}`}
-              sub={isAll ? "lintas semua channel" : `via ${activeLabel}`}
-            />
-          </div>
-        </div>
+        {/* KPI strip — pipeline · closing · read-through · cadence (maks 4) */}
+        <KpiStrip>
+          <KpiTile
+            loading={dealsLoading}
+            icon={<TrendingUp className="h-5 w-5" />}
+            accent="#FB5E3B"
+            label={isAll ? "Nilai pipeline" : `Pipeline · ${activeLabel}`}
+            value={formatIDRCompact(Math.round(pipelineCount))}
+            sub={`${totalDeals} deal di funnel`}
+          />
+          <KpiTile
+            loading={dealsLoading}
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            accent="#14B8A6"
+            label={isAll ? "Closing minggu ini" : `Closing · ${activeLabel}`}
+            value={`${Math.round(closingCountAnim)}`}
+            sub={
+              kpi.overdueCount > 0
+                ? `${formatIDR(Math.round(closingValueCount))} · ${kpi.overdueCount} lewat tempo`
+                : formatIDR(Math.round(closingValueCount))
+            }
+          />
+          <KpiTile
+            loading={dealsLoading}
+            icon={<MessageCircle className="h-5 w-5" />}
+            accent={responseAccent}
+            label={responseLabel}
+            value={
+              kpi.totalConvos > 0
+                ? channel === "tokopedia"
+                  ? `${Math.round(totalConvosAnim)}`
+                  : `${Math.round(responseRateAnim)}%`
+                : "—"
+            }
+            sub={
+              kpi.totalConvos > 0
+                ? `${Math.round(unansweredAnim)} belum dibaca`
+                : "Tidak ada percakapan di channel ini"
+            }
+          />
+          <KpiTile
+            loading={dealsLoading}
+            icon={<Workflow className="h-5 w-5" />}
+            accent="#F59E0B"
+            label={isAll ? "Cadence aktif" : `Cadence · ${activeLabel}`}
+            value={`${Math.round(activeCadencesAnim)}`}
+            sub={`${Math.round(enrolledAnim)} kontak terdaftar`}
+          />
+        </KpiStrip>
 
         {/* Band 2: tasks + funnel */}
         <div className="grid gap-4 lg:grid-cols-12">
           <Card className="lg:col-span-7">
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle>
-                Tugas hari ini{!isAll ? ` · ${activeLabel}` : ""}
+                Tugas prioritas hari ini{!isAll ? ` · ${activeLabel}` : ""}
               </CardTitle>
-              <Badge variant="secondary">
-                {(filtered.tasks.length ?? 0) - done.size} tersisa
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {(filtered.tasks.length ?? 0) - done.size} tersisa
+                </Badge>
+                <Link href="/inbox" className="text-xs font-medium text-primary hover:underline">
+                  Lihat semua
+                </Link>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {filtered.tasks.length === 0 ? (
@@ -506,9 +395,12 @@ export default function DashboardPage() {
                           </div>
                         </Link>
                         <Badge variant={PRIORITY[task.priority]}>{task.priority}</Badge>
-                        <span className="hidden w-20 text-right text-xs text-muted-foreground sm:block">
+                        <span className="hidden w-16 text-right text-xs text-muted-foreground sm:block">
                           {task.due}
                         </span>
+                        <Button asChild size="sm" variant="outline" className="h-7 shrink-0 px-2.5">
+                          <Link href={taskHref(task.channel)}>Buka</Link>
+                        </Button>
                       </li>
                     );
                   })}
@@ -518,10 +410,13 @@ export default function DashboardPage() {
           </Card>
 
           <Card className="lg:col-span-5">
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle>
-                Deal per tahap{!isAll ? ` · ${activeLabel}` : ""}
+                Funnel pipeline{!isAll ? ` · ${activeLabel}` : ""}
               </CardTitle>
+              <Link href="/pipeline" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                Pipeline <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </CardHeader>
             <CardContent>
               {dealsLoading ? (
@@ -544,12 +439,17 @@ export default function DashboardPage() {
             <CardTitle>
               Aktivitas terbaru{!isAll ? ` · ${activeLabel}` : ""}
             </CardTitle>
-            {!isAll && (
-              <Badge variant="secondary" className="gap-1.5">
-                <ChannelDot channel={channel} size={8} />
-                {activeLabel}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {!isAll && (
+                <Badge variant="secondary" className="gap-1.5">
+                  <ChannelDot channel={channel} size={8} />
+                  {activeLabel}
+                </Badge>
+              )}
+              <Link href="/reports" className="text-xs font-medium text-primary hover:underline">
+                Lihat semua
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {filtered.activity.length === 0 ? (
@@ -595,33 +495,6 @@ export default function DashboardPage() {
 // ── Pieces ──────────────────────────────────────────────────────────────
 
 /**
- * Single segment of the pipeline stage distribution bar. Width animates from
- * 0% → `pct`% on mount with a tasteful stagger driven by `delay`.
- */
-function StageSegment({
-  pct,
-  fill,
-  title,
-  delay,
-}: {
-  pct: number;
-  fill: string;
-  title: string;
-  delay: number;
-}) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      title={title}
-      initial={reduce ? false : { width: 0 }}
-      animate={{ width: `${pct}%` }}
-      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay }}
-      style={{ backgroundColor: fill }}
-    />
-  );
-}
-
-/**
  * Activity feed row — fades + slides in from the right with a per-index
  * stagger. Skips animation for reduced-motion users.
  */
@@ -649,53 +522,4 @@ function ActivityRow({
   );
 }
 
-/**
- * KPI tile — hover lifts ~4px with a coral glow, taps gently spring, the
- * accent icon swatch scales 1.05x on hover. All pure Tailwind transitions
- * so we don't pay a runtime motion cost on idle.
- */
-function StatTile({
-  icon,
-  accent,
-  label,
-  value,
-  sub,
-  loading,
-}: {
-  icon: React.ReactNode;
-  accent: string;
-  label: string;
-  value: string;
-  sub: React.ReactNode;
-  loading?: boolean;
-}) {
-  return (
-    <Card
-      className={cn(
-        "group cursor-default transition-all duration-200 ease-out",
-        "hover:-translate-y-1 hover:shadow-[0_8px_24px_-12px_rgba(251,94,59,0.45)] hover:ring-1 hover:ring-primary/15",
-        "active:translate-y-0 active:scale-[0.98]",
-      )}
-    >
-      <CardContent className="flex h-full flex-col p-5">
-        <div className="flex items-center justify-between">
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105"
-            style={{ backgroundColor: `${accent}1A`, color: accent }}
-          >
-            {icon}
-          </span>
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground/30 transition-colors group-hover:text-primary/60" />
-        </div>
-        <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-        {loading ? (
-          <Skeleton className="mt-1.5 h-7 w-20" />
-        ) : (
-          <p className="tnum mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-        )}
-        <p className="mt-1 truncate text-xs text-muted-foreground">{sub}</p>
-      </CardContent>
-    </Card>
-  );
-}
 
