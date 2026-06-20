@@ -3,10 +3,12 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ClipboardList, Smartphone } from "lucide-react";
+import { ClipboardList, Smartphone, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,7 +29,7 @@ const STATUS: Record<FieldRep["status"], { label: string; dot: string }> = {
 };
 
 export default function FieldPage() {
-  const { data: reps, isLoading } = useFieldReps();
+  const { data: reps, isLoading, isError, refetch } = useFieldReps();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState("live");
 
@@ -69,13 +71,32 @@ export default function FieldPage() {
           </div>
 
           <div className="scrollbar-thin flex-1 overflow-y-auto">
-            {isLoading
-              ? Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="border-b p-3">
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ))
-              : list.map((rep) => (
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="border-b p-3">
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))
+            ) : isError ? (
+              <ErrorState
+                className="m-3"
+                title="Gagal memuat rep"
+                description="Terjadi kendala saat mengambil data tim lapangan."
+                onRetry={() => refetch()}
+              />
+            ) : list.length === 0 ? (
+              <EmptyState
+                className="m-3"
+                icon={Users}
+                title={tab === "live" ? "Belum ada rep aktif" : "Belum ada rep"}
+                description={
+                  tab === "live"
+                    ? "Tidak ada sales yang sedang di kunjungan saat ini."
+                    : "Tim lapangan akan muncul di sini begitu terdaftar."
+                }
+              />
+            ) : (
+              list.map((rep) => (
                   <button
                     key={rep.id}
                     onClick={() => setSelectedId(rep.id)}
@@ -101,7 +122,8 @@ export default function FieldPage() {
                       </p>
                     </div>
                   </button>
-                ))}
+                ))
+            )}
           </div>
 
           {selected && (
