@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { TablePagination } from "@/components/shared/table-pagination";
+import { DataTable, type DataColumn } from "@/components/shared/data-table";
 import { STAGES, usePipelineStore } from "@/lib/stores/pipeline-store";
 import { productById } from "@/lib/api-mock/enrichment";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,8 @@ const STAGE_PILL: Record<string, string> = {
 // Rotates coral → teal → amber so the chips visibly punctuate the row.
 const PRODUCT_ACCENT_FALLBACK = ["#FB5E3B", "#14B8A6", "#F59E0B"];
 
+type EnrichmentRow = { deal: Deal; analysis: EnrichmentDealAnalysis };
+
 export function EnrichmentTable({ workspaceId }: { workspaceId?: string | null }) {
   const deals = usePipelineStore((s) => s.deals);
   const analyses = usePipelineStore((s) => s.analyses);
@@ -71,8 +73,6 @@ export function EnrichmentTable({ workspaceId }: { workspaceId?: string | null }
   const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [page, setPage] = useState(0);
-  const PAGE_SIZE = 10;
 
   // Join deals with their analyses, then filter/sort.
   const rows = useMemo(() => {
@@ -104,21 +104,120 @@ export function EnrichmentTable({ workspaceId }: { workspaceId?: string | null }
     return list.sort((a, b) => b.analysis.priorityScore - a.analysis.priorityScore);
   }, [deals, analyses, status, search, workspaceId]);
 
-  // Reset to the first page whenever the filter/search shrinks the result
-  // set — otherwise the user can land on an empty page.
-  const totalRows = rows.length;
-  const visibleRows = useMemo(
-    () => rows.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
-    [rows, page],
-  );
-  useEffect(() => {
-    if (page > 0 && page * PAGE_SIZE >= totalRows) setPage(0);
-  }, [page, totalRows]);
-
   function open(deal: Deal) {
     setOpenDeal(deal);
     setSheetOpen(true);
   }
+
+  const columns: DataColumn<EnrichmentRow>[] = [
+    {
+      key: "prospek",
+      header: "Prospek",
+      sortValue: ({ deal }) => deal.contactName.toLowerCase(),
+      cell: ({ deal }) => (
+        <div className="flex items-center gap-2.5">
+          <UserAvatar name={deal.contactName} color={deal.avatarColor} className="h-8 w-8 text-[11px]" />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{deal.contactName}</p>
+            <p className="truncate text-xs text-muted-foreground">{deal.company}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "stage",
+      header: "Tahap",
+      cell: ({ analysis }) => (
+        <div>
+          <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium", STAGE_PILL[analysis.stage] ?? STAGE_PILL.prospek)}>
+            {STAGE_LABEL[analysis.stage] ?? analysis.stage}
+          </span>
+          <p className={cn("mt-1 text-[11px]", analysis.daysInStage > 7 ? "font-medium text-amber-700" : "text-muted-foreground")}>
+            {analysis.daysInStage} hari di tahap
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: ({ analysis }) =>
+        analysis.status === "aktif" ? (
+          <Badge variant="success" className="gap-1.5 border border-emerald-300/60">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> Aktif
+          </Badge>
+        ) : (
+          <Badge variant="muted" className="gap-1.5 border border-slate-300/60">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" /> Berhenti
+          </Badge>
+        ),
+    },
+    {
+      key: "score",
+      header: "Skor AI",
+      sortValue: ({ analysis }) => analysis.priorityScore,
+      cell: ({ analysis }) => <TempBadge score={analysis.priorityScore} temp={analysis.temperature} />,
+    },
+    {
+      key: "suggestion",
+      header: "Saran AI",
+      className: "max-w-[280px]",
+      cell: ({ analysis }) => (
+        <p className="flex items-start gap-1.5 text-xs">
+          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-tertiary" />
+          <span className="line-clamp-2 text-foreground/80">{analysis.aiSuggestion}</span>
+        </p>
+      ),
+    },
+    {
+      key: "products",
+      header: "Produk cocok",
+      cell: ({ deal, analysis }) =>
+        analysis.matchedProducts.length === 0 ? (
+          <span className="text-[11px] text-muted-foreground">—</span>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 transition-all hover:border-primary/30 hover:bg-primary/5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open(deal);
+                }}
+                aria-label={`${analysis.matchedProducts.length} produk cocok`}
+              >
+                {analysis.matchedProducts.slice(0, 4).map((pid, idx) => {
+                  const p = productById(pid, products);
+                  const accent = p?.accent ?? PRODUCT_ACCENT_FALLBACK[idx % PRODUCT_ACCENT_FALLBACK.length];
+                  return <span key={pid} className="h-2.5 w-2.5 rounded-full ring-2 ring-card" style={{ backgroundColor: accent }} />;
+                })}
+                {analysis.matchedProducts.length > 4 && (
+                  <span className="ml-1 tnum text-[10px] font-medium text-muted-foreground">+{analysis.matchedProducts.length - 4}</span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-xs space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">Produk cocok</p>
+              <ul className="space-y-0.5 text-xs">
+                {analysis.matchedProducts.map((pid, idx) => {
+                  const p = productById(pid, products);
+                  if (!p) return null;
+                  const accent = p.accent ?? PRODUCT_ACCENT_FALLBACK[idx % PRODUCT_ACCENT_FALLBACK.length];
+                  return (
+                    <li key={pid} className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
+                      <span className="font-medium">{p.name}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="pt-1 text-[10px] italic text-muted-foreground">Klik untuk lihat detail deal</p>
+            </TooltipContent>
+          </Tooltip>
+        ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -167,186 +266,16 @@ export function EnrichmentTable({ workspaceId }: { workspaceId?: string | null }
       {showArchived ? (
         <ArchivedDealsPanel onRestored={refreshDeals} />
       ) : (
-      <>
-      <div className="overflow-hidden rounded-xl border border-primary/10 bg-card shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b border-primary/10 bg-gradient-to-r from-primary/5 via-tertiary/4 to-transparent hover:bg-transparent">
-              <TableHead>Prospek</TableHead>
-              <TableHead>Tahap</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Skor AI</TableHead>
-              <TableHead>Saran AI</TableHead>
-              <TableHead>Produk cocok</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-10 text-center text-sm text-muted-foreground"
-                >
-                  Tidak ada prospek yang cocok dengan filter ini.
-                </TableCell>
-              </TableRow>
-            )}
-            {visibleRows.map(({ deal, analysis }) => (
-              <TableRow
-                key={deal.id}
-                className="group cursor-pointer transition-all duration-150 even:bg-muted/20 hover:bg-primary/5 hover:shadow-[inset_3px_0_0_0_rgba(251,94,59,0.7)] active:scale-[0.998]"
-                onClick={() => open(deal)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <UserAvatar
-                      name={deal.contactName}
-                      color={deal.avatarColor}
-                      className="h-8 w-8 text-[11px] ring-2 ring-transparent transition-shadow group-hover:ring-primary/30"
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{deal.contactName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {deal.company}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
-                      STAGE_PILL[analysis.stage] ?? STAGE_PILL.prospek,
-                    )}
-                  >
-                    {STAGE_LABEL[analysis.stage] ?? analysis.stage}
-                  </span>
-                  <p
-                    className={cn(
-                      "mt-1 text-[11px]",
-                      analysis.daysInStage > 7
-                        ? "font-medium text-amber-700"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {analysis.daysInStage} hari di tahap
-                  </p>
-                </TableCell>
-                <TableCell>
-                  {analysis.status === "aktif" ? (
-                    <Badge variant="success" className="gap-1.5 border border-emerald-300/60">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shadow-[0_0_0_2px_rgba(16,185,129,0.18)]" />
-                      Aktif
-                    </Badge>
-                  ) : (
-                    <Badge variant="muted" className="gap-1.5 border border-slate-300/60">
-                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-                      Berhenti
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <TempBadge
-                    score={analysis.priorityScore}
-                    temp={analysis.temperature}
-                  />
-                </TableCell>
-                <TableCell className="max-w-[280px]">
-                  <p className="flex items-start gap-1.5 text-xs">
-                    <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-tertiary" />
-                    <span className="line-clamp-2 text-foreground/80">
-                      {analysis.aiSuggestion}
-                    </span>
-                  </p>
-                </TableCell>
-                <TableCell>
-                  {/* Colored dots only — hover to see the product names.
-                      Cleaner than chips when a deal matches 2-3 products. */}
-                  {analysis.matchedProducts.length === 0 ? (
-                    <span className="text-[11px] text-muted-foreground">—</span>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 transition-all hover:border-primary/30 hover:bg-primary/5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            open(deal);
-                          }}
-                          aria-label={`${analysis.matchedProducts.length} produk cocok`}
-                        >
-                          {analysis.matchedProducts.slice(0, 4).map((pid, idx) => {
-                            const p = productById(pid, products);
-                            const accent =
-                              p?.accent ??
-                              PRODUCT_ACCENT_FALLBACK[
-                                idx % PRODUCT_ACCENT_FALLBACK.length
-                              ];
-                            return (
-                              <span
-                                key={pid}
-                                className="h-2.5 w-2.5 rounded-full ring-2 ring-card"
-                                style={{ backgroundColor: accent }}
-                              />
-                            );
-                          })}
-                          {analysis.matchedProducts.length > 4 && (
-                            <span className="ml-1 tnum text-[10px] font-medium text-muted-foreground">
-                              +{analysis.matchedProducts.length - 4}
-                            </span>
-                          )}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs space-y-1">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                          Produk cocok
-                        </p>
-                        <ul className="space-y-0.5 text-xs">
-                          {analysis.matchedProducts.map((pid, idx) => {
-                            const p = productById(pid, products);
-                            if (!p) return null;
-                            const accent =
-                              p.accent ??
-                              PRODUCT_ACCENT_FALLBACK[
-                                idx % PRODUCT_ACCENT_FALLBACK.length
-                              ];
-                            return (
-                              <li
-                                key={pid}
-                                className="flex items-center gap-1.5"
-                              >
-                                <span
-                                  className="h-2 w-2 shrink-0 rounded-full"
-                                  style={{ backgroundColor: accent }}
-                                />
-                                <span className="font-medium">{p.name}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <p className="pt-1 text-[10px] italic text-muted-foreground">
-                          Klik untuk lihat detail deal
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <TablePagination
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={totalRows}
-        onPrev={() => setPage((p) => Math.max(0, p - 1))}
-        onNext={() => setPage((p) => p + 1)}
-        label="prospek"
-      />
-      </>
+        <DataTable
+          columns={columns}
+          data={rows}
+          rowKey={({ deal }) => deal.id}
+          pageSize={10}
+          onRowClick={({ deal }) => open(deal)}
+          emptyIcon={Search}
+          emptyTitle="Tidak ada prospek yang cocok"
+          emptyDescription="Coba ubah filter status atau kata kunci."
+        />
       )}
 
       <DealDetailSheet
