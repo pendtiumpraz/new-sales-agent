@@ -57,6 +57,7 @@ export function DataTable<T>({
   selectedIds,
   onSelectedChange,
   onRowClick,
+  rowClassName,
   pageSize = 10,
   loading,
   emptyIcon = Inbox,
@@ -72,6 +73,8 @@ export function DataTable<T>({
   selectedIds?: Set<string>;
   onSelectedChange?: (next: Set<string>) => void;
   onRowClick?: (row: T) => void;
+  /** Optional per-row extra classes (e.g. highlight unread rows). */
+  rowClassName?: (row: T) => string | undefined;
   pageSize?: number;
   loading?: boolean;
   emptyIcon?: LucideIcon;
@@ -183,7 +186,7 @@ export function DataTable<T>({
                 <TableRow
                   key={id}
                   data-state={selectable && selectedIds!.has(id) ? "selected" : undefined}
-                  className={cn("group", onRowClick && "cursor-pointer")}
+                  className={cn("group", onRowClick && "cursor-pointer", rowClassName?.(row.original))}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 >
                   {selectable && (

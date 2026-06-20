@@ -4,21 +4,9 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  type ColumnDef,
-  type SortingState,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import {
   Archive,
   ArchiveRestore,
-  ArrowUpDown,
   CalendarClock,
-  ChevronLeft,
-  ChevronRight,
   Contact as ContactIcon,
   Download,
   Eye,
@@ -45,10 +33,11 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { TempBadge } from "@/components/shared/temp-badge";
 import { ContactDetailSheet } from "@/components/contacts/contact-detail-sheet";
 import { SendMessageDialog } from "@/components/contacts/send-message-dialog";
+import { DataTable, type DataColumn } from "@/components/shared/data-table";
+import { BulkBar } from "@/components/shared/bulk-bar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -64,14 +53,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -131,7 +112,6 @@ function ContactsPageInner() {
   const [cities, setCities] = useState<Set<string>>(new Set());
   const [consents, setConsents] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [detail, setDetail] = useState<Contact | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -265,102 +245,76 @@ function ContactsPageInner() {
     }
   }, [searchParams, contacts]);
 
-  const columns = useMemo<ColumnDef<Contact>[]>(
+  const columns = useMemo<DataColumn<Contact>[]>(
     () => [
       {
-        accessorKey: "name",
+        key: "name",
         header: "Nama",
-        cell: ({ row }) => {
-          const unread = unreadByContact.get(row.original.id) ?? 0;
+        sortValue: (c) => c.name.toLowerCase(),
+        cell: (c) => {
+          const unread = unreadByContact.get(c.id) ?? 0;
           return (
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <UserAvatar
-                  name={row.original.name}
-                  color={row.original.avatarColor}
-                  className="h-8 w-8 text-[11px]"
-                />
+                <UserAvatar name={c.name} color={c.avatarColor} className="h-8 w-8 text-[11px]" />
                 {unread > 0 && inboxView && (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground ring-2 ring-card">
                     {unread}
                   </span>
                 )}
               </div>
-              <span className="font-medium">{row.original.name}</span>
+              <span className="font-medium">{c.name}</span>
             </div>
           );
         },
       },
-      { accessorKey: "company", header: "Perusahaan" },
+      { key: "company", header: "Perusahaan", sortValue: (c) => c.company.toLowerCase(), cell: (c) => c.company },
+      { key: "title", header: "Jabatan", cell: (c) => <span className="text-muted-foreground">{c.title}</span> },
       {
-        accessorKey: "title",
-        header: "Jabatan",
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground">{getValue<string>()}</span>
-        ),
-      },
-      {
-        accessorKey: "channelPreference",
+        key: "channel",
         header: "Channel",
-        cell: ({ getValue }) => {
-          const ch = getValue<string>();
-          const meta = channelMeta(ch);
+        cell: (c) => {
+          const meta = channelMeta(c.channelPreference);
           return (
             <span
               className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
-              style={{
-                borderColor: `${meta.color}40`,
-                backgroundColor: `${meta.color}14`,
-                color: meta.color,
-              }}
+              style={{ borderColor: `${meta.color}40`, backgroundColor: `${meta.color}14`, color: meta.color }}
             >
-              <span
-                aria-hidden
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: meta.color }}
-              />
+              <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
               {meta.label}
             </span>
           );
         },
       },
       {
-        id: "aiScore",
-        accessorFn: (c) => leadScore(c).score,
+        key: "score",
         header: "Skor AI",
-        cell: ({ row }) => {
-          const { score, temp } = leadScore(row.original);
+        sortValue: (c) => leadScore(c).score,
+        cell: (c) => {
+          const { score, temp } = leadScore(c);
           return <TempBadge score={score} temp={temp} />;
         },
       },
       {
-        accessorKey: "lastActivity",
+        key: "lastActivity",
         header: "Aktivitas",
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground">
-            {formatRelativeID(getValue<string>())}
-          </span>
-        ),
+        sortValue: (c) => new Date(c.lastActivity).getTime(),
+        cell: (c) => <span className="text-muted-foreground">{formatRelativeID(c.lastActivity)}</span>,
       },
+      { key: "consent", header: "Persetujuan", cell: (c) => <ConsentBadge status={c.consent} /> },
       {
-        accessorKey: "consent",
-        header: "Persetujuan",
-        cell: ({ getValue }) => (
-          <ConsentBadge status={getValue<ConsentStatus>()} />
-        ),
-      },
-      {
-        id: "actions",
+        key: "actions",
         header: "",
-        cell: ({ row }) => (
+        align: "right",
+        cell: (c) => (
           <RowActions
-            contact={row.original}
-            onPreview={(c) => {
-              setDetail(c);
+            contact={c}
+            onPreview={(x) => {
+              setDetail(x);
               setSheetOpen(true);
             }}
-            onAddToCadence={(c) => {
-              setSelected(new Set([c.id]));
+            onAddToCadence={(x) => {
+              setSelected(new Set([x.id]));
               setCadencePickerOpen(true);
             }}
           />
@@ -369,38 +323,6 @@ function ContactsPageInner() {
     ],
     [unreadByContact, inboxView],
   );
-
-  const table = useReactTable({
-    data: filtered,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
-
-  const pageRows = table.getRowModel().rows;
-  const pageIds = pageRows.map((r) => r.original.id);
-  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
-
-  function toggleSel(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-  function togglePage() {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
-      else pageIds.forEach((id) => next.add(id));
-      return next;
-    });
-  }
 
   /**
    * Wave 3 default: clicking a row opens the unified workspace. The classic
@@ -675,180 +597,79 @@ function ContactsPageInner() {
             </span>
           </div>
 
-          {/* Bulk action bar — coral-tinted when active */}
-          {selected.size > 0 && (
-            <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-tertiary/5 px-4 py-2.5 text-sm shadow-sm">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-xs font-semibold">
-                <Sparkles className="h-3 w-3" />
-                {selected.size} dipilih
-              </span>
-              <div className="ml-auto flex gap-2">
-                <Button
-                  size="sm"
-                  className="bg-primary text-primary-foreground hover:brightness-105"
-                  onClick={() => setSendOpen(true)}
-                >
-                  <Send className="h-4 w-4" />
-                  Kirim Email/WA
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
-                  onClick={() => {
-                    setSelectedCadenceId(activeCadences[0]?.id ?? "");
-                    setCadencePickerOpen(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  Ke cadence
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-tertiary/30 bg-tertiary/5 text-tertiary hover:bg-tertiary/10 hover:text-tertiary"
-                  onClick={exportCsv}
-                >
-                  <Download className="h-4 w-4" />
-                  Export CSV
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    const ids = [...selected];
-                    try {
-                      const r = await fetch("/api/data/archive", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ entity: "contact", ids, restore: showArchived }),
-                      });
-                      const j = await r.json();
-                      if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
-                      toast.success(`${j.count ?? ids.length} kontak ${showArchived ? "dipulihkan" : "diarsipkan"}`);
-                      queryClient.invalidateQueries({ queryKey: ["contacts"] });
-                    } catch (e) {
-                      toast.error(`Gagal (${e instanceof Error ? e.message : e})`);
-                    }
-                    setSelected(new Set());
-                  }}
-                >
-                  {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-                  {showArchived ? "Pulihkan" : "Arsipkan"}
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="h-4 w-4" />
-                  Hapus permanen
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Bulk action bar (shared) */}
+          <BulkBar count={selected.size} onClear={() => setSelected(new Set())} className="mb-3">
+            <Button size="sm" onClick={() => setSendOpen(true)}>
+              <Send className="h-4 w-4" />
+              Kirim Email/WA
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => {
+                setSelectedCadenceId(activeCadences[0]?.id ?? "");
+                setCadencePickerOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Ke cadence
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportCsv}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                const ids = [...selected];
+                try {
+                  const r = await fetch("/api/data/archive", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ entity: "contact", ids, restore: showArchived }),
+                  });
+                  const j = await r.json();
+                  if (!r.ok || j.ok === false) throw new Error(j?.error ?? "gagal");
+                  toast.success(`${j.count ?? ids.length} kontak ${showArchived ? "dipulihkan" : "diarsipkan"}`);
+                  queryClient.invalidateQueries({ queryKey: ["contacts"] });
+                } catch (e) {
+                  toast.error(`Gagal (${e instanceof Error ? e.message : e})`);
+                }
+                setSelected(new Set());
+              }}
+            >
+              {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+              {showArchived ? "Pulihkan" : "Arsipkan"}
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              Hapus permanen
+            </Button>
+          </BulkBar>
 
-          <div className="overflow-hidden rounded-lg border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-10">
-                    <Checkbox checked={allPageSelected} onCheckedChange={togglePage} />
-                  </TableHead>
-                  {table.getHeaderGroups()[0].headers.map((h) => (
-                    <TableHead key={h.id}>
-                      <button
-                        className="flex items-center gap-1.5 hover:text-foreground"
-                        onClick={h.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {h.id !== "actions" && (
-                          <ArrowUpDown className="h-3 w-3 opacity-50" />
-                        )}
-                      </button>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell colSpan={9}>
-                        <Skeleton className="h-8 w-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : pageRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                      Tidak ada kontak yang cocok dengan filter.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  pageRows.map((row) => {
-                    const unread = unreadByContact.get(row.original.id) ?? 0;
-                    return (
-                      <TableRow
-                        key={row.id}
-                        className={cn(
-                          "cursor-pointer transition-colors even:bg-muted/30 hover:bg-primary/[0.06]",
-                          inboxView && unread > 0 && "bg-tertiary/10 hover:bg-tertiary/15",
-                        )}
-                        data-state={
-                          selected.has(row.original.id) ? "selected" : undefined
-                        }
-                        onClick={() => openWorkspace(row.original)}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selected.has(row.original.id)}
-                            onCheckedChange={() => toggleSel(row.original.id)}
-                          />
-                        </TableCell>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            onClick={
-                              cell.column.id === "actions"
-                                ? (e) => e.stopPropagation()
-                                : undefined
-                            }
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Halaman {table.getState().pagination.pageIndex + 1} dari{" "}
-              {table.getPageCount()}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Sebelumnya
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Berikutnya
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            rowKey={(c) => c.id}
+            loading={isLoading}
+            selectedIds={selected}
+            onSelectedChange={setSelected}
+            onRowClick={openWorkspace}
+            rowClassName={(c) =>
+              inboxView && (unreadByContact.get(c.id) ?? 0) > 0
+                ? "bg-tertiary/10 hover:bg-tertiary/15"
+                : undefined
+            }
+            emptyIcon={Users}
+            emptyTitle="Tidak ada kontak yang cocok"
+            emptyDescription={
+              search || consents.size || industries.size || cities.size
+                ? "Coba ubah filter atau kata kunci."
+                : "Tambah kontak atau mulai Discovery untuk mengisi daftar."
+            }
+          />
         </div>
       </div>
 
