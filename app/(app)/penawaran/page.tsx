@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Archive, ArchiveRestore, FileText, Plus, Sparkles } from "lucide-react";
@@ -10,12 +9,19 @@ import { Archive, ArchiveRestore, FileText, Plus, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
-import { CardGridSkeleton } from "@/components/shared/skeletons";
+import { Toolbar } from "@/components/shared/toolbar";
+import { DataTable, type DataColumn } from "@/components/shared/data-table";
 
 interface QuoteRow {
   id: string;
@@ -47,6 +53,7 @@ export default function PenawaranPage() {
   const router = useRouter();
   const workspaceId = useSearchParams().get("workspace");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -109,8 +116,45 @@ export default function PenawaranPage() {
     onError: () => toast.error("Gagal membuat penawaran (cek hak akses & DB)"),
   });
 
-  const all = q.data?.data ?? [];
-  const visible = statusFilter === "all" ? all : all.filter((x) => x.status === statusFilter);
+  const all = useMemo(() => q.data?.data ?? [], [q.data]);
+  const visible = useMemo(() => {
+    let list = statusFilter === "all" ? all : all.filter((x) => x.status === statusFilter);
+    const s = search.trim().toLowerCase();
+    if (s) {
+      list = list.filter(
+        (x) =>
+          x.number.toLowerCase().includes(s) ||
+          x.title.toLowerCase().includes(s) ||
+          (x.customerName ?? "").toLowerCase().includes(s) ||
+          (x.customerCompany ?? "").toLowerCase().includes(s),
+      );
+    }
+    return list;
+  }, [all, statusFilter, search]);
+
+  const columns: DataColumn<QuoteRow>[] = [
+    { key: "number", header: "No.", sortValue: (x) => x.number, cell: (x) => <span className="font-mono text-xs text-muted-foreground">{x.number}</span> },
+    { key: "title", header: "Judul", sortValue: (x) => x.title.toLowerCase(), cell: (x) => <span className="font-medium">{x.title}</span> },
+    {
+      key: "customer",
+      header: "Pelanggan",
+      cell: (x) => (
+        <span className="text-muted-foreground">
+          {x.customerName || "—"}
+          {x.customerCompany ? ` · ${x.customerCompany}` : ""}
+        </span>
+      ),
+    },
+    { key: "total", header: "Total", align: "right", sortValue: (x) => x.total, cell: (x) => <span className="font-semibold">{fmtMoney(x.total, x.currency)}</span> },
+    {
+      key: "status",
+      header: "Status",
+      cell: (x) => {
+        const m = STATUS_META[x.status] ?? STATUS_META.draft;
+        return <Badge variant="muted" className={m.cls}>{m.label}</Badge>;
+      },
+    },
+  ];
 
   return (
     <div>
@@ -125,55 +169,51 @@ export default function PenawaranPage() {
       </PageHeader>
 
       <div className="space-y-4 p-6">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {["all", ...STATUS_ORDER].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              className={"rounded-full px-3 py-1 text-xs font-medium transition " + (statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70")}
-            >
-              {s === "all" ? "Semua" : STATUS_META[s]?.label ?? s}
-            </button>
-          ))}
-        </div>
+        <Toolbar
+          search={search}
+          onSearch={setSearch}
+          searchPlaceholder="Cari no / judul / pelanggan…"
+          filters={
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua status</SelectItem>
+                {STATUS_ORDER.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STATUS_META[s]?.label ?? s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
 
         {q.isError ? (
           <EmptyState icon={FileText} title="Tidak bisa memuat penawaran" description="Pastikan kamu login & punya akses data." />
-        ) : q.isLoading ? (
-          <CardGridSkeleton count={6} />
-        ) : visible.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="Belum ada penawaran"
-            description="Buat penawaran pertama — AI bisa bantu susun item, harga, syarat, dan email pengantarnya."
-            action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Buat penawaran</Button>}
-          />
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {visible.map((x) => {
-              const meta = STATUS_META[x.status] ?? STATUS_META.draft;
-              return (
-                <Link key={x.id} href={`/penawaran/${x.id}`} className="group block">
-                  <Card className="h-full transition hover:border-primary/40 hover:shadow-md">
-                    <CardContent className="flex h-full flex-col gap-2 p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{x.title}</p>
-                          <p className="text-[11px] text-muted-foreground">{x.number}</p>
-                        </div>
-                        <Badge variant="muted" className={meta.cls}>{meta.label}</Badge>
-                      </div>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {x.customerName || "—"}{x.customerCompany ? ` · ${x.customerCompany}` : ""}
-                      </p>
-                      <p className="mt-auto border-t pt-2 text-sm font-semibold">{fmtMoney(x.total, x.currency)}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
+          <DataTable
+            columns={columns}
+            data={visible}
+            rowKey={(x) => x.id}
+            loading={q.isLoading}
+            onRowClick={(x) => router.push(`/penawaran/${x.id}`)}
+            emptyIcon={FileText}
+            emptyTitle={search || statusFilter !== "all" ? "Tidak ada penawaran yang cocok" : "Belum ada penawaran"}
+            emptyDescription={
+              search || statusFilter !== "all"
+                ? undefined
+                : "Buat penawaran pertama — AI bisa bantu susun item, harga, syarat, dan email pengantarnya."
+            }
+            emptyAction={
+              search || statusFilter !== "all" ? undefined : (
+                <Button onClick={() => setOpen(true)}>
+                  <Plus className="h-4 w-4" /> Buat penawaran
+                </Button>
+              )
+            }
+          />
         )}
       </div>
 

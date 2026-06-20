@@ -11,8 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
+import { Toolbar } from "@/components/shared/toolbar";
+import { DataTable, type DataColumn } from "@/components/shared/data-table";
 import { formatIDR } from "@/lib/utils/format-idr";
 
 interface Listing {
@@ -53,6 +62,9 @@ export default function MarketplacePage() {
   const [unitPrice, setUnitPrice] = useState<number>(0);
   const [cfilter, setCfilter] = useState("");
   const [cindustry, setCindustry] = useState("all");
+  // Browse-tab filters (separate from the publish-tab company picker above).
+  const [browseSearch, setBrowseSearch] = useState("");
+  const [browseCat, setBrowseCat] = useState("all");
 
   const browseQ = useQuery({
     queryKey: ["marketplace-browse"],
@@ -155,6 +167,62 @@ export default function MarketplacePage() {
   }
   // People can't be sold — only companies + bundles appear in the pool.
   const listings = (browseQ.data?.data ?? []).filter((l) => l.entityType !== "person");
+  // Plain consts (not hooks): this is after the early returns above.
+  const listingCats = [...new Set(listings.map((l) => l.category).filter(Boolean) as string[])].sort();
+  const visibleListings = listings.filter((l) => {
+    if (browseCat !== "all" && (l.category ?? "") !== browseCat) return false;
+    const s = browseSearch.trim().toLowerCase();
+    if (s && !`${l.title} ${l.category ?? ""} ${l.summary ?? ""}`.toLowerCase().includes(s)) return false;
+    return true;
+  });
+  const browseColumns: DataColumn<Listing>[] = [
+    {
+      key: "type",
+      header: "Tipe",
+      cell: (l) => (
+        <Badge variant="muted" className="gap-1">
+          {l.entityType === "bundle" ? <Boxes className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
+          {l.entityType === "bundle" ? `Bundle · ${l.bundleItems?.length ?? 0} PT` : "Perusahaan"}
+        </Badge>
+      ),
+    },
+    {
+      key: "title",
+      header: "Nama",
+      sortValue: (l) => l.title.toLowerCase(),
+      cell: (l) => (
+        <div className="min-w-0">
+          <p className="font-medium">{l.title}</p>
+          {l.category && <p className="text-[11px] font-medium text-primary">{l.category}</p>}
+          {l.summary && <p className="truncate text-xs text-muted-foreground">{l.summary}</p>}
+        </div>
+      ),
+    },
+    { key: "channels", header: "Channel", cell: (l) => <ChannelBadges channels={l.channels} /> },
+    {
+      key: "price",
+      header: "Harga",
+      align: "right",
+      sortValue: (l) => l.priceIdr,
+      cell: (l) => (
+        <span className="font-semibold">
+          {l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}
+          {l.entityType === "bundle" && l.pricingMode === "per_company" ? " /PT" : ""}
+        </span>
+      ),
+    },
+    {
+      key: "action",
+      header: "",
+      align: "right",
+      cell: (l) => (
+        <Button size="sm" variant="outline" onClick={() => acquire.mutate(l.id)} disabled={acquire.isPending}>
+          <ShoppingCart className="h-3.5 w-3.5" />
+          {l.entityType === "bundle" ? `Ambil (${l.bundleItems?.length ?? 0})` : "Ambil"}
+        </Button>
+      ),
+    },
+  ];
   const toggle = (set: Set<string>, id: string, setter: (s: Set<string>) => void) => {
     const n = new Set(set);
     if (n.has(id)) n.delete(id);
@@ -174,39 +242,40 @@ export default function MarketplacePage() {
           </TabsList>
 
           {/* Browse + acquire */}
-          <TabsContent value="jelajah" className="mt-5">
-            {listings.length === 0 ? (
-              <EmptyState icon={Store} title="Belum ada listing" description="Belum ada tenant lain yang publikasi. Publikasikan punyamu di tab sebelah." />
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {listings.map((l) => (
-                  <Card key={l.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <Badge variant="muted" className="gap-1">
-                          {l.entityType === "bundle" ? <Boxes className="h-3 w-3" /> : <Building2 className="h-3 w-3" />}
-                          {l.entityType === "bundle" ? `Bundle · ${(l as { bundleItems?: string[] }).bundleItems?.length ?? 0} PT` : "Perusahaan"}
-                        </Badge>
-                        <span className="text-xs font-semibold">
-                          {l.priceIdr > 0 ? formatIDR(l.priceIdr) : "Gratis"}
-                          {l.entityType === "bundle" && (l as { pricingMode?: string }).pricingMode === "per_company" ? " /PT" : ""}
-                        </span>
-                      </div>
-                      <p className="mt-2 font-semibold">{l.title}</p>
-                      {l.category && <p className="text-[11px] font-medium text-primary">{l.category}</p>}
-                      {l.summary && <p className="text-xs text-muted-foreground">{l.summary}</p>}
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <ChannelBadges channels={l.channels} />
-                      </div>
-                      <Button size="sm" className="mt-3 w-full" onClick={() => acquire.mutate(l.id)} disabled={acquire.isPending}>
-                        <ShoppingCart className="h-3.5 w-3.5" />
-                        {l.entityType === "bundle" ? `Ambil semua (${(l as { bundleItems?: string[] }).bundleItems?.length ?? 0} PT)` : "Ambil ke kontak saya"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+          <TabsContent value="jelajah" className="mt-5 space-y-4">
+            <Toolbar
+              search={browseSearch}
+              onSearch={setBrowseSearch}
+              searchPlaceholder="Cari perusahaan / bundle…"
+              filters={
+                <Select value={browseCat} onValueChange={setBrowseCat}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Semua bidang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua bidang</SelectItem>
+                    {listingCats.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              }
+            />
+            <DataTable
+              columns={browseColumns}
+              data={visibleListings}
+              rowKey={(l) => l.id}
+              pageSize={12}
+              emptyIcon={Store}
+              emptyTitle={browseSearch || browseCat !== "all" ? "Tidak ada listing yang cocok" : "Belum ada listing"}
+              emptyDescription={
+                browseSearch || browseCat !== "all"
+                  ? undefined
+                  : "Belum ada tenant lain yang publikasi. Publikasikan punyamu di tab sebelah."
+              }
+            />
           </TabsContent>
 
           {/* Buat bundle perusahaan — orang TIDAK boleh dijual */}
