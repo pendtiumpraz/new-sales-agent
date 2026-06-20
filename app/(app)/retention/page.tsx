@@ -13,7 +13,7 @@ import {
 import { PageHeader } from "@/components/layout/page-header";
 import { CandidateTable } from "@/components/retention/candidate-table";
 import { FlowCard } from "@/components/retention/flow-card";
-import { RetentionStatTile } from "@/components/retention/stat-tile";
+import { KpiStrip, KpiTile } from "@/components/shared/kpi-tile";
 import { IDRAmount } from "@/components/shared/idr-amount";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -117,43 +117,13 @@ export default function RetentionPage() {
           </div>
         </div>
 
-        {/* KPI tiles — color-coded per metric using the StatTile gradient */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <RetentionStatTile
-            icon={<Users className="h-5 w-5" />}
-            accent="#10B981"
-            label="Pelanggan aktif retensi"
-            value={kpi.activeCustomers}
-            sub="terdaftar di seluruh alur"
-            delta={kpi.activeCustomersTrend}
-          />
-          <RetentionStatTile
-            icon={<Repeat2 className="h-5 w-5" />}
-            accent="#FB5E3B"
-            label="Pesanan berulang bulan ini"
-            value={kpi.repeatOrdersThisMonth}
-            sub={<IDRAmount value={kpi.repeatOrderValueIDR} compact />}
-          />
-          <RetentionStatTile
-            icon={<Sparkles className="h-5 w-5" />}
-            accent="#F59E0B"
-            label="Tingkat upsell"
-            value={`${kpi.upsellRate}%`}
-            sub="vs. periode sebelumnya"
-            delta={kpi.upsellRateDelta}
-          />
-          <RetentionStatTile
-            icon={<Gauge className="h-5 w-5" />}
-            accent="#14B8A6"
-            label="NPS rata-rata"
-            value={kpi.averageNps}
-            sub={
-              kpi.averageNps >= 50
-                ? "Pelanggan loyal"
-                : "Perlu peningkatan layanan"
-            }
-          />
-        </div>
+        {/* KPI strip — shared KpiTile (no fabricated deltas) */}
+        <KpiStrip>
+          <KpiTile icon={<Users className="h-5 w-5" />} accent="#10B981" label="Pelanggan aktif retensi" count={kpi.activeCustomers} sub="terdaftar di seluruh alur" />
+          <KpiTile icon={<Repeat2 className="h-5 w-5" />} accent="#FB5E3B" label="Pesanan berulang bulan ini" count={kpi.repeatOrdersThisMonth} sub={<IDRAmount value={kpi.repeatOrderValueIDR} compact />} />
+          <KpiTile icon={<Sparkles className="h-5 w-5" />} accent="#F59E0B" label="Tingkat upsell" count={kpi.upsellRate} suffix="%" sub="dari pelanggan aktif" />
+          <KpiTile icon={<Gauge className="h-5 w-5" />} accent="#14B8A6" label="NPS rata-rata" count={kpi.averageNps} sub={kpi.averageNps >= 50 ? "Pelanggan loyal" : "Perlu peningkatan layanan"} />
+        </KpiStrip>
 
         {/* Active flows */}
         <section className="space-y-3">

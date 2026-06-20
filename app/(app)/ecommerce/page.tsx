@@ -10,7 +10,6 @@ import { IDRAmount } from "@/components/shared/idr-amount";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -19,14 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Toolbar } from "@/components/shared/toolbar";
+import { DataTable, type DataColumn } from "@/components/shared/data-table";
 import { useOrders } from "@/lib/api-mock/hooks";
 import { MARKETPLACES } from "@/lib/utils/channel-config";
 import { formatDayMonthID } from "@/lib/utils/format-date-id";
@@ -58,6 +51,7 @@ export default function EcommercePage() {
   const [recover, setRecover] = useState<Order | null>(null);
   const [connState, setConnState] = useState(CONNECTED);
   const [recovered, setRecovered] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
 
   const stats = useMemo(() => {
     const out: Record<string, { count: number; revenue: number }> = {};
@@ -68,6 +62,66 @@ export default function EcommercePage() {
     }
     return out;
   }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    const list = orders ?? [];
+    const s = search.trim().toLowerCase();
+    return s
+      ? list.filter(
+          (o) =>
+            o.id.toLowerCase().includes(s) ||
+            o.customer.toLowerCase().includes(s) ||
+            o.product.toLowerCase().includes(s),
+        )
+      : list;
+  }, [orders, search]);
+
+  const columns: DataColumn<Order>[] = [
+    { key: "id", header: "Order ID", cell: (o) => <span className="font-mono text-xs">{o.id}</span> },
+    {
+      key: "channel",
+      header: "Channel",
+      sortValue: (o) => o.marketplace,
+      cell: (o) => (
+        <span className="flex items-center gap-1.5">
+          <ChannelDot channel={o.marketplace} size={8} />
+          <span className="text-xs text-muted-foreground">{MARKETPLACES[o.marketplace].label}</span>
+        </span>
+      ),
+    },
+    { key: "customer", header: "Pelanggan", sortValue: (o) => o.customer.toLowerCase(), cell: (o) => o.customer },
+    { key: "product", header: "Produk", cell: (o) => <span className="text-muted-foreground">{o.product} <span className="text-xs">×{o.qty}</span></span> },
+    { key: "total", header: "Total", align: "right", sortValue: (o) => o.total, cell: (o) => <IDRAmount value={o.total} className="font-medium" /> },
+    { key: "date", header: "Tanggal", align: "right", sortValue: (o) => new Date(o.date).getTime(), cell: (o) => <span className="text-xs text-muted-foreground">{formatDayMonthID(o.date)}</span> },
+    {
+      key: "status",
+      header: "Status",
+      cell: (o) => (
+        <Badge variant={o.abandoned ? CART_STATUS.variant : STATUS[o.status].variant}>
+          {o.abandoned ? CART_STATUS.label : STATUS[o.status].label}
+        </Badge>
+      ),
+    },
+    {
+      key: "action",
+      header: "",
+      align: "right",
+      cell: (o) =>
+        recovered.has(o.id) ? (
+          <Badge variant="success" className="gap-1">
+            <Check className="h-3 w-3" /> {o.abandoned ? "Dipulihkan" : "Ditawarkan ulang"}
+          </Badge>
+        ) : o.abandoned ? (
+          <Button size="sm" variant="outline" onClick={() => setRecover(o)}>
+            <ShoppingCart className="h-3.5 w-3.5" /> Pulihkan
+          </Button>
+        ) : o.status === "dibatalkan" ? (
+          <Button size="sm" variant="outline" onClick={() => setRecover(o)}>
+            <RefreshCw className="h-3.5 w-3.5" /> Tawarkan ulang
+          </Button>
+        ) : null,
+    },
+  ];
 
   return (
     <div>
@@ -141,92 +195,24 @@ export default function EcommercePage() {
           })}
         </div>
 
-        {/* Orders table */}
-        <Card>
-          <div className="flex items-center justify-between border-b px-5 py-4">
+        {/* Orders */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold">Semua pesanan</h2>
-            <span className="text-sm text-muted-foreground">{orders?.length ?? 0} pesanan</span>
+            <span className="shrink-0 text-sm text-muted-foreground">{orders?.length ?? 0} pesanan</span>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Order ID</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>Pelanggan</TableHead>
-                <TableHead>Produk</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Tanggal</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading
-                ? Array.from({ length: 8 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 8 }).map((_, c) => (
-                        <TableCell key={c}>
-                          <Skeleton className={c === 0 ? "h-4 w-24" : "h-3.5 w-full"} />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                : (orders ?? []).slice(0, 40).map((o) => (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-mono text-xs">{o.id}</TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1.5">
-                          <ChannelDot channel={o.marketplace} size={8} />
-                          <span className="text-xs text-muted-foreground">
-                            {MARKETPLACES[o.marketplace].label}
-                          </span>
-                        </span>
-                      </TableCell>
-                      <TableCell>{o.customer}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {o.product}{" "}
-                        <span className="text-xs">×{o.qty}</span>
-                      </TableCell>
-                      <TableCell>
-                        <IDRAmount value={o.total} className="font-medium" />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDayMonthID(o.date)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={o.abandoned ? CART_STATUS.variant : STATUS[o.status].variant}>
-                          {o.abandoned ? CART_STATUS.label : STATUS[o.status].label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {recovered.has(o.id) ? (
-                          <Badge variant="success" className="gap-1">
-                            <Check className="h-3 w-3" /> {o.abandoned ? "Dipulihkan" : "Ditawarkan ulang"}
-                          </Badge>
-                        ) : o.abandoned ? (
-                          <Button size="sm" variant="outline" onClick={() => setRecover(o)}>
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                            Pulihkan
-                          </Button>
-                        ) : o.status === "dibatalkan" ? (
-                          <Button size="sm" variant="outline" onClick={() => setRecover(o)}>
-                            <RefreshCw className="h-3.5 w-3.5" />
-                            Tawarkan ulang
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              {!isLoading && (orders ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
-                    Belum ada pesanan.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+          <Toolbar search={search} onSearch={setSearch} searchPlaceholder="Cari order / pelanggan / produk…" />
+          <DataTable
+            columns={columns}
+            data={filteredOrders}
+            rowKey={(o) => o.id}
+            loading={isLoading}
+            pageSize={12}
+            emptyIcon={ShoppingCart}
+            emptyTitle={search ? "Tidak ada pesanan yang cocok" : "Belum ada pesanan"}
+            emptyDescription={search ? undefined : "Hubungkan channel marketplace untuk menarik pesanan."}
+          />
+        </div>
       </div>
 
       {/* WA draft — cart recovery (abandoned) OR re-offer (cancelled) */}
