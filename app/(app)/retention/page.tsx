@@ -68,55 +68,6 @@ export default function RetentionPage() {
       </PageHeader>
 
       <div className="space-y-5 p-6">
-        {/* Hero strip — coral→teal radial gradient backdrop */}
-        <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-tertiary/5 p-5 sm:p-6">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,94,59,0.25),transparent_70%)] blur-2xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-16 -bottom-16 h-60 w-60 rounded-full bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.22),transparent_70%)] blur-2xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute right-1/3 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),transparent_70%)] blur-2xl"
-          />
-
-          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tertiary/15 text-tertiary">
-                <HeartHandshake className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold tracking-tight">
-                  Pelanggan loyal, pertumbuhan stabil
-                </h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  AI menjaga setiap pelanggan tetap aktif — dari follow-up
-                  pertama hingga upsell terakhir.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-tertiary/10 px-3 py-1.5 text-xs font-medium text-tertiary ring-1 ring-tertiary/20">
-                <Repeat2 className="h-3.5 w-3.5" />
-                <span className="text-muted-foreground/80">Pesanan ulang</span>
-                <span className="tnum font-semibold text-foreground">
-                  {kpi.repeatOrdersThisMonth}
-                </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1.5 text-xs font-medium text-warning ring-1 ring-warning/30">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className="text-muted-foreground/80">Upsell</span>
-                <span className="tnum font-semibold text-foreground">
-                  {kpi.upsellRate}%
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* KPI strip — shared KpiTile (no fabricated deltas) */}
         <KpiStrip>
           <KpiTile icon={<Users className="h-5 w-5" />} accent="#10B981" label="Pelanggan aktif retensi" count={kpi.activeCustomers} sub="terdaftar di seluruh alur" />
