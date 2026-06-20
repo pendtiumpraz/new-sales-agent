@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ContactsTabs } from "@/components/contacts/contacts-tabs";
 import { ContactQualityBar } from "@/components/contacts/contact-quality-bar";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { ConsentBadge } from "@/components/shared/consent-badge";
@@ -508,6 +509,7 @@ function ContactsPageInner() {
           </>
         )}
       </PageHeader>
+      <ContactsTabs />
 
       {/* Email-quality bar (real validation stats + re-validate) — contacts tab */}
       {activeTab === "contacts" && (

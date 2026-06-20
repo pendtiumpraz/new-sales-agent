@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Copy, ExternalLink, Radar, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ContactsTabs } from "@/components/contacts/contacts-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -209,6 +210,7 @@ export default function DiscoveryPage() {
           Lihat Profil
         </Link>
       </PageHeader>
+      <ContactsTabs />
       <div className="space-y-4 p-6">
         {workspaceId && (
           <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">

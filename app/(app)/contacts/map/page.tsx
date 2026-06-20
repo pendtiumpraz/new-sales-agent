@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ContactsTabs } from "@/components/contacts/contacts-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -62,6 +63,7 @@ export default function LeadsMapPage() {
         title="Peta Sebaran Lead"
         description="Sebaran orang hasil crawl/impor per provinsi. Saring per sumber, tipe lead, atau bidang keahlian."
       />
+      <ContactsTabs />
       <div className="space-y-4 p-6">
         {/* Filters */}
         <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
