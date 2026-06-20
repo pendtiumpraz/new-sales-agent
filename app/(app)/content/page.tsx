@@ -14,8 +14,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ContentLibrary } from "@/components/content/content-library";
 import { ContentCalendar } from "@/components/content/content-calendar";
 import { ContentCreateDialog } from "@/components/content/content-create-dialog";
+import { KpiStrip, KpiTile } from "@/components/shared/kpi-tile";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useContentStore } from "@/lib/stores/content-store";
 
@@ -68,34 +68,14 @@ export default function ContentPage() {
       </PageHeader>
 
       <div className="space-y-6 p-6">
-        {/* KPI strip */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Stat icon={FileEdit} accent="#94A3B8" label="Draf" value={stats.drafts} />
-          <Stat
-            icon={Eye}
-            accent="#F59E0B"
-            label="Menunggu review"
-            value={stats.review}
-          />
-          <Stat
-            icon={CalendarClock}
-            accent="#0D9488"
-            label="Terjadwal 7 hari"
-            value={stats.scheduledWeek}
-          />
-          <Stat
-            icon={Sparkles}
-            accent="#10B981"
-            label="Diterbitkan bulan ini"
-            value={stats.publishedMonth}
-          />
-          <Stat
-            icon={Megaphone}
-            accent="#6366F1"
-            label="Total reach"
-            value={stats.reach.toLocaleString("id-ID")}
-          />
-        </div>
+        {/* KPI strip — shared KpiTile */}
+        <KpiStrip className="lg:grid-cols-5">
+          <KpiTile icon={<FileEdit className="h-5 w-5" />} accent="#94A3B8" label="Draf" count={stats.drafts} />
+          <KpiTile icon={<Eye className="h-5 w-5" />} accent="#F59E0B" label="Menunggu review" count={stats.review} />
+          <KpiTile icon={<CalendarClock className="h-5 w-5" />} accent="#0D9488" label="Terjadwal 7 hari" count={stats.scheduledWeek} />
+          <KpiTile icon={<Sparkles className="h-5 w-5" />} accent="#10B981" label="Diterbitkan bulan ini" count={stats.publishedMonth} />
+          <KpiTile icon={<Megaphone className="h-5 w-5" />} accent="#6366F1" label="Total reach" value={stats.reach.toLocaleString("id-ID")} />
+        </KpiStrip>
 
         <Tabs defaultValue="library">
           <TabsList>
@@ -122,31 +102,3 @@ export default function ContentPage() {
   );
 }
 
-function Stat({
-  icon: Icon,
-  accent,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  accent: string;
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-lg"
-          style={{ backgroundColor: `${accent}1A`, color: accent }}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-2xl font-semibold tracking-tight tnum">{value}</p>
-          <p className="truncate text-xs text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
