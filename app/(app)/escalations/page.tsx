@@ -7,9 +7,12 @@ import { Bot, Check, Send, X } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ListSkeleton } from "@/components/shared/skeletons";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { DataTable, type DataColumn } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 interface AutoReplyEvent {
@@ -43,7 +46,20 @@ export default function EscalationsPage() {
   });
 
   const queue = (events.data ?? []).filter((e) => e.decision === "escalated");
-  const history = (events.data ?? []).filter((e) => e.decision !== "escalated").slice(0, 15);
+  const history = (events.data ?? []).filter((e) => e.decision !== "escalated");
+
+  const historyColumns: DataColumn<AutoReplyEvent>[] = [
+    { key: "decision", header: "Keputusan", cell: (e) => <Badge className={DECISION_CLS[e.decision] ?? ""}>{e.decision}</Badge> },
+    { key: "channel", header: "Channel", cell: (e) => <span className="text-xs uppercase text-muted-foreground">{e.channel ?? "—"}</span> },
+    { key: "content", header: "Isi", cell: (e) => <span className="block max-w-md truncate text-muted-foreground">{e.reply ?? e.reason ?? "—"}</span> },
+    {
+      key: "createdAt",
+      header: "Waktu",
+      align: "right",
+      sortValue: (e) => new Date(e.createdAt).getTime(),
+      cell: (e) => <span className="text-xs text-muted-foreground">{new Date(e.createdAt).toLocaleString("id-ID")}</span>,
+    },
+  ];
 
   return (
     <div>
@@ -51,56 +67,56 @@ export default function EscalationsPage() {
         title="Eskalasi AI"
         description="Balasan yang ditahan agen untuk ditinjau manusia — kirim sekali klik atau abaikan (doc 36)."
       />
-      <div className="space-y-5 p-6">
-        {events.isError && (
-          <Card className="border-destructive/30">
-            <CardContent className="py-6 text-center text-sm text-destructive">
-              Gagal memuat eskalasi — pastikan kamu sudah login dan punya akses (peran dengan izin campaign.manage). Ini berbeda dari antrian yang memang kosong.
-            </CardContent>
-          </Card>
-        )}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Bot className="h-4 w-4 text-primary" /> Antrian eskalasi
-              <Badge variant="muted" className="ml-1">{queue.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 p-4">
-            {events.isLoading ? (
-              <ListSkeleton rows={3} />
-            ) : queue.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Tidak ada eskalasi. Jalankan <span className="font-medium">Auto-reply</span> di halaman Cadence — balasan yang
-                tidak yakin/sensitif akan muncul di sini.
-              </p>
-            ) : (
-              queue.map((e) => <EscalationCard key={e.id} ev={e} onDone={() => qc.invalidateQueries({ queryKey: ["auto-reply-events"] })} />)
-            )}
-          </CardContent>
-        </Card>
+      <div className="space-y-4 p-6">
+        {events.isError ? (
+          <ErrorState
+            title="Gagal memuat eskalasi"
+            description="Pastikan kamu login & punya akses (peran dengan izin campaign.manage). Ini beda dari antrian yang memang kosong."
+            onRetry={() => events.refetch()}
+          />
+        ) : (
+          <Tabs defaultValue="antrean">
+            <TabsList>
+              <TabsTrigger value="antrean" className="gap-1.5">
+                <Bot className="h-4 w-4" /> Antrean
+                <Badge variant="muted" className="ml-0.5">{queue.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="riwayat">Riwayat</TabsTrigger>
+            </TabsList>
 
-        {history.length > 0 && (
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle className="text-base">Riwayat</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ul className="divide-y">
-                {history.map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 p-3 text-sm">
-                    <Badge className={DECISION_CLS[e.decision] ?? ""}>{e.decision}</Badge>
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                      {e.channel} · {e.reply ?? e.reason ?? "—"}
-                    </span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {new Date(e.createdAt).toLocaleString("id-ID")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+            <TabsContent value="antrean" className="mt-4 space-y-3">
+              {events.isLoading ? (
+                <ListSkeleton rows={3} />
+              ) : queue.length === 0 ? (
+                <EmptyState
+                  icon={Bot}
+                  title="Tidak ada eskalasi"
+                  description="Jalankan Auto-reply di halaman Cadence — balasan yang tidak yakin/sensitif akan muncul di sini."
+                />
+              ) : (
+                queue.map((e) => (
+                  <EscalationCard
+                    key={e.id}
+                    ev={e}
+                    onDone={() => qc.invalidateQueries({ queryKey: ["auto-reply-events"] })}
+                  />
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="riwayat" className="mt-4">
+              <DataTable
+                columns={historyColumns}
+                data={history}
+                rowKey={(e) => e.id}
+                loading={events.isLoading}
+                pageSize={15}
+                emptyIcon={Bot}
+                emptyTitle="Belum ada riwayat"
+                emptyDescription="Balasan AI yang sudah dikirim atau diabaikan akan tercatat di sini."
+              />
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </div>
