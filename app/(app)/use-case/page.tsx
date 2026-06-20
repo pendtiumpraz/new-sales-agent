@@ -683,28 +683,35 @@ export default function UseCasePage() {
           </div>
         </div>
 
-        {/* Search + jump chips */}
-        <div className="space-y-3">
-          <div className="relative max-w-md">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari use case… (mis. 'IT', 'hotel', 'distributor', 'influencer')" className="pl-8" />
-          </div>
-          {!query && (
-            <div className="flex flex-wrap gap-1.5">
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari use case… (mis. 'IT', 'hotel', 'distributor', 'influencer')" className="pl-8" />
+        </div>
+
+        {/* Jump-nav — sticky horizontal strip so any of the 50+ industries
+            stays one click away while scrolling (sits just under the h-14
+            TopBar). Must be a direct child of the tall scroll container, or
+            it would unstick once a short wrapper scrolls past. Hidden while
+            searching; replaced by a result count. */}
+        {!query ? (
+          <div className="sticky top-14 z-20 -mx-6 border-y bg-background/90 px-6 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
               {INDUSTRIES.map((ind) => (
-                <a key={ind.id} href={`#${ind.id}`} className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition hover:-translate-y-px hover:text-foreground hover:shadow-sm">
+                <a key={ind.id} href={`#${ind.id}`} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition hover:-translate-y-px hover:text-foreground hover:shadow-sm">
                   <ind.icon className="h-3.5 w-3.5" style={{ color: ind.tone }} />
                   {ind.label}
                 </a>
               ))}
             </div>
-          )}
-          {query && <p className="text-xs text-muted-foreground">{shownCases} use case cocok dengan “{q}”.</p>}
-        </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">{shownCases} use case cocok dengan “{q}”.</p>
+        )}
 
         {/* Industry sections */}
         {filtered.map((ind) => (
-          <section key={ind.id} id={ind.id} className="scroll-mt-20">
+          <section key={ind.id} id={ind.id} className="scroll-mt-28">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${ind.tone}1A`, color: ind.tone }}>
                 <ind.icon className="h-5 w-5" />
