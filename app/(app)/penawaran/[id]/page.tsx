@@ -308,14 +308,6 @@ export default function PenawaranEditor() {
                     <p className="text-[11px] text-muted-foreground">Belum ada mailbox. <Link href="/settings/mailboxes" className="underline">Hubungkan dulu</Link> (Gmail/Outlook OAuth).</p>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => save()} disabled={saving || locked}>
-                    <Save className="h-4 w-4" /> {saving ? "…" : "Simpan"}
-                  </Button>
-                  <Button className="flex-1" onClick={send} disabled={sending}>
-                    <Send className="h-4 w-4" /> {sending ? "Mengirim…" : "Kirim"}
-                  </Button>
-                </div>
                 <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
                   <ExternalLink className="h-3 w-3" /> Lihat halaman publik
                 </a>
@@ -331,6 +323,27 @@ export default function PenawaranEditor() {
                 {q.rejectedAt && <p>Ditolak: {new Date(q.rejectedAt).toLocaleString("id-ID")}</p>}
               </CardContent>
             </Card>
+          </div>
+        </div>
+
+        {/* Sticky save bar (redesign wireframe 03) — status + Simpan + Kirim */}
+        <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex items-center gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          {locked ? (
+            <span className="flex items-center gap-1.5 text-xs text-amber-700">
+              <Lock className="h-3.5 w-3.5" /> Terkunci — {meta.label.toLowerCase()}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {saving ? "Menyimpan…" : "Klik Simpan untuk menyimpan perubahan."}
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" onClick={() => save()} disabled={saving || locked}>
+              <Save className="h-4 w-4" /> {saving ? "…" : "Simpan"}
+            </Button>
+            <Button onClick={send} disabled={sending}>
+              <Send className="h-4 w-4" /> {sending ? "Mengirim…" : "Kirim"}
+            </Button>
           </div>
         </div>
       </div>
