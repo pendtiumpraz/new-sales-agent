@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
+import { KpiStrip, KpiTile } from "@/components/shared/kpi-tile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -137,10 +138,7 @@ export default function CadencesPage() {
             {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
             {showArchived ? "Aktif" : "Arsip"}
           </Button>
-          <Button
-            asChild
-            className="shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)] transition-all hover:-translate-y-px hover:shadow-[0_6px_18px_-4px_rgba(251,94,59,0.7)]"
-          >
+          <Button asChild>
             <Link href="/cadences/new">
               <Plus className="h-4 w-4" />
               Buat cadence
@@ -158,58 +156,12 @@ export default function CadencesPage() {
             </button>
           </div>
         )}
-        {/* Hero strip — soft coral→teal radial backdrop with KPI pills */}
-        <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-tertiary/5 p-5 sm:p-6">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,94,59,0.25),transparent_70%)] blur-2xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-16 -bottom-16 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.22),transparent_70%)] blur-2xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute right-1/3 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),transparent_70%)] blur-2xl"
-          />
-
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Workflow className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold tracking-tight">
-                  Otomasi outreach Anda
-                </h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  AI bantu nulis draft, kamu jalankan & tutup — cadence jalan saat “Jalankan sekarang” ditekan.
-                </p>
-              </div>
-            </div>
-            {/* KPI pills row */}
-            <div className="flex flex-wrap items-center gap-2">
-              <SummaryPill
-                tone="coral"
-                icon={<Sparkles className="h-3.5 w-3.5" />}
-                label="Cadence aktif"
-                value={summary.activeCount}
-              />
-              <SummaryPill
-                tone="teal"
-                icon={<Users className="h-3.5 w-3.5" />}
-                label="Total enrolled"
-                value={summary.enrolled}
-              />
-              <SummaryPill
-                tone="amber"
-                icon={<TrendingUp className="h-3.5 w-3.5" />}
-                label="Avg reply rate"
-                value={`${summary.avgReply}%`}
-              />
-            </div>
-          </div>
-        </div>
+        {/* KPI strip — scoped to the visible (filtered) cadences */}
+        <KpiStrip className="lg:grid-cols-3">
+          <KpiTile icon={<Sparkles className="h-5 w-5" />} accent="#FB5E3B" label="Cadence aktif" count={summary.activeCount} />
+          <KpiTile icon={<Users className="h-5 w-5" />} accent="#14B8A6" label="Total enrolled" count={summary.enrolled} />
+          <KpiTile icon={<TrendingUp className="h-5 w-5" />} accent="#F59E0B" label="Avg reply rate" count={summary.avgReply} suffix="%" />
+        </KpiStrip>
 
         {/* Filter chips — channel + status */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -553,33 +505,3 @@ function RunUpsellButton() {
   );
 }
 
-function SummaryPill({
-  tone,
-  icon,
-  label,
-  value,
-}: {
-  tone: "coral" | "teal" | "amber";
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
-  const toneCls =
-    tone === "coral"
-      ? "bg-primary/10 text-primary ring-primary/20"
-      : tone === "teal"
-        ? "bg-tertiary/10 text-tertiary ring-tertiary/20"
-        : "bg-amber-100 text-amber-700 ring-amber-200";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-transform hover:-translate-y-px",
-        toneCls,
-      )}
-    >
-      {icon}
-      <span className="text-muted-foreground/80">{label}</span>
-      <span className="tnum font-semibold text-foreground">{value}</span>
-    </span>
-  );
-}
