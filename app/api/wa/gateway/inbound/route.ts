@@ -3,9 +3,10 @@ import { sql, eq, desc } from "drizzle-orm";
 
 import { db, hasDb } from "@/lib/db/client";
 import { conversationsTable, messagesTable } from "@/lib/db/schema";
-import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed } from "@/lib/wa/store";
+import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed, getSetting } from "@/lib/wa/store";
 import { buildWaReply } from "@/lib/wa/orchestrator";
 import { loadStage, saveStage } from "@/lib/sales/stage-store";
+import { loadMarketFit } from "@/lib/market-fit/store";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 export const runtime = "nodejs";
@@ -95,9 +96,25 @@ export async function POST(req: Request) {
         text: m.body,
       }));
 
+      // Market-fit type (drives which closing techniques are offered). Resolve
+      // from the conversation's workspace, else a per-tenant default workspace
+      // setting (wa_default_workspace:<tenantId>); undefined → orchestrator uses
+      // "mix" (all techniques).
+      let marketType: "B2B" | "B2C" | "mix" | undefined;
+      const [convoRow] = await db
+        .select({ workspaceId: conversationsTable.workspaceId })
+        .from(conversationsTable)
+        .where(eq(conversationsTable.id, convoId))
+        .limit(1);
+      const wsId = convoRow?.workspaceId ?? (await getSetting(`wa_default_workspace:${owner.tenantId}`));
+      if (wsId) {
+        const mf = await loadMarketFit(wsId);
+        marketType = mf?.marketType;
+      }
+
       // Stage-aware: load the persisted stage, let the machine advance it, save.
       const stage = await loadStage(convoId);
-      const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage });
+      const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage, marketType });
       await saveStage(convoId, result.nextStage);
 
       let seq = 0;
