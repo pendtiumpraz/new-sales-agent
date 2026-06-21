@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { platformSettingTable, waSessionTable, waOutboxTable } from "@/lib/db/schema";
@@ -102,9 +102,18 @@ export async function enqueue(
 
 export type WaOutboxRow = typeof waOutboxTable.$inferSelect;
 
-// Gateway: pull pending work (cross-tenant — the gateway holds all sessions).
-export async function pollOutbox(limit = 50): Promise<WaOutboxRow[]> {
-  return db.select().from(waOutboxTable).where(eq(waOutboxTable.status, "pending")).limit(limit);
+// Gateway: pull pending work. FIFO by createdAt so paced bubbles (seq 0,1,2…)
+// arrive in order. Pass `sessionId` for the per-rep EXTENSION model so each rep's
+// extension only pulls its own session's jobs; omit it for a central VPS gateway
+// that holds every session.
+export async function pollOutbox(limit = 50, sessionId?: string): Promise<WaOutboxRow[]> {
+  const pending = eq(waOutboxTable.status, "pending");
+  return db
+    .select()
+    .from(waOutboxTable)
+    .where(sessionId ? and(pending, eq(waOutboxTable.sessionId, sessionId)) : pending)
+    .orderBy(asc(waOutboxTable.createdAt))
+    .limit(limit);
 }
 export async function ackOutbox(ids: string[]): Promise<void> {
   if (!ids.length) return;

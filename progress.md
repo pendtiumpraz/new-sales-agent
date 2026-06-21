@@ -44,6 +44,7 @@
 | Phase 2 tail: stepper UI di workspace hub (`MarketFitPanel`) + persist per-workspace (`/api/workspaces/[id]/market-fit`, zero-migration via `platformSettingTable`) | sesi ini |
 | Phase 3 deepening: conversation state-machine (`lib/sales/stage-machine.ts` + `stage-store.ts`) — stage tracking + priceGate + NBA + technique-at-closing; WA orchestrator + inbound route jadi stage-aware | sesi ini |
 | Wire `marketType` ke WA: inbound resolve dari `conversation.workspaceId` / `wa_default_workspace:<tenantId>` → `loadMarketFit` → filter teknik B2B/B2C di chat live | sesi ini |
+| Gateway contract siap extension: `pollOutbox` FIFO + filter `?sessionId=` (per-rep), outbox poll/ack + inbound webhook didokumentasikan di `docs/wa-gateway-contract.md` | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
