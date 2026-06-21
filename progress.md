@@ -118,6 +118,7 @@ quota token (`grant_credit`) · invite/role-change/remove member.
 ### Phase 3 — Conversation Orchestrator (closing di akhir)  ⬜  *(inti fitur)*
 - [ ] **(G2)** State-machine: Rapport → Gali kebutuhan → Value → Objection/QnA → **Closing**
 - [ ] **(G5)** Enforce adab policy sebagai constraint output (1 ide/bubble, close-question, no early-price)
+- [ ] **(G5-humanis)** Humanizer / super-interaktif: **multi-bubble send** (jawaban dipecah jadi beberapa pesan pendek), pacing **"sedang mengetik…" + delay ~ panjang teks**, thinking-filler ("hmm / bentar ya") **hemat & kontekstual**, variasi acak biar nggak mekanis, jangan balas instan. Channel WA (WAHA / Cloud API) dukung multi-msg + typing indicator. Output orchestrator = **array bubble** `[{ kind, text, delayMs }]`, tetap **1 LLM call** (client yang pacing → nggak nambah biaya AI)
 - [ ] **(G1/value)** `priceGate` aktif — AI nolak kasih harga sebelum need+value kepenuhan, pakai bridge/deflection
 - [ ] **(G4)** Pemilihan teknik closing by sinyal lead (harga→Perbandingan/Harga-Coret; nunda→Now-or-Never; dst)
 - [ ] **(guardrail)** Handoff ke manusia di tahap closing/negosiasi
