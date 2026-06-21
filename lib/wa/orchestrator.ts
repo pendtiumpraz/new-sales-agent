@@ -1,17 +1,20 @@
-// WhatsApp reply orchestrator (Phase 3 — server-emit). Turns an inbound WA
-// message into a paced, human-feeling bubble array the gateway can send with
-// typing + delays. Value-first, no early price, plain text (no markdown).
+// WhatsApp reply orchestrator (Phase 3 — stage-aware). Turns an inbound WA
+// message into a paced, human-feeling bubble array, guided by the conversation
+// STAGE (rapport → discovery → value → objection → closing). Value-first, plain
+// text, closing techniques only at the closing stage.
 //
 // Guardrails:
 //  - topic guard: off-topic (politik/SARA/judi/…) → humanis deflect, no AI spend
-//  - graceful degradation: no model / credit habis / suspended → holding bubble
-//    + handoff (NEVER an error to the lead) — "biar tetep kelihatan manusia"
+//  - priceGate: no price until need + value (driven by the state machine)
+//  - graceful degradation: no model / credit habis → holding + handoff
+//  - deliberate handoff: complaint/negotiation signals → holding + handoff
 
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { humanize, type Bubble } from "@/lib/ai/humanizer";
 import { stripMarkdown } from "@/lib/ai/sanitize";
 import { SAFETY_RULES, wrapUntrusted } from "@/lib/ai/safety";
 import { CLOSING_TECHNIQUES_17, formatClosingTechniques } from "@/lib/kb/closing-techniques";
+import { decide, type Stage, type Turn } from "@/lib/sales/stage-machine";
 import { salutationFor } from "@/lib/profiling/salutation";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
@@ -19,44 +22,51 @@ export interface WaReplyInput {
   contactName: string;
   /** Inbound message text (untrusted). */
   message: string;
-  /** Optional recent-turns transcript for context (plain, not summarized). */
-  history?: string;
+  /** Recent turns for context + stage detection. */
+  history?: Turn[];
+  /** Current stage (from the store); the machine may advance it. */
+  stage?: Stage;
+  /** Market type (from Market-Fit) → weights which techniques are offered. */
+  marketType?: "B2B" | "B2C" | "mix";
 }
 
 export interface WaReplyResult {
-  /** "send" = paced bubbles; "handoff" = holding bubble sent + flag a human. */
   action: "send" | "handoff";
   bubbles: Bubble[];
   source: "ai" | "deflect" | "holding";
+  /** Stage to persist for the next turn. */
+  nextStage: Stage;
 }
 
-// Off-topic / forbidden → deflect, don't spend tokens (and don't take the bait).
 const OFF_TOPIC =
   /\b(politik|pemilu|capres|caleg|partai|sara|judi|slot|togel|porno|seks|narkoba|sabu)\b/i;
 
-// Pre-written holding lines (no AI) — used when AI is unavailable / credit 0.
 const HOLDING = [
   "bentar ya, aku cek dulu infonya 🙏",
   "oke noted, aku siapin dulu sebentar ya 🙏",
   "hmm, aku pastiin dulu biar nggak salah ya, sebentar 🙏",
 ];
 
-/**
- * Build a humanized WA reply for an inbound message. Never throws — on any AI
- * failure it returns a holding+handoff result so the lead still sees something
- * human and a rep can take over.
- */
+function historyToText(turns: Turn[]): string {
+  return turns
+    .map((t) => `${t.role === "customer" ? "Pelanggan" : "Kami"}: ${t.text}`)
+    .join("\n");
+}
+
 export async function buildWaReply(
   ctx: TenantContext,
   input: WaReplyInput,
 ): Promise<WaReplyResult> {
   const sal = salutationFor(input.contactName);
+  const turns = input.history ?? [];
+  const decision = decide(input.stage, turns, input.message);
 
-  // Topic guard — humanis deflect, no AI call.
+  // Topic guard — humanis deflect, no AI call (stage unchanged).
   if (OFF_TOPIC.test(input.message)) {
     return {
       action: "send",
       source: "deflect",
+      nextStage: input.stage ?? decision.stage,
       bubbles: humanize(
         `hehe itu di luar yang bisa aku bantu ya ${sal.greeting} 😄. tapi kalau soal kebutuhan Anda aku siap bantu, boleh cerita sedikit?`,
         { filler: false },
@@ -64,32 +74,59 @@ export async function buildWaReply(
     };
   }
 
+  // Deliberate handoff (complaint/negotiation) — holding + flag a human.
+  if (decision.nextAction === "handoff") {
+    const hold = HOLDING[input.message.length % HOLDING.length];
+    return {
+      action: "handoff",
+      source: "holding",
+      nextStage: decision.stage,
+      bubbles: humanize(hold, { filler: false }),
+    };
+  }
+
+  // Closing techniques only surface AT the closing stage, weighted by market.
+  const techniqueBlock =
+    decision.stage === "closing"
+      ? `\n\nTeknik closing (pilih 1 yang cocok dengan sinyal):\n` +
+        formatClosingTechniques(CLOSING_TECHNIQUES_17, { market: input.marketType, max: 8 })
+      : "";
+
   const system =
     `Kamu sales humanis (BUKAN robot), Bahasa Indonesia, hangat & empatik. ` +
     `Sapa "${sal.greeting}". JANGAN pernah menyebut dirimu AI/bot. ` +
-    `Sampaikan VALUE dulu — JANGAN sebut harga sebelum kebutuhan pelanggan jelas. ` +
-    `Balas SINGKAT & manusiawi: 1–2 kalimat per ide, total maksimal 3 kalimat, ` +
-    `dan akhiri dengan SATU pertanyaan pilihan (mis. "a atau b?") biar interaktif. ` +
-    SAFETY_RULES +
-    `\n\nTeknik closing (pakai HANYA kalau pelanggan sudah dekat keputusan, sesuai sinyal):\n` +
-    formatClosingTechniques(CLOSING_TECHNIQUES_17, { max: 8 }) +
-    (input.history ? `\n\nKonteks percakapan terkini:\n${input.history}` : "");
+    `Balas SINGKAT & manusiawi: 1-2 kalimat per ide, total maksimal 3 kalimat, ` +
+    `akhiri dengan SATU pertanyaan pilihan biar interaktif. ` +
+    `\n\nIKUTI ARAHAN TAHAP INI: ${decision.guidance}` +
+    techniqueBlock +
+    "\n\n" + SAFETY_RULES +
+    (turns.length ? `\n\nKonteks percakapan terkini:\n${historyToText(turns)}` : "");
 
   try {
     const { text } = await meteredGenerateText(ctx, {
       feature: "wa_reply",
       system,
       prompt:
-        `Balas pesan WhatsApp masuk ini dengan hangat & value-first (sapa "${sal.greeting}").\n` +
+        `Balas pesan WhatsApp masuk ini sesuai arahan tahap (sapa "${sal.greeting}").\n` +
         wrapUntrusted("pesan_masuk", input.message),
       maxOutputTokens: 220,
     });
     const reply = stripMarkdown(text ?? "").trim();
     if (!reply) throw new Error("empty reply");
-    return { action: "send", source: "ai", bubbles: humanize(reply, { filler: true }) };
+    return {
+      action: "send",
+      source: "ai",
+      nextStage: decision.stage,
+      bubbles: humanize(reply, { filler: true }),
+    };
   } catch {
     // No model / credit habis / suspended → holding + handoff. Stay human.
     const hold = HOLDING[input.message.length % HOLDING.length];
-    return { action: "handoff", source: "holding", bubbles: humanize(hold, { filler: false }) };
+    return {
+      action: "handoff",
+      source: "holding",
+      nextStage: decision.stage,
+      bubbles: humanize(hold, { filler: false }),
+    };
   }
 }

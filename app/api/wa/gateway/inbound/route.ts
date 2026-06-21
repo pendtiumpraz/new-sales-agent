@@ -5,6 +5,7 @@ import { db, hasDb } from "@/lib/db/client";
 import { conversationsTable, messagesTable } from "@/lib/db/schema";
 import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed } from "@/lib/wa/store";
 import { buildWaReply } from "@/lib/wa/orchestrator";
+import { loadStage, saveStage } from "@/lib/sales/stage-store";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 export const runtime = "nodejs";
@@ -81,19 +82,23 @@ export async function POST(req: Request) {
     ) {
       const ctx: TenantContext = { tenantId: owner.tenantId, userId: owner.userId, role: "member" };
 
-      // Recent turns (incl. the message just logged) so the reply isn't amnesiac.
+      // Recent turns (incl. the message just logged) so the reply isn't amnesiac
+      // and the state machine can read the conversation.
       const recent = await db
         .select()
         .from(messagesTable)
         .where(eq(messagesTable.conversationId, convoId))
         .orderBy(desc(messagesTable.timestamp))
         .limit(6);
-      const history = recent
-        .reverse()
-        .map((m) => `${m.direction === "in" ? "Pelanggan" : "Kami"}: ${m.body}`)
-        .join("\n");
+      const history = recent.reverse().map((m) => ({
+        role: m.direction === "in" ? ("customer" as const) : ("us" as const),
+        text: m.body,
+      }));
 
-      const result = await buildWaReply(ctx, { contactName, message: b.body, history });
+      // Stage-aware: load the persisted stage, let the machine advance it, save.
+      const stage = await loadStage(convoId);
+      const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage });
+      await saveStage(convoId, result.nextStage);
 
       let seq = 0;
       for (const bubble of result.bubbles) {

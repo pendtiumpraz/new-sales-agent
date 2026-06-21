@@ -17,7 +17,7 @@
 | Field role-scoping (`ownerUserId`) | ✅ |
 | Member enable/disable (seat) | ✅ |
 | Chat context summarization (hemat token) | ✅ |
-| **Closing-Flow AI (visi utama)** | ⬜ baru pondasi data |
+| **Closing-Flow AI (visi utama)** | 🟡 state-machine + WA emit + market-fit jalan |
 | Market-Fit Analyzer (B2B/B2C) | ✅ engine + API + UI stepper + persist |
 | Sales Play config per-workspace | 🟡 schema + default (UI/persist pending) |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
@@ -42,6 +42,7 @@
 | Phase 1 pondasi: `KbClosingTechnique` + seed 17 teknik (`lib/kb/closing-techniques.ts`) wired ke KB prompt + WA orchestrator; `SalesPlay` schema + `defaultSalesPlay()` | sesi ini |
 | Phase 2: Market-Fit Analyzer engine (`lib/market-fit/analyzer.ts`, AI + heuristik) + `POST /api/market-fit` → B2B/B2C/mix + ICP + skor segmen + allowed closing techniques | sesi ini |
 | Phase 2 tail: stepper UI di workspace hub (`MarketFitPanel`) + persist per-workspace (`/api/workspaces/[id]/market-fit`, zero-migration via `platformSettingTable`) | sesi ini |
+| Phase 3 deepening: conversation state-machine (`lib/sales/stage-machine.ts` + `stage-store.ts`) — stage tracking + priceGate + NBA + technique-at-closing; WA orchestrator + inbound route jadi stage-aware | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -149,15 +150,15 @@ Transport (keputusan + caveat):
 - [x] **(G8)** Stepper Produk → Market-Fit → Discovery di workspace hub (`MarketFitPanel`): jalanin analyzer, tampil marketType + ICP + fit segmen + teknik yang cocok; Discovery kebuka setelah market-fit
 - **Acceptance:** ✅ buka workspace → panel setup; Analisis → B2B/B2C + ICP + teknik; hasil tersimpan & ke-load lagi; Discovery unlock.
 
-### Phase 3 — Conversation Orchestrator (closing di akhir)  ⬜  *(inti fitur)*
-- [ ] **(G2)** State-machine: Rapport → Gali kebutuhan → Value → Objection/QnA → **Closing**
-- [ ] **(G5)** Enforce adab policy sebagai constraint output (1 ide/bubble, close-question, no early-price)
+### Phase 3 — Conversation Orchestrator (closing di akhir)  🟡  *(state-machine jalan)*
+- [x] **(G2)** State-machine (`lib/sales/stage-machine.ts`): rapport→discovery→value→objection→closing — deteksi sinyal (need/value/price/objection/closing) + `pickStage` + persist per-conversation (`convstage:<id>`). Dipakai WA orchestrator tiap inbound.
+- [x] **(G5)** Adab enforced di prompt: 1-2 kalimat/bubble (via `humanize`), close-question, no-markdown, no-early-price (priceGate)
 - [x] **(G5-humanis) engine + in-app**: `humanize()` → array bubble `[{ kind, text, delayMs }]` (1 ide/bubble, strip markdown, filler hemat, delay ~ panjang teks); `HumanizedMessage` mainin bubble satu-satu + typing pip di chat assistant. Tetap **1 LLM call** (client yang pacing → nggak nambah biaya AI)
 - [x] **(G5-humanis) WA**: orchestrator (`lib/wa/orchestrator.ts`) emit array bubble server-side → inbound route enqueue 1 job/bubble dgn `delayMs`+`typing` (reply-only via `waReplyAllowed`). Gateway VPS tinggal honor pacing saat kirim.
-- [ ] **(G1/value)** `priceGate` aktif — AI nolak kasih harga sebelum need+value kepenuhan, pakai bridge/deflection
-- [ ] **(G4)** Pemilihan teknik closing by sinyal lead (harga→Perbandingan/Harga-Coret; nunda→Now-or-Never; dst)
-- [ ] **(guardrail)** Handoff ke manusia di tahap closing/negosiasi
-- [ ] Pasang dulu di **jalur draft auto-reply** (manusia approve) sebelum auto-send
+- [x] **(G1/value)** `priceGate` aktif — `decide()` buka harga HANYA setelah need+value; ditanya duluan → bridge ke kebutuhan (di guidance prompt)
+- [x] **(G4)** Teknik closing **cuma muncul di tahap CLOSING** + difilter market (B2B drop teknik agresif)
+- [x] **(guardrail)** Handoff: sinyal komplain/nego (regex) ATAU AI gagal/credit 0 → holding + handoff
+- [ ] Semi-auto: jalur draft (manusia approve) sebelum auto-send — sekarang auto-enqueue saat `WA_AUTO_REPLY=1`
 - [ ] **(C1)** Ketatin `maxOutputTokens` chat sales (balasan pendek per adab) + emoji ON
 - [x] **(C4)** Topic guard: politik/SARA/judi → deflect humanis — **WA orchestrator** (`OFF_TOPIC`, no AI spend)
 - [ ] **(C3)** Rate-limit: N balasan AI / lead / jam + cap harian tenant (anti iseng) — belum
