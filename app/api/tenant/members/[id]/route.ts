@@ -9,19 +9,29 @@ import type { Role } from "@/lib/rbac/permissions";
 
 export const runtime = "nodejs";
 
-// PATCH /api/tenant/members/:id → change a member's role. Body = { role }.
+// PATCH /api/tenant/members/:id → change a member's role and/or seat status.
+// Body = { role? , status? }. status ∈ "active" | "disabled" — disabling keeps
+// the membership (seat suspended) instead of deleting it.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const guard = await requirePermission("tenant.members.manage");
   if ("error" in guard) return guard.error;
   const { ctx } = guard;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   try {
-    const body = (await req.json()) as { role?: Role };
-    if (!body?.role) return NextResponse.json({ error: "Missing role" }, { status: 400 });
+    const body = (await req.json()) as { role?: Role; status?: "active" | "disabled" };
+    if (!body?.role && !body?.status) {
+      return NextResponse.json({ error: "Missing role or status" }, { status: 400 });
+    }
+    if (body.status && body.status !== "active" && body.status !== "disabled") {
+      return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
+    }
+    const patch: { role?: Role; status?: "active" | "disabled" } = {};
+    if (body.role) patch.role = body.role;
+    if (body.status) patch.status = body.status;
     await withTenant(ctx, (tx) =>
       tx
         .update(membershipsTable)
-        .set({ role: body.role! })
+        .set(patch)
         .where(and(eq(membershipsTable.id, params.id), eq(membershipsTable.tenantId, ctx.tenantId))),
     );
     return NextResponse.json({ ok: true, source: "db" });

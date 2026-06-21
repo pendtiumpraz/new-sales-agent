@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { KeyRound, Loader2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, ShieldCheck, Trash2, UserCheck, UserPlus, UserX } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { can, type Role } from "@/lib/rbac/permissions";
+import { cn } from "@/lib/utils";
 
 const ROLE_LABELS: Record<string, string> = {
   superadmin: "Superadmin",
@@ -131,6 +132,24 @@ export default function TeamPage() {
     onError: () => toast.error("Gagal menghapus anggota"),
   });
 
+  // Disable/enable a seat without removing it (membership.status). A disabled
+  // member keeps their data + role but loses access until re-activated.
+  const setStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "active" | "disabled" }) => {
+      const res = await fetch(`/api/tenant/members/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? "gagal");
+    },
+    onSuccess: (_d, { status }) => {
+      toast.success(status === "disabled" ? "Anggota dinonaktifkan" : "Anggota diaktifkan");
+      invalidate();
+    },
+    onError: (e) => toast.error(String(e instanceof Error ? e.message : e)),
+  });
+
   const revokeInvite = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/tenant/invites/${id}`, { method: "DELETE" });
@@ -216,9 +235,18 @@ export default function TeamPage() {
               <ul className="divide-y">
                 {data?.members.map((m) => (
                   <li key={m.id} className="flex items-center gap-3 p-4">
-                    <UserAvatar name={m.name} color={m.avatarColor} className="h-10 w-10" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">{m.name}</p>
+                    <UserAvatar
+                      name={m.name}
+                      color={m.avatarColor}
+                      className={cn("h-10 w-10", m.status === "disabled" && "opacity-50 grayscale")}
+                    />
+                    <div className={cn("min-w-0 flex-1", m.status === "disabled" && "opacity-60")}>
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        {m.name}
+                        {m.status === "disabled" && (
+                          <Badge variant="muted" className="font-normal">Nonaktif</Badge>
+                        )}
+                      </p>
                       <p className="text-xs text-muted-foreground">{m.email ?? m.userId}</p>
                     </div>
                     {canManage && m.role !== "superadmin" ? (
@@ -242,6 +270,24 @@ export default function TeamPage() {
                     )}
                     {canManage && m.role !== "superadmin" && (
                       <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setStatus.mutate({
+                              id: m.id,
+                              status: m.status === "disabled" ? "active" : "disabled",
+                            })
+                          }
+                          aria-label={m.status === "disabled" ? "Aktifkan anggota" : "Nonaktifkan anggota"}
+                          title={m.status === "disabled" ? "Aktifkan" : "Nonaktifkan"}
+                        >
+                          {m.status === "disabled" ? (
+                            <UserCheck className="h-4 w-4 text-success" />
+                          ) : (
+                            <UserX className="h-4 w-4" />
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
