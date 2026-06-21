@@ -298,7 +298,7 @@ export function AiChat({ className }: { className?: string }) {
                       {text}
                     </div>
                   ) : (
-                    <HumanizedMessage text={text} reduce={!!reduceMotion} />
+                    <HumanizedMessage text={text} reduce={!!reduceMotion} filler />
                   )}
 
                   {/* Sources chips — pop-in stagger after the message is done. */}
