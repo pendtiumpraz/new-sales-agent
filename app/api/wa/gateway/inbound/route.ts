@@ -8,6 +8,7 @@ import { buildWaReply } from "@/lib/wa/orchestrator";
 import { loadStage, saveStage } from "@/lib/sales/stage-store";
 import { loadMarketFit } from "@/lib/market-fit/store";
 import { checkWaRateLimit } from "@/lib/wa/rate-limit";
+import { saveReadiness } from "@/lib/sales/predictive-store";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 export const runtime = "nodejs";
@@ -122,6 +123,7 @@ export async function POST(req: Request) {
       const stage = await loadStage(convoId);
       const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage, marketType });
       await saveStage(convoId, result.nextStage);
+      await saveReadiness(convoId, result.readiness);
 
       let seq = 0;
       for (const bubble of result.bubbles) {

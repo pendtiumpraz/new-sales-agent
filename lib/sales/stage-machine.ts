@@ -28,6 +28,8 @@ export interface StageDecision {
   nextAction: NextAction;
   /** Stage-specific instruction injected into the system prompt. */
   guidance: string;
+  /** Detected signals — reused by predictive scoring (no recompute). */
+  signals: StageSignals;
 }
 
 const NEED = /\b(masalah|butuh|perlu|pengen|pengin|kepengen|mau|kendala|susah|capek|bingung|cari|kesulitan|target|pusing)\b/i;
@@ -104,5 +106,6 @@ export function decide(
     priceGateOpen,
     nextAction,
     guidance: `${GUIDANCE[stage]} ${priceLine}`,
+    signals,
   };
 }

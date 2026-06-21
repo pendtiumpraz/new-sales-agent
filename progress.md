@@ -46,6 +46,7 @@
 | Wire `marketType` ke WA: inbound resolve dari `conversation.workspaceId` / `wa_default_workspace:<tenantId>` → `loadMarketFit` → filter teknik B2B/B2C di chat live | sesi ini |
 | Gateway contract siap extension: `pollOutbox` FIFO + filter `?sessionId=` (per-rep), outbox poll/ack + inbound webhook didokumentasikan di `docs/wa-gateway-contract.md` | sesi ini |
 | C3 rate-limit (`lib/wa/rate-limit.ts`): per-lead/jam + per-tenant/hari → over cap = stop auto-reply + unread untuk human (anti-iseng, cost cap) | sesi ini |
+| Phase 4 predictive: closing-readiness 0–100 + band + NBA (`lib/sales/predictive.ts`) dari sinyal stage-machine; persist + `GET /api/sales/readiness`; di-compute tiap inbound | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -170,10 +171,10 @@ Transport (keputusan + caveat):
 - [ ] **(C6)** Hitung limit dari budget; surface di settings per-tenant/plan
 - **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.
 
-### Phase 4 — Materials + Predictive  ⬜
+### Phase 4 — Materials + Predictive  🟡  *(predictive jalan)*
 - [ ] **(G6)** Link aset Content ke tahap (sodorin banner/video di momen tepat, bukan teks panjang)
-- [ ] **(G7)** Skor closing-readiness + next-best-action (awal heuristik — jujur, belum model terlatih)
-- [ ] **(G7)** Loop data: simpan outcome obrolan buat naikin akurasi prediktif
+- [x] **(G7)** Skor closing-readiness 0–100 + band (dingin/hangat/panas) + NBA (`lib/sales/predictive.ts`) dari sinyal stage-machine; persist per-conversation (`convscore:<id>`); `GET /api/sales/readiness`. **Jujur: heuristik, belum model terlatih.**
+- [ ] **(G7)** Loop data: simpan outcome obrolan buat naikin akurasi prediktif (sekarang simpan skor terakhir, belum training loop)
 - **Acceptance:** AI nyaranin aset per tahap + skor "siap closing?" per percakapan.
 
 ### Phase 5 — Admin / Tenant gaps  ⬜

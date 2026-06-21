@@ -15,6 +15,7 @@ import { stripMarkdown } from "@/lib/ai/sanitize";
 import { SAFETY_RULES, wrapUntrusted } from "@/lib/ai/safety";
 import { CLOSING_TECHNIQUES_17, formatClosingTechniques } from "@/lib/kb/closing-techniques";
 import { decide, type Stage, type Turn } from "@/lib/sales/stage-machine";
+import { scoreReadiness, type Readiness } from "@/lib/sales/predictive";
 import { salutationFor } from "@/lib/profiling/salutation";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
@@ -36,6 +37,8 @@ export interface WaReplyResult {
   source: "ai" | "deflect" | "holding";
   /** Stage to persist for the next turn. */
   nextStage: Stage;
+  /** Closing-readiness score + next-best-action for this turn. */
+  readiness: Readiness;
 }
 
 const OFF_TOPIC =
@@ -60,6 +63,8 @@ export async function buildWaReply(
   const sal = salutationFor(input.contactName);
   const turns = input.history ?? [];
   const decision = decide(input.stage, turns, input.message);
+  const customerTurns = turns.filter((t) => t.role === "customer").length;
+  const readiness = scoreReadiness(decision.stage, decision.signals, customerTurns);
 
   // Topic guard — humanis deflect, no AI call (stage unchanged).
   if (OFF_TOPIC.test(input.message)) {
@@ -67,6 +72,7 @@ export async function buildWaReply(
       action: "send",
       source: "deflect",
       nextStage: input.stage ?? decision.stage,
+      readiness,
       bubbles: humanize(
         `hehe itu di luar yang bisa aku bantu ya ${sal.greeting} 😄. tapi kalau soal kebutuhan Anda aku siap bantu, boleh cerita sedikit?`,
         { filler: false },
@@ -81,6 +87,7 @@ export async function buildWaReply(
       action: "handoff",
       source: "holding",
       nextStage: decision.stage,
+      readiness,
       bubbles: humanize(hold, { filler: false }),
     };
   }
@@ -117,6 +124,7 @@ export async function buildWaReply(
       action: "send",
       source: "ai",
       nextStage: decision.stage,
+      readiness,
       bubbles: humanize(reply, { filler: true }),
     };
   } catch {
@@ -126,6 +134,7 @@ export async function buildWaReply(
       action: "handoff",
       source: "holding",
       nextStage: decision.stage,
+      readiness,
       bubbles: humanize(hold, { filler: false }),
     };
   }
