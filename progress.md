@@ -18,7 +18,7 @@
 | Member enable/disable (seat) | ✅ |
 | Chat context summarization (hemat token) | ✅ |
 | **Closing-Flow AI (visi utama)** | ⬜ baru pondasi data |
-| Market-Fit Analyzer (B2B/B2C) | ⬜ |
+| Market-Fit Analyzer (B2B/B2C) | 🟡 engine + API (UI/persist pending) |
 | Sales Play config per-workspace | 🟡 schema + default (UI/persist pending) |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
 | Superadmin create user+tenant | ⏸️ pending |
@@ -40,6 +40,7 @@
 | Humanizer engine (`lib/ai/humanizer.ts`) + in-app multi-bubble playback (`HumanizedMessage`) di chat assistant | sesi ini |
 | WA server-emit: orchestrator (`lib/wa/orchestrator.ts`) humanize → enqueue paced bubbles (`delayMs`+`typing`) + topic guard + holding/handoff + reply-only allowlist | sesi ini |
 | Phase 1 pondasi: `KbClosingTechnique` + seed 17 teknik (`lib/kb/closing-techniques.ts`) wired ke KB prompt + WA orchestrator; `SalesPlay` schema + `defaultSalesPlay()` | sesi ini |
+| Phase 2: Market-Fit Analyzer engine (`lib/market-fit/analyzer.ts`, AI + heuristik) + `POST /api/market-fit` → B2B/B2C/mix + ICP + skor segmen + allowed closing techniques | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -139,12 +140,13 @@ Transport (keputusan + caveat):
 - [ ] **(G1)** Persist SalesPlay per-workspace (DB) + UI editor (CRUD config)
 - **Acceptance:** KB punya 17 teknik terstruktur ✅ + skema SalesPlay siap ✅; persist + editor masih kebuka.
 
-### Phase 2 — Market-Fit Analyzer (B2B/B2C)  ⬜  *(depends: Phase 1 produk/segmen)*
-- [ ] **(G3)** Analyzer baca produk(tahap-1)+segmen → output `{ tipe: B2B|B2C|mix, ICP, skorFitSegmen[] }`
-- [ ] **(G3)** Simpan hasil di workspace; jadi input target Discovery
-- [ ] **(G8)** Paksa urutan setup: Produk → Market-Fit → Discovery (guided stepper)
-- [ ] **(link)** Klasifikasi B2B/B2C **nyetir bobot teknik closing** (B2C: agresif OK; B2B: konsultatif)
-- **Acceptance:** buat workspace baru → wajib lewati 3 tahap; hasil market-fit nyetir Discovery.
+### Phase 2 — Market-Fit Analyzer (B2B/B2C)  🟡  *(engine + API selesai)*
+- [x] **(G3)** Analyzer (`lib/market-fit/analyzer.ts`) baca produk+segmen → `{ marketType: B2B|B2C|mix, confidence, icp, segmentFit[] }`. AI path + heuristik fallback (never throws).
+- [x] **(G3)** `POST /api/market-fit` — AI saat login, heuristik saat demo (tetap demoable)
+- [x] **(link)** Klasifikasi nyetir teknik closing — route balikin `allowedTechniques` (B2C agresif OK; B2B konsultatif via `cocokUntuk` filter)
+- [ ] **(G3)** Persist hasil di workspace (DB) → jadi input target Discovery
+- [ ] **(G8)** Paksa urutan setup: Produk → Market-Fit → Discovery (guided stepper UI)
+- **Acceptance:** engine klasifikasi B2B/B2C + ICP ✅; persist ke workspace + stepper UI masih kebuka.
 
 ### Phase 3 — Conversation Orchestrator (closing di akhir)  ⬜  *(inti fitur)*
 - [ ] **(G2)** State-machine: Rapport → Gali kebutuhan → Value → Objection/QnA → **Closing**
