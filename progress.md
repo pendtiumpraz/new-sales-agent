@@ -45,6 +45,7 @@
 | Phase 3 deepening: conversation state-machine (`lib/sales/stage-machine.ts` + `stage-store.ts`) — stage tracking + priceGate + NBA + technique-at-closing; WA orchestrator + inbound route jadi stage-aware | sesi ini |
 | Wire `marketType` ke WA: inbound resolve dari `conversation.workspaceId` / `wa_default_workspace:<tenantId>` → `loadMarketFit` → filter teknik B2B/B2C di chat live | sesi ini |
 | Gateway contract siap extension: `pollOutbox` FIFO + filter `?sessionId=` (per-rep), outbox poll/ack + inbound webhook didokumentasikan di `docs/wa-gateway-contract.md` | sesi ini |
+| C3 rate-limit (`lib/wa/rate-limit.ts`): per-lead/jam + per-tenant/hari → over cap = stop auto-reply + unread untuk human (anti-iseng, cost cap) | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -103,7 +104,7 @@ quota token (`grant_credit`) · invite/role-change/remove member.
 |---|---|---|
 | **C1** | Cap output per balasan (maks token) → balasan pendek = humanis + murah | 🟡 `maxOutputTokens` ada di meter, belum diketatin utk chat sales |
 | **C2** | Input dipangkas (running summary) | ✅ `cdeb156` |
-| **C3** | Rate-limit per-lead & per-tenant (anti iseng / spam request panjang) | ⬜ |
+| **C3** | Rate-limit per-lead & per-tenant (anti iseng / spam request panjang) | ✅ `lib/wa/rate-limit.ts` |
 | **C4** | Topic guard — no politik/SARA/di luar produk → deflect humanis | ⬜ |
 | **C5** | Graceful degradation saat limit/credit $0 → **holding humanis + handoff**, JANGAN tampil error/"token habis" | ⬜ |
 | **C6** | Limit **diturunkan dari budget** (balasan ≈ credit ÷ token_per_reply), config per-tenant/plan | ⬜ |
@@ -164,7 +165,7 @@ Transport (keputusan + caveat):
 - [ ] Semi-auto: jalur draft (manusia approve) sebelum auto-send — sekarang auto-enqueue saat `WA_AUTO_REPLY=1`
 - [ ] **(C1)** Ketatin `maxOutputTokens` chat sales (balasan pendek per adab) + emoji ON
 - [x] **(C4)** Topic guard: politik/SARA/judi → deflect humanis — **WA orchestrator** (`OFF_TOPIC`, no AI spend)
-- [ ] **(C3)** Rate-limit: N balasan AI / lead / jam + cap harian tenant (anti iseng) — belum
+- [x] **(C3)** Rate-limit: per-lead/jam + per-tenant/hari (`lib/wa/rate-limit.ts`, hitung outbound `messagesTable`) → over cap = STOP auto-reply + biarkan unread buat human (env: `WA_RL_LEAD_HOURLY`/`WA_RL_TENANT_DAILY`)
 - [x] **(C5)** Graceful degradation: AI gagal/credit 0 → holding humanis + handoff (bukan error) — **WA orchestrator**
 - [ ] **(C6)** Hitung limit dari budget; surface di settings per-tenant/plan
 - **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.

@@ -7,6 +7,7 @@ import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed, getSetting } f
 import { buildWaReply } from "@/lib/wa/orchestrator";
 import { loadStage, saveStage } from "@/lib/sales/stage-store";
 import { loadMarketFit } from "@/lib/market-fit/store";
+import { checkWaRateLimit } from "@/lib/wa/rate-limit";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 export const runtime = "nodejs";
@@ -83,6 +84,11 @@ export async function POST(req: Request) {
     ) {
       const ctx: TenantContext = { tenantId: owner.tenantId, userId: owner.userId, role: "member" };
 
+      // C3 rate-limit (anti-iseng + cost cap). Over cap → STOP auto-replying and
+      // leave the conversation unread so a human takes over (stays human, no spam).
+      const rate = await checkWaRateLimit(owner.tenantId, convoId);
+      if (rate.ok) {
+
       // Recent turns (incl. the message just logged) so the reply isn't amnesiac
       // and the state machine can read the conversation.
       const recent = await db
@@ -141,6 +147,7 @@ export async function POST(req: Request) {
       // On the graceful holding/handoff path, leave the convo flagged for a human
       // (unread was already incremented on the inbound) so a rep takes over.
       replied = result.action === "send";
+      }
     }
 
     return NextResponse.json({ ok: true, conversationId: convoId, assignedTo: owner.userId, replied });
