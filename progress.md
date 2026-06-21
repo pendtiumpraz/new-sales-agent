@@ -18,7 +18,7 @@
 | Member enable/disable (seat) | ✅ |
 | Chat context summarization (hemat token) | ✅ |
 | **Closing-Flow AI (visi utama)** | ⬜ baru pondasi data |
-| Market-Fit Analyzer (B2B/B2C) | 🟡 engine + API (UI/persist pending) |
+| Market-Fit Analyzer (B2B/B2C) | ✅ engine + API + UI stepper + persist |
 | Sales Play config per-workspace | 🟡 schema + default (UI/persist pending) |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
 | Superadmin create user+tenant | ⏸️ pending |
@@ -41,6 +41,7 @@
 | WA server-emit: orchestrator (`lib/wa/orchestrator.ts`) humanize → enqueue paced bubbles (`delayMs`+`typing`) + topic guard + holding/handoff + reply-only allowlist | sesi ini |
 | Phase 1 pondasi: `KbClosingTechnique` + seed 17 teknik (`lib/kb/closing-techniques.ts`) wired ke KB prompt + WA orchestrator; `SalesPlay` schema + `defaultSalesPlay()` | sesi ini |
 | Phase 2: Market-Fit Analyzer engine (`lib/market-fit/analyzer.ts`, AI + heuristik) + `POST /api/market-fit` → B2B/B2C/mix + ICP + skor segmen + allowed closing techniques | sesi ini |
+| Phase 2 tail: stepper UI di workspace hub (`MarketFitPanel`) + persist per-workspace (`/api/workspaces/[id]/market-fit`, zero-migration via `platformSettingTable`) | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -140,13 +141,13 @@ Transport (keputusan + caveat):
 - [ ] **(G1)** Persist SalesPlay per-workspace (DB) + UI editor (CRUD config)
 - **Acceptance:** KB punya 17 teknik terstruktur ✅ + skema SalesPlay siap ✅; persist + editor masih kebuka.
 
-### Phase 2 — Market-Fit Analyzer (B2B/B2C)  🟡  *(engine + API selesai)*
+### Phase 2 — Market-Fit Analyzer (B2B/B2C)  ✅
 - [x] **(G3)** Analyzer (`lib/market-fit/analyzer.ts`) baca produk+segmen → `{ marketType: B2B|B2C|mix, confidence, icp, segmentFit[] }`. AI path + heuristik fallback (never throws).
 - [x] **(G3)** `POST /api/market-fit` — AI saat login, heuristik saat demo (tetap demoable)
 - [x] **(link)** Klasifikasi nyetir teknik closing — route balikin `allowedTechniques` (B2C agresif OK; B2B konsultatif via `cocokUntuk` filter)
-- [ ] **(G3)** Persist hasil di workspace (DB) → jadi input target Discovery
-- [ ] **(G8)** Paksa urutan setup: Produk → Market-Fit → Discovery (guided stepper UI)
-- **Acceptance:** engine klasifikasi B2B/B2C + ICP ✅; persist ke workspace + stepper UI masih kebuka.
+- [x] **(G3)** Persist hasil per-workspace (`/api/workspaces/[id]/market-fit` GET/POST, store via `platformSettingTable` — zero-migration) → input untuk Discovery
+- [x] **(G8)** Stepper Produk → Market-Fit → Discovery di workspace hub (`MarketFitPanel`): jalanin analyzer, tampil marketType + ICP + fit segmen + teknik yang cocok; Discovery kebuka setelah market-fit
+- **Acceptance:** ✅ buka workspace → panel setup; Analisis → B2B/B2C + ICP + teknik; hasil tersimpan & ke-load lagi; Discovery unlock.
 
 ### Phase 3 — Conversation Orchestrator (closing di akhir)  ⬜  *(inti fitur)*
 - [ ] **(G2)** State-machine: Rapport → Gali kebutuhan → Value → Objection/QnA → **Closing**

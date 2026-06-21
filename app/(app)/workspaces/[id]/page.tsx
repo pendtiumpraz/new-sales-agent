@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
+import { MarketFitPanel } from "@/components/workspaces/market-fit-panel";
 import type { WorkspaceType } from "@/lib/workspace/store";
 
 interface LeadRow {
@@ -189,6 +190,9 @@ export default function WorkspaceHubPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Setup stepper — Produk → Market-Fit → Discovery */}
+            <MarketFitPanel workspaceId={id} productId={ws.productId} />
 
             {/* Scoped flow quick links */}
             <div>
