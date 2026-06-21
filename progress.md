@@ -89,6 +89,19 @@ quota token (`grant_credit`) · invite/role-change/remove member.
 - **Mandat AI diperluas** dari "recommend + filter" → "menjalankan obrolan closing", **dengan
   pagar handoff** di momen closing.
 
+### 2D. Cost control & guardrails (anti-abuse, biar token aman)
+
+| ID | Gap | Status |
+|---|---|---|
+| **C1** | Cap output per balasan (maks token) → balasan pendek = humanis + murah | 🟡 `maxOutputTokens` ada di meter, belum diketatin utk chat sales |
+| **C2** | Input dipangkas (running summary) | ✅ `cdeb156` |
+| **C3** | Rate-limit per-lead & per-tenant (anti iseng / spam request panjang) | ⬜ |
+| **C4** | Topic guard — no politik/SARA/di luar produk → deflect humanis | ⬜ |
+| **C5** | Graceful degradation saat limit/credit $0 → **holding humanis + handoff**, JANGAN tampil error/"token habis" | ⬜ |
+| **C6** | Limit **diturunkan dari budget** (balasan ≈ credit ÷ token_per_reply), config per-tenant/plan | ⬜ |
+
+Sudah ada: tenant credit/metering, `creditEnforced`+`tenantCreditBalance` ($0 → AI blocked), mock fallback (`composeKbReply`), handoff queue.
+
 ---
 
 ## 3. Rencana per fase
@@ -123,7 +136,12 @@ quota token (`grant_credit`) · invite/role-change/remove member.
 - [ ] **(G4)** Pemilihan teknik closing by sinyal lead (harga→Perbandingan/Harga-Coret; nunda→Now-or-Never; dst)
 - [ ] **(guardrail)** Handoff ke manusia di tahap closing/negosiasi
 - [ ] Pasang dulu di **jalur draft auto-reply** (manusia approve) sebelum auto-send
-- **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir.
+- [ ] **(C1)** Ketatin `maxOutputTokens` chat sales (balasan pendek per adab) + emoji ON
+- [ ] **(C4)** Topic guard: politik/SARA/di luar produk → deflect humanis ("hehe itu di luar keahlianku 😄, balik ke … ya")
+- [ ] **(C3)** Rate-limit: N balasan AI / lead / jam + cap harian tenant (anti iseng)
+- [ ] **(C5)** Graceful degradation: limit/credit habis → holding humanis ("bentar ya kak aku cek dulu 🙏") + handoff ke manusia, bukan error
+- [ ] **(C6)** Hitung limit dari budget; surface di settings per-tenant/plan
+- **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.
 
 ### Phase 4 — Materials + Predictive  ⬜
 - [ ] **(G6)** Link aset Content ke tahap (sodorin banner/video di momen tepat, bukan teks panjang)
