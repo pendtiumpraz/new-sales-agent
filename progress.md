@@ -102,6 +102,21 @@ quota token (`grant_credit`) · invite/role-change/remove member.
 
 Sudah ada: tenant credit/metering, `creditEnforced`+`tenantCreditBalance` ($0 → AI blocked), mock fallback (`composeKbReply`), handoff queue.
 
+### 2E. Pipeline end-to-end & transport eksekusi
+
+Alur per workspace:
+1. **Tentukan produk** (1 ws = 1 produk)
+2. **Market-Fit Analyzer** → B2C/B2B + ICP
+3. **Discovery** → cari kontak (extension)
+4. **Generate Sales Script** = rules `docs/sales-script-humanis.md` × produk × hasil market-fit
+5. **Pilih kontak → queue → eksekusi** via extension; balas **hanya nomor di allowlist backend**
+
+Transport (keputusan + caveat):
+- **WhatsApp = extension RPA** jalanin WhatsApp Web di session/nomor rep — kirim, baca history, POST ke backend; **hanya act pada allowlist + queue dari backend**. Loop: inbound → extension baca → backend orchestrator generate bubble humanis → extension kirim pakai pacing.
+  - ⚠️ **RISIKO BAN**: WA melarang automation. Mitigasi: **reply-only** (jauh lebih aman dari cold-blast), pacing manusiawi (humanizer), volume rendah, nomor warm, semi-auto (draft→approve). Skala besar/cold → pertimbangkan **WA Cloud API resmi** (aman ban, tapi verifikasi + template + window 24 jam + biaya per pesan).
+- **Email = server-side** (SMTP/OAuth/ESP yang udah ada di `/settings/mailboxes`) — **NGGAK butuh extension**. Deliverability lebih baik, no ban issue.
+- **Satu extension modular** (content-script per host: linkedin/ig/marketplace utk discovery, web.whatsapp.com utk kirim/baca) **>** dua extension terpisah (install friction + auth dobel).
+
 ---
 
 ## 3. Rencana per fase
