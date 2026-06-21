@@ -32,6 +32,8 @@ import {
 import { hasDb } from "@/lib/db/client";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { meteredStreamText } from "@/lib/ai/meter";
+import { estimateTokens, messagesToTranscript, selectChatContext } from "@/lib/ai/chat-context";
+import { summarizeConversation } from "@/lib/ai/summarize-conversation";
 import { buildKbSystemPrompt } from "@/lib/utils/kb-system-prompt";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
 import type { KnowledgeBase } from "@/lib/types/kb";
@@ -122,18 +124,41 @@ export async function POST(request: Request) {
 
   const lastUserText = extractLastUserText(messages);
 
-  const system = buildKbSystemPrompt(kb, {
+  const baseSystem = buildKbSystemPrompt(kb, {
     surface: "chat",
     includeSources: true,
     userPrompt: lastUserText,
   });
 
+  const ctx = await getTenantContext();
+
+  // Token-thrifty context: once the transcript outgrows a running summary, carry
+  // the summary (+ recent turns verbatim) instead of the whole history.
+  // selectChatContext makes the final shorter-of-the-two call. Only attempt when
+  // metered AI is wired (the summary itself costs a call) and the chat is long
+  // enough to be worth compressing.
+  const KEEP_RECENT = 4;
+  let contextMessages = messages;
+  let system = baseSystem;
+  if (
+    ctx &&
+    hasDb() &&
+    messages.length > KEEP_RECENT + 1 &&
+    estimateTokens(messagesToTranscript(messages)) > 600
+  ) {
+    const summary = await summarizeConversation(ctx, messages, KEEP_RECENT);
+    const picked = selectChatContext({ messages, summary, keepRecent: KEEP_RECENT });
+    contextMessages = picked.messages;
+    if (picked.summaryNote) {
+      system = `${baseSystem}\n\n## Ringkasan percakapan sebelumnya\n${picked.summaryNote}`;
+    }
+  }
+
   // Prefer the per-tenant AI registry (metered; tenant BYOK or platform key)
   // when logged in + DB wired — streamed, with usage recorded on finish. (doc 24)
-  const ctx = await getTenantContext();
   if (ctx && hasDb()) {
     try {
-      const modelMessages = await convertToModelMessages(messages);
+      const modelMessages = await convertToModelMessages(contextMessages);
       const result = await meteredStreamText(ctx, {
         feature: "chat",
         system,
@@ -155,7 +180,7 @@ export async function POST(request: Request) {
   try {
     // AI SDK v6: `convertToModelMessages` is async (returns Promise<ModelMessage[]>),
     // so we await it before handing the array to `streamText`.
-    const modelMessages = await convertToModelMessages(messages);
+    const modelMessages = await convertToModelMessages(contextMessages);
 
     const result = streamText({
       model: GATEWAY_MODEL_CHAT,
