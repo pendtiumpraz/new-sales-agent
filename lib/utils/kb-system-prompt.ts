@@ -10,6 +10,10 @@
 
 import { formatIDR } from "@/lib/utils/format-idr";
 import { SAFETY_RULES, wrapUntrusted, looksInjected } from "@/lib/ai/safety";
+import {
+  CLOSING_TECHNIQUES_17,
+  formatClosingTechniques,
+} from "@/lib/kb/closing-techniques";
 import type {
   KbProduct,
   KbSegment,
@@ -306,6 +310,15 @@ function buildRetentionSection(kb: KnowledgeBase): string[] {
   return ["# Alur retensi", ...lines];
 }
 
+function buildClosingTechniquesSection(kb: KnowledgeBase): string[] {
+  const list = kb.closingTechniques ?? CLOSING_TECHNIQUES_17;
+  if (list.length === 0) return [];
+  return [
+    "# Teknik closing (pakai HANYA di tahap akhir, setelah value & objection beres)",
+    formatClosingTechniques(list),
+  ];
+}
+
 function buildSourcesSection(
   kb: KnowledgeBase,
   userPrompt: string | undefined,
@@ -375,6 +388,12 @@ export function buildKbSystemPrompt(
     sections.push(
       buildSourcesSection(kb, opts.userPrompt, detectedSegment?.id),
     );
+  }
+
+  // Closing techniques only on sales surfaces (not analysis) — they guide HOW to
+  // close at the end of the flow, not how to analyze data.
+  if (surface !== "analysis") {
+    sections.push(buildClosingTechniquesSection(kb));
   }
 
   const contextSection = [

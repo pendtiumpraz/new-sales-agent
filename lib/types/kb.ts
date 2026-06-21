@@ -96,6 +96,22 @@ export interface KbPriorityMapping {
   productIds: string[];
 }
 
+/** A closing technique the AI may reach for at the CLOSING stage (end of flow).
+ *  Seeded with the 17 Teknik Closing (Dewa Eka Prayoga); tenants can override. */
+export interface KbClosingTechnique {
+  id: string;
+  /** Technique name, e.g. "Now or Never". */
+  nama: string;
+  /** One-line how it works. */
+  inti: string;
+  /** Optional sample line (plain text — no markdown). */
+  contohSkrip?: string;
+  /** Which market this fits — aggressive ones are B2C-only so B2B stays consultative. */
+  cocokUntuk: ("B2B" | "B2C")[];
+  /** Signals that should make the AI reach for this (e.g. "ditanya harga", "nunda"). */
+  sinyalPemicu: string[];
+}
+
 /** Source kind feeding the Advanced RAG retriever (per spec §4). */
 export type KbSourceKind = "pdf" | "url" | "faq" | "doc";
 
@@ -139,6 +155,9 @@ export interface KnowledgeBase {
   retentionFlows: KbRetentionFlow[];
   /** Advanced RAG sources — PDFs, URLs, FAQ pairs, docs. */
   sources: KbSource[];
+  /** Closing techniques used at the closing stage. Optional — falls back to the
+   *  seeded 17 (lib/kb/closing-techniques) when absent. */
+  closingTechniques?: KbClosingTechnique[];
   /** ISO timestamp of last edit. */
   lastUpdated: string;
 }

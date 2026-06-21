@@ -19,8 +19,8 @@
 | Chat context summarization (hemat token) | ✅ |
 | **Closing-Flow AI (visi utama)** | ⬜ baru pondasi data |
 | Market-Fit Analyzer (B2B/B2C) | ⬜ |
-| Sales Play config per-workspace | ⬜ |
-| 17 Teknik Closing → KB | ⬜ |
+| Sales Play config per-workspace | 🟡 schema + default (UI/persist pending) |
+| 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
 | Superadmin create user+tenant | ⏸️ pending |
 | Invite-acceptance flow | ⏸️ |
 
@@ -39,6 +39,7 @@
 | Chat context: summary vs full, kirim yang lebih ringkas | `cdeb156` |
 | Humanizer engine (`lib/ai/humanizer.ts`) + in-app multi-bubble playback (`HumanizedMessage`) di chat assistant | sesi ini |
 | WA server-emit: orchestrator (`lib/wa/orchestrator.ts`) humanize → enqueue paced bubbles (`delayMs`+`typing`) + topic guard + holding/handoff + reply-only allowlist | sesi ini |
+| Phase 1 pondasi: `KbClosingTechnique` + seed 17 teknik (`lib/kb/closing-techniques.ts`) wired ke KB prompt + WA orchestrator; `SalesPlay` schema + `defaultSalesPlay()` | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -129,14 +130,14 @@ Transport (keputusan + caveat):
 - [x] Member enable/disable seat
 - [x] Chat context summarization (hemat token)
 
-### Phase 1 — Knowledge & Sales Play config  ⬜  *(mulai di sini)*
+### Phase 1 — Knowledge & Sales Play config  🟡  *(schema + seed selesai)*
 > Rumah data buat semua perilaku AI. Low-risk (nambah tipe + seed), belum ubah runtime.
-- [ ] **(G4)** Tipe `KbClosingTechnique` di `lib/types/kb.ts` — `{ id, nama, inti, contohSkrip, cocokUntuk: ("B2B"|"B2C")[], sinyalPemicu }` (field **opsional** di `KnowledgeBase` biar nggak mecahin existing)
-- [ ] **(G4)** Seed **17 Teknik Closing** (Dewa Eka Prayoga) ke KB default
-- [ ] **(G4)** Wiring 17 teknik ke `buildKbSystemPrompt` **khusus tahap closing**
-- [ ] **(G1)** Skema `SalesPlay` per-workspace: `stages[]`, `adabPolicy`, `priceGate`, `worthOfCost`, `valueLadder`, `handoffRules`
-- [ ] **(G1)** UI editor Sales Play di dalam workspace (CRUD config)
-- **Acceptance:** KB punya 17 teknik terstruktur + tiap workspace punya 1 SalesPlay tersimpan.
+- [x] **(G4)** Tipe `KbClosingTechnique` di `lib/types/kb.ts` — `{ id, nama, inti, contohSkrip, cocokUntuk, sinyalPemicu }` (field **opsional** di `KnowledgeBase`)
+- [x] **(G4)** Seed **17 Teknik Closing** (Dewa Eka Prayoga) → `lib/kb/closing-techniques.ts` (`CLOSING_TECHNIQUES_17` + `formatClosingTechniques` filter B2B/B2C)
+- [x] **(G4)** Wiring 17 teknik ke `buildKbSystemPrompt` (surface sales, "pakai di tahap akhir") + WA orchestrator
+- [x] **(G1)** Skema `SalesPlay` (`lib/types/sales-play.ts`): `stages[]`, `adab`, `priceGate`, `worthOfCost`, `valueLadder`, `handoff`, `closingTechniqueIds` + `defaultSalesPlay()`
+- [ ] **(G1)** Persist SalesPlay per-workspace (DB) + UI editor (CRUD config)
+- **Acceptance:** KB punya 17 teknik terstruktur ✅ + skema SalesPlay siap ✅; persist + editor masih kebuka.
 
 ### Phase 2 — Market-Fit Analyzer (B2B/B2C)  ⬜  *(depends: Phase 1 produk/segmen)*
 - [ ] **(G3)** Analyzer baca produk(tahap-1)+segmen → output `{ tipe: B2B|B2C|mix, ICP, skorFitSegmen[] }`

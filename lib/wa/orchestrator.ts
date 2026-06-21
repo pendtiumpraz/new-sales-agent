@@ -11,6 +11,7 @@ import { meteredGenerateText } from "@/lib/ai/meter";
 import { humanize, type Bubble } from "@/lib/ai/humanizer";
 import { stripMarkdown } from "@/lib/ai/sanitize";
 import { SAFETY_RULES, wrapUntrusted } from "@/lib/ai/safety";
+import { CLOSING_TECHNIQUES_17, formatClosingTechniques } from "@/lib/kb/closing-techniques";
 import { salutationFor } from "@/lib/profiling/salutation";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
@@ -70,6 +71,8 @@ export async function buildWaReply(
     `Balas SINGKAT & manusiawi: 1–2 kalimat per ide, total maksimal 3 kalimat, ` +
     `dan akhiri dengan SATU pertanyaan pilihan (mis. "a atau b?") biar interaktif. ` +
     SAFETY_RULES +
+    `\n\nTeknik closing (pakai HANYA kalau pelanggan sudah dekat keputusan, sesuai sinyal):\n` +
+    formatClosingTechniques(CLOSING_TECHNIQUES_17, { max: 8 }) +
     (input.history ? `\n\nKonteks percakapan terkini:\n${input.history}` : "");
 
   try {
