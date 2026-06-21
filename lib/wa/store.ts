@@ -25,6 +25,18 @@ export async function getWaMode(): Promise<WaMode> {
   return (await getSetting("wa_mode")) === "per_sales" ? "per_sales" : "per_platform";
 }
 
+// Reply-only allowlist (Phase 3) — the backend decides which numbers the AI may
+// auto-reply to. Per-tenant setting `wa_reply_allowlist:<tenantId>` = comma-list
+// of numbers. Empty/unset = allow all (back-compat). Match on trailing digits so
+// "+62…" vs "0…" formatting doesn't matter.
+export async function waReplyAllowed(tenantId: string, from: string): Promise<boolean> {
+  const raw = await getSetting(`wa_reply_allowlist:${tenantId}`);
+  if (!raw || !raw.trim()) return true;
+  const num = from.replace(/\D/g, "");
+  const allow = raw.split(",").map((s) => s.replace(/\D/g, "")).filter(Boolean);
+  return allow.some((a) => num.endsWith(a) || a.endsWith(num));
+}
+
 // Which session the current user owns, given the mode.
 export function sessionIdFor(ctx: TenantContext, mode: WaMode): string {
   return mode === "per_sales" ? `rep:${ctx.userId}` : `platform:${ctx.tenantId}`;

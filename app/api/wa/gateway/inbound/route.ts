@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
+import { sql, eq, desc } from "drizzle-orm";
 
 import { db, hasDb } from "@/lib/db/client";
 import { conversationsTable, messagesTable } from "@/lib/db/schema";
-import { gatewayTokenOk, ownerOfSession, enqueue } from "@/lib/wa/store";
-import { meteredGenerateText } from "@/lib/ai/meter";
-import { stripMarkdown } from "@/lib/ai/sanitize";
-import { SAFETY_RULES, wrapUntrusted } from "@/lib/ai/safety";
-import { salutationFor } from "@/lib/profiling/salutation";
+import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed } from "@/lib/wa/store";
+import { buildWaReply } from "@/lib/wa/orchestrator";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 export const runtime = "nodejs";
@@ -74,42 +71,54 @@ export async function POST(req: Request) {
       status: "received",
     });
 
-    // Optional AI auto-reply (gated, so it's honest about what's automated).
+    // Optional AI auto-reply (gated + reply-only allowlist). Emits HUMANIZED
+    // bubbles: one paced "send" job per bubble so the gateway can type + delay
+    // like a person, instead of one wall-of-text message.
     let replied = false;
-    if (process.env.WA_AUTO_REPLY === "1") {
+    if (
+      process.env.WA_AUTO_REPLY === "1" &&
+      (await waReplyAllowed(owner.tenantId, b.from))
+    ) {
       const ctx: TenantContext = { tenantId: owner.tenantId, userId: owner.userId, role: "member" };
-      const sal = salutationFor(contactName);
-      let reply =
-        `Halo ${sal.greeting}, terima kasih sudah menghubungi kami. ` +
-        `Boleh dijelaskan sedikit kebutuhannya supaya kami bantu lebih tepat?`;
-      try {
-        const { text } = await meteredGenerateText(ctx, {
-          feature: "wa_autoreply",
-          system:
-            `Kamu sales yang hangat & ber-empati (bukan robot), Bahasa Indonesia, sopan, ringkas. ` +
-            `Sapa dengan "${sal.greeting}". Jangan menyebut dirimu AI. Maksimal 3 kalimat. ` +
-            SAFETY_RULES,
-          prompt:
-            `Balas pesan WhatsApp masuk berikut dengan hangat & membantu (sapa "${sal.greeting}").\n` +
-            wrapUntrusted("pesan_masuk", b.body),
-          maxOutputTokens: 220,
+
+      // Recent turns (incl. the message just logged) so the reply isn't amnesiac.
+      const recent = await db
+        .select()
+        .from(messagesTable)
+        .where(eq(messagesTable.conversationId, convoId))
+        .orderBy(desc(messagesTable.timestamp))
+        .limit(6);
+      const history = recent
+        .reverse()
+        .map((m) => `${m.direction === "in" ? "Pelanggan" : "Kami"}: ${m.body}`)
+        .join("\n");
+
+      const result = await buildWaReply(ctx, { contactName, message: b.body, history });
+
+      let seq = 0;
+      for (const bubble of result.bubbles) {
+        // Gateway honors delayMs + typing to pace the send like a human.
+        await enqueue(owner.tenantId, b.sessionId, "send", {
+          to: b.from,
+          body: bubble.text,
+          delayMs: bubble.delayMs,
+          typing: true,
+          seq: seq++,
         });
-        if (text?.trim()) reply = text.trim();
-      } catch {
-        // no model / suspended → template reply
+        await db.insert(messagesTable).values({
+          id: "msg_" + crypto.randomUUID(),
+          tenantId: owner.tenantId,
+          conversationId: convoId,
+          direction: "out",
+          body: bubble.text,
+          timestamp: new Date().toISOString(),
+          status: "queued",
+        });
       }
-      reply = stripMarkdown(reply); // client message must be clean plain text (doc 43)
-      await enqueue(owner.tenantId, b.sessionId, "send", { to: b.from, body: reply });
-      await db.insert(messagesTable).values({
-        id: "msg_" + crypto.randomUUID(),
-        tenantId: owner.tenantId,
-        conversationId: convoId,
-        direction: "out",
-        body: reply,
-        timestamp: new Date().toISOString(),
-        status: "queued",
-      });
-      replied = true;
+
+      // On the graceful holding/handoff path, leave the convo flagged for a human
+      // (unread was already incremented on the inbound) so a rep takes over.
+      replied = result.action === "send";
     }
 
     return NextResponse.json({ ok: true, conversationId: convoId, assignedTo: owner.userId, replied });

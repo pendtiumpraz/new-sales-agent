@@ -38,6 +38,7 @@
 | Member enable/disable seat (tanpa hapus) | `46050b5` |
 | Chat context: summary vs full, kirim yang lebih ringkas | `cdeb156` |
 | Humanizer engine (`lib/ai/humanizer.ts`) + in-app multi-bubble playback (`HumanizedMessage`) di chat assistant | sesi ini |
+| WA server-emit: orchestrator (`lib/wa/orchestrator.ts`) humanize → enqueue paced bubbles (`delayMs`+`typing`) + topic guard + holding/handoff + reply-only allowlist | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -148,15 +149,15 @@ Transport (keputusan + caveat):
 - [ ] **(G2)** State-machine: Rapport → Gali kebutuhan → Value → Objection/QnA → **Closing**
 - [ ] **(G5)** Enforce adab policy sebagai constraint output (1 ide/bubble, close-question, no early-price)
 - [x] **(G5-humanis) engine + in-app**: `humanize()` → array bubble `[{ kind, text, delayMs }]` (1 ide/bubble, strip markdown, filler hemat, delay ~ panjang teks); `HumanizedMessage` mainin bubble satu-satu + typing pip di chat assistant. Tetap **1 LLM call** (client yang pacing → nggak nambah biaya AI)
-- [ ] **(G5-humanis) WA**: orchestrator emit array bubble server-side → extension kirim ke WhatsApp Web pakai pacing + typing indicator (reply-only, allowlist)
+- [x] **(G5-humanis) WA**: orchestrator (`lib/wa/orchestrator.ts`) emit array bubble server-side → inbound route enqueue 1 job/bubble dgn `delayMs`+`typing` (reply-only via `waReplyAllowed`). Gateway VPS tinggal honor pacing saat kirim.
 - [ ] **(G1/value)** `priceGate` aktif — AI nolak kasih harga sebelum need+value kepenuhan, pakai bridge/deflection
 - [ ] **(G4)** Pemilihan teknik closing by sinyal lead (harga→Perbandingan/Harga-Coret; nunda→Now-or-Never; dst)
 - [ ] **(guardrail)** Handoff ke manusia di tahap closing/negosiasi
 - [ ] Pasang dulu di **jalur draft auto-reply** (manusia approve) sebelum auto-send
 - [ ] **(C1)** Ketatin `maxOutputTokens` chat sales (balasan pendek per adab) + emoji ON
-- [ ] **(C4)** Topic guard: politik/SARA/di luar produk → deflect humanis ("hehe itu di luar keahlianku 😄, balik ke … ya")
-- [ ] **(C3)** Rate-limit: N balasan AI / lead / jam + cap harian tenant (anti iseng)
-- [ ] **(C5)** Graceful degradation: limit/credit habis → holding humanis ("bentar ya kak aku cek dulu 🙏") + handoff ke manusia, bukan error
+- [x] **(C4)** Topic guard: politik/SARA/judi → deflect humanis — **WA orchestrator** (`OFF_TOPIC`, no AI spend)
+- [ ] **(C3)** Rate-limit: N balasan AI / lead / jam + cap harian tenant (anti iseng) — belum
+- [x] **(C5)** Graceful degradation: AI gagal/credit 0 → holding humanis + handoff (bukan error) — **WA orchestrator**
 - [ ] **(C6)** Hitung limit dari budget; surface di settings per-tenant/plan
 - **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.
 
