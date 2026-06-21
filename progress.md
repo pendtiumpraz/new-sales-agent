@@ -37,6 +37,7 @@
 | Field role-scoping roster + visits via `FieldRep.ownerUserId` | `1d89ae2` |
 | Member enable/disable seat (tanpa hapus) | `46050b5` |
 | Chat context: summary vs full, kirim yang lebih ringkas | `cdeb156` |
+| Humanizer engine (`lib/ai/humanizer.ts`) + in-app multi-bubble playback (`HumanizedMessage`) di chat assistant | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -146,7 +147,8 @@ Transport (keputusan + caveat):
 ### Phase 3 — Conversation Orchestrator (closing di akhir)  ⬜  *(inti fitur)*
 - [ ] **(G2)** State-machine: Rapport → Gali kebutuhan → Value → Objection/QnA → **Closing**
 - [ ] **(G5)** Enforce adab policy sebagai constraint output (1 ide/bubble, close-question, no early-price)
-- [ ] **(G5-humanis)** Humanizer / super-interaktif: **multi-bubble send** (jawaban dipecah jadi beberapa pesan pendek), pacing **"sedang mengetik…" + delay ~ panjang teks**, thinking-filler ("hmm / bentar ya") **hemat & kontekstual**, variasi acak biar nggak mekanis, jangan balas instan, **teks polos — no markdown (###, ** , ~~, bullet) karena langsung ketahuan AI**. Channel WA (WAHA / Cloud API) dukung multi-msg + typing indicator. Output orchestrator = **array bubble** `[{ kind, text, delayMs }]`, tetap **1 LLM call** (client yang pacing → nggak nambah biaya AI)
+- [x] **(G5-humanis) engine + in-app**: `humanize()` → array bubble `[{ kind, text, delayMs }]` (1 ide/bubble, strip markdown, filler hemat, delay ~ panjang teks); `HumanizedMessage` mainin bubble satu-satu + typing pip di chat assistant. Tetap **1 LLM call** (client yang pacing → nggak nambah biaya AI)
+- [ ] **(G5-humanis) WA**: orchestrator emit array bubble server-side → extension kirim ke WhatsApp Web pakai pacing + typing indicator (reply-only, allowlist)
 - [ ] **(G1/value)** `priceGate` aktif — AI nolak kasih harga sebelum need+value kepenuhan, pakai bridge/deflection
 - [ ] **(G4)** Pemilihan teknik closing by sinyal lead (harga→Perbandingan/Harga-Coret; nunda→Now-or-Never; dst)
 - [ ] **(guardrail)** Handoff ke manusia di tahap closing/negosiasi

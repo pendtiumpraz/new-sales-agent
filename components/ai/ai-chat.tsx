@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useKbStore } from "@/lib/stores/kb-store";
 import { composeKbReply } from "@/lib/utils/compose-kb-reply";
+import { HumanizedMessage } from "@/components/ai/humanized-message";
 
 const SUGGESTIONS = [
   "Berapa harga paket untuk UMKM?",
@@ -232,9 +233,13 @@ export function AiChat({ className }: { className?: string }) {
             const isLastAssistant = idx === lastAssistantIndex;
             const isUser = m.role === "user";
             const isGreeting = m.id === GREETING_ID;
-            // Cursor only on the streaming assistant message.
-            const showCursor =
-              !isUser && isLastAssistant && isStreaming && text.length > 0;
+
+            // Hide the assistant reply WHILE it streams — the typing indicator
+            // carries the "thinking" beat. Once done, HumanizedMessage plays it
+            // out bubble-by-bubble (no partial-then-replay flicker).
+            if (m.role === "assistant" && !isGreeting && isLastAssistant && isStreaming) {
+              return null;
+            }
 
             const fromX = reduceMotion ? 0 : isUser ? 20 : -20;
 
@@ -279,43 +284,22 @@ export function AiChat({ className }: { className?: string }) {
                     isUser ? "items-end" : "items-start",
                   )}
                 >
-                  <div
-                    className={cn(
-                      "whitespace-pre-line rounded-lg px-3 py-2 text-sm leading-relaxed",
-                      isUser
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground",
-                    )}
-                  >
-                    {/* Streaming text — gentle opacity transition on chunk
-                        updates. `key={text.length}` re-fires the transition
-                        without forcing re-mount of the parent bubble. */}
-                    {isUser ? (
-                      text
-                    ) : (
-                      <>
-                        <motion.span
-                          key={`t-${m.id}-${text.length}`}
-                          initial={
-                            reduceMotion ? false : { opacity: 0.55 }
-                          }
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.1, ease: "easeOut" }}
-                          className="inline"
-                        >
-                          {text}
-                        </motion.span>
-                        {showCursor && (
-                          <span
-                            aria-hidden
-                            className="stream-cursor text-primary"
-                          >
-                            ▍
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  {/* User + greeting render as one static bubble; live AI
+                      replies play out as paced, human-feeling multi-bubbles. */}
+                  {isUser || isGreeting ? (
+                    <div
+                      className={cn(
+                        "whitespace-pre-line rounded-lg px-3 py-2 text-sm leading-relaxed",
+                        isUser
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground",
+                      )}
+                    >
+                      {text}
+                    </div>
+                  ) : (
+                    <HumanizedMessage text={text} reduce={!!reduceMotion} />
+                  )}
 
                   {/* Sources chips — pop-in stagger after the message is done. */}
                   {m.role === "assistant" &&
