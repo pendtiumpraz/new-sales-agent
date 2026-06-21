@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFieldReps } from "@/lib/api-mock/hooks";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 import type { FieldRep } from "@/lib/types";
@@ -30,10 +31,18 @@ const STATUS: Record<FieldRep["status"], { label: string; dot: string }> = {
 
 export default function FieldPage() {
   const { data: reps, isLoading, isError, refetch } = useFieldReps();
+  const me = useAuthStore((s) => s.currentUser);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState("live");
 
-  const list = (reps ?? []).filter((r) =>
+  // Role scope (wireframe 06): oversight roles see the whole team; a Sales Rep
+  // sees only the reps they own. Default demo user is Superadmin → sees all.
+  const isOversight = me.role !== "Sales Rep";
+  const scoped = isOversight
+    ? reps ?? []
+    : (reps ?? []).filter((r) => r.ownerUserId === me.id);
+
+  const list = scoped.filter((r) =>
     tab === "live" ? r.status === "kunjungan" : true,
   );
   // Resolve the selection from the VISIBLE list, not all reps — otherwise a rep
@@ -45,7 +54,11 @@ export default function FieldPage() {
     <div>
       <PageHeader
         title="Sales Lapangan"
-        description="Pantau tim lapangan Anda secara real-time di Jakarta & Surabaya."
+        description={
+          isOversight
+            ? "Pantau tim lapangan secara real-time di Jakarta & Surabaya."
+            : "Pantau aktivitas lapangan Anda secara real-time."
+        }
       >
         <Button variant="outline" asChild>
           <Link href="/field/visits">

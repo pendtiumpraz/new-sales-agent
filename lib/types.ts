@@ -128,6 +128,9 @@ export interface CadenceEnrollment {
 
 export interface FieldRep {
   id: string;
+  /** App user this field rep belongs to — drives role scoping (rep sees own,
+   *  manager/admin/superadmin see the whole team). Matches DemoAccount.id. */
+  ownerUserId: string;
   name: string;
   status: "kunjungan" | "istirahat" | "selesai";
   city: string;

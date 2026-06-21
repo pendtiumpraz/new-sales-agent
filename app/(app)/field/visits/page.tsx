@@ -10,7 +10,8 @@ import { DataTable, type DataColumn } from "@/components/shared/data-table";
 import { ErrorState } from "@/components/shared/error-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useVisits } from "@/lib/api-mock/hooks";
+import { useFieldReps, useVisits } from "@/lib/api-mock/hooks";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { formatDateTimeID } from "@/lib/utils/format-date-id";
 import type { Visit } from "@/lib/types";
 
@@ -25,19 +26,34 @@ const OUTCOME: Record<
 
 export default function VisitsPage() {
   const { data: visits, isLoading, isError, refetch } = useVisits();
+  const { data: reps } = useFieldReps();
+  const me = useAuthStore((s) => s.currentUser);
   const [search, setSearch] = useState("");
 
+  // Role scope (wireframe 06): a Sales Rep sees only visits by reps they own;
+  // oversight roles see the whole team. Visits link to reps by name.
+  const isOversight = me.role !== "Sales Rep";
+  const ownedNames = useMemo(
+    () =>
+      new Set(
+        (reps ?? []).filter((r) => r.ownerUserId === me.id).map((r) => r.name),
+      ),
+    [reps, me.id],
+  );
+
   const filtered = useMemo(() => {
-    const list = visits ?? [];
+    const scoped = isOversight
+      ? visits ?? []
+      : (visits ?? []).filter((v) => ownedNames.has(v.repName));
     const s = search.trim().toLowerCase();
     return s
-      ? list.filter((v) =>
+      ? scoped.filter((v) =>
           `${v.repName} ${v.customer} ${v.company} ${v.city} ${v.type}`
             .toLowerCase()
             .includes(s),
         )
-      : list;
-  }, [visits, search]);
+      : scoped;
+  }, [visits, search, isOversight, ownedNames]);
 
   const columns: DataColumn<Visit>[] = [
     {

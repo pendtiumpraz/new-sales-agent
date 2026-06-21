@@ -1,6 +1,7 @@
 [
   {
     "id": "fr_0001",
+    "ownerUserId": "u_rep",
     "name": "Slamet Setiawan",
     "status": "istirahat",
     "city": "Jakarta",
@@ -35,6 +36,7 @@
   },
   {
     "id": "fr_0002",
+    "ownerUserId": "u_rep",
     "name": "Nita Puspita",
     "status": "kunjungan",
     "city": "Jakarta",
@@ -69,6 +71,7 @@
   },
   {
     "id": "fr_0003",
+    "ownerUserId": "u_manager",
     "name": "Siti Hidayat",
     "status": "istirahat",
     "city": "Jakarta",
@@ -103,6 +106,7 @@
   },
   {
     "id": "fr_0004",
+    "ownerUserId": "u_manager",
     "name": "Iwan Pratama",
     "status": "istirahat",
     "city": "Jakarta",
@@ -137,6 +141,7 @@
   },
   {
     "id": "fr_0005",
+    "ownerUserId": "u_manager",
     "name": "Wayan Hidayat",
     "status": "kunjungan",
     "city": "Jakarta",
@@ -171,6 +176,7 @@
   },
   {
     "id": "fr_0006",
+    "ownerUserId": "u_manager",
     "name": "Sari Gunawan",
     "status": "selesai",
     "city": "Surabaya",
@@ -205,6 +211,7 @@
   },
   {
     "id": "fr_0007",
+    "ownerUserId": "u_manager",
     "name": "Iwan Handoko",
     "status": "kunjungan",
     "city": "Surabaya",
@@ -239,6 +246,7 @@
   },
   {
     "id": "fr_0008",
+    "ownerUserId": "u_manager",
     "name": "Ahmad Maharani",
     "status": "kunjungan",
     "city": "Surabaya",

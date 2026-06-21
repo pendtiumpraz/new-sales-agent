@@ -200,7 +200,7 @@ for (let i = 0; i < 30; i++) {
   const channel = pick(MSG_CHANNELS);
   const convId = id("cv", i + 1);
   const count = faker.number.int({ min: 5, max: 12 });
-  let last = new Date(NOW.getTime() - faker.number.int({ min: 1, max: 72 }) * 36e5);
+  const last = new Date(NOW.getTime() - faker.number.int({ min: 1, max: 72 }) * 36e5);
   let lastBody = "";
   for (let m = 0; m < count; m++) {
     const direction = m === count - 1 ? pick(["in", "out"]) : (m % 2 === 0 ? "in" : "out");
@@ -315,12 +315,17 @@ const jitter = (b: { lat: number; lng: number }) => ({
   lat: b.lat + faker.number.float({ min: -0.06, max: 0.06 }),
   lng: b.lng + faker.number.float({ min: -0.06, max: 0.06 }),
 });
+// Owner of each field rep (demo user ids from lib/auth/demo-accounts). The first
+// two are the Sales Rep's own patch so logging in as "Sales Rep" demonstrates the
+// rep→sendiri scope; the rest sit under the Sales Manager's team.
+const FIELD_OWNERS = ["u_rep", "u_rep", "u_manager", "u_manager", "u_manager", "u_manager", "u_manager", "u_manager"];
 const fieldReps = Array.from({ length: 8 }, (_, i) => {
   const base = i < 5 ? JKT : SBY;
   const city = i < 5 ? "Jakarta" : "Surabaya";
   const pos = jitter(base);
   return {
     id: id("fr", i + 1),
+    ownerUserId: FIELD_OWNERS[i],
     name: fullName(),
     status: faker.helpers.weightedArrayElement([
       { value: "kunjungan" as const, weight: 4 },
