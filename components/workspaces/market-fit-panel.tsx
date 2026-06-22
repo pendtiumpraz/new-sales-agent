@@ -4,7 +4,7 @@
 // Market-Fit Analyzer for this workspace's product, and shows which closing
 // techniques the resulting B2B/B2C type unlocks.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +13,13 @@ import { CheckCircle2, Loader2, Package, Radar, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useKbStore } from "@/lib/stores/kb-store";
 import { cn } from "@/lib/utils";
 import type { MarketFitResult } from "@/lib/types/market-fit";
@@ -88,6 +95,24 @@ export function MarketFitPanel({
     onError: (e) => toast.error(String(e instanceof Error ? e.message : e)),
   });
 
+  // Step 1 — connect a product to this workspace (1 workspace = 1 produk).
+  const [pickProduct, setPickProduct] = useState("");
+  const connect = useMutation({
+    mutationFn: async (pid: string) => {
+      const r = await fetch(`/api/workspaces/${workspaceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: pid }),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "gagal");
+    },
+    onSuccess: () => {
+      toast.success("Produk terhubung");
+      qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+    },
+    onError: (e) => toast.error(String(e instanceof Error ? e.message : e)),
+  });
+
   const result = q.data?.result ?? null;
   const allowed = q.data?.allowedTechniques ?? [];
   const step1Done = !!product;
@@ -109,11 +134,34 @@ export function MarketFitPanel({
           </div>
         </div>
 
-        {/* Step 1 — product */}
+        {/* Step 1 — pick & connect a product */}
         {!product ? (
-          <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-            Hubungkan produk ke workspace ini dulu (1 workspace = 1 produk) — atur di
-            Basis Pengetahuan lalu pilih produknya saat edit workspace.
+          <div className="space-y-2 rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] p-3">
+            <p className="text-xs font-medium text-foreground">
+              Langkah 1 — pilih produk untuk workspace ini (1 workspace = 1 produk):
+            </p>
+            <div className="flex gap-2">
+              <Select value={pickProduct} onValueChange={setPickProduct}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Pilih produk…" /></SelectTrigger>
+                <SelectContent>
+                  {kb.products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                disabled={!pickProduct || connect.isPending}
+                onClick={() => connect.mutate(pickProduct)}
+              >
+                {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Hubungkan"}
+              </Button>
+            </div>
+            {kb.products.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Belum ada produk — tambah dulu di Basis Pengetahuan (Settings).
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm">

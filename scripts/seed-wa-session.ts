@@ -31,7 +31,7 @@ loadEnvFile(resolve(process.cwd(), ".env.local"));
 loadEnvFile(resolve(process.cwd(), ".env"));
 
 import { db } from "../lib/db/client";
-import { tenantsTable, membershipsTable, waSessionTable, usersTable } from "../lib/db/schema";
+import { tenantsTable, membershipsTable, waSessionTable, usersTable, workspaceTable } from "../lib/db/schema";
 import { DEMO_ACCOUNTS, type DemoRole } from "../lib/auth/demo-accounts";
 
 const TENANT_ID = "t_default"; // must match auth.ts DEFAULT_TENANT_ID
@@ -73,10 +73,26 @@ async function main() {
       set: { tenantId: TENANT_ID, ownerType: "rep", ownerId: rep.id, status: "connected", waNumber: "628100000000", updatedAt: new Date() },
     });
 
+  // Demo workspace (no product yet → opening it shows the "pilih produk" step).
+  await db
+    .insert(workspaceTable)
+    .values({
+      id: "ws_demo",
+      tenantId: TENANT_ID,
+      ownerUserId: rep.id,
+      name: "Demo — Closing Flow",
+      type: "offering",
+      productId: null,
+      targetSegment: null,
+      status: "active",
+    })
+    .onConflictDoNothing();
+
   console.log("WA test setup seeded:");
   console.log(`  tenant     : ${TENANT_ID} (active)`);
   console.log(`  memberships: ${DEMO_ACCOUNTS.length} (demo accounts)`);
   console.log(`  wa_session : ${sessionId} (connected, owner ${rep.name})`);
+  console.log(`  workspace  : ws_demo (owner ${rep.name}, belum ada produk → buka /workspaces)`);
   console.log("\nTest inbound:");
   console.log(`  curl -X POST localhost:3100/api/wa/gateway/inbound \\`);
   console.log(`   -H "x-wa-gateway-token: $WA_GATEWAY_TOKEN" -H "Content-Type: application/json" \\`);

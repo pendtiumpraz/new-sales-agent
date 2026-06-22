@@ -92,6 +92,19 @@ export default function WorkspaceHubPage() {
 
   const ws = q.data?.data;
 
+  // Gate the rest of the hub behind setup (produk → market-fit). Deduped query
+  // (same key as MarketFitPanel) so no extra fetch.
+  const mfQ = useQuery({
+    queryKey: ["market-fit", id],
+    queryFn: async () => {
+      const r = await fetch(`/api/workspaces/${id}/market-fit`);
+      if (!r.ok) return null;
+      return (await r.json()).result ?? null;
+    },
+    enabled: !!ws?.productId,
+  });
+  const setupDone = !!ws?.productId && !!mfQ.data;
+
   // Scoped-flow quick links — carry the workspace id as ?workspace=<id>. The
   // target pages (discovery, profiles, cadences, inbox, pipeline) DO read this
   // param via useSearchParams and filter their data to this workspace.
@@ -198,6 +211,8 @@ export default function WorkspaceHubPage() {
             {/* Sales Play editor — alur & adab obrolan */}
             <SalesPlayPanel workspaceId={id} />
 
+            {setupDone ? (
+              <>
             {/* Scoped flow quick links */}
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Alur sales</p>
@@ -265,6 +280,16 @@ export default function WorkspaceHubPage() {
                 </Card>
               )}
             </div>
+              </>
+            ) : (
+              <Card className="border-dashed border-primary/40">
+                <CardContent className="p-4 text-sm text-muted-foreground">
+                  Selesaikan <span className="font-medium text-foreground">setup</span> dulu —
+                  pilih produk lalu jalankan <span className="font-medium text-foreground">Market-Fit</span> di
+                  panel atas. Alur sales &amp; daftar lead kebuka setelah itu.
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
