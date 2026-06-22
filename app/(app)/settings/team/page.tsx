@@ -48,6 +48,7 @@ interface Invite {
   email: string;
   role: string;
   status: string;
+  token: string;
 }
 
 async function fetchTeam() {
@@ -330,9 +331,21 @@ export default function TeamPage() {
                     </div>
                     <Badge variant="muted">Pending</Badge>
                     {canManage && (
-                      <Button variant="ghost" size="sm" onClick={() => revokeInvite.mutate(i.id)}>
-                        Batalkan
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(`${window.location.origin}/invite/${i.token}`);
+                            toast.success("Link undangan disalin");
+                          }}
+                        >
+                          Salin link
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => revokeInvite.mutate(i.id)}>
+                          Batalkan
+                        </Button>
+                      </>
                     )}
                   </li>
                 ))}

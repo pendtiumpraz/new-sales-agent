@@ -21,7 +21,8 @@
 | Market-Fit Analyzer (B2B/B2C) | ✅ engine + API + UI stepper + persist |
 | Sales Play config per-workspace | 🟡 schema + default (UI/persist pending) |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
-| Superadmin create user+tenant | ⏸️ pending |
+| Superadmin create user+tenant | ✅ |
+| Invite-acceptance (sales rep bisa login) | ✅ |
 | Invite-acceptance flow | ⏸️ |
 
 ---
@@ -48,6 +49,8 @@
 | C3 rate-limit (`lib/wa/rate-limit.ts`): per-lead/jam + per-tenant/hari → over cap = stop auto-reply + unread untuk human (anti-iseng, cost cap) | sesi ini |
 | Phase 4 predictive: closing-readiness 0–100 + band + NBA (`lib/sales/predictive.ts`) dari sinyal stage-machine; persist + `GET /api/sales/readiness`; di-compute tiap inbound | sesi ini |
 | Badge readiness di inbox (`components/inbox/readiness-badge.tsx`): header thread tampil skor + band, dihitung dari message history pakai engine yang sama (jujur, no dummy) | sesi ini |
+| Phase 5 U3: superadmin create user+tenant (`createAdminUser` + `POST /api/admin/users` + dialog "Buat akun") | sesi ini |
+| Phase 5 U1: accept-invite (`/api/invites/[token]` + `/invite/[token]` page + "Salin link" di Tim) → rep diundang bisa login | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -83,9 +86,9 @@ QnA · descriptive · konsultatif · prediktif. **1 workspace = 1 produk.**
 
 | ID | Gap | Status |
 |---|---|---|
-| **U1** | Invite-acceptance flow — sales rep yang diundang **belum bisa login** (status stuck `pending`) | ⏸️ |
+| **U1** | Invite-acceptance flow — sales rep yang diundang bisa login | ✅ `/api/invites/[token]` + `/invite/[token]` |
 | **U2** | Enable/disable seat per-member (tanpa hapus) | ✅ `46050b5` |
-| **U3** | Superadmin create user+tenant langsung (tanpa self-register) | ⏸️ pending |
+| **U3** | Superadmin create user+tenant langsung (tanpa self-register) | ✅ `POST /api/admin/users` |
 
 **Yang SUDAH ada (di grain tenant, jangan dibikin ulang):** register (tenant `pending`) ·
 superadmin activate/deactivate (`suspend`/`activate`) · durasi aktivasi (`activate_until`) ·
@@ -178,10 +181,10 @@ Transport (keputusan + caveat):
 - [ ] **(G7)** Loop data: simpan outcome obrolan buat naikin akurasi prediktif (sekarang simpan skor terakhir, belum training loop)
 - **Acceptance:** AI nyaranin aset per tahap + skor "siap closing?" per percakapan.
 
-### Phase 5 — Admin / Tenant gaps  ⬜
-- [ ] **(U3)** Superadmin create user+tenant (form di `app/admin` + `POST /api/admin/users`, mode: tenant-baru / tambah-ke-tenant)
-- [ ] **(U1)** Invite-acceptance flow (route claim + halaman) → invited rep bisa login
-- **Acceptance:** superadmin provision akun tanpa self-register; undangan bisa diterima.
+### Phase 5 — Admin / Tenant gaps  ✅
+- [x] **(U3)** Superadmin create user+tenant — `createAdminUser` + `POST /api/admin/users` + dialog "Buat akun" (mode tenant-baru / tambah-ke-tenant) di UserManagement
+- [x] **(U1)** Invite-acceptance — `GET/POST /api/invites/[token]` + halaman publik `/invite/[token]` (set nama+sandi → user+membership aktif, invite `accepted`); tombol "Salin link" di Tim
+- **Acceptance:** ✅ superadmin provision akun tanpa self-register; ✅ rep yang diundang bisa terima → login.
 
 ---
 
