@@ -33,6 +33,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MarketFitPanel } from "@/components/workspaces/market-fit-panel";
 import { SalesPlayPanel } from "@/components/workspaces/sales-play-panel";
+import { WorkspaceDiscoveryPanel } from "@/components/workspaces/workspace-discovery-panel";
+import { WorkspaceChatPanel } from "@/components/workspaces/workspace-chat-panel";
 import { cn } from "@/lib/utils";
 import type { WorkspaceType } from "@/lib/workspace/store";
 
@@ -102,8 +104,6 @@ export default function WorkspaceHubPage() {
   // query and reports whether a result exists (avoids a dual-query race).
   const [mfReady, setMfReady] = useState(false);
   const setupDone = !!ws?.productId && mfReady;
-
-  const leadCount = ws?.leads.length ?? 0;
 
   if (q.isError) {
     return (
@@ -198,16 +198,8 @@ export default function WorkspaceHubPage() {
             {/* Sales Play editor — alur & adab obrolan */}
             {setupDone ? (
               <>
-                {/* Langkah 3 — Discovery */}
-                <FlowStep
-                  n={3}
-                  icon={Radar}
-                  title="Discovery — cari kontak"
-                  desc={`${leadCount} lead di workspace ini. Cari prospek baru sesuai market-fit.`}
-                  status={leadCount > 0 ? "done" : "active"}
-                  href={`/contacts/discovery?workspace=${id}`}
-                  cta="Cari kontak"
-                />
+                {/* Langkah 3 — Discovery (inline: tambah lead di sini) */}
+                <WorkspaceDiscoveryPanel workspaceId={id} />
 
                 {/* Langkah 4 — Sales Script */}
                 <div className="space-y-1.5">
@@ -217,46 +209,8 @@ export default function WorkspaceHubPage() {
                   <SalesPlayPanel workspaceId={id} />
                 </div>
 
-                {/* Langkah 5 — Eksekusi */}
-                <FlowStep
-                  n={5}
-                  icon={Send}
-                  title="Eksekusi — kirim & pantau"
-                  desc={leadCount > 0 ? "Buka Inbox workspace ini buat balas + pantau closing." : "Tambah lead dulu (langkah 3) sebelum eksekusi."}
-                  status={leadCount > 0 ? "active" : "locked"}
-                  href={leadCount > 0 ? `/inbox?workspace=${id}` : undefined}
-                  cta="Buka Inbox"
-                />
-
-                {/* Lead di workspace ini */}
-                {leadCount > 0 && (
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Lead di workspace ini ({leadCount})
-                    </p>
-                    <Card>
-                      <CardContent className="divide-y p-0">
-                        {ws.leads.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{p.fullName}</p>
-                              {(p.title || p.companyName) && (
-                                <p className="truncate text-xs text-muted-foreground">
-                                  {[p.title, p.companyName].filter(Boolean).join(" · ")}
-                                </p>
-                              )}
-                            </div>
-                            {p.leadType && (
-                              <Badge variant="muted" className="shrink-0 bg-muted text-muted-foreground">
-                                {p.leadType === "b2c_customer" ? "B2C" : p.leadType === "b2b_partner" ? "B2B" : p.leadType}
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+                {/* Langkah 5 — Eksekusi (inline: chat lead di sini) */}
+                <WorkspaceChatPanel workspaceId={id} leads={ws.leads} />
 
                 {/* Lainnya — sekunder (di luar urutan utama) */}
                 <div>
