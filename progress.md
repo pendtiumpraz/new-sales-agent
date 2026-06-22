@@ -196,7 +196,7 @@ Transport (keputusan + caveat):
 > Backend gateway-agnostic (`docs/wa-gateway-contract.md`). Otak tetap di server;
 > transport tinggal poll outbox + push inbound. Dua implementasi kontrak yang sama.
 - [x] **WAHA adapter** (server-gateway, gratis+open-source): route inbound `/api/wa/waha/inbound` (normalize webhook WAHA → forward ke `/api/wa/gateway/inbound`, drop fromMe/grup/broadcast) + `gateway/waha/bridge.mjs` (poll outbox → startTyping → delayMs → sendText → stopTyping → ack) + docker-compose (NOWEB) + `.env.example` + `docs/wa-gateway-waha.md`. Zero refactor route lama.
-- [ ] **Chrome extension (MV3)** — transport yang sama, fingerprint paling manusiawi (browser+IP rep). Background SW poll outbox + content-script `web.whatsapp.com` (inbound observe + outbound type/send honor pacing). ← berikutnya
+- [x] **Chrome extension (MV3)** — transport yang sama, fingerprint paling manusiawi (browser+IP rep). `gateway/extension/`: background SW = sisi network (CSP-safe), content-script `web.whatsapp.com` = loop+DOM (inbound observe via `data-id`, outbound openChat→type→Enter honor delayMs+typing), popup on/off+tes koneksi, options (backend/token/session/poll), selector dipusatin di `SEL` + `docs/wa-extension.md`. Caveat jujur: DOM WA Web rapuh (execCommand insertText + Enter), bukan 24/7.
 - **Caveat (jujur):** dua-duanya tetap WA Web automation → langgar ToS (Jan 2026 larang AI-bot). Server-gateway (WAHA) lebih kedeteksi dari extension; extension bukan 24/7. Skala/aman-ban → WA Cloud API resmi.
 - **Acceptance:** inbound WA nyata → orchestrator balas bubble paced via gateway; `WA_AUTO_REPLY=1` + allowlist dihormati.
 

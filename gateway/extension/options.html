@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maira WA Bridge — Pengaturan</title>
+    <style>
+      body { max-width: 520px; margin: 32px auto; padding: 0 20px; font: 14px/1.5 system-ui, sans-serif; color: #0f172a; }
+      h1 { font-size: 18px; }
+      p.muted { color: #64748b; }
+      label { display: block; margin: 16px 0 4px; font-weight: 600; }
+      input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+      .hint { color: #64748b; font-size: 12px; margin-top: 4px; }
+      button { margin-top: 20px; padding: 9px 16px; border-radius: 8px; border: 0; background: #3b82f6; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+      #saved { margin-left: 12px; color: #166534; font-weight: 600; opacity: 0; transition: opacity .2s; }
+      #saved.show { opacity: 1; }
+      .warn { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #92400e; margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <h1>Maira WA Bridge — Pengaturan</h1>
+    <p class="muted">Hubungkan extension ke backend Maira. Token harus sama dengan <code>WA_GATEWAY_TOKEN</code> di server.</p>
+
+    <label for="baseUrl">Backend URL</label>
+    <input id="baseUrl" placeholder="http://localhost:3100" />
+    <div class="hint">Lokal: <code>http://localhost:3100</code>. Produksi: URL app kamu.</div>
+
+    <label for="token">Gateway token</label>
+    <input id="token" type="password" placeholder="WA_GATEWAY_TOKEN" />
+
+    <label for="sessionId">Session ID</label>
+    <input id="sessionId" placeholder="rep:u_rep" />
+    <div class="hint">Harus cocok dengan baris <code>wa_session</code> (mis. <code>rep:&lt;userId&gt;</code> / <code>platform:&lt;tenantId&gt;</code>).</div>
+
+    <label for="pollMs">Interval polling (ms)</label>
+    <input id="pollMs" type="number" min="1500" step="500" placeholder="3000" />
+
+    <div>
+      <button id="save">Simpan</button>
+      <span id="saved">Tersimpan ✓</span>
+    </div>
+
+    <div class="warn">
+      ⚠️ Ini otomatisasi WhatsApp Web — melanggar ToS WA (per Jan 2026 melarang AI-bot pihak-3); risiko ban di nomor pribadi rep. Pakai <b>reply-only</b>, volume rendah, nomor warm. Skala/aman-ban → WA Cloud API resmi.
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
