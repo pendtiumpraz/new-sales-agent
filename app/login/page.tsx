@@ -7,7 +7,6 @@ import { ArrowRight, Check, Loader2, Radar } from "lucide-react";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,17 +37,17 @@ function LoginPageInner() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
-  // Resolve the post-login destination — defaults to /dashboard, but honors
-  // ?next=<encoded-path> so middleware-style redirects survive.
+  // Resolve the post-login destination — defaults to /workspaces (the main
+  // closing-flow), but honors ?next=<encoded-path> so redirects survive.
   const nextHref = (() => {
     const raw = searchParams.get("next");
-    if (!raw) return "/dashboard";
+    if (!raw) return "/workspaces";
     try {
       const decoded = decodeURIComponent(raw);
       // Only allow same-origin internal paths.
-      return decoded.startsWith("/") ? decoded : "/dashboard";
+      return decoded.startsWith("/") ? decoded : "/workspaces";
     } catch {
-      return "/dashboard";
+      return "/workspaces";
     }
   })();
 

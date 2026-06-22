@@ -32,7 +32,7 @@ export default function PendingPage() {
       const r = await fetch("/api/tenant/status");
       const j = (await r.json()) as Status;
       setInfo(j);
-      if (j.active) router.replace("/dashboard");
+      if (j.active) router.replace("/workspaces");
     } catch {
       /* ignore */
     }

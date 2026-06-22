@@ -14,13 +14,12 @@ import { useConversations } from "@/lib/api-mock/hooks";
 import { formatConversationTime } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 
+// Kept lean (channel masih bisa dicari): Semua · Belum dibaca · WA · Email.
 const FILTERS = [
   { key: "all", label: "Semua" },
+  { key: "unread", label: "Belum dibaca" },
   { key: "whatsapp", label: "WhatsApp" },
   { key: "email", label: "Email" },
-  { key: "instagram", label: "Instagram" },
-  { key: "linkedin", label: "LinkedIn" },
-  { key: "unread", label: "Belum dibaca" },
 ] as const;
 
 export function ConversationList({ className }: { className?: string }) {
