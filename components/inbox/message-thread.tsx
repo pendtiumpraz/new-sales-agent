@@ -18,6 +18,7 @@ import {
 
 import { AutoReplyCard } from "@/components/inbox/auto-reply-card";
 import { SentimentBadge } from "@/components/inbox/sentiment-badge";
+import { ReadinessBadge } from "@/components/inbox/readiness-badge";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -251,6 +252,7 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
             )}
           </p>
         </div>
+        <ReadinessBadge conversationId={conversationId} className="mr-1 hidden sm:inline-flex" />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" onClick={togglePanel} className="hidden xl:inline-flex">

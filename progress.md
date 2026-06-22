@@ -47,6 +47,7 @@
 | Gateway contract siap extension: `pollOutbox` FIFO + filter `?sessionId=` (per-rep), outbox poll/ack + inbound webhook didokumentasikan di `docs/wa-gateway-contract.md` | sesi ini |
 | C3 rate-limit (`lib/wa/rate-limit.ts`): per-lead/jam + per-tenant/hari → over cap = stop auto-reply + unread untuk human (anti-iseng, cost cap) | sesi ini |
 | Phase 4 predictive: closing-readiness 0–100 + band + NBA (`lib/sales/predictive.ts`) dari sinyal stage-machine; persist + `GET /api/sales/readiness`; di-compute tiap inbound | sesi ini |
+| Badge readiness di inbox (`components/inbox/readiness-badge.tsx`): header thread tampil skor + band, dihitung dari message history pakai engine yang sama (jujur, no dummy) | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
