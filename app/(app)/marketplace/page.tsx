@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { Toolbar } from "@/components/shared/toolbar";
 import { DataTable, type DataColumn } from "@/components/shared/data-table";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { formatIDR } from "@/lib/utils/format-idr";
 
 interface Listing {
@@ -54,6 +55,27 @@ function ChannelBadges({ channels }: { channels: string[] }) {
 }
 
 export default function MarketplacePage() {
+  // Manager-only feature — a rep reaching this URL directly gets a gate, not the
+  // cross-tenant pool (matches the sidebar guard + the manager-only API).
+  const isRep = useAuthStore((s) => s.currentUser.role) === "Sales Rep";
+  if (isRep) {
+    return (
+      <div>
+        <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan antar-tenant." />
+        <div className="p-6">
+          <EmptyState
+            icon={Store}
+            title="Khusus manajer"
+            description="Marketplace data perusahaan antar-tenant hanya untuk manajer/owner. Hubungi manajermu untuk akses."
+          />
+        </div>
+      </div>
+    );
+  }
+  return <MarketplaceInner />;
+}
+
+function MarketplaceInner() {
   const qc = useQueryClient();
   const [selCos, setSelCos] = useState<Set<string>>(new Set());
   // Bundle builder (company-only) — people can't be sold.

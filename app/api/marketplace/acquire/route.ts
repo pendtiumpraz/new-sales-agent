@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 // POST /api/marketplace/acquire (doc 41 §6) — buy a listing → copy the entity
 // (+ contact points) into your tenant. Disabled outside SaaS mode.
 export async function POST(req: Request) {
-  const guard = await requirePermission("data.write");
+  const guard = await requirePermission("tenant.members.manage"); // manager-only
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   if (!(await marketplaceEnabled())) return NextResponse.json({ error: "Marketplace nonaktif (mode on-prem)" }, { status: 403 });

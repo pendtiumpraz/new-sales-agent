@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 // Body = { name, industry?, companyIds[], pricingMode, unitPrice }. People can't be
 // bundled/sold. Multi-bundle: call repeatedly with different names.
 export async function POST(req: Request) {
-  const guard = await requirePermission("data.write");
+  const guard = await requirePermission("tenant.members.manage"); // manager-only
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   if (!(await marketplaceEnabled())) return NextResponse.json({ error: "Marketplace nonaktif (mode on-prem)" }, { status: 403 });

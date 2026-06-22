@@ -10,7 +10,8 @@ export const runtime = "nodejs";
 // GET /api/marketplace (doc 41 §6) — browse other tenants' shared listings, or
 // ?scope=mine for your own. Disabled outside SaaS mode.
 export async function GET(req: Request) {
-  const guard = await requirePermission("data.read");
+  // Manager-only: browsing the cross-tenant pool is not a rep action (doc 41 §6).
+  const guard = await requirePermission("tenant.members.manage");
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ enabled: false, data: [], source: "mock" });
   if (!(await marketplaceEnabled())) return NextResponse.json({ enabled: false, data: [] });

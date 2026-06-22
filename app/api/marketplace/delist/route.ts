@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 // (status → delisted) or re-list it ({ relist: true }). Was a dead-end before:
 // once published, a listing could never be unpublished from the UI.
 export async function POST(req: Request) {
-  const guard = await requirePermission("data.write");
+  const guard = await requirePermission("tenant.members.manage"); // manager-only
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   const body = (await req.json().catch(() => ({}))) as { listingId?: string; relist?: boolean };

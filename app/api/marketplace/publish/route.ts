@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 // POST /api/marketplace/publish (doc 41 §6) — list COMPANIES to the pool.
 // People may NOT be sold (privacy / UU PDP) — only companies are listable.
 export async function POST(req: Request) {
-  const guard = await requirePermission("data.write");
+  const guard = await requirePermission("tenant.members.manage"); // manager-only
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   if (!(await marketplaceEnabled())) return NextResponse.json({ error: "Marketplace nonaktif (mode on-prem)" }, { status: 403 });
