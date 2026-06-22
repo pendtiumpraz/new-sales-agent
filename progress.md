@@ -52,6 +52,7 @@
 | Phase 5 U3: superadmin create user+tenant (`createAdminUser` + `POST /api/admin/users` + dialog "Buat akun") | sesi ini |
 | Phase 5 U1: accept-invite (`/api/invites/[token]` + `/invite/[token]` page + "Salin link" di Tim) → rep diundang bisa login | sesi ini |
 | Phase 1 tail: SalesPlay persist (`/api/workspaces/[id]/sales-play`) + editor `SalesPlayPanel` + wired ke WA orchestrator (priceGate bridge/value ladder/worth-of-cost/adab/handoff beneran ngefek) | sesi ini |
+| Phase 4 G6: `StageMaterial` (banner/video/studi-kasus per tahap) di SalesPlay + editor + orchestrator nawarin materi di tahap cocok | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -177,7 +178,7 @@ Transport (keputusan + caveat):
 - **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.
 
 ### Phase 4 — Materials + Predictive  🟡  *(predictive jalan)*
-- [ ] **(G6)** Link aset Content ke tahap (sodorin banner/video di momen tepat, bukan teks panjang)
+- [x] **(G6)** Materi per-tahap (`StageMaterial` di SalesPlay) — editor di `SalesPlayPanel`; orchestrator nawarin materi (kirim LINK) di tahap yang cocok, bukan teks panjang
 - [x] **(G7)** Skor closing-readiness 0–100 + band (dingin/hangat/panas) + NBA (`lib/sales/predictive.ts`) dari sinyal stage-machine; persist per-conversation (`convscore:<id>`); `GET /api/sales/readiness`. **Jujur: heuristik, belum model terlatih.**
 - [ ] **(G7)** Loop data: simpan outcome obrolan buat naikin akurasi prediktif (sekarang simpan skor terakhir, belum training loop)
 - **Acceptance:** AI nyaranin aset per tahap + skor "siap closing?" per percakapan.

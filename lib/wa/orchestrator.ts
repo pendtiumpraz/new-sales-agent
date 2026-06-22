@@ -125,6 +125,13 @@ export async function buildWaReply(
         : "")
     : "";
 
+  // Stage materials (G6) — offer a banner/video at the matching stage.
+  const stageMaterials = (plan?.stageMaterials ?? []).filter((m) => m.stage === decision.stage);
+  const materialBlock = stageMaterials.length
+    ? `\n\nMateri yang bisa ditawarkan di tahap ini (kirim LINK-nya kalau relevan, bukan teks panjang):\n` +
+      stageMaterials.map((m) => `- ${m.label} (${m.kind}): ${m.ref}`).join("\n")
+    : "";
+
   const system =
     `Kamu sales humanis (BUKAN robot), Bahasa Indonesia, hangat & empatik. ` +
     `Sapa "${sal.greeting}". JANGAN pernah menyebut dirimu AI/bot. ` +
@@ -132,6 +139,7 @@ export async function buildWaReply(
     `akhiri dengan SATU pertanyaan pilihan biar interaktif. ` +
     `\n\nIKUTI ARAHAN TAHAP INI: ${decision.guidance}` +
     planBlock +
+    materialBlock +
     techniqueBlock +
     "\n\n" + SAFETY_RULES +
     (turns.length ? `\n\nKonteks percakapan terkini:\n${historyToText(turns)}` : "");

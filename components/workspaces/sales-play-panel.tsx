@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { SalesPlay } from "@/lib/types/sales-play";
+import type { SalesPlay, SalesStageKey, StageMaterial } from "@/lib/types/sales-play";
 
 const toLines = (a: string[]) => a.join("\n");
 const fromLines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -70,6 +70,30 @@ export function SalesPlayPanel({ workspaceId }: { workspaceId: string }) {
     setPlan((c) => (c ? { ...c, worthOfCost: { ...c.worthOfCost, ...p } } : c));
   const patchHandoff = (p: Partial<SalesPlay["handoff"]>) =>
     setPlan((c) => (c ? { ...c, handoff: { ...c.handoff, ...p } } : c));
+
+  // Stage materials (G6) editor.
+  const [matStage, setMatStage] = useState<SalesStageKey>("value");
+  const [matKind, setMatKind] = useState<StageMaterial["kind"]>("banner");
+  const [matLabel, setMatLabel] = useState("");
+  const [matRef, setMatRef] = useState("");
+  function addMaterial() {
+    setPlan((c) => {
+      if (!c || !matLabel.trim() || !matRef.trim()) return c;
+      const mat: StageMaterial = {
+        id: "sm_" + Math.random().toString(36).slice(2, 8),
+        stage: matStage,
+        kind: matKind,
+        label: matLabel.trim(),
+        ref: matRef.trim(),
+      };
+      return { ...c, stageMaterials: [...(c.stageMaterials ?? []), mat] };
+    });
+    setMatLabel("");
+    setMatRef("");
+  }
+  function removeMaterial(id: string) {
+    setPlan((c) => (c ? { ...c, stageMaterials: (c.stageMaterials ?? []).filter((m) => m.id !== id) } : c));
+  }
 
   return (
     <Card>
@@ -152,6 +176,55 @@ export function SalesPlayPanel({ workspaceId }: { workspaceId: string }) {
                   <Switch checked={plan.handoff.onComplaint} onCheckedChange={(v) => patchHandoff({ onComplaint: v })} /> Komplain → handoff
                 </label>
               </div>
+
+              <Field label="Materi per tahap (banner / video / studi-kasus)">
+                <div className="space-y-1.5">
+                  {(plan.stageMaterials ?? []).map((m) => (
+                    <div key={m.id} className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{m.stage}</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="font-medium">{m.label}</span>
+                        <span className="text-muted-foreground"> · {m.kind}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeMaterial(m.id)}
+                        className="shrink-0 px-1 text-muted-foreground hover:text-destructive"
+                        aria-label="Hapus materi"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {(plan.stageMaterials ?? []).length === 0 && (
+                    <p className="text-[11px] text-muted-foreground">Belum ada materi.</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Select value={matStage} onValueChange={(v) => setMatStage(v as SalesStageKey)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {plan.stages.map((s) => (
+                          <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={matKind} onValueChange={(v) => setMatKind(v as StageMaterial["kind"])}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="banner">Banner</SelectItem>
+                        <SelectItem value="video">Video</SelectItem>
+                        <SelectItem value="studi-kasus">Studi kasus</SelectItem>
+                        <SelectItem value="link">Link</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input className="h-8 text-xs" placeholder="Label (mis. Before-after)" value={matLabel} onChange={(e) => setMatLabel(e.target.value)} />
+                    <Input className="h-8 text-xs" placeholder="URL / ref" value={matRef} onChange={(e) => setMatRef(e.target.value)} />
+                  </div>
+                  <Button type="button" size="sm" variant="outline" disabled={!matLabel.trim() || !matRef.trim()} onClick={addMaterial}>
+                    + Tambah materi
+                  </Button>
+                </div>
+              </Field>
 
               <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
                 {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan Sales Play"}

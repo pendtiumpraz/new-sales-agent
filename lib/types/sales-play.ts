@@ -58,6 +58,17 @@ export interface HandoffRules {
   keywords: string[];
 }
 
+// Material (banner / 1-min video / case study) the AI may offer AT a stage —
+// "sodorin visual di momen tepat, bukan teks panjang" (G6).
+export interface StageMaterial {
+  id: string;
+  stage: SalesStageKey;
+  label: string;
+  kind: "banner" | "video" | "studi-kasus" | "link";
+  /** URL or content id. */
+  ref: string;
+}
+
 export interface SalesPlay {
   workspaceId?: string;
   productId?: string;
@@ -72,4 +83,6 @@ export interface SalesPlay {
   handoff: HandoffRules;
   /** Allowed closing technique ids (subset of the 17). Empty = all that fit market. */
   closingTechniqueIds: string[];
+  /** Materials linked to stages — offered by the AI at the matching stage. */
+  stageMaterials: StageMaterial[];
 }

@@ -44,6 +44,7 @@ export function defaultSalesPlay(
       keywords: ["komplain", "refund", "bicara orang", "manusia", "nego"],
     },
     closingTechniqueIds: [],
+    stageMaterials: [],
     ...overrides,
   };
 }
