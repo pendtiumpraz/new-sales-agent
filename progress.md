@@ -55,6 +55,8 @@
 | Phase 4 G6: `StageMaterial` (banner/video/studi-kasus per tahap) di SalesPlay + editor + orchestrator nawarin materi di tahap cocok | sesi ini |
 | Semi-auto gate: mode auto/semi (`/api/wa/mode`), draft store + `/api/wa/draft` approve/discard, `WaDraftCard` di thread + `WaModeToggle` di inbox | sesi ini |
 | C1 cap output chat in-app (`meteredStreamText` maxOutputTokens) + C6 rate-limit per-plan + override (`wa_rl:<id>`) | sesi ini |
+| UX simplification: Workspace jadi landing default (login+pending), sidebar 3-grup, `/contacts` jadi funnel ke workspace, inbox 4-filter | sesi ini |
+| **Transport WAHA**: adapter inbound (`/api/wa/waha/inbound` normalize webhook → orchestrator existing) + bridge outbound dependency-free (`gateway/waha/bridge.mjs`, honor delayMs+typing → WAHA sendText) + docker-compose (NOWEB) + `docs/wa-gateway-waha.md` | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -189,6 +191,14 @@ Transport (keputusan + caveat):
 - [x] **(U3)** Superadmin create user+tenant — `createAdminUser` + `POST /api/admin/users` + dialog "Buat akun" (mode tenant-baru / tambah-ke-tenant) di UserManagement
 - [x] **(U1)** Invite-acceptance — `GET/POST /api/invites/[token]` + halaman publik `/invite/[token]` (set nama+sandi → user+membership aktif, invite `accepted`); tombol "Salin link" di Tim
 - **Acceptance:** ✅ superadmin provision akun tanpa self-register; ✅ rep yang diundang bisa terima → login.
+
+### Phase 6 — Transport gateways (eksekusi WA)  🟡
+> Backend gateway-agnostic (`docs/wa-gateway-contract.md`). Otak tetap di server;
+> transport tinggal poll outbox + push inbound. Dua implementasi kontrak yang sama.
+- [x] **WAHA adapter** (server-gateway, gratis+open-source): route inbound `/api/wa/waha/inbound` (normalize webhook WAHA → forward ke `/api/wa/gateway/inbound`, drop fromMe/grup/broadcast) + `gateway/waha/bridge.mjs` (poll outbox → startTyping → delayMs → sendText → stopTyping → ack) + docker-compose (NOWEB) + `.env.example` + `docs/wa-gateway-waha.md`. Zero refactor route lama.
+- [ ] **Chrome extension (MV3)** — transport yang sama, fingerprint paling manusiawi (browser+IP rep). Background SW poll outbox + content-script `web.whatsapp.com` (inbound observe + outbound type/send honor pacing). ← berikutnya
+- **Caveat (jujur):** dua-duanya tetap WA Web automation → langgar ToS (Jan 2026 larang AI-bot). Server-gateway (WAHA) lebih kedeteksi dari extension; extension bukan 24/7. Skala/aman-ban → WA Cloud API resmi.
+- **Acceptance:** inbound WA nyata → orchestrator balas bubble paced via gateway; `WA_AUTO_REPLY=1` + allowlist dihormati.
 
 ---
 

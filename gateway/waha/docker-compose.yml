@@ -1,0 +1,51 @@
+# WAHA + outbound bridge — self-hosted WhatsApp HTTP API as the gateway.
+# WAHA is now 100% free + open-source (https://waha.devlike.pro). The NOWEB engine
+# is the lightest (websocket, no headless browser) and the closest to Baileys.
+#
+#   docker compose up -d
+#   # 1) open http://localhost:3000  → start session "default" → scan QR
+#   # 2) point WAHA's webhook at the app (see README) so inbound flows in
+#   # 3) the `bridge` service polls the app's outbox and sends via WAHA
+#
+services:
+  waha:
+    image: devlikeapro/waha:noweb
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Persist the session so you don't re-scan the QR on every restart.
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WAHA_PRINT_QR: "false"
+      # Optional: protect WAHA's API. If set, also put it in bridge's WAHA_API_KEY
+      # and the dashboard login. Leave commented for a quick local trial.
+      # WHATSAPP_API_KEY: "change-me"
+      # Push inbound to our adapter. WAHA replaces {sessionId} per its session.
+      # Easiest: configure the webhook in the dashboard instead (see README) so
+      # you can add ?token= and ?sessionId= to the URL.
+    volumes:
+      - waha-sessions:/app/.sessions
+
+  bridge:
+    image: node:20-alpine
+    restart: unless-stopped
+    depends_on:
+      - waha
+    working_dir: /app
+    volumes:
+      - ./bridge.mjs:/app/bridge.mjs:ro
+    command: ["node", "bridge.mjs"]
+    environment:
+      APP_URL: "${APP_URL:-http://host.docker.internal:3100}"
+      WA_GATEWAY_TOKEN: "${WA_GATEWAY_TOKEN:?set in .env}"
+      SESSION_ID: "${SESSION_ID:-rep:u_rep}"
+      WAHA_URL: "http://waha:3000"
+      WAHA_SESSION: "${WAHA_SESSION:-default}"
+      WAHA_API_KEY: "${WAHA_API_KEY:-}"
+      POLL_MS: "${POLL_MS:-3000}"
+    extra_hosts:
+      # Lets the bridge reach an app running on the host (dev) at host.docker.internal.
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  waha-sessions:
