@@ -15,6 +15,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/db-seed.ts",
     "db:seed-ai": "tsx scripts/seed-ai-catalog.ts",
+    "db:seed-wa": "tsx scripts/seed-wa-session.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

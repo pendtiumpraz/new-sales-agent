@@ -10,6 +10,7 @@ DB ditandai **(mock-OK)**.
   - `DATABASE_URL=...` (Neon) + `npm run db:push` (skema). **Catatan:** semua fitur baru sesi ini **zero-migration** (pakai `platform_setting` key/value) — nggak ada kolom baru.
   - `NEXT_PUBLIC_AI_PROVIDER=deepseek` + `DEEPSEEK_API_KEY=...` → AI beneran. Tanpa ini → fallback heuristik/mock.
   - WA: `WA_AUTO_REPLY=1`, `WA_GATEWAY_TOKEN=rahasia123`.
+- [ ] Seed DB: `npm run db:seed` (users/convos) → `npm run db:seed-ai` (model AI) → **`npm run db:seed-wa`** (tenant `t_default` aktif + membership demo + `wa_session rep:u_rep`).
 - [ ] Login (`/login`) pakai akun demo, mis. `superadmin@mairasales.com` / `super1234` (superadmin), atau akun rep buat tes scoping.
 
 ---
@@ -55,9 +56,9 @@ DB ditandai **(mock-OK)**.
 
 ## 9. Simulasi WhatsApp loop (DB + token) — inti closing-flow
 
-> Belum ada gateway beneran → simulasi via curl. Butuh **1 baris `wa_session`** yang
-> ke-link ke rep (sessionId mis. `rep:u_rep`). Kalau belum ada, buat lewat flow WA
-> connect, atau insert manual. Ganti `TOKEN`/`SID`/`FROM` sesuai punyamu.
+> Belum ada gateway beneran → simulasi via curl. Jalankan **`npm run db:seed-wa`** dulu
+> (bikin tenant `t_default` aktif + `wa_session rep:u_rep`). Ganti `TOKEN`/`FROM` kalau perlu.
+> Untuk balasan AI beneran (bukan holding), pastikan `db:seed-ai` + ada model aktif untuk tenant.
 
 ```bash
 TOKEN=rahasia123 ; SID="rep:u_rep" ; FROM="628123456789"
