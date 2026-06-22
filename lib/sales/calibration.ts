@@ -43,3 +43,31 @@ export function closeRateForBand(cal: Calibration, band: ReadinessBand): { close
   if (!s || s.closeRate === null || s.n < MIN_BAND_SAMPLES) return null;
   return { closeRate: s.closeRate, n: s.n };
 }
+
+export interface TrendPoint {
+  period: string; // ISO date of the week's Monday (YYYY-MM-DD)
+  total: number;
+  won: number;
+  closeRate: number; // 0..1
+}
+
+// Win-rate trend, bucketed by week (Monday-start, UTC). Last `weeks` buckets that
+// actually have outcomes — the dashboard line.
+export function computeTrend(records: OutcomeRecord[], weeks = 8): TrendPoint[] {
+  const byWeek = new Map<string, { total: number; won: number }>();
+  for (const r of records) {
+    const d = new Date(r.ts);
+    if (Number.isNaN(d.getTime())) continue;
+    const dow = (d.getUTCDay() + 6) % 7; // 0 = Monday
+    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow));
+    const key = monday.toISOString().slice(0, 10);
+    const b = byWeek.get(key) ?? { total: 0, won: 0 };
+    b.total += 1;
+    if (r.outcome === "won") b.won += 1;
+    byWeek.set(key, b);
+  }
+  return [...byWeek.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-weeks)
+    .map(([period, b]) => ({ period, total: b.total, won: b.won, closeRate: b.total ? b.won / b.total : 0 }));
+}

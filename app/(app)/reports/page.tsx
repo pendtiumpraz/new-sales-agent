@@ -97,6 +97,13 @@ const ChannelFunnelChart = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
 );
 
+// G7 calibration dashboard — self-contained (own fetch + recharts), deferred SSR.
+const CalibrationPanel = dynamic(
+  () =>
+    import("@/components/analytics/calibration-panel").then((m) => m.CalibrationPanel),
+  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
+);
+
 const SEVERITY: Record<
   PipelineIssueSeverity,
   { label: string; variant: "destructive" | "warning" | "muted"; bar: string }
@@ -628,6 +635,7 @@ export default function ReportsPage() {
         <Tabs defaultValue="penjualan" className="print-show-all">
           <TabsList className="flex-wrap print-hide">
             <TabsTrigger value="penjualan">Penjualan</TabsTrigger>
+            <TabsTrigger value="kalibrasi">Kalibrasi Closing</TabsTrigger>
             <TabsTrigger value="akurasi-ai">Keandalan AI</TabsTrigger>
             <TabsTrigger value="sentimen-pasar">Sentimen Pasar</TabsTrigger>
             <TabsTrigger value="kualitas-data">Kualitas Data</TabsTrigger>
@@ -848,6 +856,12 @@ export default function ReportsPage() {
                 );
               })}
             </div>
+          </TabsContent>
+
+          {/* ── Kalibrasi Closing (G7 training loop) ─────────────────── */}
+          <TabsContent value="kalibrasi" className="mt-5 space-y-6">
+            <SectionTitle>Kalibrasi Closing</SectionTitle>
+            <CalibrationPanel />
           </TabsContent>
 
           {/* ── Keandalan AI (fallback-to-template rate) ─────────────── */}
