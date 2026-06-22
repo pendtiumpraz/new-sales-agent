@@ -165,7 +165,7 @@ function LoginPageInner() {
             />
           </span>
           <span className="text-[15px] font-semibold tracking-tight text-foreground">
-            Agentic<span className="text-muted-foreground"> Sales</span>
+            Maira<span className="text-muted-foreground"> Sales</span>
           </span>
         </Link>
       </motion.div>
@@ -250,9 +250,13 @@ function LoginPageInner() {
                   >
                     Kata sandi
                   </Label>
-                  <a href="#" className="text-xs text-primary hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => toast.info("Reset sandi: hubungi superadmin / admin tenant kamu.")}
+                    className="text-xs text-primary hover:underline"
+                  >
                     Lupa sandi?
-                  </a>
+                  </button>
                 </div>
                 <Input
                   id="password"

@@ -166,8 +166,8 @@ export default function ExtensionPage() {
   return (
     <div>
       <PageHeader
-        title="Extension LinkedIn"
-        description="Pasang collector di browser Anda untuk crawl lead LinkedIn (RPA) langsung ke workspace ini."
+        title="Extension Maira — WhatsApp & Discovery"
+        description="Satu extension: gateway WhatsApp (balas otomatis) + collector lead LinkedIn/Instagram (RPA) langsung ke workspace ini."
       />
       <div className="space-y-4 p-6">
         {/* Connection status */}
@@ -313,7 +313,7 @@ export default function ExtensionPage() {
               <Step n={3}>Klik <b>Load unpacked</b> → pilih folder hasil ekstrak.</Step>
               <Step n={4}>Login ke <b>linkedin.com</b> di tab yang sama (extension pakai sesi Anda — tak menyimpan kredensial).</Step>
               <Step n={5}>Klik ikon extension → tempel <b>URL aplikasi</b> + <b>Ingest token</b> di atas → isi query jabatan.</Step>
-              <Step n={6}><b>Tahap 1</b> "Mulai cari" (kumpulkan lead), lalu <b>Tahap 2</b> "Enrich profil" (track record). Lead masuk ke <b>Kontak → Profil</b>.</Step>
+              <Step n={6}><b>Tahap 1</b> "Mulai cari" (kumpulkan lead), lalu <b>Tahap 2</b> "Enrich profil" (track record). Lead masuk ke <b>workspace</b> (lewat Discovery, ter-scope ke produk).</Step>
             </ol>
           </CardContent>
         </Card>

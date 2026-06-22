@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ReadinessDot } from "@/components/inbox/readiness-dot";
 import { WaModeToggle } from "@/components/inbox/wa-mode-toggle";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -116,8 +117,11 @@ export function ConversationList({ className }: { className?: string }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium">{c.contactName}</p>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {formatConversationTime(c.lastTimestamp)}
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <ReadinessDot conversationId={c.id} />
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatConversationTime(c.lastTimestamp)}
+                        </span>
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
