@@ -61,3 +61,66 @@ export async function isMemberOfTenant(userId: string, tenantId: string): Promis
 export async function setUserPassword(userId: string, password: string): Promise<void> {
   await db.update(usersTable).set({ password, updatedAt: new Date() }).where(eq(usersTable.id, userId));
 }
+
+const COLORS = ["#FB5E3B", "#14B8A6", "#F59E0B", "#3B82F6", "#8B5CF6"];
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  // New-tenant mode (provision a fresh account):
+  company?: string;
+  plan?: string;
+  // Existing-tenant mode (add a user into a tenant):
+  tenantId?: string;
+  role?: string; // membership role (tenant_owner | tenant_admin | member)
+}
+
+// Superadmin direct provisioning (doc 41). Creates a user + membership; if no
+// tenantId is given, also creates a new ACTIVE tenant with this user as owner.
+// Cross-tenant → uses the raw `db` (like the rest of this module).
+export async function createAdminUser(
+  input: CreateUserInput,
+): Promise<{ userId: string; tenantId: string; role: string }> {
+  const email = input.email.trim().toLowerCase();
+  const existing = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, email))
+    .limit(1);
+  if (existing.length) throw new Error("Email sudah terdaftar.");
+
+  const userId = "u_" + crypto.randomUUID().slice(0, 12);
+  const avatarColor = COLORS[email.length % COLORS.length];
+
+  let tenantId = input.tenantId ?? null;
+  let role = input.role ?? "member";
+  if (!tenantId) {
+    if (!input.company?.trim()) throw new Error("Nama perusahaan wajib untuk tenant baru.");
+    tenantId = "t_" + crypto.randomUUID().slice(0, 12);
+    role = "tenant_owner";
+    await db.insert(tenantsTable).values({
+      id: tenantId,
+      name: input.company.trim(),
+      plan: input.plan ?? "starter",
+      status: "active",
+    });
+  }
+
+  await db.insert(usersTable).values({
+    id: userId,
+    name: input.name.trim(),
+    email,
+    password: input.password,
+    role,
+    avatarColor,
+  });
+  await db.insert(membershipsTable).values({
+    id: "m_" + crypto.randomUUID().slice(0, 12),
+    tenantId,
+    userId,
+    role,
+    status: "active",
+  });
+  return { userId, tenantId, role };
+}

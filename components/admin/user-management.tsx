@@ -1,13 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { KeyRound, Search, Users } from "lucide-react";
+import { KeyRound, Loader2, Search, UserPlus, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Membership {
@@ -62,6 +69,53 @@ export function UserManagement() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal ganti password"),
   });
 
+  const qc = useQueryClient();
+
+  // Create-account dialog (superadmin provisioning, doc 41).
+  const [createOpen, setCreateOpen] = useState(false);
+  const [mode, setMode] = useState<"new" | "existing">("new");
+  const [cName, setCName] = useState("");
+  const [cEmail, setCEmail] = useState("");
+  const [cPw, setCPw] = useState("");
+  const [cCompany, setCCompany] = useState("");
+  const [cPlan, setCPlan] = useState("starter");
+  const [cTenantId, setCTenantId] = useState("");
+  const [cRole, setCRole] = useState("member");
+
+  // Tenant options derived from existing users' memberships (no extra fetch).
+  const tenants = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of q.data ?? []) for (const m of u.memberships) map.set(m.tenantId, m.tenantName);
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [q.data]);
+
+  const createValid =
+    cName.trim() && cEmail.trim() && cPw.length >= 6 &&
+    (mode === "new" ? cCompany.trim() : cTenantId);
+
+  const createUser = useMutation({
+    mutationFn: async () => {
+      const body =
+        mode === "new"
+          ? { name: cName, email: cEmail, password: cPw, company: cCompany, plan: cPlan }
+          : { name: cName, email: cEmail, password: cPw, tenantId: cTenantId, role: cRole };
+      const r = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "gagal");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast.success(mode === "new" ? "Tenant + owner dibuat" : "User ditambahkan ke tenant");
+      setCreateOpen(false);
+      setCName(""); setCEmail(""); setCPw(""); setCCompany(""); setCTenantId("");
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal buat akun"),
+  });
+
   const rows = useMemo(() => {
     const list = q.data ?? [];
     const s = search.trim().toLowerCase();
@@ -81,9 +135,14 @@ export function UserManagement() {
           <Users className="h-4 w-4" /> User Management
           <span className="text-xs font-normal text-muted-foreground">— semua tenant</span>
         </span>
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama/email/tenant…" className="h-8 pl-8 text-sm" />
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama/email/tenant…" className="h-8 pl-8 text-sm" />
+          </div>
+          <Button size="sm" className="h-8 shrink-0" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5" /> Buat akun
+          </Button>
         </div>
       </div>
 
@@ -149,6 +208,107 @@ export function UserManagement() {
             <Button variant="outline" onClick={() => setPwTarget(null)}>Batal</Button>
             <Button onClick={() => changePw.mutate()} disabled={pw.length < 6 || changePw.isPending}>
               {changePw.isPending ? "Menyimpan…" : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create-account dialog — new tenant+owner OR add a user into a tenant. */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Buat akun</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMode("new")}
+                className={
+                  "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition " +
+                  (mode === "new" ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                Tenant baru + owner
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("existing")}
+                className={
+                  "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition " +
+                  (mode === "existing" ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                Tambah ke tenant
+              </button>
+            </div>
+
+            {mode === "new" ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nama perusahaan</Label>
+                  <Input value={cCompany} onChange={(e) => setCCompany(e.target.value)} placeholder="PT Contoh Sejahtera" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Paket</Label>
+                  <Select value={cPlan} onValueChange={setCPlan}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="starter">Starter</SelectItem>
+                      <SelectItem value="growth">Growth</SelectItem>
+                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tenant</Label>
+                  <Select value={cTenantId} onValueChange={setCTenantId}>
+                    <SelectTrigger><SelectValue placeholder="Pilih tenant" /></SelectTrigger>
+                    <SelectContent>
+                      {tenants.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {tenants.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground">Belum ada tenant — buat tenant baru dulu.</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Peran</Label>
+                  <Select value={cRole} onValueChange={setCRole}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tenant_owner">Owner</SelectItem>
+                      <SelectItem value="tenant_admin">Admin</SelectItem>
+                      <SelectItem value="member">Member (Sales)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nama user</Label>
+              <Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Nama lengkap" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Email</Label>
+              <Input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="nama@perusahaan.co.id" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Password (min 6 karakter)</Label>
+              <Input type="text" value={cPw} onChange={(e) => setCPw(e.target.value)} placeholder="password awal" />
+            </div>
+            <p className="text-[11px] text-muted-foreground">Prototype: password plaintext (produksi → hash). Tenant baru langsung aktif.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Batal</Button>
+            <Button onClick={() => createUser.mutate()} disabled={!createValid || createUser.isPending}>
+              {createUser.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buat"}
             </Button>
           </DialogFooter>
         </DialogContent>
