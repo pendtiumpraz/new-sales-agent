@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -92,18 +93,10 @@ export default function WorkspaceHubPage() {
 
   const ws = q.data?.data;
 
-  // Gate the rest of the hub behind setup (produk → market-fit). Deduped query
-  // (same key as MarketFitPanel) so no extra fetch.
-  const mfQ = useQuery({
-    queryKey: ["market-fit", id],
-    queryFn: async () => {
-      const r = await fetch(`/api/workspaces/${id}/market-fit`);
-      if (!r.ok) return null;
-      return (await r.json()).result ?? null;
-    },
-    enabled: !!ws?.productId,
-  });
-  const setupDone = !!ws?.productId && !!mfQ.data;
+  // Gate the rest of the hub behind setup. MarketFitPanel owns the market-fit
+  // query and reports whether a result exists (avoids a dual-query race).
+  const [mfReady, setMfReady] = useState(false);
+  const setupDone = !!ws?.productId && mfReady;
 
   // Scoped-flow quick links — carry the workspace id as ?workspace=<id>. The
   // target pages (discovery, profiles, cadences, inbox, pipeline) DO read this
@@ -206,7 +199,7 @@ export default function WorkspaceHubPage() {
             </Card>
 
             {/* Setup stepper — Produk → Market-Fit → Discovery */}
-            <MarketFitPanel workspaceId={id} productId={ws.productId} />
+            <MarketFitPanel workspaceId={id} productId={ws.productId} onSetupChange={setMfReady} />
 
             {/* Sales Play editor — alur & adab obrolan */}
             <SalesPlayPanel workspaceId={id} />

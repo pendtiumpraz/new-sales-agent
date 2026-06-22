@@ -4,7 +4,7 @@
 // Market-Fit Analyzer for this workspace's product, and shows which closing
 // techniques the resulting B2B/B2C type unlocks.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -42,9 +42,12 @@ const MARKET_CLS: Record<string, string> = {
 export function MarketFitPanel({
   workspaceId,
   productId,
+  onSetupChange,
 }: {
   workspaceId: string;
   productId: string | null;
+  /** Reports whether setup is complete (market-fit result exists) to the hub. */
+  onSetupChange?: (done: boolean) => void;
 }) {
   const kb = useKbStore((s) => s.kb);
   const qc = useQueryClient();
@@ -117,6 +120,11 @@ export function MarketFitPanel({
   const allowed = q.data?.allowedTechniques ?? [];
   const step1Done = !!product;
   const step2Done = !!result;
+
+  // Tell the hub whether setup is complete so it can unlock the rest.
+  useEffect(() => {
+    onSetupChange?.(step2Done);
+  }, [step2Done, onSetupChange]);
 
   return (
     <Card>
