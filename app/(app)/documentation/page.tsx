@@ -146,12 +146,12 @@ const CATEGORIES: DocCategory[] = [
       {
         title: "Inbox",
         icon: Inbox,
-        href: "/contacts?view=inbox",
+        href: "/inbox",
         summary: "Satu kotak masuk untuk WhatsApp & email. Balas manual atau pakai draft balasan AI.",
         steps: [
-          "Buka Inbox dari menu profil atau Kontak.",
-          "Pilih percakapan, baca konteks.",
-          "Pakai draft AI lalu kirim, atau ketik manual.",
+          "Buka Inbox dari sidebar (menu Utama).",
+          "Pilih percakapan, baca konteks + skor closing-readiness.",
+          "Pakai draft AI lalu kirim, atau ketik manual; tandai hasil (Closing/Gagal/Stuck).",
         ],
         keywords: "inbox pesan whatsapp email balas percakapan",
       },

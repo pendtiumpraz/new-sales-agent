@@ -5,32 +5,34 @@ import { useRouter } from "next/navigation";
 import { CornerDownLeft, Search } from "lucide-react";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { cn } from "@/lib/utils";
 
 // Command palette (⌘K / Ctrl+K) — dependency-free, Dialog-based. Lets the user
-// jump to ANY page (so the slimmed 5-section sidebar doesn't hide routes) and
-// is opened either by the shortcut or the topbar search button (which dispatches
-// the "maira:command" event). Part of the redesign IA (docs/wireframes §3).
+// jump to ANY page (so the slimmed sidebar doesn't hide routes). Grouping mirrors
+// the workspace-first IA: Workspace is the primary flow; the retired contacts deep
+// pages (profiles/discovery/map) live INSIDE a workspace now, so they're not
+// surfaced here. Manager-only destinations are filtered out for reps.
 
 interface Cmd {
   label: string;
   href: string;
   group: string;
   kw?: string;
+  managerOnly?: boolean;
 }
 
 const COMMANDS: Cmd[] = [
-  { label: "Dashboard", href: "/dashboard", group: "Beranda", kw: "beranda home ringkasan" },
+  // Primary daily flow — Workspace first.
+  { label: "Workspace (alur jualan)", href: "/workspaces", group: "Utama", kw: "kelola fokus produk market-fit closing alur" },
+  { label: "Dashboard", href: "/dashboard", group: "Utama", kw: "beranda home ringkasan" },
+  { label: "Inbox", href: "/inbox", group: "Utama", kw: "percakapan chat wa email" },
+  { label: "Laporan", href: "/reports", group: "Utama", kw: "analitik report kalibrasi" },
 
-  { label: "Kontak & Lead", href: "/contacts", group: "Lead", kw: "kontak lead" },
-  { label: "Profil perusahaan & orang", href: "/contacts/profiles", group: "Lead", kw: "profil enrich" },
-  { label: "Discovery lead", href: "/contacts/discovery", group: "Lead", kw: "crawl temukan" },
-  { label: "Peta sebaran", href: "/contacts/map", group: "Lead", kw: "peta provinsi" },
+  // Leads are per-workspace; /contacts is just the funnel into workspaces.
+  { label: "Kontak & Lead (funnel)", href: "/contacts", group: "Lead", kw: "kontak lead funnel" },
   { label: "Riset Prospek", href: "/pipeline", group: "Lead", kw: "pipeline enrichment positioning deal" },
-  { label: "Marketplace Data", href: "/marketplace", group: "Lead", kw: "jual beli data bundle" },
-  { label: "Workspace", href: "/workspaces", group: "Lead", kw: "kelola fokus" },
 
-  { label: "Inbox", href: "/inbox", group: "Jangkau", kw: "percakapan chat wa email" },
   { label: "Cadence", href: "/cadences", group: "Jangkau", kw: "urutan pesan otomasi" },
   { label: "Buat cadence", href: "/cadences/new", group: "Jangkau", kw: "baru builder" },
   { label: "Autopilot", href: "/autopilot", group: "Jangkau", kw: "ai satu klik pipeline" },
@@ -41,22 +43,24 @@ const COMMANDS: Cmd[] = [
   { label: "Retensi", href: "/retention", group: "Closing", kw: "repeat upsell after-sales" },
   { label: "E-Commerce", href: "/ecommerce", group: "Closing", kw: "tokopedia shopee order keranjang" },
 
-  { label: "Monitoring Sales", href: "/team", group: "Pantau", kw: "tim roster" },
-  { label: "Sales Lapangan", href: "/field", group: "Pantau", kw: "field peta kunjungan" },
-  { label: "Laporan", href: "/reports", group: "Pantau", kw: "analitik report" },
+  { label: "Marketplace Data", href: "/marketplace", group: "Data & Tim", kw: "jual beli data bundle", managerOnly: true },
+  { label: "Monitoring Sales", href: "/team", group: "Data & Tim", kw: "tim roster", managerOnly: true },
+  { label: "Sales Lapangan", href: "/field", group: "Data & Tim", kw: "field peta kunjungan" },
 
-  { label: "Panduan", href: "/documentation", group: "Bantuan", kw: "dokumentasi cara" },
-  { label: "Use Case", href: "/use-case", group: "Bantuan", kw: "skenario industri" },
-  { label: "Pengaturan", href: "/settings", group: "Bantuan", kw: "settings akun" },
-  { label: "AI & Model", href: "/settings/ai", group: "Bantuan", kw: "model byok token" },
-  { label: "Billing & Kuota", href: "/settings/billing", group: "Bantuan", kw: "tagihan paket" },
-  { label: "Kepatuhan (PDP)", href: "/settings/compliance", group: "Bantuan", kw: "consent dpia dsar" },
-  { label: "Mailbox", href: "/settings/mailboxes", group: "Bantuan", kw: "email smtp gmail" },
-  { label: "Knowledge Base", href: "/settings/knowledge-base", group: "Bantuan", kw: "kb rag sumber" },
+  { label: "Panduan", href: "/documentation", group: "Atur", kw: "dokumentasi cara" },
+  { label: "Use Case", href: "/use-case", group: "Atur", kw: "skenario industri" },
+  { label: "Pengaturan", href: "/settings", group: "Atur", kw: "settings akun" },
+  { label: "Hubungkan WhatsApp / Extension", href: "/settings/extension", group: "Atur", kw: "wa whatsapp waha qr extension scan" },
+  { label: "AI & Model", href: "/settings/ai", group: "Atur", kw: "model byok token" },
+  { label: "Billing & Kuota", href: "/settings/billing", group: "Atur", kw: "tagihan paket" },
+  { label: "Kepatuhan (PDP)", href: "/settings/compliance", group: "Atur", kw: "consent dpia dsar" },
+  { label: "Mailbox", href: "/settings/mailboxes", group: "Atur", kw: "email smtp gmail" },
+  { label: "Knowledge Base", href: "/settings/knowledge-base", group: "Atur", kw: "kb rag sumber" },
 ];
 
 export function CommandPalette() {
   const router = useRouter();
+  const isRep = useAuthStore((s) => s.currentUser.role) === "Sales Rep";
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
@@ -87,12 +91,14 @@ export function CommandPalette() {
   }, [open]);
 
   const results = useMemo(() => {
+    // Hide manager-only destinations from reps (matches the sidebar guard).
+    const visible = COMMANDS.filter((c) => !c.managerOnly || !isRep);
     const s = q.trim().toLowerCase();
-    if (!s) return COMMANDS;
-    return COMMANDS.filter((c) =>
+    if (!s) return visible;
+    return visible.filter((c) =>
       `${c.label} ${c.group} ${c.kw ?? ""}`.toLowerCase().includes(s),
     );
-  }, [q]);
+  }, [q, isRep]);
 
   useEffect(() => setIdx(0), [q]);
 
