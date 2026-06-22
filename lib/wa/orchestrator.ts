@@ -18,6 +18,7 @@ import { decide, type Stage, type Turn } from "@/lib/sales/stage-machine";
 import { scoreReadiness, type Readiness } from "@/lib/sales/predictive";
 import { salutationFor } from "@/lib/profiling/salutation";
 import type { TenantContext } from "@/lib/db/tenant-context";
+import type { SalesPlay } from "@/lib/types/sales-play";
 
 export interface WaReplyInput {
   contactName: string;
@@ -29,6 +30,8 @@ export interface WaReplyInput {
   stage?: Stage;
   /** Market type (from Market-Fit) → weights which techniques are offered. */
   marketType?: "B2B" | "B2C" | "mix";
+  /** Per-workspace Sales Play (priceGate bridge, value ladder, adab, handoff). */
+  salesPlay?: SalesPlay;
 }
 
 export interface WaReplyResult {
@@ -66,8 +69,18 @@ export async function buildWaReply(
   const customerTurns = turns.filter((t) => t.role === "customer").length;
   const readiness = scoreReadiness(decision.stage, decision.signals, customerTurns);
 
+  // Per-workspace Sales Play tuning (falls back to built-in defaults when absent).
+  const plan = input.salesPlay;
+  const filler = plan?.adab.allowFiller ?? true;
+  const maxSent = plan?.adab.maxSentencesPerBubble ?? 2;
+  const lowerMsg = input.message.toLowerCase();
+  const offTopic =
+    OFF_TOPIC.test(input.message) ||
+    (plan?.adab.forbiddenTopics ?? []).some((t) => t && lowerMsg.includes(t.toLowerCase()));
+  const planHandoff = (plan?.handoff.keywords ?? []).some((k) => k && lowerMsg.includes(k.toLowerCase()));
+
   // Topic guard — humanis deflect, no AI call (stage unchanged).
-  if (OFF_TOPIC.test(input.message)) {
+  if (offTopic) {
     return {
       action: "send",
       source: "deflect",
@@ -80,8 +93,8 @@ export async function buildWaReply(
     };
   }
 
-  // Deliberate handoff (complaint/negotiation) — holding + flag a human.
-  if (decision.nextAction === "handoff") {
+  // Deliberate handoff (complaint/negotiation, or a Sales Play keyword).
+  if (decision.nextAction === "handoff" || planHandoff) {
     const hold = HOLDING[input.message.length % HOLDING.length];
     return {
       action: "handoff",
@@ -99,12 +112,26 @@ export async function buildWaReply(
         formatClosingTechniques(CLOSING_TECHNIQUES_17, { market: input.marketType, max: 8 })
       : "";
 
+  // Sales Play injections (bridge when price-gated, value ladder, worth-of-cost).
+  const planBlock = plan
+    ? (!decision.priceGateOpen && plan.priceGate.earlyPriceBridge
+        ? `\n\nKalau ditanya harga sekarang, JANGAN kasih angka — bridge pakai ini: "${plan.priceGate.earlyPriceBridge}"`
+        : "") +
+      (plan.valueLadder.length
+        ? `\n\nValue yang harus disampaikan (urut, sebelum harga):\n- ${plan.valueLadder.join("\n- ")}`
+        : "") +
+      (plan.worthOfCost.enabled && plan.worthOfCost.costAnchors.length
+        ? `\n\nAnchor biaya-masalah (worth of cost):\n- ${plan.worthOfCost.costAnchors.join("\n- ")}`
+        : "")
+    : "";
+
   const system =
     `Kamu sales humanis (BUKAN robot), Bahasa Indonesia, hangat & empatik. ` +
     `Sapa "${sal.greeting}". JANGAN pernah menyebut dirimu AI/bot. ` +
-    `Balas SINGKAT & manusiawi: 1-2 kalimat per ide, total maksimal 3 kalimat, ` +
+    `Balas SINGKAT & manusiawi: maks ${maxSent} kalimat per ide, total maksimal 3 kalimat, ` +
     `akhiri dengan SATU pertanyaan pilihan biar interaktif. ` +
     `\n\nIKUTI ARAHAN TAHAP INI: ${decision.guidance}` +
+    planBlock +
     techniqueBlock +
     "\n\n" + SAFETY_RULES +
     (turns.length ? `\n\nKonteks percakapan terkini:\n${historyToText(turns)}` : "");
@@ -125,7 +152,7 @@ export async function buildWaReply(
       source: "ai",
       nextStage: decision.stage,
       readiness,
-      bubbles: humanize(reply, { filler: true }),
+      bubbles: humanize(reply, { filler }),
     };
   } catch {
     // No model / credit habis / suspended → holding + handoff. Stay human.

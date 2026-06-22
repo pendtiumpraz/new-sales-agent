@@ -7,8 +7,10 @@ import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed, getSetting } f
 import { buildWaReply } from "@/lib/wa/orchestrator";
 import { loadStage, saveStage } from "@/lib/sales/stage-store";
 import { loadMarketFit } from "@/lib/market-fit/store";
+import { loadSalesPlay } from "@/lib/sales-play/store";
 import { checkWaRateLimit } from "@/lib/wa/rate-limit";
 import { saveReadiness } from "@/lib/sales/predictive-store";
+import type { SalesPlay } from "@/lib/types/sales-play";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
 export const runtime = "nodejs";
@@ -108,6 +110,7 @@ export async function POST(req: Request) {
       // setting (wa_default_workspace:<tenantId>); undefined → orchestrator uses
       // "mix" (all techniques).
       let marketType: "B2B" | "B2C" | "mix" | undefined;
+      let salesPlay: SalesPlay | undefined;
       const [convoRow] = await db
         .select({ workspaceId: conversationsTable.workspaceId })
         .from(conversationsTable)
@@ -117,11 +120,12 @@ export async function POST(req: Request) {
       if (wsId) {
         const mf = await loadMarketFit(wsId);
         marketType = mf?.marketType;
+        salesPlay = (await loadSalesPlay(wsId)) ?? undefined;
       }
 
       // Stage-aware: load the persisted stage, let the machine advance it, save.
       const stage = await loadStage(convoId);
-      const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage, marketType });
+      const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage, marketType, salesPlay });
       await saveStage(convoId, result.nextStage);
       await saveReadiness(convoId, result.readiness);
 

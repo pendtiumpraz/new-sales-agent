@@ -19,7 +19,7 @@
 | Chat context summarization (hemat token) | ✅ |
 | **Closing-Flow AI (visi utama)** | 🟡 state-machine + WA emit + market-fit jalan |
 | Market-Fit Analyzer (B2B/B2C) | ✅ engine + API + UI stepper + persist |
-| Sales Play config per-workspace | 🟡 schema + default (UI/persist pending) |
+| Sales Play config per-workspace | ✅ schema + persist + editor + wired ke orchestrator |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
 | Superadmin create user+tenant | ✅ |
 | Invite-acceptance (sales rep bisa login) | ✅ |
@@ -51,6 +51,7 @@
 | Badge readiness di inbox (`components/inbox/readiness-badge.tsx`): header thread tampil skor + band, dihitung dari message history pakai engine yang sama (jujur, no dummy) | sesi ini |
 | Phase 5 U3: superadmin create user+tenant (`createAdminUser` + `POST /api/admin/users` + dialog "Buat akun") | sesi ini |
 | Phase 5 U1: accept-invite (`/api/invites/[token]` + `/invite/[token]` page + "Salin link" di Tim) → rep diundang bisa login | sesi ini |
+| Phase 1 tail: SalesPlay persist (`/api/workspaces/[id]/sales-play`) + editor `SalesPlayPanel` + wired ke WA orchestrator (priceGate bridge/value ladder/worth-of-cost/adab/handoff beneran ngefek) | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -142,14 +143,14 @@ Transport (keputusan + caveat):
 - [x] Member enable/disable seat
 - [x] Chat context summarization (hemat token)
 
-### Phase 1 — Knowledge & Sales Play config  🟡  *(schema + seed selesai)*
+### Phase 1 — Knowledge & Sales Play config  ✅
 > Rumah data buat semua perilaku AI. Low-risk (nambah tipe + seed), belum ubah runtime.
 - [x] **(G4)** Tipe `KbClosingTechnique` di `lib/types/kb.ts` — `{ id, nama, inti, contohSkrip, cocokUntuk, sinyalPemicu }` (field **opsional** di `KnowledgeBase`)
 - [x] **(G4)** Seed **17 Teknik Closing** (Dewa Eka Prayoga) → `lib/kb/closing-techniques.ts` (`CLOSING_TECHNIQUES_17` + `formatClosingTechniques` filter B2B/B2C)
 - [x] **(G4)** Wiring 17 teknik ke `buildKbSystemPrompt` (surface sales, "pakai di tahap akhir") + WA orchestrator
 - [x] **(G1)** Skema `SalesPlay` (`lib/types/sales-play.ts`): `stages[]`, `adab`, `priceGate`, `worthOfCost`, `valueLadder`, `handoff`, `closingTechniqueIds` + `defaultSalesPlay()`
-- [ ] **(G1)** Persist SalesPlay per-workspace (DB) + UI editor (CRUD config)
-- **Acceptance:** KB punya 17 teknik terstruktur ✅ + skema SalesPlay siap ✅; persist + editor masih kebuka.
+- [x] **(G1)** Persist SalesPlay per-workspace (`/api/workspaces/[id]/sales-play`, zero-migration) + **editor** `SalesPlayPanel` di hub (priceGate bridge, value ladder, worth-of-cost, adab, handoff) + **wired ke orchestrator** (editan beneran ngefek: forbiddenTopics, handoff keywords, earlyPriceBridge, valueLadder/anchors, maxSentences, filler)
+- **Acceptance:** ✅ KB 17 teknik + skema SalesPlay + persist + editor + orchestrator baca SalesPlay per-workspace.
 
 ### Phase 2 — Market-Fit Analyzer (B2B/B2C)  ✅
 - [x] **(G3)** Analyzer (`lib/market-fit/analyzer.ts`) baca produk+segmen → `{ marketType: B2B|B2C|mix, confidence, icp, segmentFit[] }`. AI path + heuristik fallback (never throws).

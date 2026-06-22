@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MarketFitPanel } from "@/components/workspaces/market-fit-panel";
+import { SalesPlayPanel } from "@/components/workspaces/sales-play-panel";
 import type { WorkspaceType } from "@/lib/workspace/store";
 
 interface LeadRow {
@@ -193,6 +194,9 @@ export default function WorkspaceHubPage() {
 
             {/* Setup stepper — Produk → Market-Fit → Discovery */}
             <MarketFitPanel workspaceId={id} productId={ws.productId} />
+
+            {/* Sales Play editor — alur & adab obrolan */}
+            <SalesPlayPanel workspaceId={id} />
 
             {/* Scoped flow quick links */}
             <div>
