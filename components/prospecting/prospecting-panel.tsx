@@ -127,7 +127,7 @@ export function ProspectingPanel({ embedded = false }: { embedded?: boolean }) {
           Real, persisted lead data lives in Discovery → Profil (DB-backed). */}
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
         <b>Mode demo</b> — panel ini sandbox (data di memori, hilang saat refresh). Untuk lead nyata yang tersimpan, pakai{" "}
-        <a href="/contacts/discovery" className="font-medium underline">Discovery → Profil</a>.
+        <a href="/workspaces" className="font-medium underline">Workspace → Discovery</a>.
       </div>
       {/* Inline crawl banner — coral/teal gradient strip */}
       <div className="relative flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-primary/8 via-tertiary/8 to-transparent px-4 py-3">

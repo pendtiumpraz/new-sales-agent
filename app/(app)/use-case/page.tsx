@@ -754,8 +754,7 @@ export default function UseCasePage() {
 
         <p className="pb-6 text-center text-xs text-muted-foreground">
           Industrimu belum ada? Polanya tetap sama — mulai dari{" "}
-          <Link href="/contacts/discovery" className="text-primary underline">Discovery</Link> atau{" "}
-          <Link href="/workspaces" className="text-primary underline">buat Workspace</Link>.
+          <Link href="/workspaces" className="text-primary underline">buat Workspace</Link> (produk → market-fit → discovery → chat).
         </p>
       </div>
     </div>

@@ -217,9 +217,8 @@ export default function WorkspaceHubPage() {
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lainnya</p>
                   <div className="grid gap-3 sm:grid-cols-3">
                     {[
-                      { href: `/contacts/profiles?workspace=${id}`, icon: Users, label: "Profil" },
                       { href: `/cadences?workspace=${id}`, icon: Mail, label: "Cadence" },
-                      { href: `/pipeline?workspace=${id}`, icon: TrendingUp, label: "Pipeline" },
+                      { href: `/pipeline?workspace=${id}`, icon: TrendingUp, label: "Riset Prospek" },
                     ].map((l) => {
                       const Icon = l.icon;
                       return (

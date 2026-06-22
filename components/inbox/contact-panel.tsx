@@ -103,7 +103,7 @@ export function ContactPanel({ contactId }: { contactId: string }) {
           </Link>
         </Button>
         <Button variant="outline" className="w-full" asChild>
-          <Link href="/contacts">Lihat di Kontak</Link>
+          <Link href="/workspaces">Buka Workspace</Link>
         </Button>
       </div>
     </aside>

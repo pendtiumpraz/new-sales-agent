@@ -29,7 +29,6 @@ import {
   ShoppingBag,
   Store,
   Sparkles,
-  User,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -514,10 +513,6 @@ export function TopBar() {
           <DropdownMenuItem onClick={() => router.push("/inbox")}>
             <Inbox className="h-4 w-4" />
             Inbox
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings")}>
-            <User className="h-4 w-4" />
-            Profil
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push("/settings")}>
             <Settings className="h-4 w-4" />
