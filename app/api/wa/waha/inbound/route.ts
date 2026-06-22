@@ -1,8 +1,51 @@
 import { NextResponse } from "next/server";
 
-import { gatewayTokenOk } from "@/lib/wa/store";
+import { gatewayTokenOk, pollOutbox, ackOutbox } from "@/lib/wa/store";
+import {
+  wahaConfigured,
+  wahaSessionName,
+  toChatId,
+  sendTextSession,
+  startTyping,
+  stopTyping,
+} from "@/lib/wa/waha";
 
 export const runtime = "nodejs";
+// Sending bubbles inline (paced) can take several seconds; let the function run
+// long enough on Vercel (Pro). Hobby caps at 10s — keep the humanizer pacing short.
+export const maxDuration = 30;
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+// When WAHA is the gateway there's no VPS bridge draining the outbox, so we send
+// the just-enqueued bubbles inline via WAHA — paced (typing + delayMs, capped so
+// the serverless function stays within maxDuration). Pacing = ban mitigation.
+async function deliverViaWaha(sessionId: string) {
+  const jobs = await pollOutbox(20, sessionId);
+  const name = wahaSessionName(sessionId);
+  for (const job of jobs) {
+    if (job.action !== "send") {
+      await ackOutbox([job.id]);
+      continue;
+    }
+    const p = (job.payload || {}) as { to?: string; body?: string; delayMs?: number; typing?: boolean };
+    const chatId = toChatId(String(p.to ?? ""));
+    if (!chatId) {
+      await ackOutbox([job.id]); // unsendable target → drop, don't retry forever
+      continue;
+    }
+    const delay = Math.min(Math.max(0, Number(p.delayMs) || 0), 3500);
+    try {
+      if (p.typing) await startTyping(name, chatId);
+      await sleep(delay);
+      await sendTextSession(name, chatId, p.body ?? "");
+      if (p.typing) await stopTyping(name, chatId);
+      await ackOutbox([job.id]);
+    } catch (e) {
+      console.error("[waha inbound deliver]", job.id, e); // leave un-acked → retried
+    }
+  }
+}
 
 // WAHA adapter — inbound (doc 41 / wa-gateway-waha). WAHA (waha.devlike.pro, now
 // 100% free + open-source) pushes a webhook on every incoming WA message. Its
@@ -78,5 +121,15 @@ export async function POST(req: Request) {
     body: JSON.stringify({ sessionId, from, body, name }),
   });
   const j = await r.json().catch(() => ({}));
+
+  // No bridge on the WAHA path → deliver the enqueued reply bubbles ourselves.
+  if (wahaConfigured()) {
+    try {
+      await deliverViaWaha(sessionId);
+    } catch (e) {
+      console.error("[api/wa/waha/inbound deliver]", e);
+    }
+  }
+
   return NextResponse.json(j, { status: r.status });
 }

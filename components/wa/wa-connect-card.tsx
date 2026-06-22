@@ -86,7 +86,14 @@ export function WaConnectCard() {
         ) : hasQr ? (
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
             <div className="rounded-lg border bg-white p-3">
-              <QRCode value={s!.qr!} size={168} />
+              {/* WAHA may return a ready PNG (data URL); the VPS gateway sends a raw
+                  string for react-qr-code to render. Support both. */}
+              {s!.qr!.startsWith("data:") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={s!.qr!} alt="QR WhatsApp" width={168} height={168} />
+              ) : (
+                <QRCode value={s!.qr!} size={168} />
+              )}
             </div>
             <ol className="space-y-1.5 text-sm">
               <li className="flex items-center gap-2 font-medium">
@@ -109,8 +116,8 @@ export function WaConnectCard() {
         )}
         {!connected && (
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Butuh gateway WA (Baileys/openclaw di VPS, outbound-only) yang nge-poll <code>/api/wa/gateway/outbox</code>.
-            Set <code>WA_GATEWAY_TOKEN</code> di env.
+            Pakai WAHA hosted (set <code>WAHA_URL</code> + <code>WAHA_API_KEY</code> + <code>WA_GATEWAY_TOKEN</code>): tiap akun scan QR-nya sendiri,
+            balasan dikirim langsung lewat WAHA. Alternatif: gateway VPS/extension yang nge-poll <code>/api/wa/gateway/outbox</code>.
           </p>
         )}
       </CardContent>

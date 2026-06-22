@@ -32,7 +32,36 @@ needs to (a) push inbound messages in and (b) send our paced outbound bubbles.
   the send paces like a human — the pacing must live in the gateway because the
   app is stateless about it.
 
-## Setup
+## Hosted WAHA + Vercel (per-account, recommended)
+
+When WAHA runs on a server you own and the app sets `WAHA_URL` + `WAHA_API_KEY`,
+the app drives WAHA's REST API **directly** — no bridge process, and **one WAHA
+session per account (1 account = 1 WA number = 1 QR)**:
+
+- **Connect / QR** — `lib/wa/waha-client.ts` + `/api/wa/session` create one WAHA
+  session per account (`rep:<userId>` → WAHA name `rep_<userId>`), configure that
+  session's webhook to `…/api/wa/waha/inbound?token=…&sessionId=rep:<userId>`, and
+  fetch its QR. `WaConnectCard` renders it; each rep scans their own. Status maps
+  `WORKING→connected`, `SCAN_QR_CODE→qr`.
+- **Send** — `/api/wa/waha/inbound` delivers the reply bubbles **inline via WAHA**
+  (typing + capped `delayMs` → `sendText`), so no VPS bridge is needed. The route
+  sets `maxDuration = 30` for the pacing; on Vercel Hobby (10s cap) keep the
+  humanizer delays short. With this path, **don't also run `bridge.mjs`** for the
+  same sessions (it would double-send).
+
+**Env (set in `.env.local` + Vercel — never commit the key):**
+```
+WAHA_URL=https://<host>/waha       # REST base, no trailing slash
+WAHA_API_KEY=<the X-Api-Key WAHA was started with>
+WA_GATEWAY_TOKEN=<shared secret>   # authenticates the WAHA→app webhook
+APP_URL=https://<your-app>         # public base WAHA calls back (Vercel deploy URL)
+WA_AUTO_REPLY=1
+```
+Then in the app: open WhatsApp connect → **Hubungkan WhatsApp** → scan the QR. The
+session's webhook is wired automatically at connect time. That's it — no Docker,
+no bridge.
+
+## Setup (local Docker + bridge — alternative)
 
 1. **Run WAHA + bridge** (`gateway/waha/`):
    ```
