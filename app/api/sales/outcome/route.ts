@@ -12,11 +12,12 @@ export const runtime = "nodejs";
 
 const OUTCOMES: Outcome[] = ["won", "lost", "stalled"];
 
-// Verify the conversation is in the caller's tenant before touching its outcome.
-async function ownsConversation(ctx: Parameters<typeof withTenant>[0], conversationId: string) {
+// The conversation (scoped to the caller's tenant) or null — also carries its
+// workspaceId so the outcome can be filtered per-workspace later.
+async function convScope(ctx: Parameters<typeof withTenant>[0], conversationId: string) {
   const [row] = await withTenant(ctx, (tx) =>
     tx
-      .select({ id: conversationsTable.id })
+      .select({ id: conversationsTable.id, workspaceId: conversationsTable.workspaceId })
       .from(conversationsTable)
       .where(
         and(
@@ -26,7 +27,7 @@ async function ownsConversation(ctx: Parameters<typeof withTenant>[0], conversat
       )
       .limit(1),
   );
-  return Boolean(row);
+  return row ?? null;
 }
 
 // GET /api/sales/outcome?conversationId=... → the conversation's recorded outcome.
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   if (!hasDb()) return NextResponse.json({ outcome: null, source: "mock" });
   const conversationId = new URL(req.url).searchParams.get("conversationId");
   if (!conversationId) return NextResponse.json({ error: "conversationId wajib" }, { status: 400 });
-  if (!(await ownsConversation(guard.ctx, conversationId))) {
+  if (!(await convScope(guard.ctx, conversationId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ outcome: await loadOutcome(conversationId) });
@@ -53,7 +54,8 @@ export async function POST(req: Request) {
   if (!b.conversationId || !b.outcome || !OUTCOMES.includes(b.outcome as Outcome)) {
     return NextResponse.json({ error: "conversationId + outcome (won|lost|stalled) wajib" }, { status: 400 });
   }
-  if (!(await ownsConversation(guard.ctx, b.conversationId))) {
+  const scope = await convScope(guard.ctx, b.conversationId);
+  if (!scope) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const r = await loadReadiness(b.conversationId);
@@ -64,6 +66,7 @@ export async function POST(req: Request) {
     band: r?.band ?? "dingin",
     source: "manual",
     ts: new Date().toISOString(),
+    workspaceId: scope.workspaceId ?? undefined,
   });
   return NextResponse.json({ ok: true });
 }

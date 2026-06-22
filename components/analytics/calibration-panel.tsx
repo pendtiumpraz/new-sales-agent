@@ -1,9 +1,11 @@
 "use client";
 
 // Calibration dashboard (G7) — how well closing-readiness predicts reality, from
-// recorded outcomes. Per-band empirical close rate + weekly win-rate trend. Honest:
+// recorded outcomes. Per-band empirical close rate, a Brier score (numeric
+// calibration), and a weekly win-rate trend, filterable per workspace. Honest:
 // derived from real won/lost/stalled marks, not a model. Lives in Reports.
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CartesianGrid,
@@ -20,6 +22,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -42,26 +51,71 @@ interface CalibrationResponse {
   calibration: Calibration;
   trend: TrendPoint[];
 }
+interface WorkspaceRow {
+  id: string;
+  name: string;
+}
 
 function fmtWeek(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 }
 
+// Brier: 0 perfect · 0.25 = coin-flip · →1 worst. Qualitative tag for the tile.
+function brierTag(b: number): { label: string; variant: "success" | "warning" | "destructive" } {
+  if (b < 0.15) return { label: "terkalibrasi baik", variant: "success" };
+  if (b < 0.25) return { label: "lumayan", variant: "warning" };
+  return { label: "perlu tuning", variant: "destructive" };
+}
+
 export function CalibrationPanel() {
-  const q = useQuery({
-    queryKey: ["sales-calibration"],
+  const [ws, setWs] = useState<string>(""); // "" = semua workspace
+
+  const wsQuery = useQuery({
+    queryKey: ["workspaces"],
     queryFn: async () => {
-      const r = await fetch("/api/sales/calibration");
+      const r = await fetch("/api/workspaces");
+      if (!r.ok) return [] as WorkspaceRow[];
+      return ((await r.json()).data ?? []) as WorkspaceRow[];
+    },
+    staleTime: 60_000,
+  });
+  const workspaces = wsQuery.data ?? [];
+
+  const q = useQuery({
+    queryKey: ["sales-calibration", ws],
+    queryFn: async () => {
+      const r = await fetch(`/api/sales/calibration${ws ? `?workspaceId=${encodeURIComponent(ws)}` : ""}`);
       if (!r.ok) throw new Error("gagal memuat kalibrasi");
       return (await r.json()) as CalibrationResponse;
     },
     staleTime: 30_000,
   });
 
+  const wsSelect =
+    workspaces.length > 0 ? (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Workspace:</span>
+        <Select value={ws || "all"} onValueChange={(v) => setWs(v === "all" ? "" : v)}>
+          <SelectTrigger className="h-8 w-56 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua workspace</SelectItem>
+            {workspaces.map((w) => (
+              <SelectItem key={w.id} value={w.id}>
+                {w.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : null;
+
   if (q.isLoading) {
     return (
       <div className="space-y-6">
+        {wsSelect}
         <Skeleton className="h-24 w-full rounded-xl" />
         <Skeleton className="h-[280px] w-full rounded-xl" />
       </div>
@@ -76,20 +130,27 @@ export function CalibrationPanel() {
 
   if (total === 0) {
     return (
-      <EmptyState
-        icon={Target}
-        title="Belum ada outcome tercatat"
-        description="Tandai hasil obrolan (Closing / Gagal / Stuck) di atas thread Inbox. Setelah beberapa ditandai, closing-rate per band readiness muncul di sini dan dipakai untuk mengkalibrasi prediksi."
-      />
+      <div className="space-y-4">
+        {wsSelect}
+        <EmptyState
+          icon={Target}
+          title={ws ? "Belum ada outcome untuk workspace ini" : "Belum ada outcome tercatat"}
+          description="Tandai hasil obrolan (Closing / Gagal / Stuck) di atas thread Inbox. Setelah beberapa ditandai, closing-rate per band readiness muncul di sini dan dipakai untuk mengkalibrasi prediksi."
+        />
+      </div>
     );
   }
 
   const chartData = trend.map((t) => ({ period: fmtWeek(t.period), rate: Math.round(t.closeRate * 100), total: t.total }));
+  const brier = cal?.brier;
+  const tag = brier != null ? brierTag(brier) : null;
 
   return (
     <div className="space-y-6">
+      {wsSelect}
+
       {/* Headline strip */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Outcome tercatat</p>
@@ -102,6 +163,17 @@ export function CalibrationPanel() {
             <p className="text-sm text-muted-foreground">Win rate keseluruhan</p>
             <p className="tnum mt-1 text-3xl font-semibold tracking-tight">{overall}%</p>
             <p className="mt-1 text-xs text-muted-foreground">{totalWon} closing dari {total}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Brier score</p>
+            <p className="tnum mt-1 text-3xl font-semibold tracking-tight">{brier != null ? brier.toFixed(3) : "—"}</p>
+            {tag ? (
+              <Badge variant={tag.variant} className="mt-1">{tag.label}</Badge>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">perlu ≥{cal?.minSamples ?? 10} outcome</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -131,7 +203,8 @@ export function CalibrationPanel() {
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Dari obrolan yang readiness-nya di band tertentu, berapa persen yang akhirnya closing. Inilah akurasi
-            prediksi yang sebenarnya — makin tinggi band, harusnya makin tinggi closing-rate.
+            prediksi yang sebenarnya — makin tinggi band, harusnya makin tinggi closing-rate. Brier score di atas
+            mengukurnya sebagai satu angka (makin kecil makin akurat).
           </p>
         </CardHeader>
         <CardContent className="p-0">

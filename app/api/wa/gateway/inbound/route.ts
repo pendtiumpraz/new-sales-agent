@@ -150,6 +150,7 @@ export async function POST(req: Request) {
             band: result.readiness.band,
             source: "auto",
             ts: new Date().toISOString(),
+            workspaceId: wsId ?? undefined,
           });
         }
       }

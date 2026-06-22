@@ -20,6 +20,7 @@ export interface OutcomeRecord {
   band: ReadinessBand; // band at outcome time
   source: "manual" | "auto";
   ts: string; // ISO
+  workspaceId?: string; // which workspace/product this chat belonged to (for filtering)
 }
 
 const LOG_CAP = 500; // keep the per-tenant log bounded (one key/value row)

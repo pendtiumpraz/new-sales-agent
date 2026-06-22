@@ -19,6 +19,9 @@ export interface Calibration {
   ready: boolean; // enough data overall to be meaningful
   minSamples: number;
   byBand: BandStat[];
+  /** Brier score: mean((score/100 − actual)²), actual = 1 if won else 0. Lower is
+   *  better-calibrated (0 = perfect, 0.25 = no better than a coin). null until ready. */
+  brier: number | null;
 }
 
 const MIN_SAMPLES = 10; // tenant-wide threshold before we call calibration "ready"
@@ -33,7 +36,17 @@ export function computeCalibration(records: OutcomeRecord[]): Calibration {
     const won = inBand.filter((r) => r.outcome === "won").length;
     return { band, n, won, closeRate: n > 0 ? won / n : null };
   });
-  return { total: records.length, ready: records.length >= MIN_SAMPLES, minSamples: MIN_SAMPLES, byBand };
+  // Brier: treat the readiness score as P(closing); compare to the actual result.
+  const scored = records.filter((r) => typeof r.score === "number");
+  const brier =
+    scored.length >= MIN_SAMPLES
+      ? scored.reduce((s, r) => {
+          const p = Math.max(0, Math.min(1, r.score / 100));
+          const actual = r.outcome === "won" ? 1 : 0;
+          return s + (p - actual) ** 2;
+        }, 0) / scored.length
+      : null;
+  return { total: records.length, ready: records.length >= MIN_SAMPLES, minSamples: MIN_SAMPLES, byBand, brier };
 }
 
 // The empirical close rate for a band, only when there's enough data to mean
