@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { WaModeToggle } from "@/components/inbox/wa-mode-toggle";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversations } from "@/lib/api-mock/hooks";
@@ -53,9 +54,10 @@ export function ConversationList({ className }: { className?: string }) {
       <div className="space-y-3 border-b p-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Inbox</h2>
-          <span className="text-xs text-muted-foreground">
-            {filtered.length} percakapan
-          </span>
+          <div className="flex items-center gap-2">
+            <WaModeToggle />
+            <span className="text-xs text-muted-foreground">{filtered.length} percakapan</span>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

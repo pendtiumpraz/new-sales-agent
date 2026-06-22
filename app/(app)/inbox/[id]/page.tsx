@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import { ContactPanel } from "@/components/inbox/contact-panel";
 import { HandoffPanel } from "@/components/inbox/handoff-panel";
 import { MessageThread } from "@/components/inbox/message-thread";
+import { WaDraftCard } from "@/components/inbox/wa-draft-card";
 import { Button } from "@/components/ui/button";
 import { useConversations } from "@/lib/api-mock/hooks";
 
@@ -20,6 +21,7 @@ export default function ConversationPage({
   return (
     <>
       <div className="relative flex min-w-0 flex-1 flex-col">
+        <WaDraftCard conversationId={params.id} />
         <MessageThread conversationId={params.id} />
         {/* Floating deep-link to the unified workspace (Wave 3) — keeps the
             channel-centric inbox usable while exposing the new workbench. */}

@@ -53,6 +53,7 @@
 | Phase 5 U1: accept-invite (`/api/invites/[token]` + `/invite/[token]` page + "Salin link" di Tim) → rep diundang bisa login | sesi ini |
 | Phase 1 tail: SalesPlay persist (`/api/workspaces/[id]/sales-play`) + editor `SalesPlayPanel` + wired ke WA orchestrator (priceGate bridge/value ladder/worth-of-cost/adab/handoff beneran ngefek) | sesi ini |
 | Phase 4 G6: `StageMaterial` (banner/video/studi-kasus per tahap) di SalesPlay + editor + orchestrator nawarin materi di tahap cocok | sesi ini |
+| Semi-auto gate: mode auto/semi (`/api/wa/mode`), draft store + `/api/wa/draft` approve/discard, `WaDraftCard` di thread + `WaModeToggle` di inbox | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -161,7 +162,7 @@ Transport (keputusan + caveat):
 - [x] **(G8)** Stepper Produk → Market-Fit → Discovery di workspace hub (`MarketFitPanel`): jalanin analyzer, tampil marketType + ICP + fit segmen + teknik yang cocok; Discovery kebuka setelah market-fit
 - **Acceptance:** ✅ buka workspace → panel setup; Analisis → B2B/B2C + ICP + teknik; hasil tersimpan & ke-load lagi; Discovery unlock.
 
-### Phase 3 — Conversation Orchestrator (closing di akhir)  🟡  *(state-machine jalan)*
+### Phase 3 — Conversation Orchestrator (closing di akhir)  ✅
 - [x] **(G2)** State-machine (`lib/sales/stage-machine.ts`): rapport→discovery→value→objection→closing — deteksi sinyal (need/value/price/objection/closing) + `pickStage` + persist per-conversation (`convstage:<id>`). Dipakai WA orchestrator tiap inbound.
 - [x] **(G5)** Adab enforced di prompt: 1-2 kalimat/bubble (via `humanize`), close-question, no-markdown, no-early-price (priceGate)
 - [x] **(G5-humanis) engine + in-app**: `humanize()` → array bubble `[{ kind, text, delayMs }]` (1 ide/bubble, strip markdown, filler hemat, delay ~ panjang teks); `HumanizedMessage` mainin bubble satu-satu + typing pip di chat assistant. Tetap **1 LLM call** (client yang pacing → nggak nambah biaya AI)
@@ -169,7 +170,7 @@ Transport (keputusan + caveat):
 - [x] **(G1/value)** `priceGate` aktif — `decide()` buka harga HANYA setelah need+value; ditanya duluan → bridge ke kebutuhan (di guidance prompt)
 - [x] **(G4)** Teknik closing **cuma muncul di tahap CLOSING** + difilter market (B2B drop teknik agresif)
 - [x] **(guardrail)** Handoff: sinyal komplain/nego (regex) ATAU AI gagal/credit 0 → holding + handoff
-- [ ] Semi-auto: jalur draft (manusia approve) sebelum auto-send — sekarang auto-enqueue saat `WA_AUTO_REPLY=1`
+- [x] **Semi-auto gate**: mode `wa_reply_mode:<tenantId>` = semi → balasan ditahan jadi draf (`wadraft:<convId>`), rep approve/discard di inbox (`WaDraftCard`), toggle Auto/Semi di header inbox (`WaModeToggle`). Approve → enqueue paced bubbles. Default tetap auto.
 - [ ] **(C1)** Ketatin `maxOutputTokens` chat sales (balasan pendek per adab) + emoji ON
 - [x] **(C4)** Topic guard: politik/SARA/judi → deflect humanis — **WA orchestrator** (`OFF_TOPIC`, no AI spend)
 - [x] **(C3)** Rate-limit: per-lead/jam + per-tenant/hari (`lib/wa/rate-limit.ts`, hitung outbound `messagesTable`) → over cap = STOP auto-reply + biarkan unread buat human (env: `WA_RL_LEAD_HOURLY`/`WA_RL_TENANT_DAILY`)

@@ -9,6 +9,7 @@ import { loadStage, saveStage } from "@/lib/sales/stage-store";
 import { loadMarketFit } from "@/lib/market-fit/store";
 import { loadSalesPlay } from "@/lib/sales-play/store";
 import { checkWaRateLimit } from "@/lib/wa/rate-limit";
+import { saveDraft } from "@/lib/wa/draft-store";
 import { saveReadiness } from "@/lib/sales/predictive-store";
 import type { SalesPlay } from "@/lib/types/sales-play";
 import type { TenantContext } from "@/lib/db/tenant-context";
@@ -129,30 +130,39 @@ export async function POST(req: Request) {
       await saveStage(convoId, result.nextStage);
       await saveReadiness(convoId, result.readiness);
 
-      let seq = 0;
-      for (const bubble of result.bubbles) {
-        // Gateway honors delayMs + typing to pace the send like a human.
-        await enqueue(owner.tenantId, b.sessionId, "send", {
+      // Semi-auto gate: hold as a draft for rep approval, else auto-send now.
+      const semi = (await getSetting(`wa_reply_mode:${owner.tenantId}`)) === "semi";
+      if (semi) {
+        await saveDraft(convoId, {
+          sessionId: b.sessionId,
           to: b.from,
-          body: bubble.text,
-          delayMs: bubble.delayMs,
-          typing: true,
-          seq: seq++,
+          bubbles: result.bubbles.map((x) => ({ text: x.text, delayMs: x.delayMs })),
         });
-        await db.insert(messagesTable).values({
-          id: "msg_" + crypto.randomUUID(),
-          tenantId: owner.tenantId,
-          conversationId: convoId,
-          direction: "out",
-          body: bubble.text,
-          timestamp: new Date().toISOString(),
-          status: "queued",
-        });
+        // replied stays false — a rep approves the draft to actually send.
+      } else {
+        let seq = 0;
+        for (const bubble of result.bubbles) {
+          // Gateway honors delayMs + typing to pace the send like a human.
+          await enqueue(owner.tenantId, b.sessionId, "send", {
+            to: b.from,
+            body: bubble.text,
+            delayMs: bubble.delayMs,
+            typing: true,
+            seq: seq++,
+          });
+          await db.insert(messagesTable).values({
+            id: "msg_" + crypto.randomUUID(),
+            tenantId: owner.tenantId,
+            conversationId: convoId,
+            direction: "out",
+            body: bubble.text,
+            timestamp: new Date().toISOString(),
+            status: "queued",
+          });
+        }
+        // Graceful holding/handoff path leaves the convo unread for a rep.
+        replied = result.action === "send";
       }
-
-      // On the graceful holding/handoff path, leave the convo flagged for a human
-      // (unread was already incremented on the inbound) so a rep takes over.
-      replied = result.action === "send";
       }
     }
 
