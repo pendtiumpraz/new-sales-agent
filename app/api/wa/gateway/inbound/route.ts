@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { sql, eq, desc } from "drizzle-orm";
 
 import { db, hasDb } from "@/lib/db/client";
-import { conversationsTable, messagesTable } from "@/lib/db/schema";
+import { conversationsTable, messagesTable, tenantsTable } from "@/lib/db/schema";
 import { gatewayTokenOk, ownerOfSession, enqueue, waReplyAllowed, getSetting } from "@/lib/wa/store";
 import { buildWaReply } from "@/lib/wa/orchestrator";
 import { loadStage, saveStage } from "@/lib/sales/stage-store";
@@ -88,9 +88,14 @@ export async function POST(req: Request) {
     ) {
       const ctx: TenantContext = { tenantId: owner.tenantId, userId: owner.userId, role: "member" };
 
-      // C3 rate-limit (anti-iseng + cost cap). Over cap → STOP auto-replying and
-      // leave the conversation unread so a human takes over (stays human, no spam).
-      const rate = await checkWaRateLimit(owner.tenantId, convoId);
+      // C3/C6 rate-limit (anti-iseng + cost cap, per-plan). Over cap → STOP
+      // auto-replying and leave the convo unread so a human takes over.
+      const [tenantRow] = await db
+        .select({ plan: tenantsTable.plan })
+        .from(tenantsTable)
+        .where(eq(tenantsTable.id, owner.tenantId))
+        .limit(1);
+      const rate = await checkWaRateLimit(owner.tenantId, convoId, tenantRow?.plan ?? "starter");
       if (rate.ok) {
 
       // Recent turns (incl. the message just logged) so the reply isn't amnesiac

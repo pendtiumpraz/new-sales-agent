@@ -108,6 +108,8 @@ interface MeterStreamOpts {
   feature: string;
   system?: string;
   messages: ModelMessage[];
+  /** Cap visible output (C1). Reasoning models are floored so they don't return empty. */
+  maxOutputTokens?: number;
   // NB: no temperature — sampling params 400 on Anthropic Opus, and the
   // registry is provider-agnostic, so we let the model default.
 }
@@ -131,11 +133,21 @@ export async function meteredStreamText(ctx: TenantContext, opts: MeterStreamOpt
     throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");
   }
 
+  // Reasoning models burn output tokens on hidden reasoning before emitting
+  // text, so floor their cap (like meteredGenerateText) to avoid empty replies.
+  const isReasoning = /v4-flash|v4-pro|reasoner|reasoning|[-_]r1\b|think/i.test(resolved.modelString);
+  const maxOut = opts.maxOutputTokens
+    ? isReasoning
+      ? Math.max(opts.maxOutputTokens, 1200)
+      : opts.maxOutputTokens
+    : undefined;
+
   const start = Date.now();
   return streamText({
     model: resolved.model,
     system: opts.system,
     messages: opts.messages,
+    ...(maxOut ? { maxOutputTokens: maxOut } : {}),
     onFinish: async (event) => {
       try {
         const u = (event.usage ?? {}) as unknown as Record<string, number | undefined>;

@@ -163,6 +163,7 @@ export async function POST(request: Request) {
         feature: "chat",
         system,
         messages: modelMessages,
+        maxOutputTokens: 800, // C1 — cap output (reasoning models floored to 1200)
       });
       return result.toUIMessageStreamResponse({ headers: headersFor("real") });
     } catch (error) {
@@ -187,6 +188,7 @@ export async function POST(request: Request) {
       system,
       messages: modelMessages,
       temperature: 0.4,
+      maxOutputTokens: 1200, // C1 — cap output (legacy fallback path)
     });
 
     return result.toUIMessageStreamResponse({

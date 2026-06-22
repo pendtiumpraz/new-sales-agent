@@ -17,7 +17,7 @@
 | Field role-scoping (`ownerUserId`) | ✅ |
 | Member enable/disable (seat) | ✅ |
 | Chat context summarization (hemat token) | ✅ |
-| **Closing-Flow AI (visi utama)** | 🟡 state-machine + WA emit + market-fit jalan |
+| **Closing-Flow AI (visi utama)** | ✅ end-to-end (sisa: predictive training loop + extension terpisah) |
 | Market-Fit Analyzer (B2B/B2C) | ✅ engine + API + UI stepper + persist |
 | Sales Play config per-workspace | ✅ schema + persist + editor + wired ke orchestrator |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
@@ -54,6 +54,7 @@
 | Phase 1 tail: SalesPlay persist (`/api/workspaces/[id]/sales-play`) + editor `SalesPlayPanel` + wired ke WA orchestrator (priceGate bridge/value ladder/worth-of-cost/adab/handoff beneran ngefek) | sesi ini |
 | Phase 4 G6: `StageMaterial` (banner/video/studi-kasus per tahap) di SalesPlay + editor + orchestrator nawarin materi di tahap cocok | sesi ini |
 | Semi-auto gate: mode auto/semi (`/api/wa/mode`), draft store + `/api/wa/draft` approve/discard, `WaDraftCard` di thread + `WaModeToggle` di inbox | sesi ini |
+| C1 cap output chat in-app (`meteredStreamText` maxOutputTokens) + C6 rate-limit per-plan + override (`wa_rl:<id>`) | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.
 
@@ -110,12 +111,12 @@ quota token (`grant_credit`) · invite/role-change/remove member.
 
 | ID | Gap | Status |
 |---|---|---|
-| **C1** | Cap output per balasan (maks token) → balasan pendek = humanis + murah | 🟡 `maxOutputTokens` ada di meter, belum diketatin utk chat sales |
+| **C1** | Cap output per balasan (maks token) → balasan pendek = humanis + murah | ✅ WA 220 + chat in-app (`meteredStreamText` maxOutputTokens, reasoning floored) |
 | **C2** | Input dipangkas (running summary) | ✅ `cdeb156` |
 | **C3** | Rate-limit per-lead & per-tenant (anti iseng / spam request panjang) | ✅ `lib/wa/rate-limit.ts` |
 | **C4** | Topic guard — no politik/SARA/di luar produk → deflect humanis | ⬜ |
 | **C5** | Graceful degradation saat limit/credit $0 → **holding humanis + handoff**, JANGAN tampil error/"token habis" | ⬜ |
-| **C6** | Limit **diturunkan dari budget** (balasan ≈ credit ÷ token_per_reply), config per-tenant/plan | ⬜ |
+| **C6** | Limit per-plan (starter/growth/enterprise) + override env / per-tenant (`wa_rl:<id>`) | ✅ `lib/wa/rate-limit.ts` |
 
 Sudah ada: tenant credit/metering, `creditEnforced`+`tenantCreditBalance` ($0 → AI blocked), mock fallback (`composeKbReply`), handoff queue.
 
@@ -171,11 +172,11 @@ Transport (keputusan + caveat):
 - [x] **(G4)** Teknik closing **cuma muncul di tahap CLOSING** + difilter market (B2B drop teknik agresif)
 - [x] **(guardrail)** Handoff: sinyal komplain/nego (regex) ATAU AI gagal/credit 0 → holding + handoff
 - [x] **Semi-auto gate**: mode `wa_reply_mode:<tenantId>` = semi → balasan ditahan jadi draf (`wadraft:<convId>`), rep approve/discard di inbox (`WaDraftCard`), toggle Auto/Semi di header inbox (`WaModeToggle`). Approve → enqueue paced bubbles. Default tetap auto.
-- [ ] **(C1)** Ketatin `maxOutputTokens` chat sales (balasan pendek per adab) + emoji ON
+- [x] **(C1)** Cap output: WA `maxOutputTokens` 220 + chat in-app (`meteredStreamText`, reasoning model di-floor 1200 biar nggak empty)
 - [x] **(C4)** Topic guard: politik/SARA/judi → deflect humanis — **WA orchestrator** (`OFF_TOPIC`, no AI spend)
 - [x] **(C3)** Rate-limit: per-lead/jam + per-tenant/hari (`lib/wa/rate-limit.ts`, hitung outbound `messagesTable`) → over cap = STOP auto-reply + biarkan unread buat human (env: `WA_RL_LEAD_HOURLY`/`WA_RL_TENANT_DAILY`)
 - [x] **(C5)** Graceful degradation: AI gagal/credit 0 → holding humanis + handoff (bukan error) — **WA orchestrator**
-- [ ] **(C6)** Hitung limit dari budget; surface di settings per-tenant/plan
+- [x] **(C6)** Rate-limit **per-plan** (starter/growth/enterprise) + override env / per-tenant setting `wa_rl:<id>="lead,daily"`. Hard cap tetap credit ($0 → graceful holding).
 - **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.
 
 ### Phase 4 — Materials + Predictive  🟡  *(predictive jalan)*
