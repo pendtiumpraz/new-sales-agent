@@ -17,7 +17,7 @@
 | Field role-scoping (`ownerUserId`) | ✅ |
 | Member enable/disable (seat) | ✅ |
 | Chat context summarization (hemat token) | ✅ |
-| **Closing-Flow AI (visi utama)** | ✅ end-to-end (sisa: predictive training loop + extension terpisah) |
+| **Closing-Flow AI (visi utama)** | ✅ end-to-end (predictive training loop ✅; transport WAHA hosted + extension ✅) |
 | Market-Fit Analyzer (B2B/B2C) | ✅ engine + API + UI stepper + persist |
 | Sales Play config per-workspace | ✅ schema + persist + editor + wired ke orchestrator |
 | 17 Teknik Closing → KB | ✅ seed + wired ke prompt |
@@ -182,11 +182,11 @@ Transport (keputusan + caveat):
 - [x] **(C6)** Rate-limit **per-plan** (starter/growth/enterprise) + override env / per-tenant setting `wa_rl:<id>="lead,daily"`. Hard cap tetap credit ($0 → graceful holding).
 - **Acceptance:** simulasi obrolan: lead nanya harga di awal → AI bridge ke value, harga keluar setelah value, teknik closing muncul di akhir; lead spam/iseng → ke-rate-limit + tetap humanis; credit $0 → holding + handoff, bukan error.
 
-### Phase 4 — Materials + Predictive  🟡  *(predictive jalan)*
+### Phase 4 — Materials + Predictive  ✅
 - [x] **(G6)** Materi per-tahap (`StageMaterial` di SalesPlay) — editor di `SalesPlayPanel`; orchestrator nawarin materi (kirim LINK) di tahap yang cocok, bukan teks panjang
 - [x] **(G7)** Skor closing-readiness 0–100 + band (dingin/hangat/panas) + NBA (`lib/sales/predictive.ts`) dari sinyal stage-machine; persist per-conversation (`convscore:<id>`); `GET /api/sales/readiness`. **Jujur: heuristik, belum model terlatih.**
-- [ ] **(G7)** Loop data: simpan outcome obrolan buat naikin akurasi prediktif (sekarang simpan skor terakhir, belum training loop)
-- **Acceptance:** AI nyaranin aset per tahap + skor "siap closing?" per percakapan.
+- [x] **(G7) Training loop**: outcome store (`lib/sales/outcome-store.ts`: won/lost/stalled per-conv `convoutcome:<id>` + log per-tenant `closeoutcomes:<tenantId>`, dedup by conv, cap 500, zero-migration) + kalibrasi (`lib/sales/calibration.ts`: closing-rate empiris per-band). `POST/GET /api/sales/outcome` (mark manual) + `GET /api/sales/calibration`. **Auto-capture** sinyal high-precision ("sudah transfer"/"gak jadi") di inbound (gak timpa mark manual). Readiness API + badge di-anotasi closing-rate band ("band panas historis 64%, n=33"). Tombol `OutcomeMarker` di thread. **Honest: kalibrasi empiris, bukan model ML.**
+- **Acceptance:** AI nyaranin aset per tahap + skor "siap closing?" per percakapan; rep tandai hasil → band ke-kalibrasi closing-rate-nya muncul di badge.
 
 ### Phase 5 — Admin / Tenant gaps  ✅
 - [x] **(U3)** Superadmin create user+tenant — `createAdminUser` + `POST /api/admin/users` + dialog "Buat akun" (mode tenant-baru / tambah-ke-tenant) di UserManagement

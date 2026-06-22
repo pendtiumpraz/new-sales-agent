@@ -6,6 +6,8 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { withTenant } from "@/lib/db/tenant-context";
 import { conversationsTable } from "@/lib/db/schema";
 import { loadReadiness } from "@/lib/sales/predictive-store";
+import { loadTenantOutcomes } from "@/lib/sales/outcome-store";
+import { computeCalibration, closeRateForBand } from "@/lib/sales/calibration";
 
 export const runtime = "nodejs";
 
@@ -38,5 +40,11 @@ export async function GET(req: Request) {
   if (!convo) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const readiness = await loadReadiness(conversationId);
+  // G7: annotate with this band's empirical close rate from recorded outcomes.
+  if (readiness) {
+    const cal = computeCalibration(await loadTenantOutcomes(ctx.tenantId));
+    const c = closeRateForBand(cal, readiness.band);
+    if (c) readiness.calibration = c;
+  }
   return NextResponse.json({ readiness });
 }

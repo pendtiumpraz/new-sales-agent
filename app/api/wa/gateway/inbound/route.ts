@@ -11,6 +11,7 @@ import { loadSalesPlay } from "@/lib/sales-play/store";
 import { checkWaRateLimit } from "@/lib/wa/rate-limit";
 import { saveDraft } from "@/lib/wa/draft-store";
 import { saveReadiness } from "@/lib/sales/predictive-store";
+import { detectOutcome, recordOutcome, loadOutcome } from "@/lib/sales/outcome-store";
 import type { SalesPlay } from "@/lib/types/sales-play";
 import type { TenantContext } from "@/lib/db/tenant-context";
 
@@ -134,6 +135,24 @@ export async function POST(req: Request) {
       const result = await buildWaReply(ctx, { contactName, message: b.body, history, stage, marketType, salesPlay });
       await saveStage(convoId, result.nextStage);
       await saveReadiness(convoId, result.readiness);
+
+      // G7 training loop: auto-capture a HIGH-PRECISION won/lost signal (explicit
+      // "sudah transfer" / "gak jadi") with the readiness at that moment, so the
+      // calibration log grows on its own. Never overwrite a rep's manual mark.
+      const autoOutcome = detectOutcome(b.body);
+      if (autoOutcome) {
+        const existing = await loadOutcome(convoId);
+        if (!existing || existing.source !== "manual") {
+          await recordOutcome(owner.tenantId, {
+            conversationId: convoId,
+            outcome: autoOutcome,
+            score: result.readiness.score,
+            band: result.readiness.band,
+            source: "auto",
+            ts: new Date().toISOString(),
+          });
+        }
+      }
 
       // Semi-auto gate: hold as a draft for rep approval, else auto-send now.
       const semi = (await getSetting(`wa_reply_mode:${owner.tenantId}`)) === "semi";

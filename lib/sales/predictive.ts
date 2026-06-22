@@ -18,6 +18,9 @@ export interface Readiness {
   /** Human-readable drivers of the score. */
   factors: string[];
   nba: NextBestAction;
+  /** G7: empirical close rate for this band from recorded outcomes (when enough
+   *  data). Attached at the API/UI layer, not by the pure heuristic. */
+  calibration?: { closeRate: number; n: number };
 }
 
 const STAGE_BASE: Record<Stage, number> = {
