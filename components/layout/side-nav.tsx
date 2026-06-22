@@ -65,6 +65,7 @@ import { signOut } from "next-auth/react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUiStore } from "@/lib/stores/ui-store";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { useRetentionStore } from "@/lib/stores/retention-store";
 import { withWorkspace } from "@/lib/workspace/scope";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { CommandPalette } from "@/components/layout/command-palette";
@@ -144,6 +145,8 @@ async function handleLogout(router: ReturnType<typeof useRouter>) {
   });
   await signOut({ redirect: false });
   useAuthStore.getState().logout();
+  // Clear browser-held demo state so it can't bleed across tenants on the next login.
+  useRetentionStore.getState().reset();
   toast.success("Anda telah keluar dari sesi");
   router.push("/");
 }

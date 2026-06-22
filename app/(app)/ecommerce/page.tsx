@@ -153,7 +153,7 @@ export default function EcommercePage() {
                     {connected ? (
                       <Badge variant="success" className="gap-1">
                         <Check className="h-3 w-3" />
-                        Terhubung
+                        Terhubung (demo)
                       </Badge>
                     ) : (
                       <Button

@@ -68,6 +68,13 @@ export default function RetentionPage() {
       </PageHeader>
 
       <div className="space-y-5 p-6">
+        {/* Honest banner: this screen is demo data held in the browser (same for
+            every tenant, resets on logout). Real per-tenant retention needs a
+            DB-backed, tenant-scoped source (like Monitoring Sales). */}
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          <b>Mode demo</b> — alur & KPI retensi ini contoh (data lokal di browser, di-reset saat logout). Versi nyata ter-scope per-tenant via DB.
+        </div>
+
         {/* KPI strip — shared KpiTile (no fabricated deltas) */}
         <KpiStrip>
           <KpiTile icon={<Users className="h-5 w-5" />} accent="#10B981" label="Pelanggan aktif retensi" count={kpi.activeCustomers} sub="terdaftar di seluruh alur" />
