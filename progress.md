@@ -56,6 +56,7 @@
 | Semi-auto gate: mode auto/semi (`/api/wa/mode`), draft store + `/api/wa/draft` approve/discard, `WaDraftCard` di thread + `WaModeToggle` di inbox | sesi ini |
 | C1 cap output chat in-app (`meteredStreamText` maxOutputTokens) + C6 rate-limit per-plan + override (`wa_rl:<id>`) | sesi ini |
 | UX simplification: Workspace jadi landing default (login+pending), sidebar 3-grup, `/contacts` jadi funnel ke workspace, inbox 4-filter | sesi ini |
+| UX simplification lanjut: "Fitur lain" jadi collapsible (default tutup, urut funnel, badge jumlah) → harian cuma 7 item kelihatan; fix link profil Inbox basi (`/contacts?view=inbox` → `/inbox`) | sesi ini |
 | **Transport WAHA**: adapter inbound (`/api/wa/waha/inbound` normalize webhook → orchestrator existing) + bridge outbound dependency-free (`gateway/waha/bridge.mjs`, honor delayMs+typing → WAHA sendText) + docker-compose (NOWEB) + `docs/wa-gateway-waha.md` | sesi ini |
 
 Semua sudah push ke `pendtiumpraz/main` + `origin/new-main`, tsc + lint hijau tiap langkah.

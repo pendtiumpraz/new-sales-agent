@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -9,6 +10,7 @@ import {
   BookOpen,
   Bot,
   Briefcase,
+  ChevronDown,
   Database,
   FileText,
   Heart,
@@ -82,9 +84,9 @@ interface NavItem {
 }
 // Simplified IA (closing-flow): the WORKSPACE is the primary flow — produk →
 // market-fit → discovery → script → chat, all inline in one hub. "Utama" holds
-// what a rep touches daily; everything else is grouped under "Fitur lain" so the
-// sidebar isn't a wall of 18 items. ⌘K still reaches everything.
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+// what a rep touches daily; "Fitur lain" collapses everything else (collapsed by
+// default) so the sidebar isn't a wall of items. ⌘K still reaches everything.
+const NAV_GROUPS: { label: string; items: NavItem[]; collapsible?: boolean }[] = [
   {
     label: "Utama",
     items: [
@@ -95,17 +97,24 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    // Collapsed by default — power features one click away (⌘K reaches them too).
+    // Ordered along the sales funnel so it reads as a flow when expanded.
     label: "Fitur lain",
+    collapsible: true,
     items: [
+      // cari prospek
       { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
+      { href: "/marketplace", icon: Store, label: "Marketplace Data", desc: "Jual-beli data perusahaan antar-tenant", managerOnly: true },
+      // jangkau & closing
       { href: "/cadences", icon: Workflow, label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
       { href: "/autopilot", icon: Rocket, label: "Autopilot", desc: "Pipeline AI penuh — satu klik", badge: "AI" },
-      { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
       { href: "/content", icon: Megaphone, label: "Konten", desc: "Buat & rencanakan konten" },
       { href: "/penawaran", icon: FileText, label: "Penawaran", desc: "Susun, kirim & lacak penawaran" },
+      { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
+      // pasca-jual
       { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
       { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
-      { href: "/marketplace", icon: Store, label: "Marketplace Data", desc: "Jual-beli data perusahaan antar-tenant", managerOnly: true },
+      // tim
       { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead", managerOnly: true },
       { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
     ],
@@ -146,6 +155,7 @@ async function handleLogout(router: ReturnType<typeof useRouter>) {
 export function SideNav() {
   const pathname = usePathname();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const [showMore, setShowMore] = useState(false); // "Fitur lain" collapsed by default
   const activeWs = useWorkspaceStore((s) => s.active); // doc 44 — carry scope into nav links
   const isRep = useAuthStore((s) => s.currentUser.role) === "Sales Rep";
   // Modules the superadmin disabled for this tenant are hidden (doc 44).
@@ -198,14 +208,24 @@ export function SideNav() {
       <nav className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2">
         {NAV_GROUPS.map((group, gi) => (
           <div key={group.label} className={cn(gi > 0 && (collapsed ? "mt-1.5" : "mt-3"))}>
-            {!collapsed && (
+            {!collapsed && group.collapsible ? (
+              <button
+                onClick={() => setShowMore((v) => !v)}
+                className="flex w-full items-center gap-1 px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              >
+                <ChevronDown className={cn("h-3 w-3 transition-transform", showMore ? "" : "-rotate-90")} />
+                <span className="flex-1 text-left">{group.label}</span>
+                <span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums">{visible(group.items).length}</span>
+              </button>
+            ) : !collapsed ? (
               <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                 {group.label}
               </p>
-            )}
+            ) : null}
             {collapsed && gi > 0 && <div className="mx-2 mb-1.5 border-t border-border/60" />}
-            <div className="flex flex-col gap-0.5">
-              {visible(group.items).map(({ href, icon: Icon, label, desc, badge }) => {
+            {(!group.collapsible || collapsed || showMore) && (
+              <div className="flex flex-col gap-0.5">
+                {visible(group.items).map(({ href, icon: Icon, label, desc, badge }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
                 const item = (
                   <Link
@@ -241,14 +261,15 @@ export function SideNav() {
                     </TooltipContent>
                   </Tooltip>
                 );
-              })}
-            </div>
+                })}
+              </div>
+            )}
           </div>
         ))}
       </nav>
 
-      {/* AI assistant dock — anchored at the bottom of the sidebar. Autopilot is
-          now a normal nav item (Jangkau) + the topbar CTA, not a floating button. */}
+      {/* AI assistant dock — anchored at the bottom of the sidebar. Autopilot
+          lives under "Fitur lain" + the topbar CTA, not a floating button. */}
       <div className={cn("border-t", collapsed ? "p-2" : "p-3")}>
         <Sheet>
           {collapsed ? (
@@ -490,8 +511,8 @@ export function TopBar() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => router.push("/contacts?view=inbox")}>
-            <Sparkles className="h-4 w-4" />
+          <DropdownMenuItem onClick={() => router.push("/inbox")}>
+            <Inbox className="h-4 w-4" />
             Inbox
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push("/settings")}>
