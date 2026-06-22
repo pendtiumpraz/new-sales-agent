@@ -14,6 +14,10 @@ const DEFAULTS = {
   sessionId: "rep:u_rep",
   enabled: false,
   pollMs: 3000,
+  // Discovery (LinkedIn/IG → /api/ingest). The ingest token is SEPARATE from the
+  // gateway token: use the rep's per-rep token so captured leads auto-assign.
+  ingestToken: "",
+  discoveryWorkspaceId: "",
 };
 
 async function getConfig() {
@@ -50,6 +54,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           await api(`/api/wa/gateway/inbound`, {
             method: "POST",
             body: JSON.stringify({ sessionId: cfg.sessionId, from: msg.from, body: msg.body, name: msg.name }),
+          }),
+        );
+      }
+      if (msg.type === "ingest") {
+        // Discovery: send the extracted profile to /api/ingest. Auth is the ingest
+        // token (per-rep → auto-assign), NOT the gateway token.
+        if (!cfg.ingestToken) return sendResponse({ ok: false, error: "ingest token belum di-set (Options)" });
+        const body = {
+          origin: "extension",
+          ...(cfg.discoveryWorkspaceId ? { workspaceId: cfg.discoveryWorkspaceId } : {}),
+          people: [msg.person],
+        };
+        return sendResponse(
+          await api(`/api/ingest`, {
+            method: "POST",
+            headers: { "x-ingest-token": cfg.ingestToken },
+            body: JSON.stringify(body),
           }),
         );
       }

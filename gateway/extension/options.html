@@ -35,6 +35,16 @@
     <label for="pollMs">Interval polling (ms)</label>
     <input id="pollMs" type="number" min="1500" step="500" placeholder="3000" />
 
+    <h2 style="font-size:15px;margin-top:28px;border-top:1px solid #e2e8f0;padding-top:20px">Discovery (LinkedIn / Instagram)</h2>
+    <p class="muted">Ekstrak profil di balik login → simpan jadi lead. Token ingest <b>beda</b> dari gateway token — pakai token per-rep biar lead otomatis ke-assign ke rep itu.</p>
+
+    <label for="ingestToken">Ingest token</label>
+    <input id="ingestToken" type="password" placeholder="x-ingest-token (per-rep / LINKEDIN_INGEST_TOKEN)" />
+
+    <label for="discoveryWorkspaceId">Workspace tujuan (opsional)</label>
+    <input id="discoveryWorkspaceId" placeholder="ws_… (kosong = masuk pool tenant)" />
+    <div class="hint">Lead yang disimpan ditandai ke workspace ini (1 ws = 1 produk). Kosong → pool tenant.</div>
+
     <div>
       <button id="save">Simpan</button>
       <span id="saved">Tersimpan ✓</span>

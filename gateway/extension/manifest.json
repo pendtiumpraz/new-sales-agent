@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Maira WA Bridge",
-  "version": "0.1.0",
-  "description": "Reply-only WhatsApp Web bridge for Maira Sales. Polls the app outbox and sends paced AI bubbles; forwards inbound messages to the app. Same gateway contract as the WAHA/VPS path.",
+  "name": "Maira WA + Discovery Bridge",
+  "version": "0.2.0",
+  "description": "One modular bridge for Maira Sales: reply-only WhatsApp Web gateway (paced AI bubbles) + LinkedIn/Instagram lead discovery (extract profiles behind login → /api/ingest).",
   "permissions": ["storage"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.instagram.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://*/*"
@@ -16,8 +18,13 @@
       "matches": ["https://web.whatsapp.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.linkedin.com/in/*", "https://*.instagram.com/*"],
+      "js": ["discovery.js"],
+      "run_at": "document_idle"
     }
   ],
-  "action": { "default_popup": "popup.html", "default_title": "Maira WA Bridge" },
+  "action": { "default_popup": "popup.html", "default_title": "Maira WA + Discovery Bridge" },
   "options_page": "options.html"
 }

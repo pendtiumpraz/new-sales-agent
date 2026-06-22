@@ -69,5 +69,6 @@ path is enough to demo the full loop.
   AI chatbots, and a ban hits the rep's personal number. Mitigation (enforced
   server-side): reply-only allowlist, humanized pacing (`delayMs`+typing), low
   volume, semi-auto draft→approve. Keep the number warm.
-- **One modular extension** (add content-scripts per host for LinkedIn/IG discovery
-  later) beats multiple installs — this is the WA-send/read piece of it.
+- **One modular extension** beats multiple installs — the LinkedIn/IG discovery
+  content-script ships in the same extension; see [`extension-discovery.md`](./extension-discovery.md).
+  This file covers the WA-send/read piece.
