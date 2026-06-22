@@ -8,6 +8,7 @@ import {
   Bell,
   BookOpen,
   Bot,
+  Briefcase,
   Database,
   FileText,
   Heart,
@@ -27,7 +28,6 @@ import {
   Store,
   Sparkles,
   User,
-  Users,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -80,55 +80,40 @@ interface NavItem {
   managerOnly?: boolean; // hidden from Sales Rep (member) — doc 41
   badge?: string; // small pill (e.g. "AI" on Autopilot)
 }
-// Redesign IA (docs/wireframes §3): 5 task-oriented sections following the sales
-// flow — Cari (Lead) → Jangkau → Closing → Pantau → Atur. Sub-pages (Profil,
-// Discovery, Peta) live as TABS inside their parent, and everything is also
-// reachable via the ⌘K command palette, so the sidebar stays scannable.
+// Simplified IA (closing-flow): the WORKSPACE is the primary flow — produk →
+// market-fit → discovery → script → chat, all inline in one hub. "Utama" holds
+// what a rep touches daily; everything else is grouped under "Fitur lain" so the
+// sidebar isn't a wall of 18 items. ⌘K still reaches everything.
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Beranda",
+    label: "Utama",
     items: [
       { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", desc: "Ringkasan harian: KPI, tugas, funnel" },
-    ],
-  },
-  {
-    label: "Lead",
-    items: [
-      { href: "/contacts", icon: Users, label: "Kontak & Lead", desc: "Kontak, profil, discovery & peta" },
-      { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
-      { href: "/marketplace", icon: Store, label: "Marketplace Data", desc: "Jual-beli data perusahaan antar-tenant", managerOnly: true },
-    ],
-  },
-  {
-    label: "Jangkau",
-    items: [
-      { href: "/inbox", icon: Inbox, label: "Inbox", desc: "Percakapan omni-channel (WA, email, LinkedIn, IG)" },
-      { href: "/cadences", icon: Workflow, label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
-      { href: "/autopilot", icon: Rocket, label: "Autopilot", desc: "Pipeline AI penuh — satu klik", badge: "AI" },
-      { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
-      { href: "/content", icon: Megaphone, label: "Konten", desc: "Buat & rencanakan konten" },
-    ],
-  },
-  {
-    label: "Closing",
-    items: [
-      { href: "/penawaran", icon: FileText, label: "Penawaran", desc: "Susun, kirim & lacak penawaran — AI bantu + update deal" },
-      { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
-      { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
-    ],
-  },
-  {
-    label: "Pantau",
-    items: [
-      { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead per sales", managerOnly: true },
-      { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
+      { href: "/workspaces", icon: Briefcase, label: "Workspace", desc: "Alur jualan lengkap: produk → market-fit → discovery → script → chat", badge: "Alur" },
+      { href: "/inbox", icon: Inbox, label: "Inbox", desc: "Semua percakapan omni-channel (WA, email, IG)" },
       { href: "/reports", icon: BarChart3, label: "Laporan", desc: "Performa & analitik" },
     ],
   },
   {
-    label: "Lainnya",
+    label: "Fitur lain",
     items: [
-      { href: "/documentation", icon: BookOpen, label: "Panduan", desc: "Cara pakai tiap fitur, langkah demi langkah" },
+      { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
+      { href: "/cadences", icon: Workflow, label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
+      { href: "/autopilot", icon: Rocket, label: "Autopilot", desc: "Pipeline AI penuh — satu klik", badge: "AI" },
+      { href: "/escalations", icon: Bot, label: "Eskalasi AI", desc: "Balasan AI yang perlu ditinjau manusia" },
+      { href: "/content", icon: Megaphone, label: "Konten", desc: "Buat & rencanakan konten" },
+      { href: "/penawaran", icon: FileText, label: "Penawaran", desc: "Susun, kirim & lacak penawaran" },
+      { href: "/retention", icon: Heart, label: "Retensi", desc: "Jaga & pertahankan pelanggan" },
+      { href: "/ecommerce", icon: ShoppingBag, label: "E-Commerce", desc: "Order marketplace + pemulihan keranjang" },
+      { href: "/marketplace", icon: Store, label: "Marketplace Data", desc: "Jual-beli data perusahaan antar-tenant", managerOnly: true },
+      { href: "/team", icon: Activity, label: "Monitoring Sales", desc: "Pantau tim: sales aktif, closing & lead", managerOnly: true },
+      { href: "/field", icon: MapPin, label: "Sales Lapangan", desc: "Peta tim & kunjungan lapangan" },
+    ],
+  },
+  {
+    label: "Atur",
+    items: [
+      { href: "/documentation", icon: BookOpen, label: "Panduan", desc: "Cara pakai tiap fitur" },
       { href: "/use-case", icon: Lightbulb, label: "Use Case", desc: "Skenario sales & marketing per industri" },
       { href: "/settings", icon: Settings, label: "Pengaturan", desc: "Akun, tim, mailbox, AI, billing, kepatuhan" },
     ],
