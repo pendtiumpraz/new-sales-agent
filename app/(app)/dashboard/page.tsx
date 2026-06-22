@@ -8,7 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   MessageCircle,
-  Rocket,
+  Briefcase,
   TrendingUp,
   Workflow,
 } from "lucide-react";
@@ -253,9 +253,9 @@ export default function DashboardPage() {
           </SelectContent>
         </Select>
         <Button asChild>
-          <Link href="/autopilot">
-            <Rocket className="h-4 w-4" />
-            Mulai Autopilot
+          <Link href="/workspaces">
+            <Briefcase className="h-4 w-4" />
+            Buka Workspace
           </Link>
         </Button>
       </PageHeader>

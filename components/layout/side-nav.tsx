@@ -386,23 +386,22 @@ export function TopBar() {
 
       <div className="flex-1" />
 
-      {/* Special Autopilot button — coral gradient, always prominent. The
-          headline "one-button pipeline" action lives here as well as in the
-          sidebar bottom. */}
+      {/* Primary-flow CTA — the workspace closing-flow is the headline action,
+          prominent on every page. Autopilot stays in the sidebar + ⌘K. */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Link
-            href="/autopilot"
+            href="/workspaces"
             className="group inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-[#F6845C] px-3 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md"
           >
-            <Rocket className="h-4 w-4" />
-            <span className="hidden sm:inline">Autopilot</span>
+            <Briefcase className="h-4 w-4" />
+            <span className="hidden sm:inline">Workspace</span>
             <span className="hidden rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide lg:inline">
-              Baru
+              Alur
             </span>
           </Link>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Autopilot — pipeline AI satu klik</TooltipContent>
+        <TooltipContent side="bottom">Workspace — alur jualan: produk → market-fit → discovery → chat</TooltipContent>
       </Tooltip>
 
       {/* Command palette opener (⌘K) — replaces the old search-that-routed-to-contacts */}
