@@ -264,7 +264,7 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {panelOpen ? "Sembunyikan info kontak" : "Tampilkan info kontak"}
+            {panelOpen ? "Sembunyikan panel kanan" : "Tampilkan panel kanan"}
           </TooltipContent>
         </Tooltip>
       </div>

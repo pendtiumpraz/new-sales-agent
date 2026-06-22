@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Bot,
+  Briefcase,
   Building2,
   CreditCard,
   Database,
@@ -13,6 +14,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   Mail,
+  MessageCircle,
   Radar,
   Rocket,
   Search,
@@ -81,9 +83,45 @@ const CATEGORIES: DocCategory[] = [
     ],
   },
   {
+    id: "workspace",
+    label: "Workspace (alur jualan)",
+    blurb: "Alur utama closing-flow — 1 workspace = 1 produk, berurutan dari produk sampai chat.",
+    entries: [
+      {
+        title: "Alur Workspace",
+        icon: Briefcase,
+        href: "/workspaces",
+        badge: "Alur",
+        summary: "Pusat closing-flow. Tiap workspace fokus 1 produk; langkah terkunci berurutan dari pilih produk sampai chat closing.",
+        steps: [
+          "Buat / buka workspace (1 produk per workspace).",
+          "Langkah 1–2: pilih produk → jalankan Market-Fit (AI klasifikasi B2B/B2C + ICP).",
+          "Langkah 3: Discovery — tambah lead (manual atau crawler), ter-scope ke workspace.",
+          "Langkah 4: Sales Script — atur alur, adab, teknik closing, materi per-tahap.",
+          "Langkah 5: Chat — obrolan AI value-first (harga di akhir, closing di ujung).",
+        ],
+        tip: "Setup (produk + market-fit) mengunci langkah berikutnya sampai siap — biar urut, nggak loncat-loncat.",
+        keywords: "workspace alur produk market-fit discovery script chat closing flow utama",
+      },
+      {
+        title: "Hubungkan WhatsApp",
+        icon: MessageCircle,
+        href: "/settings/extension",
+        summary: "Sambungkan nomor WA via WAHA (tiap akun scan QR sendiri) atau extension Chrome. Pesan masuk dibalas AI otomatis, paced seperti manusia.",
+        steps: [
+          "Buka Pengaturan → Extension/WhatsApp.",
+          "Klik Hubungkan WhatsApp → scan QR dari HP (1 akun = 1 QR).",
+          "Balasan AI dikirim otomatis; atur allowlist + mode semi-auto (draf → approve) bila perlu.",
+        ],
+        tip: "WAHA hosted = tanpa proses bridge; balasan dikirim langsung lewat WAHA.",
+        keywords: "whatsapp wa waha qr extension hubungkan sambung nomor inbound chat",
+      },
+    ],
+  },
+  {
     id: "akuisisi",
     label: "Akuisisi Lead",
-    blurb: "Temukan, profil, dan posisikan prospek.",
+    blurb: "Lead kini dikelola PER-WORKSPACE (funnel masuk ke alur). Temukan, profil, dan posisikan prospek.",
     entries: [
       {
         title: "Penemuan Lead (Discovery)",

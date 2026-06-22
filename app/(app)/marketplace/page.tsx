@@ -173,7 +173,7 @@ function MarketplaceInner() {
   if (browseQ.isLoading) {
     return (
       <div>
-        <PageHeader title="Marketplace Kontak" description="Jual-beli data perusahaan & orang antar-tenant. Data orang opted-out diblok (UU PDP)." />
+        <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant. Data orang tidak dijual (UU PDP)." />
         <div className="p-6"><CardGridSkeleton count={6} /></div>
       </div>
     );
@@ -182,7 +182,7 @@ function MarketplaceInner() {
   if (browseQ.data && !browseQ.data.enabled) {
     return (
       <div>
-        <PageHeader title="Marketplace Kontak" description="Jual-beli data perusahaan & orang antar-tenant (doc 41 §6)." />
+        <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant (doc 41 §6)." />
         <div className="p-6"><EmptyState icon={Store} title="Marketplace nonaktif" description="Platform mode on-prem. Superadmin bisa aktifkan mode SaaS di Superadmin Console." /></div>
       </div>
     );
@@ -254,7 +254,7 @@ function MarketplaceInner() {
 
   return (
     <div>
-      <PageHeader title="Marketplace Kontak" description="Jual-beli data perusahaan & orang antar-tenant. Data orang opted-out diblok (UU PDP)." />
+      <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant. Data orang tidak dijual (UU PDP)." />
       <div className="p-6">
         <Tabs defaultValue="jelajah">
           <TabsList>

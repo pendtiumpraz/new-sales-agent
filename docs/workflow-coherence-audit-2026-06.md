@@ -17,20 +17,20 @@ parallel reviewers across the whole app. `[x]` = fixed.
 - [x] Use-case + prospecting-panel: "real leads / get started" → `/workspaces`. 
 - [x] Profile dropdown: removed duplicate "Profil" item.
 - [x] Retention/E-Commerce: honest demo labels; Retention store reset on logout (no cross-tenant bleed). Full DB-backed per-tenant scoping still open (below).
+- [x] **Docs rewrite**: added a primary "Workspace (alur jualan)" category + "Hubungkan WhatsApp" (WAHA/extension) entry; reframed "Akuisisi Lead" blurb (leads are per-workspace). (`documentation/page.tsx`)
+- [x] **Inbox right rail**: HandoffPanel now also gated on `inboxPanelOpen`, so the header toggle hides the WHOLE rail (was leaving a 320px panel); tooltip → "panel kanan". (`handoff-panel.tsx`, `message-thread.tsx`)
+- [x] **Marketplace naming**: "Marketplace Kontak" → "Marketplace Data" across headers; copy no longer claims it sells "orang" (people aren't sold). (`marketplace/page.tsx`)
 
 ## HIGH — remaining
 - [ ] **Autopilot is still off-model (deeper).** Now demoted in nav, but it's still a LinkedIn connect→DM pipeline with zero workspace/product awareness. Optional bigger reframe: make it a WA-channel batch-runner over workspace leads, or clearly label it a separate top-of-funnel tool. (`autopilot/**`, `lib/autopilot/**`)
 - [ ] **Old singular `/workspace/[contactId]` route** (UnifiedWorkspace, contacts-centric workbench) still live. Decide: redirect → `/workspaces`, delete, or keep as a distinct per-contact workbench (then stop calling it retired). (`app/(app)/workspace/[contactId]/`)
-- [ ] **Docs describe the OLD funnel.** Headline category is "Akuisisi Lead" (Discovery→Profil→Enrichment); NO entry for the Workspace closing-flow or WhatsApp/WAHA connect. New users learn the wrong flow. **Fix:** add a primary "Workspace (alur jualan)" doc + a WhatsApp/Extension connect doc. (`documentation/page.tsx`)
 
 ## MED — remaining
-- [ ] Inbox detail shows TWO stacked 320px right panels (Handoff + Contact); the header toggle only hides ContactPanel. Gate both behind the toggle, or merge into tabs. (`inbox/[id]/page.tsx`, `handoff-panel.tsx`)
 - [ ] Inbox list rows show no readiness/outcome — surface a compact `ReadinessBadge`/dot per row. (`conversation-list.tsx`)
 - [ ] Retention + E-Commerce: real DB-backed per-tenant data source (currently demo-labeled mock; cross-tenant bleed fixed on logout). Bigger task.
 - [ ] WA connect card exposes tenant `per-sales`/`per-platform` mode; per-platform lets only a manager link ONE shared number — contradicts per-account (1 QR each). Standardize/clarify. (`wa-connect-card.tsx`, `wa/session/route.ts`)
 - [ ] Content: no workspace/product binding + hardcoded demo clock (`NOW=2026-05-25`) → stale KPIs/date floor. (`content/page.tsx`)
 - [ ] Cadence enrollment is contact-centric (`/api/db/contacts`, "Daftarkan kontak") — source from workspace leads instead. (`cadences/[id]/page.tsx`)
-- [ ] Marketplace self-contradictory naming ("Marketplace Kontak" vs "Data"; sells "orang" while logic forbids it). Pick "Marketplace Data" + fix copy. (`marketplace/page.tsx`)
 - [ ] Extension settings titled "Extension LinkedIn"; step-6 says leads land in "Kontak → Profil"; WhatsApp QR buried mid-page. Surface WA connect as its own section; fix wording. (`settings/extension/page.tsx`)
 - [ ] Pipeline: one feature, four names (nav "Riset Prospek", route `/pipeline`, subtitle "enrichment", hub tile "Pipeline"). Unify. 
 - [ ] Workspace stepper numbering inconsistent between hub `FlowStep` and `MarketFitPanel` StepDots. Use one 1→5 scheme.

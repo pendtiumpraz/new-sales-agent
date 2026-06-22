@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { getSentiment } from "@/lib/api-mock/handoff";
 import { useHandoffStore } from "@/lib/stores/handoff-store";
+import { useUiStore } from "@/lib/stores/ui-store";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import type { HandoffTrigger } from "@/lib/types/handoff";
 
@@ -51,6 +52,9 @@ const TRIGGER_META: Record<HandoffTrigger, { label: string; desc: string; icon: 
 };
 
 export function HandoffPanel({ conversationId }: { conversationId: string }) {
+  // Shares the one right-rail toggle (inboxPanelOpen) with ContactPanel, so the
+  // header button hides the WHOLE rail — not just the contact card.
+  const railOpen = useUiStore((s) => s.inboxPanelOpen);
   const sentiment = getSentiment(conversationId);
   const config = useHandoffStore((s) => s.config);
   const state = useHandoffStore((s) => s.states[conversationId]);
@@ -86,6 +90,8 @@ export function HandoffPanel({ conversationId }: { conversationId: string }) {
     releaseHandoff(conversationId);
     toast.success("Percakapan dikembalikan ke AI.");
   }
+
+  if (!railOpen) return null;
 
   return (
     <aside className="scrollbar-thin hidden w-80 shrink-0 overflow-y-auto border-l bg-card xl:block">
