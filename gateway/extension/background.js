@@ -57,6 +57,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }),
         );
       }
+      if (msg.type === "classify") {
+        // Discovery AI: metered classify server-side (DeepSeek as provider), key
+        // stays server-only. Grounded in the configured workspace's product.
+        if (!cfg.ingestToken) return sendResponse({ ok: false, error: "ingest token belum di-set (Options)" });
+        const body = { profile: msg.profile, ...(cfg.discoveryWorkspaceId ? { workspaceId: cfg.discoveryWorkspaceId } : {}) };
+        return sendResponse(
+          await api(`/api/discovery/classify`, {
+            method: "POST",
+            headers: { "x-ingest-token": cfg.ingestToken },
+            body: JSON.stringify(body),
+          }),
+        );
+      }
       if (msg.type === "ingest") {
         // Discovery: send the extracted profile to /api/ingest. Auth is the ingest
         // token (per-rep → auto-assign), NOT the gateway token.

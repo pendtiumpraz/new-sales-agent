@@ -15,17 +15,37 @@ behind login*, per `progress.md` §2C.)
 
 ```
 rep opens a profile (linkedin.com/in/… or instagram.com/<user>)
-   → discovery.js shows a floating "➕ Simpan ke Maira" button
-   → click → extract DOM → background → POST /api/ingest
+   → discovery.js shows a floating widget: [🔍 Analisa] [➕ Simpan]
+   → 🔍 Analisa → extract DOM → POST /api/discovery/classify (metered DeepSeek)
+        → shows "🤖 B2B partner · 72% · <reason>"
+   → ➕ Simpan → (classify if not yet) → POST /api/ingest with the AI read attached
         headers: x-ingest-token (per-rep → auto-assign to that rep)
-        body: { origin:"extension", workspaceId?, people:[{…}] }
+        body: { origin:"extension", workspaceId?, people:[{…, leadType, leadScore, leadReason}] }
    → lead upserted (idempotent dedup), tagged to the workspace, owned by the rep
 ```
 
 `/api/ingest` is idempotent (per-tenant dedup keys), tags the whole batch to the
 configured `workspaceId` (1 ws = 1 produk), and — when the **per-rep** ingest token
-is used — auto-assigns each lead to that rep. If the extension doesn't classify
-(`leadType`), the server fills the gap with its fallback classifier + salutation.
+is used — auto-assigns each lead to that rep. Because the extension now sends the
+classification, the server skips its fallback classifier (no redundant AI spend);
+it still sets the rule-based salutation.
+
+## AI classification (in-extension, metered)
+
+`🔍 Analisa` runs the **same** B2B/B2C classifier the server uses (`classifyLead`)
+via `POST /api/discovery/classify`. Key design choice: the model call runs
+**server-side, metered** (`meteredGenerateText` → tenant credit enforced, DeepSeek
+as provider, key never leaves the server), and the scraped profile text is
+**untrusted-wrapped** so an injected instruction in a title/bio can't hijack the
+call. The extension only does the extraction (which truly must be client-side —
+the server can't log into LinkedIn); the judgment is metered like every other AI
+call in the app. It grounds the decision in the configured workspace's **product**
+(B2B-vs-B2C is relative to what you sell). Pure-mock falls back to a deterministic
+heuristic (free, demoable).
+
+> Rejected alternative: calling DeepSeek directly from the extension with a
+> client-side key. That bypasses the C1–C6 cost controls and exposes the key, so
+> it's a non-starter given the token-budget constraints.
 
 ## What it extracts (best-effort)
 

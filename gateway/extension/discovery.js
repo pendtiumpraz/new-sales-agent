@@ -82,27 +82,105 @@ function sendBg(type, extra) {
 }
 
 /* ----------------------------- floating widget ---------------------------- */
-let widget, btn, statusEl;
+let widget, analyzeBtn, saveBtn, statusEl, analysisEl;
+let lastAnalysis = null; // { url, leadType, leadScore, leadReason, profileConfidence }
+
 function setStatus(msg, kind) {
   if (!statusEl) return;
   statusEl.textContent = msg || "";
   statusEl.style.color = kind === "ok" ? "#bbf7d0" : kind === "err" ? "#fecaca" : kind === "warn" ? "#fde68a" : "#e0e7ff";
 }
 
+const fmtType = (t) => (t === "b2b_partner" ? "B2B partner" : t === "b2c_customer" ? "B2C customer" : "Belum jelas");
+
+// Build with textContent (NOT innerHTML) — the reason is model output over scraped
+// (untrusted) text, so never inject it as HTML.
+function renderAnalysis(a) {
+  if (!analysisEl) return;
+  analysisEl.textContent = "";
+  analysisEl.style.display = "block";
+  const pct = Math.round((a.leadScore ?? 0) * 100);
+  const head = document.createElement("div");
+  head.style.cssText = "font-weight:700;margin-bottom:2px;";
+  head.textContent = `🤖 ${fmtType(a.leadType)} · ${pct}%`;
+  const reason = document.createElement("div");
+  reason.style.cssText = "opacity:.9;";
+  reason.textContent = a.leadReason || "";
+  analysisEl.append(head, reason);
+}
+
+function mkBtn(label, primary) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.style.cssText =
+    "cursor:pointer;border-radius:999px;padding:9px 14px;font-weight:600;font-size:13px;" +
+    (primary
+      ? "border:0;color:#fff;background:linear-gradient(90deg,#3b82f6,#6366f1);box-shadow:0 6px 18px -6px rgba(59,130,246,.7);"
+      : "border:1px solid rgba(255,255,255,.5);color:#fff;background:rgba(15,23,42,.85);");
+  return b;
+}
+
 function mountWidget() {
   if (widget) return;
   widget = document.createElement("div");
   widget.style.cssText =
-    "position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;flex-direction:column;gap:6px;align-items:flex-end;font:13px/1.3 system-ui,sans-serif;";
-  btn = document.createElement("button");
-  btn.textContent = "➕ Simpan ke Maira";
-  btn.style.cssText =
-    "cursor:pointer;border:0;border-radius:999px;padding:10px 16px;font-weight:600;color:#fff;background:linear-gradient(90deg,#3b82f6,#6366f1);box-shadow:0 6px 18px -6px rgba(59,130,246,.7);";
+    "position:fixed;right:18px;bottom:18px;z-index:2147483647;display:flex;flex-direction:column;gap:6px;align-items:flex-end;font:13px/1.35 system-ui,sans-serif;";
+  analysisEl = document.createElement("div");
+  analysisEl.style.cssText =
+    "display:none;max-width:240px;background:rgba(15,23,42,.92);color:#fff;padding:8px 11px;border-radius:12px;box-shadow:0 8px 22px -8px rgba(0,0,0,.5);";
   statusEl = document.createElement("div");
-  statusEl.style.cssText = "max-width:220px;text-align:right;text-shadow:0 1px 2px rgba(0,0,0,.4);";
-  btn.addEventListener("click", onSave);
-  widget.append(statusEl, btn);
+  statusEl.style.cssText = "max-width:240px;text-align:right;text-shadow:0 1px 2px rgba(0,0,0,.45);";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:6px;";
+  analyzeBtn = mkBtn("🔍 Analisa", false);
+  saveBtn = mkBtn("➕ Simpan", true);
+  analyzeBtn.addEventListener("click", onAnalyze);
+  saveBtn.addEventListener("click", onSave);
+  row.append(analyzeBtn, saveBtn);
+  widget.append(analysisEl, statusEl, row);
   document.body.appendChild(widget);
+}
+
+// Metered DeepSeek classify on the server (key-safe). Returns the ingest-shaped
+// fields or null on failure.
+async function classifyPerson(person) {
+  const res = await sendBg("classify", {
+    profile: {
+      fullName: person.fullName,
+      title: person.title,
+      company: person.companyName,
+      location: person.location,
+      about: person.about,
+    },
+  });
+  if (res?.ok && res.json?.ok) {
+    return {
+      leadType: res.json.leadType,
+      leadScore: res.json.leadScore,
+      leadReason: res.json.leadReason,
+      profileConfidence: res.json.profileConfidence,
+    };
+  }
+  return null;
+}
+
+async function onAnalyze() {
+  const person = E?.extract();
+  if (!person || !person.fullName) {
+    setStatus("Buka halaman profil dulu", "warn");
+    return;
+  }
+  analyzeBtn.disabled = true;
+  setStatus("Menganalisa (DeepSeek)…");
+  const a = await classifyPerson(person);
+  analyzeBtn.disabled = false;
+  if (a) {
+    lastAnalysis = { url: location.href, ...a };
+    renderAnalysis(a);
+    setStatus("");
+  } else {
+    setStatus("Analisa gagal — cek token/credit di Options", "err");
+  }
 }
 
 async function onSave() {
@@ -111,13 +189,27 @@ async function onSave() {
     setStatus("Buka halaman profil dulu", "warn");
     return;
   }
-  btn.disabled = true;
+  saveBtn.disabled = true;
+  // Reuse a fresh analysis for this exact profile; otherwise classify first so the
+  // saved lead carries the AI read (and the server skips its fallback classify).
+  let a = lastAnalysis && lastAnalysis.url === location.href ? lastAnalysis : null;
+  if (!a) {
+    setStatus("Menganalisa…");
+    a = await classifyPerson(person);
+    if (a) {
+      lastAnalysis = { url: location.href, ...a };
+      renderAnalysis(a);
+    }
+  }
   setStatus("Menyimpan…");
-  const res = await sendBg("ingest", { person });
-  btn.disabled = false;
+  const merged = a
+    ? { ...person, leadType: a.leadType, leadScore: a.leadScore, leadReason: a.leadReason, profileConfidence: a.profileConfidence }
+    : person;
+  const res = await sendBg("ingest", { person: merged });
+  saveBtn.disabled = false;
   if (res?.ok && res.json?.ok) {
-    const enriched = res.json.existingEnriched?.length ? " (sudah ada, di-update)" : "";
-    setStatus(`Tersimpan ✓${enriched}`, "ok");
+    const enriched = res.json.existingEnriched?.length ? " · sudah ada (di-update)" : "";
+    setStatus(`Tersimpan ✓${a ? " · " + fmtType(a.leadType) : ""}${enriched}`, "ok");
   } else {
     setStatus(`Gagal: ${res?.json?.error || res?.error || res?.status || "cek token & workspace di Options"}`, "err");
   }
@@ -133,6 +225,8 @@ function tick() {
   if (location.pathname !== lastPath) {
     lastPath = location.pathname;
     setStatus("");
+    lastAnalysis = null;
+    if (analysisEl) analysisEl.style.display = "none";
   }
 }
 if (platform) {
