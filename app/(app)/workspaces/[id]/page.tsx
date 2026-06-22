@@ -8,13 +8,17 @@ import { toast } from "sonner";
 import {
   Archive,
   ArrowLeft,
+  ArrowRight,
   Briefcase,
+  Check,
   Handshake,
-  Inbox,
+  Lock,
   Mail,
   Package,
   Radar,
   RefreshCw,
+  Send,
+  Sparkles,
   Target,
   TrendingUp,
   UserCircle2,
@@ -29,6 +33,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MarketFitPanel } from "@/components/workspaces/market-fit-panel";
 import { SalesPlayPanel } from "@/components/workspaces/sales-play-panel";
+import { cn } from "@/lib/utils";
 import type { WorkspaceType } from "@/lib/workspace/store";
 
 interface LeadRow {
@@ -98,18 +103,7 @@ export default function WorkspaceHubPage() {
   const [mfReady, setMfReady] = useState(false);
   const setupDone = !!ws?.productId && mfReady;
 
-  // Scoped-flow quick links — carry the workspace id as ?workspace=<id>. The
-  // target pages (discovery, profiles, cadences, inbox, pipeline) DO read this
-  // param via useSearchParams and filter their data to this workspace.
-  const flowLinks = ws
-    ? [
-        { href: `/contacts/discovery?workspace=${id}`, icon: Radar, label: "Discovery", desc: "Cari & crawl prospek baru" },
-        { href: `/contacts/profiles?workspace=${id}`, icon: Users, label: "Profil", desc: "Kelola lead & kontak" },
-        { href: `/cadences?workspace=${id}`, icon: Mail, label: "Cadence", desc: "Urutan outreach multi-channel" },
-        { href: `/inbox?workspace=${id}`, icon: Inbox, label: "Inbox", desc: "Balasan omni-channel workspace ini" },
-        { href: `/pipeline?workspace=${id}`, icon: TrendingUp, label: "Pipeline", desc: "Deal & tahap closing" },
-      ]
-    : [];
+  const leadCount = ws?.leads.length ?? 0;
 
   if (q.isError) {
     return (
@@ -202,90 +196,155 @@ export default function WorkspaceHubPage() {
             <MarketFitPanel workspaceId={id} productId={ws.productId} onSetupChange={setMfReady} />
 
             {/* Sales Play editor — alur & adab obrolan */}
-            <SalesPlayPanel workspaceId={id} />
-
             {setupDone ? (
               <>
-            {/* Scoped flow quick links */}
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Alur sales</p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {flowLinks.map((l) => {
-                  const Icon = l.icon;
-                  return (
-                    <Link key={l.href} href={l.href} className="group block">
-                      <Card className="h-full transition hover:border-primary/40 hover:shadow-md">
-                        <CardContent className="flex flex-col gap-2 p-4">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Icon className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="font-medium">{l.label}</p>
-                            <p className="text-[11px] text-muted-foreground">{l.desc}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Leads scoped to this workspace */}
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Lead di workspace ini ({ws.leads.length})
-              </p>
-              {ws.leads.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title="Belum ada lead"
-                  description="Lead yang di-assign ke workspace ini akan muncul di sini. Mulai dari Discovery untuk menambah prospek."
-                  action={
-                    <Button asChild>
-                      <Link href={`/contacts/discovery?workspace=${id}`}>
-                        <Radar className="h-4 w-4" /> Mulai Discovery
-                      </Link>
-                    </Button>
-                  }
+                {/* Langkah 3 — Discovery */}
+                <FlowStep
+                  n={3}
+                  icon={Radar}
+                  title="Discovery — cari kontak"
+                  desc={`${leadCount} lead di workspace ini. Cari prospek baru sesuai market-fit.`}
+                  status={leadCount > 0 ? "done" : "active"}
+                  href={`/contacts/discovery?workspace=${id}`}
+                  cta="Cari kontak"
                 />
-              ) : (
-                <Card>
-                  <CardContent className="divide-y p-0">
-                    {ws.leads.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{p.fullName}</p>
-                          {(p.title || p.companyName) && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {[p.title, p.companyName].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                        </div>
-                        {p.leadType && (
-                          <Badge variant="muted" className="shrink-0 bg-muted text-muted-foreground">
-                            {p.leadType === "b2c_customer" ? "B2C" : p.leadType === "b2b_partner" ? "B2B" : p.leadType}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+
+                {/* Langkah 4 — Sales Script */}
+                <div className="space-y-1.5">
+                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Langkah 4 — Sales Script (alur · adab · teknik · materi)
+                  </p>
+                  <SalesPlayPanel workspaceId={id} />
+                </div>
+
+                {/* Langkah 5 — Eksekusi */}
+                <FlowStep
+                  n={5}
+                  icon={Send}
+                  title="Eksekusi — kirim & pantau"
+                  desc={leadCount > 0 ? "Buka Inbox workspace ini buat balas + pantau closing." : "Tambah lead dulu (langkah 3) sebelum eksekusi."}
+                  status={leadCount > 0 ? "active" : "locked"}
+                  href={leadCount > 0 ? `/inbox?workspace=${id}` : undefined}
+                  cta="Buka Inbox"
+                />
+
+                {/* Lead di workspace ini */}
+                {leadCount > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Lead di workspace ini ({leadCount})
+                    </p>
+                    <Card>
+                      <CardContent className="divide-y p-0">
+                        {ws.leads.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{p.fullName}</p>
+                              {(p.title || p.companyName) && (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {[p.title, p.companyName].filter(Boolean).join(" · ")}
+                                </p>
+                              )}
+                            </div>
+                            {p.leadType && (
+                              <Badge variant="muted" className="shrink-0 bg-muted text-muted-foreground">
+                                {p.leadType === "b2c_customer" ? "B2C" : p.leadType === "b2b_partner" ? "B2B" : p.leadType}
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Lainnya — sekunder (di luar urutan utama) */}
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lainnya</p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      { href: `/contacts/profiles?workspace=${id}`, icon: Users, label: "Profil" },
+                      { href: `/cadences?workspace=${id}`, icon: Mail, label: "Cadence" },
+                      { href: `/pipeline?workspace=${id}`, icon: TrendingUp, label: "Pipeline" },
+                    ].map((l) => {
+                      const Icon = l.icon;
+                      return (
+                        <Link key={l.href} href={l.href} className="group block">
+                          <Card className="h-full transition hover:border-primary/40 hover:shadow-md">
+                            <CardContent className="flex items-center gap-2 p-3 text-sm">
+                              <Icon className="h-4 w-4 text-muted-foreground" /> {l.label}
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </>
             ) : (
-              <Card className="border-dashed border-primary/40">
-                <CardContent className="p-4 text-sm text-muted-foreground">
-                  Selesaikan <span className="font-medium text-foreground">setup</span> dulu —
-                  pilih produk lalu jalankan <span className="font-medium text-foreground">Market-Fit</span> di
-                  panel atas. Alur sales &amp; daftar lead kebuka setelah itu.
-                </CardContent>
-              </Card>
+              <>
+                {/* Langkah 3–5 ke-lock sampai setup (1–2) selesai */}
+                <FlowStep n={3} icon={Radar} title="Discovery — cari kontak" desc="Kebuka setelah setup (langkah 1–2) selesai." status="locked" />
+                <FlowStep n={4} icon={Sparkles} title="Sales Script" desc="Kebuka setelah setup." status="locked" />
+                <FlowStep n={5} icon={Send} title="Eksekusi — kirim & pantau" desc="Kebuka setelah ada lead." status="locked" />
+              </>
             )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/* Numbered, gated flow step — keeps the workspace pipeline in order (1→5). */
+function FlowStep({
+  n,
+  icon: Icon,
+  title,
+  desc,
+  status,
+  href,
+  cta,
+}: {
+  n: number;
+  icon: typeof Radar;
+  title: string;
+  desc: string;
+  status: "done" | "active" | "locked";
+  href?: string;
+  cta?: string;
+}) {
+  const done = status === "done";
+  const locked = status === "locked";
+  return (
+    <Card className={cn("transition", locked && "opacity-60")}>
+      <CardContent className="flex items-center gap-3 p-4">
+        <span
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+            done
+              ? "bg-primary text-primary-foreground"
+              : status === "active"
+                ? "bg-primary/15 text-primary ring-2 ring-primary/30"
+                : "bg-muted text-muted-foreground",
+          )}
+        >
+          {done ? <Check className="h-4 w-4" /> : locked ? <Lock className="h-3.5 w-3.5" /> : n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            <Icon className="h-4 w-4 text-primary" /> {title}
+          </p>
+          <p className="text-xs text-muted-foreground">{desc}</p>
+        </div>
+        {!locked && href && cta && (
+          <Button asChild size="sm" variant={status === "active" ? "default" : "outline"}>
+            <Link href={href}>
+              {cta} <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
