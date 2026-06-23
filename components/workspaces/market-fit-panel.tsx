@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, Package, Radar, Sparkles } from "lucide-react";
+import { Briefcase, CheckCircle2, Copy, Globe, Hash, Loader2, Package, Radar, Search, ShoppingBag, Sparkles, type LucideIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,16 @@ const MARKET_CLS: Record<string, string> = {
   B2C: "bg-emerald-100 text-emerald-700",
   mix: "bg-violet-100 text-violet-700",
 };
+
+// Channel → icon for the discovery playbook (safe generic icons).
+function channelIcon(channel: string): LucideIcon {
+  const c = channel.toLowerCase();
+  if (c.includes("linkedin")) return Briefcase;
+  if (c.includes("google")) return Search;
+  if (c.includes("shopee") || c.includes("tokopedia") || c.includes("toko")) return ShoppingBag;
+  if (c.includes("instagram") || c.includes("tiktok") || c.includes("sosmed")) return Hash;
+  return Globe;
+}
 
 export function MarketFitPanel({
   workspaceId,
@@ -246,7 +256,8 @@ export function MarketFitPanel({
           </div>
 
           {result && (
-            <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+            <div className="space-y-3 rounded-lg border bg-card p-3 shadow-sm">
+              {/* Headline */}
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className={MARKET_CLS[result.marketType] ?? MARKET_CLS.mix}>
                   {result.marketType}
@@ -258,33 +269,25 @@ export function MarketFitPanel({
               </div>
               <p className="text-xs text-muted-foreground">{result.rationale}</p>
 
-              <div className="text-xs">
-                <p className="font-medium">ICP</p>
-                <p className="text-muted-foreground">
-                  {[
-                    result.icp.ukuran,
-                    result.icp.jabatanPIC.length ? result.icp.jabatanPIC.join(", ") : "",
-                    result.icp.demografi,
-                    result.icp.industri.length ? result.icp.industri.join(", ") : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
-                </p>
+              {/* ICP — labeled rows (lebih kebaca dari satu baris padat) */}
+              <div className="space-y-1 rounded-lg bg-muted/40 p-2.5 text-xs">
+                <p className="font-semibold">ICP — target ideal</p>
+                <IcpRow label="Ukuran" value={result.icp.ukuran} />
+                {result.icp.industri.length > 0 && <IcpRow label="Industri" value={result.icp.industri.join(", ")} />}
+                {result.icp.jabatanPIC.length > 0 && <IcpRow label="Jabatan PIC" value={result.icp.jabatanPIC.join(", ")} />}
+                {result.icp.demografi && <IcpRow label="Demografi" value={result.icp.demografi} />}
+                {result.icp.minat.length > 0 && <IcpRow label="Minat" value={result.icp.minat.join(", ")} />}
               </div>
 
+              {/* Fit per segmen */}
               {result.segmentFit.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium">Fit per segmen</p>
+                <div className="space-y-1.5 text-xs">
+                  <p className="font-semibold">Fit per segmen</p>
                   {result.segmentFit.map((s) => (
-                    <div key={s.label} className="flex items-center gap-2 text-xs">
-                      <span className="w-24 shrink-0 truncate" title={s.reason}>
-                        {s.label}
-                      </span>
+                    <div key={s.label} className="flex items-center gap-2">
+                      <span className="w-24 shrink-0 truncate" title={s.reason}>{s.label}</span>
                       <div className="h-1.5 flex-1 rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${Math.max(0, Math.min(100, s.score))}%` }}
-                        />
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, s.score))}%` }} />
                       </div>
                       <span className="w-8 shrink-0 text-right tabular-nums">{s.score}</span>
                     </div>
@@ -292,17 +295,58 @@ export function MarketFitPanel({
                 </div>
               )}
 
+              {/* Playbook discovery — cari di mana & apa → crawl email/HP */}
+              {(result.discoveryPlaybook?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold">
+                    <Radar className="h-3.5 w-3.5 text-primary" /> Playbook discovery — cari di mana & apa
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Klik kueri buat salin → cari di channel-nya → crawl email/HP-nya.
+                  </p>
+                  <div className="grid gap-2">
+                    {result.discoveryPlaybook!.map((ch) => {
+                      const Icon = channelIcon(ch.channel);
+                      return (
+                        <div key={ch.channel} className="rounded-lg border bg-muted/30 p-2.5">
+                          <p className="flex items-center gap-1.5 text-xs font-medium">
+                            <Icon className="h-3.5 w-3.5 text-primary" /> {ch.channel}
+                          </p>
+                          {ch.jabatan && ch.jabatan.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Jabatan</span>
+                              {ch.jabatan.map((j) => (
+                                <span key={j} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{j}</span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {ch.kueri.map((q) => (
+                              <button
+                                key={q}
+                                onClick={() => { navigator.clipboard.writeText(q); toast.success("Disalin"); }}
+                                title="Klik untuk salin"
+                                className="inline-flex items-center gap-1 rounded border bg-card px-1.5 py-0.5 text-[10px] text-foreground/80 transition-colors hover:bg-accent"
+                              >
+                                <Copy className="h-2.5 w-2.5 opacity-50" /> {q}
+                              </button>
+                            ))}
+                          </div>
+                          {ch.petunjuk && <p className="mt-1.5 text-[10px] text-muted-foreground">💡 {ch.petunjuk}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Teknik closing yang cocok */}
               {allowed.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium">
-                    Teknik closing yang cocok ({allowed.length})
-                  </p>
+                  <p className="text-xs font-semibold">Teknik closing yang cocok ({allowed.length})</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {allowed.map((t) => (
-                      <span
-                        key={t.id}
-                        className="rounded-full border bg-card px-2 py-0.5 text-[10px] text-muted-foreground"
-                      >
+                      <span key={t.id} className="rounded-full border bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
                         {t.nama}
                       </span>
                     ))}
@@ -327,6 +371,15 @@ export function MarketFitPanel({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function IcpRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
+      <span className="flex-1 text-foreground/90">{value}</span>
+    </div>
   );
 }
 

@@ -24,12 +24,27 @@ export interface MarketFitIcp {
   minat: string[];
 }
 
+/** Per-channel discovery guidance — what to search WHERE to find leads + their
+ *  email/HP, derived from the market-fit. Feeds the crawler (server + extension). */
+export interface MarketFitChannelPlay {
+  /** "LinkedIn" | "Google" | "Instagram" | "TikTok" | "Shopee / Tokopedia" | … */
+  channel: string;
+  /** What to search on this channel (queries / keywords). */
+  kueri: string[];
+  /** Job titles to target — mainly LinkedIn / B2B. */
+  jabatan?: string[];
+  /** 1-line tip incl. the contact data you can expect here (email / HP). */
+  petunjuk?: string;
+}
+
 export interface MarketFitResult {
   marketType: "B2B" | "B2C" | "mix";
   /** Classification confidence 0–100. */
   confidence: number;
   icp: MarketFitIcp;
   segmentFit: MarketFitSegmentScore[];
+  /** Where + what to search to find these leads (and their email/HP). */
+  discoveryPlaybook?: MarketFitChannelPlay[];
   rationale: string;
   source: "ai" | "heuristic";
 }
