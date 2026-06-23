@@ -1,50 +1,9 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-
-import { UnifiedWorkspace } from "@/components/workspace/unified-workspace";
-import { Skeleton } from "@/components/ui/skeleton";
-
-/**
- * Wave 3 — Unified workspace at /workspace/[contactId]. Optional `?cv=cv_XXXX`
- * query param can deep-link to a specific conversation for that contact
- * (used by the "Buka di workspace" button on the inbox header).
- */
-export default function WorkspaceContactPage({
-  params,
-}: {
-  params: { contactId: string };
-}) {
-  // useSearchParams requires a Suspense boundary (Next 14 static prerender).
-  return (
-    <Suspense
-      fallback={
-        <div className="grid h-[calc(100vh-3.5rem)] grid-cols-1 gap-3 p-4 md:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_360px]">
-          <Skeleton className="h-full" />
-          <Skeleton className="h-full" />
-          <Skeleton className="hidden h-full xl:block" />
-        </div>
-      }
-    >
-      <WorkspacePageInner contactId={params.contactId} />
-    </Suspense>
-  );
-}
-
-function WorkspacePageInner({ contactId }: { contactId: string }) {
-  const search = useSearchParams();
-  const initialConversationId = search.get("cv") ?? undefined;
-
-  // The `key` forces a fresh mount when the contact in the URL changes,
-  // which short-circuits any stale memoization that could otherwise leak
-  // between previous and next contact (and contributed to React #185 in
-  // some browsers when navigating between workspaces).
-  return (
-    <UnifiedWorkspace
-      key={contactId}
-      contactId={contactId}
-      initialConversationId={initialConversationId}
-    />
-  );
+// RETIRED. The per-contact unified workbench (/workspace/[contactId], doc wave-3)
+// is replaced by the workspace closing-flow at /workspaces (doc 44). Any old
+// deep-link now lands on the workspace list. The `[contactId]` segment is kept so
+// existing URLs resolve to this redirect instead of 404-ing.
+export default function LegacyWorkspaceRedirect() {
+  redirect("/workspaces");
 }

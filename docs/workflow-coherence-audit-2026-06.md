@@ -23,10 +23,11 @@ parallel reviewers across the whole app. `[x]` = fixed.
 - [x] **Inbox list readiness**: compact `ReadinessDot` (band color) per row, same engine as the thread badge. (`readiness-dot.tsx`, `conversation-list.tsx`)
 - [x] **Login brand**: wordmark "Agentic Sales" → "Maira Sales"; dead "Lupa sandi?" `href="#"` → button with a "hubungi superadmin" toast. (`login/page.tsx`)
 - [x] **Extension settings wording**: title → "Extension Maira — WhatsApp & Discovery"; step-6 lead destination → workspace (was "Kontak → Profil"). (`settings/extension/page.tsx`)
+- [x] **Old `/workspace/[contactId]` route** now redirects to `/workspaces`. The `UnifiedWorkspace` cluster is fully orphaned (0 importers) — safe to delete in a later cleanup. (`workspace/[contactId]/page.tsx`)
 
 ## HIGH — remaining
 - [ ] **Autopilot is still off-model (deeper).** Now demoted in nav, but it's still a LinkedIn connect→DM pipeline with zero workspace/product awareness. Optional bigger reframe: make it a WA-channel batch-runner over workspace leads, or clearly label it a separate top-of-funnel tool. (`autopilot/**`, `lib/autopilot/**`)
-- [ ] **Old singular `/workspace/[contactId]` route** (UnifiedWorkspace, contacts-centric workbench) still live. Decide: redirect → `/workspaces`, delete, or keep as a distinct per-contact workbench (then stop calling it retired). (`app/(app)/workspace/[contactId]/`)
+- [ ] **Cleanup:** delete the orphaned `components/workspace/unified-workspace.tsx` cluster + `workspace/[contactId]/error.tsx` (now only a redirect lives there).
 
 ## MED — remaining
 - [ ] Retention + E-Commerce: real DB-backed per-tenant data source (currently demo-labeled mock; cross-tenant bleed fixed on logout). Bigger task.
