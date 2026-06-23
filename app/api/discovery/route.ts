@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { hasDb } from "@/lib/db/client";
@@ -11,6 +11,10 @@ import { crawlWebsite } from "@/lib/crawl/web";
 import { hunterConfigured, hunterDomainSearch } from "@/lib/crawl/hunter";
 import { planDiscovery } from "@/lib/discovery/plan";
 import { recordAudit } from "@/lib/compliance/audit";
+import { classifyLead } from "@/lib/engagement/classify";
+import { salutationFor } from "@/lib/profiling/salutation";
+import { generatePositioning, storePositioning } from "@/lib/positioning/engine";
+import type { Company, Product } from "@/lib/types/profiling";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,6 +31,8 @@ const Body = z.object({
   url: z.string().optional(),
   industry: z.string().optional(),
   posture: z.enum(["compliant", "balanced", "aggressive"]).default("compliant"),
+  // Opt-in: also generate + persist the AI analysis (lead classify + positioning).
+  analyze: z.boolean().optional(),
 });
 
 interface CrawlOutcome {
@@ -38,11 +44,13 @@ interface CrawlOutcome {
   phones: number;
   socials: number;
   pagesTried: number;
+  analyzedPeople: number;
+  positioned: boolean;
 }
 
 // Crawl one website + persist the company, its contact points, and (if Hunter is
 // configured) its people. Returns a summary. Shared by the url + industry/auto paths.
-async function crawlAndPersist(ctx: TenantContext, url: string, posture: string, workspaceId: string | null = null): Promise<CrawlOutcome> {
+async function crawlAndPersist(ctx: TenantContext, url: string, posture: string, workspaceId: string | null = null, analyze = false): Promise<CrawlOutcome> {
   const crawl = await crawlWebsite(url);
   const coName = crawl.name || crawl.domain || url;
   const coId = stableId("co", companyDedupKey({ tenantId: ctx.tenantId, name: coName, domain: crawl.domain }));
@@ -101,6 +109,7 @@ async function crawlAndPersist(ctx: TenantContext, url: string, posture: string,
 
   // Real PEOPLE per company via Hunter.io, if configured.
   let peopleCreated = 0;
+  const createdPeople: { id: string; fullName: string; title: string | null }[] = [];
   if (hunterConfigured() && crawl.domain) {
     try {
       const h = await hunterDomainSearch(crawl.domain);
@@ -108,6 +117,7 @@ async function crawlAndPersist(ctx: TenantContext, url: string, posture: string,
         for (const p of h.people) {
           const fullName = [p.firstName, p.lastName].filter(Boolean).join(" ").trim() || p.email;
           const personId = stableId("pe", personDedupKey({ tenantId: ctx.tenantId, companyId: coId, fullName }));
+          createdPeople.push({ id: personId, fullName, title: p.position ?? null });
           await tx
             .insert(personTable)
             .values({
@@ -160,6 +170,49 @@ async function crawlAndPersist(ctx: TenantContext, url: string, posture: string,
     }
   }
 
+  // Opt-in AI ANALYSIS, persisted to DB (doc 21/22/40): classify the Hunter people
+  // (→ personTable.leadType/leadScore/leadReason + salutation) and generate the
+  // company positioning (→ positioningInsightTable). Capped to stay within
+  // maxDuration; runs only when the caller asked for it (metered AI).
+  let analyzedPeople = 0;
+  let positioned = false;
+  if (analyze) {
+    const ANALYZE_CAP = 12;
+    if (createdPeople.length > ANALYZE_CAP) {
+      console.warn(`[discovery analyze] ${createdPeople.length} orang ditemukan — classify ${ANALYZE_CAP} pertama (sisanya bisa di-analisis manual).`);
+    }
+    for (const person of createdPeople.slice(0, ANALYZE_CAP)) {
+      try {
+        const cls = await classifyLead(ctx, { fullName: person.fullName, title: person.title, company: coName });
+        const sal = salutationFor(person.fullName);
+        await withTenant(ctx, (tx) =>
+          tx
+            .update(personTable)
+            .set({ leadType: cls.leadType, leadReason: cls.reason, leadScore: cls.score, gender: sal.gender, honorific: sal.honorific, updatedAt: new Date() })
+            .where(and(eq(personTable.id, person.id), eq(personTable.tenantId, ctx.tenantId))),
+        );
+        analyzedPeople++;
+      } catch (e) {
+        console.error("[discovery analyze person]", person.id, e);
+      }
+    }
+    // Company positioning vs the tenant's product (first product as default).
+    try {
+      const { company, product } = await withTenant(ctx, async (tx) => {
+        const co = await tx.select().from(companyTable).where(eq(companyTable.id, coId)).limit(1);
+        const prod = await tx.select().from(productTable).limit(1);
+        return { company: co[0] ?? null, product: prod[0] ?? null };
+      });
+      if (company && product) {
+        const gen = await generatePositioning(ctx, company as unknown as Company, product as unknown as Product);
+        await storePositioning(ctx, company.id, product.id, gen);
+        positioned = true;
+      }
+    } catch (e) {
+      console.error("[discovery analyze positioning]", e);
+    }
+  }
+
   return {
     name: coName,
     domain: crawl.domain,
@@ -169,6 +222,8 @@ async function crawlAndPersist(ctx: TenantContext, url: string, posture: string,
     phones: crawl.phones.length,
     socials: Object.keys(socialsMap).length,
     pagesTried: crawl.pagesTried.length,
+    analyzedPeople,
+    positioned,
   };
 }
 
@@ -209,7 +264,7 @@ export async function POST(req: Request) {
     let peopleCreated = 0;
     let status = "pending";
     const error: string | null = null;
-    const input: Record<string, unknown> = { kind: b.kind };
+    const input: Record<string, unknown> = { kind: b.kind, analyze: !!b.analyze };
     let result: Record<string, unknown> | null = null;
 
     if (b.kind === "bulk") {
@@ -235,12 +290,12 @@ export async function POST(req: Request) {
       result = { created, note: `${created} perusahaan dibuat sebagai shell — crawl URL-nya untuk dapat kontak.` };
     } else if (b.kind === "url" && b.url) {
       input.url = b.url;
-      const r = await crawlAndPersist(ctx, b.url, b.posture, b.workspaceId ?? null);
+      const r = await crawlAndPersist(ctx, b.url, b.posture, b.workspaceId ?? null, b.analyze ?? false);
       created = 1;
       contactsCreated = r.contactsCreated;
       peopleCreated = r.peopleCreated;
       status = "done";
-      result = { created, contactsCreated, peopleCreated, name: r.name, domain: r.domain, emails: r.emails, phones: r.phones, socials: r.socials, pagesTried: r.pagesTried, hunter: hunterConfigured() };
+      result = { created, contactsCreated, peopleCreated, name: r.name, domain: r.domain, emails: r.emails, phones: r.phones, socials: r.socials, pagesTried: r.pagesTried, hunter: hunterConfigured(), analyzedPeople: r.analyzedPeople, positioned: r.positioned };
     } else {
       // industry / auto — AI planner picks candidate companies, then we crawl the
       // top few SYNCHRONOUSLY (no cron). auto derives the field from the tenant's
@@ -261,12 +316,14 @@ export async function POST(req: Request) {
         const plan = await planDiscovery(ctx, { field, location: "Indonesia" });
         const domains = plan.companies.map((c) => c.domainGuess).filter((d): d is string => Boolean(d)).slice(0, 3);
         const crawled: { name: string; domain: string | null; contacts: number }[] = [];
+        let analyzedPeople = 0;
         for (const d of domains) {
           try {
-            const r = await crawlAndPersist(ctx, d.startsWith("http") ? d : `https://${d}`, b.posture, b.workspaceId ?? null);
+            const r = await crawlAndPersist(ctx, d.startsWith("http") ? d : `https://${d}`, b.posture, b.workspaceId ?? null, b.analyze ?? false);
             created++;
             contactsCreated += r.contactsCreated;
             peopleCreated += r.peopleCreated;
+            analyzedPeople += r.analyzedPeople;
             crawled.push({ name: r.name, domain: r.domain, contacts: r.contactsCreated });
           } catch (e) {
             console.error("[discovery plan-crawl]", d, e);
@@ -278,6 +335,7 @@ export async function POST(req: Request) {
           created,
           contactsCreated,
           peopleCreated,
+          analyzedPeople,
           plannedCompanies: plan.companies.length,
           crawled,
           linkedinQueries: plan.linkedinQueries,

@@ -104,6 +104,9 @@ export default function DiscoveryPage() {
 
   const workspaceId = useSearchParams().get("workspace"); // tag crawled leads to this workspace (doc 44)
   const [posture, setPosture] = useState("compliant");
+  // Opt-in: also generate + persist the AI analysis (lead classify + company
+  // positioning) for what this crawl finds. Default off (metered AI).
+  const [analyze, setAnalyze] = useState(false);
   const [names, setNames] = useState("");
   const [url, setUrl] = useState("");
   const [industry, setIndustry] = useState("");
@@ -138,7 +141,7 @@ export default function DiscoveryPage() {
       const r = await fetch("/api/discovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, posture, ...(workspaceId ? { workspaceId } : {}) }),
+        body: JSON.stringify({ ...payload, posture, analyze, ...(workspaceId ? { workspaceId } : {}) }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
@@ -147,7 +150,7 @@ export default function DiscoveryPage() {
         created: number;
         contactsCreated?: number;
         peopleCreated?: number;
-        result?: { emails?: number; phones?: number; socials?: number; name?: string; hunter?: boolean } | null;
+        result?: { emails?: number; phones?: number; socials?: number; name?: string; hunter?: boolean; analyzedPeople?: number; positioned?: boolean } | null;
       };
     },
     onSuccess: (j) => {
@@ -155,8 +158,12 @@ export default function DiscoveryPage() {
         toast.success("Job antri (menunggu crawler)");
       } else if ((j.contactsCreated ?? 0) > 0 || (j.peopleCreated ?? 0) > 0) {
         const ppl = (j.peopleCreated ?? 0) > 0 ? `, ${j.peopleCreated} orang (Hunter)` : "";
+        const ana =
+          (j.result?.analyzedPeople ?? 0) > 0 || j.result?.positioned
+            ? ` · analisis disimpan: ${j.result?.analyzedPeople ?? 0} lead${j.result?.positioned ? " + positioning" : ""}`
+            : "";
         toast.success(
-          `Crawl selesai — ${j.result?.name ?? "perusahaan"}: ${j.contactsCreated ?? 0} kontak (${j.result?.emails ?? 0} email, ${j.result?.phones ?? 0} telp)${ppl}`,
+          `Crawl selesai — ${j.result?.name ?? "perusahaan"}: ${j.contactsCreated ?? 0} kontak (${j.result?.emails ?? 0} email, ${j.result?.phones ?? 0} telp)${ppl}${ana}`,
         );
       } else {
         toast.success(`Selesai — ${j.created} perusahaan dibuat`);
@@ -190,16 +197,27 @@ export default function DiscoveryPage() {
     : null;
 
   const PostureSelect = (
-    <div className="space-y-1">
-      <Label className="text-xs">Posture</Label>
-      <Select value={posture} onValueChange={setPosture}>
-        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="compliant">compliant</SelectItem>
-          <SelectItem value="balanced">balanced</SelectItem>
-          <SelectItem value="aggressive">aggressive</SelectItem>
-        </SelectContent>
-      </Select>
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <Label className="text-xs">Posture</Label>
+        <Select value={posture} onValueChange={setPosture}>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="compliant">compliant</SelectItem>
+            <SelectItem value="balanced">balanced</SelectItem>
+            <SelectItem value="aggressive">aggressive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={analyze}
+          onChange={(e) => setAnalyze(e.target.checked)}
+          className="mt-0.5 h-3.5 w-3.5 rounded border-input accent-primary"
+        />
+        <span>Analisis AI saat crawl — classify lead (Hunter) + positioning company, disimpan ke DB. <span className="text-muted-foreground/70">(pakai kredit AI)</span></span>
+      </label>
     </div>
   );
 
