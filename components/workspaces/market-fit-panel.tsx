@@ -13,6 +13,7 @@ import { CheckCircle2, Loader2, Package, Radar, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -20,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useKbStore } from "@/lib/stores/kb-store";
+import { useKbStore, PRODUCT_CATEGORIES } from "@/lib/stores/kb-store";
 import { cn } from "@/lib/utils";
 import type { MarketFitResult } from "@/lib/types/market-fit";
 
@@ -50,6 +51,7 @@ export function MarketFitPanel({
   onSetupChange?: (done: boolean) => void;
 }) {
   const kb = useKbStore((s) => s.kb);
+  const addProduct = useKbStore((s) => s.addProduct);
   const qc = useQueryClient();
 
   const product = useMemo(
@@ -116,6 +118,26 @@ export function MarketFitPanel({
     onError: (e) => toast.error(String(e instanceof Error ? e.message : e)),
   });
 
+  // Inline "buat produk baru" from the dropdown — equivalent to adding in the KB
+  // (persists via /api/db/kb), then connects the new product to this workspace.
+  const [creating, setCreating] = useState(false);
+  const [npName, setNpName] = useState("");
+  const [npDesc, setNpDesc] = useState("");
+  const [npCat, setNpCat] = useState<(typeof PRODUCT_CATEGORIES)[number]>("Inti");
+  function createAndConnect() {
+    const name = npName.trim();
+    if (!name) return;
+    const id = addProduct({ name, description: npDesc.trim(), category: npCat, active: true });
+    connect.mutate(id, {
+      onSuccess: () => {
+        setCreating(false);
+        setNpName("");
+        setNpDesc("");
+        setNpCat("Inti");
+      },
+    });
+  }
+
   const result = q.data?.result ?? null;
   const allowed = q.data?.allowedTechniques ?? [];
   const step1Done = !!product;
@@ -148,26 +170,51 @@ export function MarketFitPanel({
             <p className="text-xs font-medium text-foreground">
               Langkah 1 — pilih produk untuk workspace ini (1 workspace = 1 produk):
             </p>
-            <div className="flex gap-2">
-              <Select value={pickProduct} onValueChange={setPickProduct}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Pilih produk…" /></SelectTrigger>
-                <SelectContent>
-                  {kb.products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                disabled={!pickProduct || connect.isPending}
-                onClick={() => connect.mutate(pickProduct)}
-              >
-                {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Hubungkan"}
-              </Button>
-            </div>
-            {kb.products.length === 0 && (
+            {creating ? (
+              <div className="space-y-2">
+                <Input value={npName} onChange={(e) => setNpName(e.target.value)} placeholder="Nama produk baru" className="h-9" autoFocus />
+                <Input value={npDesc} onChange={(e) => setNpDesc(e.target.value)} placeholder="Deskripsi singkat (opsional)" className="h-9" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={npCat} onValueChange={(v) => setNpCat(v as (typeof PRODUCT_CATEGORIES)[number])}>
+                    <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" disabled={!npName.trim() || connect.isPending} onClick={createAndConnect}>
+                    {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buat & hubungkan"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setCreating(false); setNpName(""); setNpDesc(""); }}>
+                    Batal
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Select value={pickProduct} onValueChange={(v) => (v === "__new__" ? setCreating(true) : setPickProduct(v))}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Pilih produk…" /></SelectTrigger>
+                  <SelectContent>
+                    {kb.products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                    {/* Buat baru — selalu di paling bawah dropdown */}
+                    <SelectItem value="__new__" className="font-medium text-primary">+ Buat produk baru</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!pickProduct || connect.isPending}
+                  onClick={() => connect.mutate(pickProduct)}
+                >
+                  {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Hubungkan"}
+                </Button>
+              </div>
+            )}
+            {kb.products.length === 0 && !creating && (
               <p className="text-[11px] text-muted-foreground">
-                Belum ada produk — tambah dulu di Basis Pengetahuan (Settings).
+                Belum ada produk — pilih “+ Buat produk baru” di dropdown untuk menambahkan.
               </p>
             )}
           </div>
