@@ -28,6 +28,7 @@
     --tertiary: 173 80% 40%; /* teal accent #14B8A6 */
     --tertiary-foreground: 0 0% 100%;
     --highlight: 38 92% 50%; /* amber #F59E0B */
+    --highlight-foreground: 24 6% 10%; /* dark text on amber (AA-safe) */
     --radius: 1rem;
   }
 }
@@ -102,6 +103,19 @@
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* Accessibility — honor "reduce motion": kill decorative/infinite animation
+   (autopilot aura/ring/dots, hero bg, count-ups via CSS) for users who ask. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

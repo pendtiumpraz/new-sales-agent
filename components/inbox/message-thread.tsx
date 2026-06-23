@@ -271,7 +271,7 @@ export function MessageThread({ conversationId }: { conversationId: string }) {
 
       {/* Handoff trigger banner */}
       {showHandoffBanner && (
-        <div className="flex items-center gap-2 border-b border-danger/30 bg-danger/10/80 px-4 py-2 text-xs">
+        <div className="flex items-center gap-2 border-b border-danger/30 bg-danger/10 px-4 py-2 text-xs">
           <ShieldAlert className="h-4 w-4 shrink-0 text-danger" />
           <span className="flex-1 text-danger">
             <strong className="font-semibold">Pemicu handoff aktif:</strong>{" "}

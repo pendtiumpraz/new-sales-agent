@@ -73,6 +73,12 @@ const config: Config = {
         warning: "#F59E0B",
         danger: "#EF4444",
         info: "#3B82F6",
+        // Amber highlight — was an orphaned CSS var; now mapped so bg-highlight /
+        // text-highlight actually work (single source for warning accents).
+        highlight: {
+          DEFAULT: "hsl(var(--highlight))",
+          foreground: "hsl(var(--highlight-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -110,21 +116,21 @@ const config: Config = {
         // Autopilot — soft coral aura that breathes around the idle CTA
         "ap-aura": {
           "0%, 100%": {
-            boxShadow: "0 0 0 0 rgba(251,94,59,0.35), 0 10px 30px -10px rgba(251,94,59,0.45)",
+            boxShadow: "0 0 0 0 hsl(var(--primary) / 0.35), 0 10px 30px -10px hsl(var(--primary) / 0.45)",
           },
           "50%": {
-            boxShadow: "0 0 0 14px rgba(251,94,59,0), 0 18px 40px -10px rgba(251,94,59,0.55)",
+            boxShadow: "0 0 0 14px hsl(var(--primary) / 0), 0 18px 40px -10px hsl(var(--primary) / 0.55)",
           },
         },
-        // Autopilot — running step card ring pulse (coral)
+        // Autopilot — running step card ring pulse (coral) — follows --primary.
         "ap-ring-pulse": {
           "0%, 100%": {
-            boxShadow: "0 0 0 0 rgba(251,94,59,0.45)",
-            borderColor: "rgba(251,94,59,0.55)",
+            boxShadow: "0 0 0 0 hsl(var(--primary) / 0.45)",
+            borderColor: "hsl(var(--primary) / 0.55)",
           },
           "50%": {
-            boxShadow: "0 0 0 6px rgba(251,94,59,0)",
-            borderColor: "rgba(251,94,59,1)",
+            boxShadow: "0 0 0 6px hsl(var(--primary) / 0)",
+            borderColor: "hsl(var(--primary) / 1)",
           },
         },
         // Autopilot — three thinking dots after "AI menulis..."
