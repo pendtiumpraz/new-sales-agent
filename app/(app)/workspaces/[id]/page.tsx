@@ -132,7 +132,7 @@ export default function WorkspaceHubPage() {
 
   return (
     <div>
-      <PageHeader title={ws?.name ?? "Memuat…"} description="Hub workspace — semua aktivitas sales fokus di sini (doc 44).">
+      <PageHeader title={ws?.name ?? "Memuat…"} description="Hub workspace — semua aktivitas sales fokus di sini.">
         <Button asChild variant="ghost" size="sm">
           <Link href="/workspaces">
             <ArrowLeft className="h-4 w-4" /> Semua workspace

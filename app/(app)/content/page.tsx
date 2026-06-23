@@ -19,9 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useContentStore } from "@/lib/stores/content-store";
 
-const NOW = new Date("2026-05-25T00:00:00+07:00").getTime();
+const NOW = Date.now(); // real clock (was a hardcoded demo date → stale KPIs)
 const WEEK_AHEAD = NOW + 7 * 864e5;
-const MONTH_START = new Date("2026-05-01T00:00:00+07:00").getTime();
+const _now = new Date();
+const MONTH_START = new Date(_now.getFullYear(), _now.getMonth(), 1).getTime();
 
 export default function ContentPage() {
   const items = useContentStore((s) => s.items);

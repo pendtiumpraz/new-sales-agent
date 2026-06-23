@@ -182,7 +182,7 @@ function MarketplaceInner() {
   if (browseQ.data && !browseQ.data.enabled) {
     return (
       <div>
-        <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant (doc 41 §6)." />
+        <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant." />
         <div className="p-6"><EmptyState icon={Store} title="Marketplace nonaktif" description="Platform mode on-prem. Superadmin bisa aktifkan mode SaaS di Superadmin Console." /></div>
       </div>
     );

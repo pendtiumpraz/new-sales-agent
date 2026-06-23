@@ -232,7 +232,7 @@ export function ContentCreateDialog({ open, onOpenChange, defaultDate }: Props) 
               type="date"
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
-              min="2026-05-25"
+              min={new Date().toISOString().slice(0, 10)}
             />
           </div>
 

@@ -446,7 +446,7 @@ export default function ProfilesPage() {
     <div>
       <PageHeader
         title="Profil"
-        description="Profiling terpisah — Perusahaan vs Orang — dengan provenance & status consent (doc 20)."
+        description="Profiling terpisah — Perusahaan vs Orang — dengan provenance & status consent."
       >
         <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived((v) => !v)}>
           {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}

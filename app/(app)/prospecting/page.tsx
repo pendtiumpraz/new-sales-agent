@@ -4,5 +4,5 @@ import { redirect } from "next/navigation";
 // per feature-revisions.md §1+§2 (Contacts and Pipeline merged into one view).
 // This redirect preserves any external deep-links into /prospecting.
 export default function ProspectingPage() {
-  redirect("/contacts?tab=discovery");
+  redirect("/contacts/discovery");
 }

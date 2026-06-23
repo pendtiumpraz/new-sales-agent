@@ -65,7 +65,7 @@ export default function EscalationsPage() {
     <div>
       <PageHeader
         title="Eskalasi AI"
-        description="Balasan yang ditahan agen untuk ditinjau manusia — kirim sekali klik atau abaikan (doc 36)."
+        description="Balasan yang ditahan agen untuk ditinjau manusia — kirim sekali klik atau abaikan."
       />
       <div className="space-y-4 p-6">
         {events.isError ? (

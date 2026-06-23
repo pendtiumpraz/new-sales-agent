@@ -109,7 +109,7 @@ export default function MonitoringPage() {
 
   return (
     <div>
-      <PageHeader title="Monitoring Sales" description="Pantau tim sales: siapa aktif, closing dari siapa, lead/partner dipegang siapa (doc 41)." />
+      <PageHeader title="Monitoring Sales" description="Pantau tim sales: siapa aktif, closing dari siapa, lead/partner dipegang siapa." />
       <div className="space-y-4 p-6">
         {q.isError ? (
           <EmptyState icon={UserCog} title="Khusus manajer" description="Halaman ini hanya untuk Manajer/Owner tenant. Login sebagai manajer untuk memantau tim." />

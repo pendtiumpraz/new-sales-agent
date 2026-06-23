@@ -132,7 +132,7 @@ export default function WorkspacesPage() {
     <div>
       <PageHeader
         title="Workspaces"
-        description="Wadah fokus per sales — pisahkan produk/tujuan biar nggak campur aduk. Manajer melihat semua, sales hanya miliknya (doc 44)."
+        description="Wadah fokus per sales — pisahkan produk/tujuan biar nggak campur aduk. Manajer melihat semua, sales hanya miliknya."
       >
         <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
           {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
