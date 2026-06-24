@@ -15,6 +15,7 @@ import { DeploymentModeToggle } from "@/components/admin/deployment-mode-toggle"
 import { UserManagement } from "@/components/admin/user-management";
 import { EntitlementMatrix } from "@/components/admin/entitlement-matrix";
 import { TableSkeleton } from "@/components/shared/skeletons";
+import { ErrorState } from "@/components/shared/error-state";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +49,7 @@ export default function AdminConsole() {
   const qc = useQueryClient();
   const isSuper = role === "superadmin";
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin"],
     queryFn: async () => {
       const r = await fetch("/api/admin");
@@ -202,6 +203,10 @@ export default function AdminConsole() {
           {isLoading ? (
             <div className="p-4">
               <TableSkeleton rows={6} cols={8} />
+            </div>
+          ) : isError ? (
+            <div className="p-4">
+              <ErrorState onRetry={() => refetch()} />
             </div>
           ) : (
             <table className="w-full text-sm">

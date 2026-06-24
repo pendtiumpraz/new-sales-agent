@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IDRAmount } from "@/components/shared/idr-amount";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ListSkeleton } from "@/components/shared/skeletons";
+import { ErrorState } from "@/components/shared/error-state";
 
 interface PlanRow {
   key: string;
@@ -67,7 +68,7 @@ function Meter({ label, used, quota }: { label: string; used: number; quota: num
 }
 
 export default function BillingPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["billing"],
     queryFn: async () => {
       const r = await fetch("/api/tenant/billing");
@@ -80,7 +81,9 @@ export default function BillingPage() {
     <div>
       <PageHeader title="Tagihan & Kuota" description="Paket aktif dan pemakaian terhadap kuota." />
       <div className="space-y-4 p-6">
-        {isLoading ? (
+        {isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : isLoading ? (
           <>
             <Card className="overflow-hidden border-primary/25">
               <div className="flex items-start justify-between bg-muted p-5">
