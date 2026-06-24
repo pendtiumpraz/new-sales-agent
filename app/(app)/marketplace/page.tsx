@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { Toolbar } from "@/components/shared/toolbar";
 import { DataTable, type DataColumn } from "@/components/shared/data-table";
@@ -92,7 +93,7 @@ function MarketplaceInner() {
     queryKey: ["marketplace-browse"],
     queryFn: async () => {
       const r = await fetch("/api/marketplace");
-      if (!r.ok) return { enabled: false, data: [] as Listing[] };
+      if (!r.ok) throw new Error("Gagal memuat marketplace"); // surface failures (was masquerading as "nonaktif")
       return (await r.json()) as { enabled: boolean; data: Listing[] };
     },
   });
@@ -175,6 +176,15 @@ function MarketplaceInner() {
       <div>
         <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant. Data orang tidak dijual (UU PDP)." />
         <div className="p-6"><CardGridSkeleton count={6} /></div>
+      </div>
+    );
+  }
+
+  if (browseQ.isError) {
+    return (
+      <div>
+        <PageHeader title="Marketplace Data" description="Jual-beli data perusahaan & bundle antar-tenant." />
+        <div className="p-6"><ErrorState onRetry={() => browseQ.refetch()} /></div>
       </div>
     );
   }
