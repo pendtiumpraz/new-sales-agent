@@ -1,13 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Maira WA + Discovery Bridge",
-  "version": "0.2.0",
-  "description": "One modular bridge for Maira Sales: reply-only WhatsApp Web gateway (paced AI bubbles) + LinkedIn/Instagram lead discovery (extract profiles behind login → /api/ingest).",
+  "version": "0.3.0",
+  "description": "Multi-platform bridge untuk Maira Sales: WhatsApp Web gateway + Discovery dari LinkedIn, Instagram, Facebook, TikTok, Shopee, Google Search.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://*.linkedin.com/*",
     "https://*.instagram.com/*",
+    "https://*.facebook.com/*",
+    "https://*.tiktok.com/*",
+    "https://*.shopee.co.id/*",
+    "https://www.google.com/search?*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://*/*"
@@ -20,11 +24,19 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.linkedin.com/in/*", "https://*.instagram.com/*"],
+      "matches": [
+        "https://*.linkedin.com/in/*",
+        "https://*.linkedin.com/company/*",
+        "https://*.instagram.com/*",
+        "https://*.facebook.com/*",
+        "https://*.tiktok.com/@*",
+        "https://*.shopee.co.id/*",
+        "https://www.google.com/search?*"
+      ],
       "js": ["discovery.js"],
       "run_at": "document_idle"
     }
   ],
-  "action": { "default_popup": "popup.html", "default_title": "Maira WA + Discovery Bridge" },
+  "action": { "default_popup": "popup.html", "default_title": "Maira WA + Discovery" },
   "options_page": "options.html"
 }

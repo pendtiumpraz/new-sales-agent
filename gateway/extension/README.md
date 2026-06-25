@@ -1,31 +1,43 @@
-# Maira WA + Discovery Bridge (Chrome extension, MV3)
+# Maira WA + Discovery Bridge (Chrome extension, MV3) v0.3.0
 
-One modular bridge for Maira:
-1. **WhatsApp** — reply-only gateway, same contract as the WAHA/VPS path; lowest-
-   detection of the unofficial options (real browser + IP), but only runs while the
-   tab is open. Explainer: [`docs/wa-extension.md`](../../docs/wa-extension.md).
-2. **Discovery** — extract LinkedIn/Instagram profiles behind login → `/api/ingest`.
-   Explainer: [`docs/extension-discovery.md`](../../docs/extension-discovery.md).
+Extension multi-platform buat Maira Sales:
 
-## Load it
-1. `chrome://extensions` → **Developer mode** → **Load unpacked** → pick this folder.
-2. Extension → **Pengaturan**: Backend URL, gateway token (= `WA_GATEWAY_TOKEN`),
-   Session ID (`rep:u_rep`); and for discovery: **Ingest token** (per-rep) + optional
-   **Workspace tujuan**.
-3. WhatsApp: open `web.whatsapp.com`, log in → extension → **Aktifkan** → **Tes koneksi**.
-4. Discovery: open a `linkedin.com/in/…` or `instagram.com/<user>` profile → click
-   **➕ Simpan ke Maira**.
+1. **WhatsApp** — reply-only gateway (paced AI bubbles), jalan di tab WA Web.
+2. **Discovery** — extract lead dari **6 platform** sekaligus → simpan ke Maira.
+
+## Platform Discovery
+
+| Platform | Deteksi otomatis | Data yang diambil |
+|----------|-----------------|-------------------|
+| **LinkedIn** | `/in/*` / `/company/*` | Nama, title, lokasi, company |
+| **Instagram** | Halaman profil | Nama, bio, website |
+| **Facebook** | Halaman publik | Nama page, deskripsi, followers |
+| **TikTok** | `@username` | Nama, bio, followers/following |
+| **Shopee** | Produk / Search | Nama produk, harga |
+| **Google** | `/search?q=...` | Hasil pencarian (title, url, snippet) |
+
+## Cara pakai
+
+1. `chrome://extensions` → **Developer mode** → **Load unpacked** → pilih folder ini.
+2. **Pengaturan**: isi Backend URL, Gateway token, Ingest token.
+3. **WA**: buka `web.whatsapp.com` → login → extension → Aktifkan.
+4. **Discovery**: buka halaman LinkedIn / IG / FB / TikTok / Shopee / Google → floating widget muncul → pilih platform dari dropdown → **➕ Simpan ke Maira**.
+
+## Fitur baru v0.3.0
+- ✅ **6 platform** (LinkedIn, Instagram, Facebook, TikTok, Shopee, Google Search)
+- ✅ **Dropdown pilih platform** — gak cuma auto-detect, user bebas milih
+- ✅ Platform bisa di-enable/disable satu per satu di Pengaturan
+- ✅ Widget floating muncul otomatis sesuai halaman yang dibuka
 
 ## Files
-- `manifest.json` — MV3 (storage + host_permissions; content scripts on WhatsApp +
-  LinkedIn/IG).
-- `background.js` — service worker = network side (poll / ack / inbound / ingest), CSP-safe.
-- `content.js` — WhatsApp loop + DOM (inbound observe, outbound type/send, pacing). Selectors in `SEL`.
-- `discovery.js` — LinkedIn/IG profile extraction + floating "Simpan ke Maira". Selectors in `EXTRACTORS`.
-- `popup.html`/`popup.js` — WA on/off + connectivity test.
-- `options.html`/`options.js` — backend URL · token · sessionId · pollMs · ingest token · workspace.
+- `manifest.json` — MV3, semua platform terdaftar di host_permissions + content_scripts.
+- `background.js` — network handler (poll / ack / inbound / ingest / classify).
+- `content.js` — WhatsApp Web DOM bridge.
+- `discovery.js` — **Multi-platform extractor** + floating widget + dropdown.
+- `popup.html`/`popup.js` — status + tes koneksi.
+- `options.html`/`options.js` — config semua platform.
 
-⚠️ WA Web automation → violates WhatsApp ToS (Jan 2026 AI-bot ban); risk lands on
-the rep's personal number. Reply-only + low volume + warm number. LinkedIn/IG
-scraping violates their ToS too — manual click, low volume. Fix `SEL` / `EXTRACTORS`
-selectors if a platform's DOM changes.
+## ⚠️ Risiko
+- WA Web automation → melanggar ToS WhatsApp. Risiko ban di nomor pribadi.
+- Scraping LinkedIn/IG/FB/TikTok → melanggar ToS masing-masing platform.
+- Pakai volume rendah, nomor warm, jangan cold blast.

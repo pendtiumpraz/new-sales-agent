@@ -1,13 +1,19 @@
-// popup.js — quick on/off toggle + connectivity test. No inline scripts (MV3 CSP).
+// popup.js — Multi-platform popup untuk Maira WA + Discovery
 const $ = (id) => document.getElementById(id);
 
 function render(cfg) {
   $("enabled").checked = !!cfg.enabled;
   $("baseUrl").textContent = cfg.baseUrl || "—";
   $("sessionId").textContent = cfg.sessionId || "—";
-  const on = !!cfg.enabled;
-  $("state").textContent = on ? "ON" : "OFF";
-  $("state").className = "pill " + (on ? "on" : "off");
+  $("state").textContent = !!cfg.enabled ? "ON" : "OFF";
+  $("state").className = "pill " + (!!cfg.enabled ? "on" : "off");
+
+  // Discovery status
+  const hasIngest = !!cfg.ingestToken;
+  const hasWs = !!cfg.discoveryWorkspaceId;
+  $("discoveryStatus").textContent = hasIngest
+    ? `✅ Siap simpan${hasWs ? " → workspace: " + cfg.discoveryWorkspaceId : " → pool tenant"}`
+    : "⚠️ Set ingest token di Pengaturan";
 }
 
 async function load() {

@@ -3,16 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Maira WA Bridge</title>
+    <title>Maira WA + Discovery</title>
     <style>
       :root { color-scheme: light; }
-      body { width: 280px; margin: 0; font: 13px/1.4 system-ui, sans-serif; color: #0f172a; }
+      body { width: 300px; margin: 0; font: 13px/1.4 system-ui, sans-serif; color: #0f172a; }
       header { padding: 12px 14px; background: linear-gradient(90deg, #3b82f6, #6366f1); color: #fff; }
       header b { font-size: 14px; }
       .body { padding: 12px 14px; }
-      .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 7px; }
       .muted { color: #64748b; font-size: 12px; }
-      .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+      .small { font-size: 11px; }
+      .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; display: inline-block; }
       .on { background: #dcfce7; color: #166534; }
       .off { background: #fee2e2; color: #991b1b; }
       code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
@@ -20,19 +21,38 @@
       button.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
       .switch { display: inline-flex; align-items: center; gap: 6px; }
       input[type="checkbox"] { width: 16px; height: 16px; }
-      .actions { display: flex; gap: 8px; margin-top: 6px; }
-      #status { margin-top: 10px; font-size: 12px; min-height: 16px; }
+      .actions { display: flex; gap: 6px; margin: 8px 0 4px; }
+      #status { margin-top: 8px; font-size: 12px; min-height: 16px; }
+      .section-title { font-size: 12px; font-weight: 600; color: #475569; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: .5px; }
+      .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 6px; margin: 4px 0; }
+      .platform-item { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #f8fafc; display: flex; align-items: center; gap: 4px; }
+      .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
     </style>
   </head>
   <body>
-    <header><b>Maira WA Bridge</b><div class="muted" style="color:#e0e7ff">Reply-only · paced · gateway contract</div></header>
+    <header><b>Maira WA + Discovery</b><div class="muted" style="color:#e0e7ff">Multi-platform · gateway contract</div></header>
     <div class="body">
+      <!-- WA Bridge -->
       <div class="row">
-        <label class="switch"><input type="checkbox" id="enabled" /> Aktifkan auto-reply</label>
+        <label class="switch"><input type="checkbox" id="enabled" /> WhatsApp auto-reply</label>
         <span id="state" class="pill off">OFF</span>
       </div>
       <div class="row"><span class="muted">Backend</span><code id="baseUrl">—</code></div>
       <div class="row"><span class="muted">Session</span><code id="sessionId">—</code></div>
+
+      <!-- Discovery -->
+      <div class="section-title">🕵️ Discovery Platform</div>
+      <div class="platform-grid" id="platforms">
+        <div class="platform-item"><span class="dot" style="background:#0a66c2"></span> LinkedIn</div>
+        <div class="platform-item"><span class="dot" style="background:#e1306c"></span> Instagram</div>
+        <div class="platform-item"><span class="dot" style="background:#1877f2"></span> Facebook</div>
+        <div class="platform-item"><span class="dot" style="background:#000"></span> TikTok</div>
+        <div class="platform-item"><span class="dot" style="background:#ee4d2d"></span> Shopee</div>
+        <div class="platform-item"><span class="dot" style="background:#4285f4"></span> Google</div>
+      </div>
+      <div id="discoveryStatus" class="muted small"></div>
+
+      <!-- Actions -->
       <div class="actions">
         <button class="primary" id="test">Tes koneksi</button>
         <button id="opts">Pengaturan</button>
