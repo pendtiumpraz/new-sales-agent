@@ -27,8 +27,17 @@ const schema = { ...legacySchema, ...moduleSchema };
  */
 function findConnectionString(): string | undefined {
   // Prefer a dedicated runtime role that RESPECTS RLS (no BYPASSRLS) so tenant
-  // isolation policies actually apply (doc 19). neondb_owner has BYPASSRLS, so
-  // using it would skip RLS. Falls back to the owner credential if unset.
+  // isolation policies (drizzle/rls/enable-rls.sql) actually apply (doc 19,
+  // AUDIT #3). neondb_owner has BYPASSRLS, so connecting as it would SKIP RLS
+  // entirely and the policies would no-op — every query would silently see all
+  // tenants. APP_POSTGRES_URL must point at the NOBYPASSRLS `app_user` role
+  // created via drizzle/rls/create-app-role.sql.
+  //
+  // FALLBACK (owner URL) when APP_POSTGRES_URL is unset: the app still boots, but
+  // it connects as the OWNER, which BYPASSES RLS — so DB-level isolation is OFF
+  // and app-level `eq(tenantId)` filtering in the repos is the SOLE control. This
+  // is the demo/dev default; a real multi-tenant deploy MUST set APP_POSTGRES_URL.
+  // `usingRlsRole()` below reports which path is live.
   if (process.env.APP_POSTGRES_URL) return process.env.APP_POSTGRES_URL;
   if (process.env.APP_POSTGRES_URL_NON_POOLING)
     return process.env.APP_POSTGRES_URL_NON_POOLING;
@@ -64,4 +73,16 @@ export const db = drizzle(client, { schema });
 // prefixed via the Marketplace).
 export function hasDb(): boolean {
   return Boolean(connectionString);
+}
+
+// True when the runtime connection uses the dedicated NOBYPASSRLS `app_user`
+// role (APP_POSTGRES_URL[_NON_POOLING]) — i.e. when DB-level RLS is actually in
+// force. False means we fell back to the owner URL, which BYPASSES RLS and leaves
+// app-level `eq(tenantId)` repo filtering as the only tenant control (AUDIT #3).
+// The two-tenant isolation test (scripts/test-tenant-isolation.mts) asserts this
+// is true before it can meaningfully verify isolation.
+export function usingRlsRole(): boolean {
+  return Boolean(
+    process.env.APP_POSTGRES_URL || process.env.APP_POSTGRES_URL_NON_POOLING,
+  );
 }

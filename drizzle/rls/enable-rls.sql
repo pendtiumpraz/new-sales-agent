@@ -1,73 +1,144 @@
--- Row-Level Security (doc 19). APPLIED IN SLICE 2 — not part of the auto-run
--- drizzle migrations, because enabling RLS before route handlers set the tenant
--- context (via lib/db/tenant-context.ts withTenant) would make every db route
--- return nothing. Apply this only after handlers adopt withTenant.
+-- Row-Level Security — REBUILD tables (Sainskerta Loop, doc 19 + AUDIT #3/#25/#27/#29/#41).
 --
--- Why FORCE: the app usually connects as the table owner, and owners BYPASS RLS
--- by default. FORCE makes policies apply to the owner connection too. The
--- superadmin escape hatch is then the policy predicate (app.role = 'superadmin'),
--- not a DB superuser — keeping it auditable (doc 26).
+-- This file targets the REAL rebuild module tables — every table that carries a
+-- `tenant_id` column across modules/**/schema.ts. It supersedes the old
+-- legacy-named version (which enumerated `deals`/`contacts`/`company`/… and would
+-- no-op against this DB).
 --
--- current_setting(..., true) returns NULL (not error) when unset → fail-closed:
--- no context means no rows (except superadmin).
+-- WHO CONNECTS — this is the load-bearing part:
+--   • Migrations / drizzle-kit / studio connect as the table OWNER (neondb_owner),
+--     which has BYPASSRLS — policies DO NOT apply to it. That is intentional.
+--   • The APP connects at runtime as a dedicated NOBYPASSRLS role (`app_user`,
+--     wired via APP_POSTGRES_URL in lib/db/client.ts). Policies apply to it.
+--   • FORCE ROW LEVEL SECURITY additionally makes policies apply to the table
+--     owner too (belt-and-suspenders) — so even an accidental owner-connection at
+--     runtime is filtered. The superadmin escape hatch is the POLICY PREDICATE
+--     (app.role = 'superadmin'), not a DB superuser — keeping it auditable (doc 26).
+--
+-- CONTEXT — set per request inside withTenant() (lib/db/tenant-context.ts), which
+-- runs (transaction-local, parameterized → injection-safe):
+--   select set_config('app.tenant_id', <tenant>, true);
+--   select set_config('app.user_id',   <user>,   true);
+--   select set_config('app.role',      <role>,   true);
+--
+-- FAIL-CLOSED: current_setting(..., true) returns NULL (not an error) when unset.
+-- An unset app.tenant_id therefore matches no tenant row → no rows leak when a
+-- query forgets to open withTenant().
+--
+-- HOW TO APPLY: do NOT run this through scripts/apply-rebuild-migration.mts — that
+-- applier is an additive-only guard that ABORTS on ALTER TABLE (all this file is).
+-- Apply it via the dedicated path documented in drizzle/rls/README.md:
+--   psql "$APP_POSTGRES_URL_NON_POOLING" -f drizzle/rls/enable-rls.sql   (or as owner)
+--
+-- IDEMPOTENT: ENABLE/FORCE are no-ops if already set; the policy is dropped first
+-- so re-running this file cleanly replaces it.
 
--- Helper note: run inside withTenant(), which sets:
---   app.tenant_id, app.user_id, app.role  (transaction-local)
-
--- ── Tenant-scoped data tables ──────────────────────────────────────────────
+-- ── Tenant-scoped data tables (standard policy) ─────────────────────────────
+-- Every rebuild table with a `tenant_id` column. USING (read) + WITH CHECK
+-- (write) both pin to current_setting('app.tenant_id'); a 'superadmin' role
+-- bypasses the tenant pin via the policy predicate.
 DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'kb','deals','contacts','conversations','messages',
-    'autopilot_runs','cadences','cadence_enrollments','cadence_step_run','engagement_event','auto_reply_event','credit_grant',
-    'company','person','contact_point','product',
-    'ai_credential','tenant_active_model','ai_usage',
-    'crawl_job','ingest_batch','positioning_insight',
-    'sending_account','email_template','send_job','suppression',
-    'subscription'
+    -- tenant
+    'membership','usage_counter',
+    -- crm
+    'company_v2','contact','pipeline','pipeline_stage','deal','activity',
+    -- inbox
+    'conversation_v2','message_v2',
+    -- outreach
+    'cadence_v2','cadence_step_v2','cadence_enrollment_v2','autopilot_run_v2','escalation','handoff',
+    -- onboarding / entitlements
+    'tenant_entitlement_v2','onboarding_state',
+    -- content
+    'content_template','content_plan',
+    -- ecommerce
+    'marketplace_order','cart_recovery',
+    -- enrichment / discovery
+    'discovery_job','discovery_result','enrichment_record',
+    -- field
+    'field_visit','field_check_in',
+    -- marketplace
+    'marketplace_integration','marketplace_listing_v2',
+    -- product
+    'product_v2',
+    -- reports
+    'saved_report',
+    -- retention
+    'retention_flow','retention_step',
+    -- sales / closing-flow
+    'conversation_stage','closing_readiness','kb_technique',
+    -- settings
+    'knowledge_base','tenant_settings',
+    -- wa transport
+    'wa_session_v2','wa_outbox_v2',
+    -- workspace
+    'workspace_v2','market_fit','sales_play'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY;', t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I;', t);
     EXECUTE format($f$
       CREATE POLICY tenant_isolation ON %I
         USING (
           tenant_id = current_setting('app.tenant_id', true)
           OR current_setting('app.role', true) = 'superadmin'
+        )
+        WITH CHECK (
+          tenant_id = current_setting('app.tenant_id', true)
+          OR current_setting('app.role', true) = 'superadmin'
         );
-    $f$, t);
+    $f$, t, t);
   END LOOP;
 END $$;
 
--- ── Foundation tables ──────────────────────────────────────────────────────
--- memberships: a user must see their OWN rows even before a tenant is selected
--- (login resolves "which tenants am I in?" by user_id). Hence the user_id clause.
-ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
-ALTER TABLE memberships FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON memberships
+-- ── membership (special: user must see their OWN rows pre-tenant) ────────────
+-- Login resolves "which tenants am I in?" by user_id BEFORE a tenant is selected,
+-- so the membership policy additionally allows user_id = app.user_id. WITH CHECK
+-- keeps writes pinned to the active tenant (a user can't insert a membership into
+-- another tenant) — the read path is the only one that needs the user_id escape.
+ALTER TABLE membership ENABLE ROW LEVEL SECURITY;
+ALTER TABLE membership FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON membership;
+CREATE POLICY tenant_isolation ON membership
   USING (
     tenant_id = current_setting('app.tenant_id', true)
     OR user_id = current_setting('app.user_id', true)
     OR current_setting('app.role', true) = 'superadmin'
-  );
-
-ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invites FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON invites
-  USING (
+  )
+  WITH CHECK (
     tenant_id = current_setting('app.tenant_id', true)
     OR current_setting('app.role', true) = 'superadmin'
   );
 
-ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON audit_log
+-- ── audit_log_v2 (special: tenant_id is NULLABLE for platform events) ────────
+-- Tenant-attributed rows (tenant_id NOT NULL) follow the standard tenant pin.
+-- Platform-level rows (tenant_id IS NULL) are readable/writable ONLY by a
+-- superadmin context — never by a tenant — so a tenant can't see the cross-tenant
+-- platform audit trail (whose `meta` often carries other tenants' identifiers).
+-- AUDIT #29/#41.
+ALTER TABLE audit_log_v2 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log_v2 FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON audit_log_v2;
+CREATE POLICY tenant_isolation ON audit_log_v2
   USING (
     tenant_id = current_setting('app.tenant_id', true)
+    OR (tenant_id IS NULL AND current_setting('app.role', true) = 'superadmin')
+    OR current_setting('app.role', true) = 'superadmin'
+  )
+  WITH CHECK (
+    tenant_id = current_setting('app.tenant_id', true)
+    OR (tenant_id IS NULL AND current_setting('app.role', true) = 'superadmin')
     OR current_setting('app.role', true) = 'superadmin'
   );
 
--- `tenants` and `users` are intentionally NOT tenant-RLS'd: `users` is global,
--- and `tenants` access is gated at the app layer (a user sees tenants they have a
--- membership in). Superadmin reads all via the admin/bypass connection (doc 26).
+-- ── Intentionally NOT tenant-RLS'd (no tenant_id column) ─────────────────────
+-- GLOBAL catalogs / identity, gated at the app layer (a user sees a tenant only
+-- via a membership row, which IS RLS'd above):
+--   app_user, tenant, platform_setting_v2, vertical, module_catalog
+-- USER-scoped pre-tenant tables (login/session/reset/theme resolve by user_id
+-- before a tenant context exists), gated in the service layer:
+--   auth_session, password_reset, user_theme
+-- Legacy prototype tables (lib/db/schema.ts) are out of scope for the rebuild RLS.

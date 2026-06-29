@@ -1,43 +1,98 @@
 # Row-Level Security (RLS) — rollout
 
-`enable-rls.sql` enforces tenant isolation at the database layer (doc 19). It is
-**deliberately NOT part of the auto-run drizzle migrations** in `drizzle/migrations/`.
+`enable-rls.sql` enforces tenant isolation at the **database** layer (doc 19,
+AUDIT #3). It is the backstop under the app-level `eq(tenantId)` filtering every
+repo already does: if one future query forgets its tenant predicate, RLS still
+stops the cross-tenant leak.
+
+It targets the **rebuild** module tables — every table with a `tenant_id` column
+across `modules/**/schema.ts` (`company_v2`, `contact`, `conversation_v2`,
+`message_v2`, `deal`, `membership`, `audit_log_v2`, … the full list is in the
+file). It is **deliberately NOT part of the auto-run drizzle migrations**.
 
 ## Why it's separate
 
 Enabling RLS makes every tenant-scoped table return **zero rows** unless the
 connection has set `app.tenant_id` (via `withTenant()` in
-`lib/db/tenant-context.ts`). Today's `app/api/db/*` route handlers query without
-that context, so applying RLS now would break the running app.
+`lib/db/tenant-context.ts`). Apply it only after the route handlers wrap their
+queries in `withTenant` (they do, in the rebuild).
 
-## Slice 2 rollout order
+## Prerequisites
 
-1. Ship Auth.js (doc 28) so a session resolves `{ tenantId, userId, role }`.
-2. Backfill: create a default tenant, set `tenant_id` on existing rows, then
-   `ALTER TABLE ... ALTER COLUMN tenant_id SET NOT NULL` for tenant-scoped tables.
-3. Refactor `app/api/db/*` handlers to wrap queries in `withTenant(ctx, tx => …)`.
-4. Apply this file once: `psql "$POSTGRES_URL_NON_POOLING" -f drizzle/rls/enable-rls.sql`
-   (or via `db:studio` / a one-off script).
-5. Verify isolation: two tenants must not see each other's rows; superadmin
-   context (`app.role = 'superadmin'`) sees all.
+- The rebuild tables exist in the DB (apply the generated migration via
+  `scripts/apply-rebuild-migration.mts` first if they don't).
+- Every tenant-scoped route reads/writes inside `withTenant(ctx, …)`.
+
+## Apply steps (operator runs these, in order)
+
+> Run from the repo root. `$OWNER_URL` = `POSTGRES_URL_NON_POOLING` (the
+> `neondb_owner` direct endpoint). All three SQL files are applied with `psql`
+> (or pasted into the Neon SQL editor) — **never** through
+> `scripts/apply-rebuild-migration.mts`, whose additive-only guard ABORTS on the
+> `ALTER TABLE` statements these files are made of.
+
+1. **Create the NOBYPASSRLS app role.** Edit `create-app-role.sql` and replace
+   `<STRONG_PASSWORD>`, then run it as the owner:
+
+   ```sh
+   psql "$OWNER_URL" -f drizzle/rls/create-app-role.sql
+   ```
+
+   This creates `app_user` (defaults to NOBYPASSRLS), `GRANT`s it
+   SELECT/INSERT/UPDATE/DELETE on all current + future tables, and verifies
+   `rolbypassrls = false`. `neondb_owner` (BYPASSRLS) stays the owner for
+   migrations / drizzle-kit / studio.
+
+2. **Apply the RLS policies** (as the owner — owner can always ALTER its tables):
+
+   ```sh
+   psql "$OWNER_URL" -f drizzle/rls/enable-rls.sql
+   ```
+
+   `enable-rls.sql` is idempotent (`ENABLE`/`FORCE` are no-ops if already set;
+   each policy is `DROP POLICY IF EXISTS` then re-`CREATE`d), so it is safe to
+   re-run after adding new tenant tables.
+
+3. **Wire the app to the NOBYPASSRLS role.** Add `app_user`'s connection strings
+   to `.env.local` (get them from Neon → Roles → `app_user`):
+
+   ```sh
+   APP_POSTGRES_URL=postgresql://app_user:…@…-pooler.…/neondb?sslmode=require
+   APP_POSTGRES_URL_NON_POOLING=postgresql://app_user:…@….…/neondb?sslmode=require
+   ```
+
+   `lib/db/client.ts` prefers `APP_POSTGRES_URL` for runtime queries; without it
+   the app falls back to the **owner** URL, which BYPASSES RLS (DB-level
+   isolation OFF — only app-level filtering applies). `usingRlsRole()` reports
+   which path is live.
+
+4. **Verify isolation with the two-tenant test:**
+
+   ```sh
+   npx tsx scripts/test-tenant-isolation.mts
+   ```
+
+   It seeds a company in two tenants (as the owner), then connects **as
+   `app_user`** and asserts: tenant A reads its own row but not B's (and
+   symmetrically), an unset context sees nothing (fail-closed), a tenant cannot
+   `INSERT` a row stamped with another tenant (WITH CHECK), and a `superadmin`
+   context sees both. Exit 0 = isolation holds; non-zero = a leak → fail CI. It
+   refuses to run if `APP_POSTGRES_URL` is unset or equals the owner URL (RLS
+   would be bypassed and the test would prove nothing). Fixtures are cleaned up.
 
 ## Notes
 
-- `FORCE ROW LEVEL SECURITY` is required because the app connects as the table
-  owner, which bypasses RLS otherwise.
-- Superadmin bypass is a **policy predicate**, not a DB superuser — auditable.
-- `memberships` policy also allows `user_id = app.user_id` so login can resolve a
-  user's tenants before a tenant is chosen.
-
-## Enforcement role (important)
-
-RLS is **not enforced for `neondb_owner`** — Neon gives that role `BYPASSRLS`.
-So the app must connect as a dedicated role WITHOUT bypass for policies to apply.
-
-1. Create it: `create-app-role.sql` (run as `neondb_owner`; replace the password).
-2. Add `app_user`'s **pooled** connection string to `.env.local` as
-   `APP_POSTGRES_URL` (and optionally `APP_POSTGRES_URL_NON_POOLING` for the
-   direct/test endpoint). `lib/db/client.ts` prefers these for runtime queries.
-3. `neondb_owner` (BYPASSRLS) stays for migrations / drizzle-kit / studio.
-4. Verify: connect as `app_user`, set `app.tenant_id`, confirm cross-tenant rows
-   are hidden and `app.role='superadmin'` sees all.
+- **FORCE ROW LEVEL SECURITY** is required because the owner connection bypasses
+  RLS otherwise; FORCE makes policies apply to the owner too (belt-and-suspenders
+  — the app still connects as the NOBYPASSRLS `app_user` at runtime).
+- **Superadmin bypass is a policy predicate** (`app.role = 'superadmin'`), not a
+  DB superuser — auditable (doc 26).
+- **`membership`** policy also allows `user_id = app.user_id` so login can resolve
+  a user's tenants before a tenant is chosen.
+- **`audit_log_v2`** has a NULLABLE `tenant_id` for platform events: tenant rows
+  follow the standard pin; `tenant_id IS NULL` rows are superadmin-only (AUDIT
+  #29/#41).
+- **Not RLS'd** (no `tenant_id`): `app_user`, `tenant`, `platform_setting_v2`,
+  `vertical`, `module_catalog` (global, gated at the app layer via the RLS'd
+  `membership` table) and `auth_session` / `password_reset` / `user_theme`
+  (user-scoped, resolved by `user_id` before a tenant context exists).
