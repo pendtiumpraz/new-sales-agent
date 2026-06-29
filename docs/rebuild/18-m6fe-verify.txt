@@ -1,0 +1,62 @@
+M6 (Closing-Flow AI) Frontend — Verification Report
+Sainskerta Loop Phase 04
+Date: 2026-06-29
+
+====================================================================
+RESULT: PASS
+====================================================================
+
+M6 FRONTEND surfaces verified (changed/new files):
+  app/(app)/inbox/page.tsx          (edited additively — wired to /api/sales)
+  app/(app)/inbox/layout.tsx        (edited)
+  app/(app)/workspace/page.tsx      (new — sales_play closing surface)
+  components/inbox/closing-readiness-badge.tsx  (new)
+
+--------------------------------------------------------------------
+GATE 1 — npx tsc --noEmit
+--------------------------------------------------------------------
+Exit code: 0. Clean — no output, no type errors.
+No errors from any changed M6 frontend page.
+
+--------------------------------------------------------------------
+GATE 2 — npm run lint  (next lint)
+--------------------------------------------------------------------
+Exit code: 0. No errors.
+
+Only two PRE-EXISTING warnings remain, both in unrelated legacy
+files (NOT part of M6 frontend):
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.
+            @typescript-eslint/no-unused-vars
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.
+            @typescript-eslint/no-unused-vars
+
+The lint output contains NO reference to:
+  - app/(app)/inbox/*
+  - app/(app)/workspace/*
+  - components/inbox/closing-readiness-badge.tsx
+No M6 frontend file produced any lint error or warning.
+
+====================================================================
+CONCLUSION: Build is GREEN. M6 frontend (inbox + workspace +
+closing-readiness-badge) is type-clean and lint-clean. The only
+lint warnings are pre-existing, in legacy files outside Module 6.
+No fixes were required.
+====================================================================
+
+====================================================================
+FIX PASS (re-verification) — 2026-06-29
+====================================================================
+Re-ran both gates after reading this report. No fixes were needed;
+build remains GREEN.
+
+  npx tsc --noEmit   -> exit code 0, no output, no type errors.
+  npm run lint       -> exit code 0. Same two PRE-EXISTING warnings
+                        only, both outside M6:
+                          app/(app)/settings/diagnostics/page.tsx:514:21  '_body' unused
+                          components/shared/table-pagination.tsx:65:45     'pageSize' unused
+
+No M6 frontend file (inbox / workspace / closing-readiness-badge)
+produced any tsc or lint error. STATUS: PASS — no changes applied.
+====================================================================

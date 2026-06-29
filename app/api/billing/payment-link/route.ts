@@ -17,7 +17,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const guard = await requirePermission("tenant.billing");
+  // Recovery surface — reachable while the tenant is non-active (audit #6).
+  const guard = await requirePermission("tenant.billing", { allowInactiveTenant: true });
   if ("error" in guard) return guard.error;
 
   if (!stripeConfigured()) {

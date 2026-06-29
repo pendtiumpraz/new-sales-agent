@@ -1,0 +1,74 @@
+M3 FRONTEND VERIFY — Contacts / CRM (Sainskerta Loop Phase 04)
+Date: 2026-06-28 (UTC)
+Scope: new/changed M3 frontend — contacts, pipeline, workspace
+
+RESULT: PASS
+
+========================================
+1) npx tsc --noEmit
+========================================
+Exit code: 0
+Output: (none) — no type errors.
+
+========================================
+2) npm run lint  (next lint)
+========================================
+Exit code: 0
+Errors: 0
+Warnings only (lenient prototype config: @typescript-eslint/no-unused-vars).
+
+M3-relevant warnings (non-blocking):
+  app/(app)/contacts/profiles/page.tsx
+    8:19   'AlertTriangle' is defined but never used.
+    8:83   'MapPin' is defined but never used.
+    8:123  'UserCircle2' is defined but never used.
+    17:10  'Card' is defined but never used.
+    17:16  'CardContent' is defined but never used.
+    74:10  'staleInfo' is defined but never used.
+    147:10 'ContactRow' is defined but never used.
+    180:10 'Provenance' is defined but never used.
+    192:10 'classifyingId' is assigned a value but never used.
+
+Other (pre-existing / out of M3 scope, non-blocking):
+  app/(app)/settings/diagnostics/page.tsx
+    514:21 '_body' is defined but never used.
+  components/shared/table-pagination.tsx
+    65:45  'pageSize' is assigned a value but never used.
+
+========================================
+NOTES
+========================================
+- No TypeScript errors; no ESLint errors. Build stays GREEN.
+- All flagged items are unused-import/var WARNINGS, allowed by the
+  intentionally-lenient prototype ESLint config (warnings, not errors).
+- Pipeline page (app/(app)/pipeline/page.tsx) and workspace pages
+  (app/(app)/workspace/page.tsx, app/(app)/workspace/[contactId]) produced
+  no warnings or errors.
+
+========================================
+FIX PASS — 2026-06-29 (UTC)
+========================================
+Scope: clean up the M3-relevant lint WARNINGS in
+app/(app)/contacts/profiles/page.tsx (dead code, no behavior change).
+
+Removed (all flagged unused symbols + their now-orphaned dependencies):
+  - lucide imports: AlertTriangle, MapPin, UserCircle2
+  - ui imports: Card, CardContent
+  - dead helpers: staleInfo() (+ its only consumer YEAR_MS),
+    ContactRow() and its orphaned cluster (CONSENT, CHANNEL_LABEL,
+    toWaDigits, linkForChannel), Provenance()
+  - unused state: classifyingId (the value was never read; removed the
+    useState and its two setClassifyingId() call sites in enrich.onSettled
+    and openEnrich)
+Kept: User2, Handshake, ContactPoint, cn — still referenced elsewhere.
+No DB mutations. No mock data. No behavior change.
+
+Re-verify:
+  1) npx tsc --noEmit  → exit 0, no type errors.
+  2) npm run lint      → exit 0, 0 errors.
+     app/(app)/contacts/profiles/page.tsx now produces NO warnings.
+     Only remaining warnings are the two pre-existing, out-of-M3-scope
+     ones (settings/diagnostics/page.tsx:514, table-pagination.tsx:65) —
+     non-blocking, unchanged.
+
+RESULT: PASS — build stays GREEN. Final tsc: exit 0 (no type errors).

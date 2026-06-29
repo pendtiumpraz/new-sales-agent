@@ -1,248 +1,1121 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+// Autopilot — Module 7 FRONTEND (Sainskerta Loop Phase 04). Wired to the NEW M7 /
+// outreach backend (no mock data): GET /api/autopilot (list, AutopilotRunRow[]) +
+// ?status= / ?mode= filters, GET /api/autopilot/trashed (the Sampah view), GET
+// /api/autopilot/[id] (drawer detail + log), GET /api/conversations (resolve the
+// optional conversation a run is attached to + the "start a run" picker).
+// Mutations: POST /api/autopilot (start a run — AI auto-orchestration record),
+// DELETE /api/autopilot/[id] (SOFT delete), PATCH /api/autopilot/[id]/restore
+// (un-trash), DELETE /api/autopilot/[id]?purge=1 (HARD delete). Faithful to the
+// established design system (Coral Sunset) — built CONSISTENT with the contacts +
+// admin reference pages: stat strip, main tabs (Aktif / Sampah), segmented status +
+// mode filters + search, table (Status · Mode · Trigger · Dimulai · Ringkasan ·
+// Aksi), and a right drawer (status + meta + structured log trace). Every band has
+// loading + empty + error states. Lives in the (app) shell (Outreach cluster).
+//
+// Read-only-ish: the run LIFECYCLE (status transitions, log entries, summary) is
+// driven by the AI orchestrator elsewhere — this surface lists + inspects runs and
+// lets an operator START one (records the lifecycle) + manage the trash. No log /
+// metric values are fabricated here.
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  History,
-  PauseCircle,
+  Bot,
+  ChevronRight,
+  CircleDot,
+  Clock,
+  Loader2,
+  MessageSquare,
   Play,
+  Rocket,
+  RotateCcw,
+  Search,
   Sparkles,
-  Users,
-  XCircle,
+  Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
-import { ActivityTimeline } from "@/components/autopilot/activity-timeline";
-import { AudiencePicker } from "@/components/autopilot/audience-picker";
-import { GuardrailsPanel } from "@/components/autopilot/guardrails-panel";
-import { HeroBanner } from "@/components/autopilot/hero-banner";
-import { CardErrorBoundary } from "@/components/workspace/card-error-boundary";
-import { RunResults } from "@/components/autopilot/run-results";
-import { RunSummary } from "@/components/autopilot/run-summary";
-import { STEP_KIND } from "@/components/autopilot/step-card";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { runAutopilot } from "@/lib/autopilot/orchestrator";
-import { useAutopilotStore } from "@/lib/stores/autopilot-store";
-import { useKbStore } from "@/lib/stores/kb-store";
-import { useProspectingStore } from "@/lib/stores/prospecting-store";
-import { classifySegment, cityMatches } from "@/lib/autopilot/audience";
-import type { AutopilotRun, AutopilotRunConfig } from "@/lib/types/autopilot";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-/**
- * /autopilot — the one-button AI demo page.
- *
- * Layout:
- *  - PageHeader
- *  - HeroBanner (giant CTA + goal selector, morphs to KillSwitch when running)
- *  - 2-col body (lg+): AudiencePicker + GuardrailsPanel | ActivityTimeline + RunSummary
- */
-export default function AutopilotPage() {
-  const config = useAutopilotStore((s) => s.config);
-  const setConfig = useAutopilotStore((s) => s.setConfig);
-  const currentRun = useAutopilotStore((s) => s.currentRun);
-  const history = useAutopilotStore((s) => s.history);
+// ── API envelope + row shapes (NEW M7 / outreach backend — { ok, data }) ──────
 
-  const kb = useKbStore((s) => s.kb);
-  const prospects = useProspectingStore((s) => s.prospects);
+interface ApiOk<T> {
+  ok: true;
+  data: T;
+}
+interface ApiErr {
+  ok: false;
+  error: string;
+  code?: string;
+}
+type ApiResult<T> = ApiOk<T> | ApiErr;
 
-  // Pull past runs from Postgres once per mount. The store guards with
-  // historyHydrated so this is safe to call unconditionally.
-  useEffect(() => {
-    void useAutopilotStore.getState().hydrateHistory();
-  }, []);
+/** Row from GET /api/autopilot (modules/outreach · autopilot_run_v2). */
+interface AutopilotRunRow {
+  id: string;
+  workspaceId: string | null;
+  contactId: string | null;
+  conversationId: string | null;
+  enrollmentId: string | null;
+  mode: string; // suggest | auto
+  status: string; // queued | running | done | error | escalated
+  trigger: string | null;
+  log: Array<Record<string, unknown>>;
+  summary: string | null;
+  error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null; // set on rows from /api/autopilot/trashed
+}
 
-  const running = currentRun?.status === "running";
-  const paused = currentRun?.status === "paused";
-  const done = currentRun?.status === "done";
-  // Config panels + hero stay locked while the run is active OR parked at a
-  // guardrail pause (so the operator can't edit audience mid-flight).
-  const busy = running || paused;
+/** Row from GET /api/conversations (modules/inbox · conversation_v2). Only the
+ *  fields this page reads are typed; the rest of the row is ignored. */
+interface ConversationRow {
+  id: string;
+  contactId: string | null;
+  channel: string | null;
+  subject: string | null;
+  status: string | null;
+  lastMessageAt: string | null;
+}
 
-  // Live "Y prospek cocok" estimate used in the hero summary copy.
-  const estimatedProspects = useMemo(() => {
-    const minScore = config.audienceMinScore ?? 0;
-    const matched = prospects.filter((p) => {
-      if (config.audienceSegment && classifySegment(p.companySize) !== config.audienceSegment) {
-        return false;
-      }
-      if (p.aiScore < minScore) return false;
-      if (!cityMatches(p.city, config.audienceCity)) return false;
-      return true;
-    });
-    const cap = config.audienceCap ?? 0;
-    return cap > 0 ? Math.min(matched.length, cap) : matched.length;
-  }, [
-    prospects,
-    config.audienceSegment,
-    config.audienceMinScore,
-    config.audienceCity,
-    config.audienceCap,
-  ]);
+// ── enums / display metadata ─────────────────────────────────────────────────
 
-  // AI usage summary — counts ai-text events on the current run so the
-  // operator can see at a glance whether Deepseek really ran or the
-  // template fallback kicked in. Recomputes on every events.length change.
-  const aiStatus = useMemo(() => {
-    const events = currentRun?.events ?? [];
-    let realCount = 0;
-    let mockCount = 0;
-    let totalMs = 0;
-    for (const e of events) {
-      if (STEP_KIND[e.step] !== "ai-text") continue;
-      if (e.status !== "done") continue;
-      if (e.source === "real") realCount += 1;
-      else mockCount += 1;
-      if (e.startedAt && e.finishedAt) {
-        totalMs += +new Date(e.finishedAt) - +new Date(e.startedAt);
-      }
+type StatusFilter = "all" | "queued" | "running" | "done" | "error" | "escalated";
+type ModeFilter = "all" | "suggest" | "auto";
+type MainTab = "aktif" | "sampah";
+
+const STATUS_META: Record<
+  string,
+  { label: string; cls: string; dot: string; spin?: boolean }
+> = {
+  queued: {
+    label: "Antri",
+    cls: "bg-muted text-muted-foreground",
+    dot: "bg-muted-foreground",
+  },
+  running: {
+    label: "Berjalan",
+    cls: "bg-info/12 text-info",
+    dot: "bg-info",
+    spin: true,
+  },
+  done: {
+    label: "Selesai",
+    cls: "bg-success/15 text-success",
+    dot: "bg-success",
+  },
+  error: {
+    label: "Gagal",
+    cls: "bg-destructive/10 text-destructive",
+    dot: "bg-destructive",
+  },
+  escalated: {
+    label: "Eskalasi",
+    cls: "bg-highlight/15 text-[color:#b45309]",
+    dot: "bg-highlight",
+  },
+};
+
+const MODE_META: Record<string, { label: string; hint: string; style: React.CSSProperties }> = {
+  auto: {
+    label: "Auto",
+    hint: "AI bertindak penuh tanpa persetujuan per-langkah",
+    style: { background: "hsl(173 80% 40% / .14)", color: "#0d9488" },
+  },
+  suggest: {
+    label: "Saran",
+    hint: "AI hanya menyarankan — manusia menyetujui",
+    style: { background: "#FB5E3B18", color: "#c0432a" },
+  },
+};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+async function readJson<T>(r: Response): Promise<T> {
+  const j = (await r.json().catch(() => null)) as ApiResult<T> | null;
+  if (!r.ok || !j || j.ok === false) {
+    if (r.status === 403) throw new Error("forbidden");
+    throw new Error((j && "error" in j && j.error) || "Permintaan gagal");
+  }
+  return j.data;
+}
+
+function fmtRelID(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diff = Date.now() - d.getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) {
+    const m = Math.floor(diff / 60_000);
+    return m < 1 ? "Baru saja" : `${m} menit lalu`;
+  }
+  if (h < 24) return `${h} jam lalu`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `${days} hari lalu`;
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function fmtDateTimeID(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("id-ID", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Wall-clock duration of a run (started → finished, or → now if still live). */
+function fmtDuration(startedAt: string | null, finishedAt: string | null): string | null {
+  if (!startedAt) return null;
+  const start = new Date(startedAt).getTime();
+  if (Number.isNaN(start)) return null;
+  const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
+  const sec = Math.max(0, Math.round((end - start) / 1000));
+  if (sec < 60) return `${sec} dtk`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} mnt`;
+  const hr = Math.floor(min / 60);
+  return `${hr} jam ${min % 60} mnt`;
+}
+
+/** A short, honest label for a run row — summary first, else trigger/contact ref. */
+function runHeadline(run: AutopilotRunRow): string {
+  if (run.summary && run.summary.trim()) return run.summary.trim();
+  if (run.trigger) return `Dipicu: ${run.trigger}`;
+  return "Run tanpa ringkasan";
+}
+
+/** Pull the most human-readable text out of a structured log entry. */
+function logEntryText(entry: Record<string, unknown>): string {
+  for (const k of ["message", "msg", "text", "step", "note", "detail"] as const) {
+    const v = entry[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  // Fall back to a compact key=value rendering of the non-`at` fields.
+  const parts = Object.entries(entry)
+    .filter(([k]) => k !== "at")
+    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`);
+  return parts.length ? parts.join(" · ") : "(entri log kosong)";
+}
+
+function logEntryAt(entry: Record<string, unknown>): string | null {
+  const at = entry["at"];
+  return typeof at === "string" ? at : null;
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
+
+export default function AutopilotRunsPage() {
+  const qc = useQueryClient();
+
+  // live runs + conversations (conversations resolve conversationId → subject join
+  // and feed the "start a run" picker)
+  const runsQ = useQuery({
+    queryKey: ["outreach", "autopilot", "list"],
+    queryFn: async () => readJson<AutopilotRunRow[]>(await fetch("/api/autopilot")),
+    retry: false,
+  });
+  const conversationsQ = useQuery({
+    queryKey: ["inbox", "conversations", "list"],
+    queryFn: async () => readJson<ConversationRow[]>(await fetch("/api/conversations")),
+    retry: false,
+  });
+
+  const runs = useMemo(() => runsQ.data ?? [], [runsQ.data]);
+  const conversationById = useMemo(() => {
+    const m: Record<string, ConversationRow> = {};
+    for (const c of conversationsQ.data ?? []) m[c.id] = c;
+    return m;
+  }, [conversationsQ.data]);
+
+  // ── tabs ───────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<MainTab>("aktif");
+
+  // Trashed runs — lazy (only fetched when the Sampah tab opens), kept warm.
+  const trashedQ = useQuery({
+    queryKey: ["outreach", "autopilot", "trashed"],
+    enabled: tab === "sampah",
+    queryFn: async () => readJson<AutopilotRunRow[]>(await fetch("/api/autopilot/trashed")),
+    retry: false,
+  });
+  const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
+
+  // ── filters ──────────────────────────────────────────────────────────────────
+  const [statusF, setStatusF] = useState<StatusFilter>("all");
+  const [modeF, setModeF] = useState<ModeFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const stats = useMemo(() => {
+    let running = 0;
+    let done = 0;
+    let attention = 0; // error + escalated → needs a human
+    for (const r of runs) {
+      if (r.status === "running" || r.status === "queued") running++;
+      else if (r.status === "done") done++;
+      if (r.status === "error" || r.status === "escalated") attention++;
     }
-    const total = realCount + mockCount;
-    const avgMs = total > 0 ? totalMs / total : 0;
-    return { realCount, mockCount, total, avgMs };
-  }, [currentRun?.events]);
+    return { total: runs.length, running, done, attention };
+  }, [runs]);
 
-  // Toast on completion — fires the moment status flips to "done".
-  const lastNotifiedRunId = useRef<string | null>(null);
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return runs.filter((r) => {
+      const okStatus = statusF === "all" || r.status === statusF;
+      const okMode = modeF === "all" || r.mode === modeF;
+      const convo = r.conversationId ? conversationById[r.conversationId]?.subject ?? "" : "";
+      const hay = `${runHeadline(r)} ${r.trigger ?? ""} ${convo} ${r.id}`.toLowerCase();
+      const okSearch = !q || hay.includes(q);
+      return okStatus && okMode && okSearch;
+    });
+  }, [runs, statusF, modeF, search, conversationById]);
+
+  const visibleTrashed = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return trashed;
+    return trashed.filter((r) => {
+      const hay = `${runHeadline(r)} ${r.trigger ?? ""} ${r.id}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [trashed, search]);
+
+  // ── drawer (run detail) ──────────────────────────────────────────────────────
+  const [openId, setOpenId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!currentRun) return;
-    if (currentRun.status !== "done") return;
-    if (lastNotifiedRunId.current === currentRun.id) return;
-    lastNotifiedRunId.current = currentRun.id;
-    toast.success(
-      `Autopilot selesai — ${currentRun.metrics.meetingsBooked} meeting berhasil dijadwalkan.`,
-    );
-  }, [currentRun]);
-
-  const startAutopilot = async () => {
-    // Snapshot the editing config into a fresh run.
-    const snapshot: AutopilotRunConfig = {
-      ...config,
-      guardrails: { ...config.guardrails },
+    if (!openId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenId(null);
     };
-    useAutopilotStore.getState().startRun(snapshot);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openId]);
 
-    toast("Autopilot dimulai — AI sedang bekerja…", {
-      description: "Pantau timeline di sebelah kanan.",
-    });
+  // Full run detail (log trace) — fetched fresh per open so the log is current
+  // even after the orchestrator appends entries. Falls back to the list row.
+  const detailQ = useQuery({
+    queryKey: ["outreach", "autopilot", "detail", openId],
+    enabled: !!openId,
+    queryFn: async () =>
+      readJson<AutopilotRunRow>(await fetch(`/api/autopilot/${openId}`)),
+    retry: false,
+  });
+  const activeRow = useMemo(() => runs.find((r) => r.id === openId) ?? null, [runs, openId]);
+  const active = detailQ.data ?? activeRow;
 
-    try {
-      await runAutopilot(snapshot, kb, {
-        isStopped: () =>
-          useAutopilotStore.getState().currentRun?.status === "stopped",
-      });
-      // If the orchestrator returned without setting "done", mark it done.
-      const after = useAutopilotStore.getState().currentRun;
-      if (after && after.status === "running") {
-        useAutopilotStore.getState().setRunStatus("done");
-      }
-    } catch (err) {
-      // Defensive: orchestrator is expected to handle its own failures, but
-      // we still want a visible signal if it throws.
-      useAutopilotStore.getState().setRunStatus("failed");
-      toast.error("Autopilot gagal", {
-        description: err instanceof Error ? err.message : "Kesalahan tidak diketahui.",
-      });
-    }
-  };
+  // ── start-run drawer ─────────────────────────────────────────────────────────
+  const [startOpen, setStartOpen] = useState(false);
+  const [startMode, setStartMode] = useState<"suggest" | "auto">("suggest");
+  const [startConvo, setStartConvo] = useState<string>(""); // "" = none
+  const [startSummary, setStartSummary] = useState("");
 
-  const stopAutopilot = () => {
-    useAutopilotStore.getState().stopRun();
-    toast("Autopilot dihentikan", {
-      description: "Tidak ada pesan tambahan yang akan dikirim.",
-    });
-  };
+  useEffect(() => {
+    if (!startOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setStartOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [startOpen]);
 
-  const resumeAutopilot = () => {
-    useAutopilotStore.getState().resumeRun();
-    toast("Melanjutkan pengiriman…", {
-      description: "DM pembuka akan dikirim sekarang.",
-    });
-  };
+  function openStart() {
+    setStartMode("suggest");
+    setStartConvo("");
+    setStartSummary("");
+    setStartOpen(true);
+  }
+
+  // ── confirm targets ──────────────────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<AutopilotRunRow | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<AutopilotRunRow | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<AutopilotRunRow | null>(null);
+  const [purgeConfirm, setPurgeConfirm] = useState("");
+
+  // ── mutations ──────────────────────────────────────────────────────────────
+  function refreshAll() {
+    qc.invalidateQueries({ queryKey: ["outreach", "autopilot"] });
+  }
+
+  // START — POST a new autopilot run (records the AI orchestration lifecycle).
+  // Status defaults to queued (the orchestrator flips it to running/done/…). No
+  // log/metric values are invented; only the operator-chosen mode/convo/summary.
+  const startRun = useMutation({
+    mutationFn: async () =>
+      readJson<AutopilotRunRow>(
+        await fetch("/api/autopilot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: startMode,
+            status: "queued",
+            trigger: "manual",
+            conversationId: startConvo || null,
+            summary: startSummary.trim() || null,
+          }),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success("Autopilot run dimulai — status: antri");
+      refreshAll();
+      setStartOpen(false);
+      setOpenId(row.id);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memulai run"),
+  });
+
+  // SOFT delete — moves an active run into "Sampah" (deleted_at stamped).
+  const softDelete = useMutation({
+    mutationFn: async (r: AutopilotRunRow) =>
+      readJson<{ id: string; deleted: boolean }>(
+        await fetch(`/api/autopilot/${r.id}`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, r) => {
+      toast.success("Run dipindah ke Sampah");
+      refreshAll();
+      setDeleteTarget(null);
+      if (openId === r.id) setOpenId(null);
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus run");
+      setDeleteTarget(null);
+    },
+  });
+
+  // RESTORE — clears deleted_at, returning the run to the active tab.
+  const restore = useMutation({
+    mutationFn: async (r: AutopilotRunRow) =>
+      readJson<AutopilotRunRow>(await fetch(`/api/autopilot/${r.id}/restore`, { method: "PATCH" })),
+    onSuccess: () => {
+      toast.success("Run dipulihkan");
+      refreshAll();
+      setRestoreTarget(null);
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal memulihkan run");
+      setRestoreTarget(null);
+    },
+  });
+
+  // HARD delete (purge) — permanent removal from trash. Irreversible.
+  const purge = useMutation({
+    mutationFn: async (r: AutopilotRunRow) =>
+      readJson<{ id: string; purged: boolean }>(
+        await fetch(`/api/autopilot/${r.id}?purge=1`, { method: "DELETE" }),
+      ),
+    onSuccess: () => {
+      toast.success("Run dihapus permanen");
+      refreshAll();
+      setPurgeTarget(null);
+      setPurgeConfirm("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
+  });
+
+  // ── top-level loading / error ────────────────────────────────────────────────
+  const listError = runsQ.isError;
+  const forbidden = runsQ.error instanceof Error && runsQ.error.message === "forbidden";
 
   return (
     <div>
       <PageHeader
         title="Autopilot"
-        description="Pipeline otomatis dari pemilihan audiens, koneksi LinkedIn, hingga booking meeting + Chief of Staff AI. Klik satu tombol untuk menjalankan."
-      />
+        description="Riwayat run orkestrasi AI atas percakapan & kontak — status, durasi, dan jejak log per langkah. Klik baris untuk lihat detail + log. Lifecycle dijalankan oleh orkestrator AI."
+      >
+        <Button asChild variant="outline" size="sm">
+          <Link href="/escalations">
+            <Bot className="h-4 w-4" /> Eskalasi
+          </Link>
+        </Button>
+        <Button size="sm" onClick={openStart} disabled={runsQ.isError}>
+          <Play className="h-4 w-4" /> Mulai run
+        </Button>
+      </PageHeader>
 
-      <div className="space-y-4 p-6">
-        <CardErrorBoundary name="AI Status">
-          <AiStatusLine status={aiStatus} />
-        </CardErrorBoundary>
-
-        <CardErrorBoundary name="Hero Banner (CTA)">
-          <HeroBanner
-            config={config}
-            onChangeGoal={(goal) => setConfig({ goal })}
-            onStart={startAutopilot}
-            onStop={stopAutopilot}
-            running={busy}
-            done={done}
-            estimatedProspects={estimatedProspects}
-            meetingsBooked={currentRun?.metrics.meetingsBooked ?? 0}
+      <div className="space-y-5 p-6">
+        {/* ============ STAT STRIP ============ */}
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total run"
+            value={runsQ.isLoading ? null : stats.total}
+            hint="di workspace ini"
           />
-        </CardErrorBoundary>
+          <StatCard
+            label="Aktif / antri"
+            value={runsQ.isLoading ? null : stats.running}
+            hint="sedang berjalan / menunggu"
+            valueClass="text-info"
+          />
+          <StatCard
+            label="Selesai"
+            value={runsQ.isLoading ? null : stats.done}
+            hint="orkestrasi tuntas"
+            valueClass="text-success"
+          />
+          <StatCard
+            label="Perlu perhatian"
+            value={runsQ.isLoading ? null : stats.attention}
+            hint="gagal / eskalasi ke manusia"
+            valueClass="text-warning"
+          />
+        </section>
 
-        {paused && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <PauseCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-              <div>
-                <p className="text-sm font-semibold text-amber-900">
-                  Autopilot dijeda — menunggu persetujuan Anda
-                </p>
-                <p className="text-xs text-amber-800">
-                  Guardrail “Jeda sebelum kirim” aktif. Tinjau timeline, lalu
-                  lanjutkan untuk mengirim DM pembuka.
-                </p>
+        {/* ============ MAIN TABS: Aktif | Sampah ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "aktif"} onClick={() => setTab("aktif")}>
+            <Rocket className="h-4 w-4" />
+            Aktif
+            <CountPill>{runs.length}</CountPill>
+          </TabButton>
+          <TabButton active={tab === "sampah"} onClick={() => setTab("sampah")}>
+            <Trash2 className="h-4 w-4" />
+            Sampah
+            {trashed.length > 0 && (
+              <span className="rounded-full bg-destructive/[0.12] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-destructive">
+                {trashed.length}
+              </span>
+            )}
+          </TabButton>
+        </div>
+
+        {tab === "aktif" ? (
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            {/* TOOLBAR: status segmented control + mode pills + search */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-border px-4 py-3">
+              {/* (1) STATUS segmented control */}
+              <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+                {(
+                  [
+                    { v: "all", label: "Semua" },
+                    { v: "running", label: "Berjalan" },
+                    { v: "queued", label: "Antri" },
+                    { v: "done", label: "Selesai" },
+                    { v: "error", label: "Gagal" },
+                    { v: "escalated", label: "Eskalasi" },
+                  ] as const
+                ).map((s) => (
+                  <button
+                    key={s.v}
+                    type="button"
+                    onClick={() => setStatusF(s.v)}
+                    className={cn(
+                      "h-7 rounded-md px-3 text-xs transition-colors",
+                      statusF === s.v
+                        ? "bg-card font-semibold text-foreground shadow-sm"
+                        : "font-medium text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
+
+              <span className="hidden h-5 w-px bg-border sm:block" />
+
+              {/* (2) MODE pills */}
+              <div className="flex items-center gap-1.5">
+                <span className="mr-0.5 text-[11px] text-muted-foreground">Mode:</span>
+                {(
+                  [
+                    { v: "all", label: "Semua" },
+                    { v: "auto", label: "Auto" },
+                    { v: "suggest", label: "Saran" },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.v}
+                    type="button"
+                    onClick={() => setModeF(m.v)}
+                    className={cn(
+                      "h-7 rounded-full px-3 text-xs transition-colors",
+                      modeF === m.v
+                        ? "bg-foreground font-semibold text-background"
+                        : "border border-border bg-card font-medium text-foreground/70 hover:border-primary/40",
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* (3) inline search */}
+              <div className="relative ml-auto w-48">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter ringkasan / pemicu…"
+                  className="h-7 w-full rounded-lg border border-transparent bg-muted/60 pl-8 pr-2.5 text-xs focus:border-border focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
+
+              <span className="text-[11px] text-muted-foreground">
+                <b className="text-foreground">{visible.length}</b> hasil
+              </span>
             </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={resumeAutopilot}
-                className="bg-amber-600 text-white hover:bg-amber-700"
-              >
-                <Play className="h-4 w-4" /> Lanjutkan kirim
-              </Button>
-              <Button variant="outline" onClick={stopAutopilot}>
-                Batalkan
-              </Button>
+
+            {/* TABLE */}
+            {runsQ.isLoading ? (
+              <TableLoading />
+            ) : listError ? (
+              <ErrorState
+                className="border-0"
+                title={forbidden ? "Tidak punya akses" : "Gagal memuat run"}
+                description={
+                  forbidden
+                    ? "Akun kamu tidak punya izin baca data (data.read). Hubungi admin workspace."
+                    : "Tidak bisa mengambil daftar autopilot run. Pastikan kamu login & database tersedia."
+                }
+                onRetry={() => runsQ.refetch()}
+              />
+            ) : runs.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Rocket}
+                title="Belum ada autopilot run"
+                description="Run muncul di sini saat orkestrator AI mulai menangani percakapan / kontak — otomatis (inbound, jadwal) atau saat kamu memulainya manual."
+                action={
+                  <Button size="sm" onClick={openStart}>
+                    <Play className="h-4 w-4" /> Mulai run
+                  </Button>
+                }
+              />
+            ) : visible.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Search}
+                title="Tidak ada run yang cocok"
+                description="Coba ubah filter status / mode, atau kata kunci pencarian."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[920px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-3 font-semibold">Status</th>
+                      <th className="px-3 py-3 font-semibold">Mode</th>
+                      <th className="px-3 py-3 font-semibold">Ringkasan</th>
+                      <th className="px-3 py-3 font-semibold">Pemicu</th>
+                      <th className="px-3 py-3 font-semibold">Dimulai</th>
+                      <th className="px-3 py-3 font-semibold">Durasi</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visible.map((r) => (
+                      <RunTableRow
+                        key={r.id}
+                        run={r}
+                        conversation={
+                          r.conversationId ? conversationById[r.conversationId] ?? null : null
+                        }
+                        onOpen={() => setOpenId(r.id)}
+                        onDelete={() => setDeleteTarget(r)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ) : (
+          /* ============ SAMPAH (trash) view ============ */
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs">
+              <span className="text-muted-foreground">
+                Run yang dihapus disimpan di sini. <b>Pulihkan</b> mengembalikannya ke tab Aktif,{" "}
+                <b>Hapus permanen</b> menghapus selamanya beserta jejak log-nya.
+              </span>
+              <span className="ml-auto text-muted-foreground">
+                {visibleTrashed.length} dari {trashed.length} run
+              </span>
             </div>
-          </div>
+
+            {trashedQ.isLoading ? (
+              <TableLoading />
+            ) : trashedQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat sampah"
+                description="Tidak bisa mengambil run yang dihapus."
+                onRetry={() => trashedQ.refetch()}
+              />
+            ) : visibleTrashed.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Trash2}
+                title={trashed.length === 0 ? "Sampah kosong" : "Tidak ada yang cocok"}
+                description={
+                  trashed.length === 0
+                    ? "Run yang kamu hapus akan muncul di sini dan bisa dipulihkan."
+                    : "Coba ubah kata kunci pencarian."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-3 font-semibold">Status</th>
+                      <th className="px-3 py-3 font-semibold">Mode</th>
+                      <th className="px-3 py-3 font-semibold">Ringkasan</th>
+                      <th className="px-3 py-3 font-semibold">Dihapus</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visibleTrashed.map((r) => (
+                      <TrashedTableRow
+                        key={r.id}
+                        run={r}
+                        onRestore={() => setRestoreTarget(r)}
+                        onPurge={() => {
+                          setPurgeTarget(r);
+                          setPurgeConfirm("");
+                        }}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-12">
-          {/* Left column — config */}
-          <div className="space-y-4 lg:col-span-4">
-            <CardErrorBoundary name="Audience Picker">
-              <AudiencePicker disabled={busy} />
-            </CardErrorBoundary>
-            <CardErrorBoundary name="Guardrails Panel">
-              <GuardrailsPanel disabled={busy} />
-            </CardErrorBoundary>
+        {/* Legend */}
+        <p className="max-w-3xl text-[11px] text-muted-foreground">
+          Mode{" "}
+          <span
+            className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+            style={MODE_META.auto.style}
+          >
+            Auto
+          </span>{" "}
+          = AI bertindak penuh ·{" "}
+          <span
+            className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+            style={MODE_META.suggest.style}
+          >
+            Saran
+          </span>{" "}
+          = AI menyarankan, manusia menyetujui. Status{" "}
+          <b className="text-[color:#b45309]">Eskalasi</b> berarti run minta takeover manusia
+          (lihat Eskalasi). Klik baris → panel kanan (status + meta + jejak log).
+        </p>
+      </div>
+
+      {/* ===================== RIGHT DRAWER (run detail) ===================== */}
+      <div
+        onClick={() => setOpenId(null)}
+        className={cn(
+          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
+          openId ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
+          openId ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {active && (
+          <>
+            {/* header */}
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/[0.12] text-primary">
+                  <Rocket className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-bold text-foreground">Autopilot run</h2>
+                  <p className="truncate font-mono text-[11px] text-muted-foreground">{active.id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOpenId(null)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* body */}
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+              {/* (A) STATUS + MODE */}
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={active.status} />
+                <ModeBadge mode={active.mode} />
+                {detailQ.isFetching && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> menyegarkan…
+                  </span>
+                )}
+              </div>
+
+              {/* (B) SUMMARY / ERROR */}
+              {active.error ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Error
+                  </p>
+                  <p className="text-[13px] leading-relaxed text-foreground/80">{active.error}</p>
+                </div>
+              ) : null}
+              {active.summary ? (
+                <div className="rounded-lg border border-border bg-accent/60 p-3">
+                  <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-tertiary" /> Ringkasan AI
+                  </p>
+                  <p className="text-[13px] leading-relaxed text-foreground/80">{active.summary}</p>
+                </div>
+              ) : null}
+
+              {/* (C) META */}
+              <div>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Detail
+                </h3>
+                <div className="space-y-2 text-[13px]">
+                  <MetaRow label="Pemicu" value={active.trigger} />
+                  <MetaRow label="Dimulai" value={fmtDateTimeID(active.startedAt)} />
+                  <MetaRow label="Selesai" value={fmtDateTimeID(active.finishedAt)} />
+                  <MetaRow
+                    label="Durasi"
+                    value={fmtDuration(active.startedAt, active.finishedAt)}
+                  />
+                  <MetaRow label="Dibuat" value={fmtDateTimeID(active.createdAt)} />
+                  {active.conversationId && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Percakapan</span>
+                      <Link
+                        href="/inbox"
+                        className="inline-flex items-center gap-1 text-right font-medium text-primary hover:underline"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        {conversationById[active.conversationId]?.subject ?? "Buka percakapan"}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* (D) LOG TRACE */}
+              <div>
+                <h3 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Jejak log</span>
+                  <span className="tabular-nums">{active.log?.length ?? 0} langkah</span>
+                </h3>
+                {detailQ.isLoading && !activeRow ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                    ))}
+                  </div>
+                ) : detailQ.isError ? (
+                  <ErrorState
+                    className="border-0 py-6"
+                    title="Gagal memuat log"
+                    description="Tidak bisa mengambil jejak log run ini."
+                    onRetry={() => detailQ.refetch()}
+                  />
+                ) : (active.log?.length ?? 0) === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border py-4 text-center text-[12px] text-muted-foreground">
+                    Belum ada entri log. Orkestrator menambah langkah saat run berjalan.
+                  </p>
+                ) : (
+                  <ol className="relative space-y-3 border-l border-border pl-4">
+                    {active.log.map((entry, i) => (
+                      <li key={i} className="relative">
+                        <span className="absolute -left-[1.3125rem] top-1 flex h-2.5 w-2.5 items-center justify-center">
+                          <CircleDot className="h-2.5 w-2.5 text-tertiary" />
+                        </span>
+                        <p className="text-[12px] leading-relaxed text-foreground">
+                          {logEntryText(entry)}
+                        </p>
+                        {logEntryAt(entry) && (
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {fmtDateTimeID(logEntryAt(entry))}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+
+            {/* footer */}
+            <div className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-5 py-3">
+              {active.conversationId && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/inbox">
+                    <MessageSquare className="h-4 w-4" style={{ color: "#25D366" }} /> Buka chat
+                  </Link>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto text-destructive hover:border-destructive/40 hover:text-destructive"
+                onClick={() => active && setDeleteTarget(active)}
+              >
+                <Trash2 className="h-4 w-4" /> Hapus
+              </Button>
+            </div>
+          </>
+        )}
+      </aside>
+
+      {/* ===================== START-RUN DRAWER ===================== */}
+      <div
+        onClick={() => setStartOpen(false)}
+        className={cn(
+          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
+          startOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
+          startOpen ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/[0.12] text-primary">
+              <Play className="h-[18px] w-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-bold text-foreground">Mulai autopilot run</h2>
+              <p className="truncate text-[11px] text-muted-foreground">
+                Catat run baru — orkestrator AI menjalankan langkahnya
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setStartOpen(false)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+          {/* mode */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["suggest", "auto"] as const).map((m) => {
+                const on = startMode === m;
+                const meta = MODE_META[m];
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setStartMode(m)}
+                    className={cn(
+                      "rounded-lg border p-3 text-left transition-colors",
+                      on ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
+                    )}
+                  >
+                    <span
+                      className="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                      style={meta.style}
+                    >
+                      {meta.label}
+                    </span>
+                    <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                      {meta.hint}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Right column — live activity + KPIs */}
-          <div className="space-y-4 lg:col-span-8">
-            <CardErrorBoundary name="Aktivitas (timeline)">
-              <ActivityTimeline />
-            </CardErrorBoundary>
-            <CardErrorBoundary name="Ringkasan run (KPI)">
-              <RunSummary />
-            </CardErrorBoundary>
-            <CardErrorBoundary name="Hasil per prospek (RunResults)">
-              <RunResults />
-            </CardErrorBoundary>
-            <CardErrorBoundary name="Riwayat run">
-              <HistoryCard history={history} currentRunId={currentRun?.id} />
-            </CardErrorBoundary>
+          {/* conversation (optional) */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+              Percakapan <span className="font-normal text-muted-foreground">(opsional)</span>
+            </label>
+            <div className="relative">
+              <select
+                value={startConvo}
+                onChange={(e) => setStartConvo(e.target.value)}
+                disabled={conversationsQ.isLoading || conversationsQ.isError}
+                className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
+              >
+                <option value="">— Tanpa percakapan —</option>
+                {(conversationsQ.data ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.subject || `${c.channel ?? "chat"} · ${c.id.slice(0, 8)}`}
+                  </option>
+                ))}
+              </select>
+              <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-muted-foreground" />
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {conversationsQ.isError
+                ? "Tidak bisa memuat percakapan — run tetap bisa dimulai tanpa tautan."
+                : "Tautkan run ke percakapan inbox agar log-nya terhubung ke thread itu."}
+            </p>
+          </div>
+
+          {/* summary (optional) */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+              Catatan / tujuan <span className="font-normal text-muted-foreground">(opsional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={startSummary}
+              onChange={(e) => setStartSummary(e.target.value)}
+              placeholder="mis. Follow-up lead yang belum balas 3 hari…"
+              className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground">
+            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tertiary" />
+            <span>
+              Run dibuat berstatus <b className="text-foreground">antri</b>. Orkestrator AI yang
+              menjalankan langkah & mengisi log — halaman ini hanya mencatat & memantau.
+            </span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-3">
+          <button
+            onClick={() => setStartOpen(false)}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Batal
+          </button>
+          <Button size="sm" disabled={startRun.isPending} onClick={() => startRun.mutate()}>
+            {startRun.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Memulai…
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" /> Mulai run
+              </>
+            )}
+          </Button>
+        </div>
+      </aside>
+
+      {/* ===================== SOFT-DELETE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
+        title="Pindahkan ke Sampah?"
+        body={
+          <>
+            Run ini akan dihapus dan dipindah ke tab <b>Sampah</b> beserta jejak log-nya. Kamu masih
+            bisa memulihkannya nanti.
+          </>
+        }
+        confirmLabel="Ya, hapus"
+        confirmPending={softDelete.isPending}
+        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
+      />
+
+      {/* ===================== RESTORE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!restoreTarget}
+        onClose={() => setRestoreTarget(null)}
+        icon={<RotateCcw className="h-5 w-5" />}
+        tone="tertiary"
+        title="Pulihkan run?"
+        body={<>Run ini akan dikembalikan ke tab <b>Aktif</b> beserta jejak log-nya.</>}
+        confirmLabel="Ya, pulihkan"
+        confirmPending={restore.isPending}
+        onConfirm={() => restoreTarget && restore.mutate(restoreTarget)}
+      />
+
+      {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setPurgeTarget(null);
+            setPurgeConfirm("");
+          }
+        }}
+        className={cn(
+          "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
+        <div
+          className={cn(
+            "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
+            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                Tindakan ini <b>tidak bisa dibatalkan</b>. Run ini akan dihapus selamanya beserta
+                jejak log-nya.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="mb-1.5 block text-[12px] text-muted-foreground">
+              Ketik{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
+                HAPUS
+              </code>{" "}
+              untuk konfirmasi.
+            </label>
+            <input
+              type="text"
+              value={purgeConfirm}
+              onChange={(e) => setPurgeConfirm(e.target.value)}
+              placeholder="HAPUS"
+              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
+            />
+          </div>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              onClick={() => {
+                setPurgeTarget(null);
+                setPurgeConfirm("");
+              }}
+              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Batal
+            </button>
+            <button
+              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
+              disabled={purge.isPending || purgeConfirm.trim().toUpperCase() !== "HAPUS"}
+              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
+            </button>
           </div>
         </div>
       </div>
@@ -250,153 +1123,304 @@ export default function AutopilotPage() {
   );
 }
 
-/**
- * Compact "Riwayat run" card listing the last 5 finished autopilot runs.
- * Hydrated from /api/db/autopilot-runs so it persists across sessions.
- */
-function HistoryCard({
-  history,
-  currentRunId,
+// ───────────────────────── sub-components ─────────────────────────
+
+function StatCard({
+  label,
+  value,
+  hint,
+  valueClass,
 }: {
-  history: AutopilotRun[];
-  currentRunId?: string;
+  label: string;
+  value: number | null;
+  hint: string;
+  valueClass?: string;
 }) {
-  // Exclude the run that's still front-and-center in the page header so the
-  // list reads as strictly historical.
-  const rows = history
-    .filter((r) => r.id !== currentRunId)
-    .slice(0, 5);
-  if (rows.length === 0) return null;
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <History className="h-4 w-4 text-muted-foreground" />
-          Riwayat run
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 pt-0">
-        {rows.map((r) => (
-          <HistoryRow key={r.id} run={r} />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function HistoryRow({ run }: { run: AutopilotRun }) {
-  const started = new Date(run.startedAt);
-  const startedLabel = isNaN(started.getTime())
-    ? run.startedAt
-    : started.toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border bg-card/60 px-3 py-2 text-sm">
-      <div className="flex min-w-0 items-center gap-3">
-        <StatusBadge status={run.status} />
-        <span className="truncate text-muted-foreground">{startedLabel}</span>
+    <div className="rounded-lg border border-border bg-card p-4 shadow-soft">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        {value == null ? (
+          <Skeleton className="h-7 w-12" />
+        ) : (
+          <span className={cn("text-2xl font-bold tabular-nums", valueClass)}>
+            {value.toLocaleString("id-ID")}
+          </span>
+        )}
       </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1 tnum">
-          <Users className="h-3.5 w-3.5" />
-          {run.metrics.prospectsEngaged}
-        </span>
-        <span className="inline-flex items-center gap-1 tnum">
-          <Calendar className="h-3.5 w-3.5" />
-          {run.metrics.meetingsBooked}
-        </span>
-      </div>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
 
-/**
- * Compact one-line summary of AI usage for the current run. Hidden until at
- * least one ai-text step has finished. Green when every Deepseek call
- * succeeded, amber when at least one fell back to the template.
- */
-function AiStatusLine({
-  status,
+function TabButton({
+  active,
+  onClick,
+  children,
 }: {
-  status: { realCount: number; mockCount: number; total: number; avgMs: number };
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
 }) {
-  if (status.total === 0) return null;
-
-  const avgSec = (status.avgMs / 1000).toFixed(1);
-  const allReal = status.mockCount === 0;
-  const allMock = status.realCount === 0;
-
   return (
-    <div
+    <button
+      onClick={onClick}
       className={cn(
-        "flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-2 text-sm",
-        allReal
-          ? "border-emerald-200 bg-emerald-50/60 text-emerald-800"
-          : allMock
-            ? "border-destructive/30 bg-destructive/5 text-destructive"
-            : "border-amber-200 bg-amber-50/60 text-amber-800",
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
-      {allReal ? (
-        <Sparkles className="h-4 w-4 shrink-0" />
-      ) : (
-        <AlertTriangle className="h-4 w-4 shrink-0" />
+      {children}
+    </button>
+  );
+}
+
+function CountPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const meta = STATUS_META[status] ?? {
+    label: status,
+    cls: "bg-muted text-muted-foreground",
+    dot: "bg-muted-foreground",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-semibold",
+        meta.cls,
       )}
-      <span className="font-medium">
-        {allReal
-          ? "AI Deepseek aktif"
-          : allMock
-            ? "AI fallback aktif"
-            : "AI sebagian fallback"}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot, meta.spin && "animate-pulse")} />
+      {meta.label}
+    </span>
+  );
+}
+
+function ModeBadge({ mode }: { mode: string }) {
+  const meta = MODE_META[mode];
+  if (!meta) {
+    return (
+      <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+        {mode}
       </span>
-      <span className="text-xs opacity-80">
-        {allReal ? (
-          <>
-            <span className="tnum">{status.realCount}</span> panggilan berhasil ·
-            rata-rata <span className="tnum">{avgSec}s</span>
-          </>
-        ) : allMock ? (
-          <>
-            <span className="tnum">{status.mockCount}</span> panggilan ke Deepseek
-            gagal, memakai template
-          </>
-        ) : (
-          <>
-            <span className="tnum">{status.realCount}</span> live ·{" "}
-            <span className="tnum">{status.mockCount}</span> fallback · rata-rata{" "}
-            <span className="tnum">{avgSec}s</span>
-          </>
+    );
+  }
+  return (
+    <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={meta.style}>
+      {meta.label}
+    </span>
+  );
+}
+
+function RunTableRow({
+  run,
+  conversation,
+  onOpen,
+  onDelete,
+}: {
+  run: AutopilotRunRow;
+  conversation: ConversationRow | null;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const duration = fmtDuration(run.startedAt, run.finishedAt);
+  return (
+    <tr onClick={onOpen} className="cursor-pointer transition-colors hover:bg-muted/40">
+      <td className="px-3 py-3">
+        <StatusBadge status={run.status} />
+      </td>
+      <td className="px-3 py-3">
+        <ModeBadge mode={run.mode} />
+      </td>
+      <td className="px-3 py-3">
+        <p className="max-w-[280px] truncate font-medium text-foreground">{runHeadline(run)}</p>
+        {conversation && (
+          <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+            <MessageSquare className="h-3 w-3" />
+            {conversation.subject || conversation.channel || "percakapan"}
+          </p>
         )}
-      </span>
+      </td>
+      <td className="px-3 py-3 text-sm text-foreground/70">{run.trigger ?? "—"}</td>
+      <td className="px-3 py-3 text-xs text-muted-foreground">{fmtRelID(run.startedAt)}</td>
+      <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">{duration ?? "—"}</td>
+      <td className="px-3 py-3 text-right">
+        <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-primary/40"
+          >
+            Detail <ChevronRight className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Hapus (ke Sampah)"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function TrashedTableRow({
+  run,
+  onRestore,
+  onPurge,
+}: {
+  run: AutopilotRunRow;
+  onRestore: () => void;
+  onPurge: () => void;
+}) {
+  return (
+    <tr className="transition-colors hover:bg-muted/30">
+      <td className="px-3 py-3">
+        <StatusBadge status={run.status} />
+      </td>
+      <td className="px-3 py-3">
+        <ModeBadge mode={run.mode} />
+      </td>
+      <td className="px-3 py-3">
+        <p className="max-w-[280px] truncate font-medium text-foreground/80">{runHeadline(run)}</p>
+      </td>
+      <td className="px-3 py-3 text-xs text-muted-foreground">
+        {fmtRelID(run.deletedAt ?? null)}
+      </td>
+      <td className="px-3 py-3 text-right">
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary"
+          >
+            <RotateCcw className="h-3 w-3" /> Pulihkan
+          </button>
+          <button
+            type="button"
+            onClick={onPurge}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3 w-3" /> Hapus permanen
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium text-foreground">{value || "—"}</span>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: AutopilotRun["status"] }) {
-  if (status === "done") {
-    return (
-      <Badge variant="secondary" className="gap-1">
-        <CheckCircle2 className="h-3 w-3" />
-        Selesai
-      </Badge>
-    );
-  }
-  if (status === "failed") {
-    return (
-      <Badge variant="destructive" className="gap-1">
-        <XCircle className="h-3 w-3" />
-        Gagal
-      </Badge>
-    );
-  }
-  if (status === "stopped") {
-    return <Badge variant="outline">Dihentikan</Badge>;
-  }
-  return <Badge variant="outline">{status}</Badge>;
+function ConfirmModal({
+  open,
+  onClose,
+  icon,
+  tone,
+  title,
+  body,
+  confirmLabel,
+  confirmPending,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  icon: React.ReactNode;
+  tone: "destructive" | "tertiary";
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  confirmPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              tone === "destructive"
+                ? "bg-destructive/[0.12] text-destructive"
+                : "bg-tertiary/[0.12] text-tertiary",
+            )}
+          >
+            {icon}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold">{title}</h3>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={confirmPending}
+            className={cn(
+              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
+              tone === "destructive"
+                ? "bg-destructive text-white"
+                : "bg-tertiary text-tertiary-foreground",
+            )}
+          >
+            {confirmPending ? "Memproses…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableLoading() {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-4">
+          <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+          <Skeleton className="h-5 w-14 rounded-full" />
+          <Skeleton className="h-4 w-52" />
+          <Skeleton className="ml-auto h-4 w-20" />
+          <Skeleton className="h-4 w-14" />
+        </div>
+      ))}
+    </div>
+  );
 }

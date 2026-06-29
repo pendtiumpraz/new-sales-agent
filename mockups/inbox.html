@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.fit-bar{transition:width .8s cubic-bezier(.2,.7,.2,1)}
+/* WA chat wallpaper — subtle warm dot grid, like the real app thread */
+.wa-bg{background-color:hsl(20 45% 97%);
+  background-image:radial-gradient(hsl(16 40% 86% / .55) 1px, transparent 1px);
+  background-size:18px 18px}
+.bubble-in{background:#fff;border:1px solid hsl(var(--border))}
+.bubble-out{background:#DCF8C6} /* WA outgoing green */
+.bubble-ai{background:hsl(var(--accent));border:1px solid hsl(12 80% 88%)}
+.conv.active{background:hsl(var(--primary)/0.08)}
+.conv.active .conv-bar{opacity:1}
+.typing-dot{animation:blink 1.2s infinite both}
+.typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.fade-in{animation:fadeIn .35s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.fit-bar,.fade-in{transition:none;animation:none}.drawer{transition:none}.typing-dot{animation:none}}
+/* hide native scrollbar noise but keep scroll */
+.thin-scroll::-webkit-scrollbar{width:6px}.thin-scroll::-webkit-scrollbar-thumb{background:hsl(var(--border));border-radius:9px}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex h-[calc(100vh-33px)] overflow-hidden">
+
+  <!-- ===================== SIDEBAR (w-64) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+
+    <!-- BRAND TENANT (white-label slot: logo + nama brand) -->
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-soft">SA</div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Sapa<span class="text-primary">AI</span></div>
+        <div class="text-[10px] text-muted-foreground truncate">CV Maju Bersama</div>
+      </div>
+    </div>
+
+    <!-- MENU (entitlement-gated per vertical) -->
+    <nav class="flex-1 overflow-y-auto thin-scroll py-4 text-sm space-y-5">
+
+      <!-- GROUP: UTAMA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="dashboard-shell.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+          Workspace
+        </a>
+      </div>
+
+      <!-- GROUP: LEADS -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EF4444" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kontak
+        </a>
+        <a href="enrichment.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#8B5CF6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Pengayaan Data
+        </a>
+        <a href="pipeline.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="12" width="3" height="6" rx="1"/></svg>
+          Pipeline
+        </a>
+      </div>
+
+      <!-- GROUP: EKSEKUSI -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eksekusi</p>
+        <!-- ACTIVE: Inbox -->
+        <a href="inbox.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Inbox
+          <span class="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full" id="navUnread">7</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#F59E0B" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/><path d="m9 12 2 2 4-4"/></svg>
+          Cadence
+        </a>
+      </div>
+
+      <!-- GROUP: LAINNYA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Lainnya</p>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EE4D2D" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          Ecommerce
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#14B8A6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-6 0v4"/><rect x="2" y="9" width="20" height="11" rx="2"/></svg>
+          Laporan
+        </a>
+      </div>
+
+      <!-- GROUP: PENGATURAN -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pengaturan</p>
+        <a href="branding.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EC4899" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg>
+          Branding
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6B7280" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Pengaturan
+        </a>
+      </div>
+    </nav>
+
+    <!-- Sidebar footer: akun user -->
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center font-semibold text-xs">RA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Rini Aprilia</div>
+        <div class="text-muted-foreground truncate">Sales Rep</div>
+      </div>
+      <a href="login.html" title="Keluar" class="text-muted-foreground hover:text-danger transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR (h-14, glass) -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 z-20">
+      <!-- left: search -->
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari kontak, deal, percakapan…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <!-- right: workspace switcher + notif + avatar -->
+      <div class="flex items-center gap-3">
+        <button class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Paket UMKM Pro</span>
+          <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="relative h-9 w-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-card"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">RA</div>
+      </div>
+    </header>
+
+    <!-- ===================== INBOX 3-COLUMN GRID ===================== -->
+    <main class="flex-1 min-h-0 flex overflow-hidden">
+
+      <!-- ============ KOLOM 1 — DAFTAR PERCAKAPAN ============ -->
+      <section class="w-[336px] shrink-0 border-r border-border bg-card flex flex-col min-h-0">
+
+        <!-- Header list: judul + WA mode toggle + search + filter pills -->
+        <div class="border-b border-border p-3 space-y-3 shrink-0">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-bold tracking-tight">Inbox</h2>
+            <!-- WA MODE TOGGLE (AI auto / manual) -->
+            <button id="waMode" class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border border-tertiary/30 bg-tertiary/10 text-tertiary text-[11px] font-semibold transition-colors">
+              <span class="relative inline-block h-3.5 w-7 rounded-full bg-tertiary transition-colors" id="waModeTrack"><span id="waModeKnob" class="absolute top-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-white transition-all"></span></span>
+              <span id="waModeLabel">AI auto</span>
+            </button>
+          </div>
+          <!-- Search percakapan -->
+          <div class="relative">
+            <svg class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="convSearch" type="text" placeholder="Cari percakapan…" class="w-full h-8 pl-9 pr-3 rounded-lg bg-muted/60 border border-transparent text-[13px] focus:bg-card focus:border-border focus:outline-none focus:ring-2 focus:ring-ring/30">
+          </div>
+          <!-- FILTER CHANNEL (pills) -->
+          <div class="flex gap-1.5 overflow-x-auto pb-0.5 thin-scroll">
+            <button data-filter="all" class="conv-filter shrink-0 px-3 py-1 rounded-full bg-foreground text-background text-xs font-semibold">Semua</button>
+            <button data-filter="unread" class="conv-filter shrink-0 px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors inline-flex items-center gap-1">Belum dibaca <span class="text-[10px] bg-primary text-primary-foreground px-1.5 rounded-full" id="unreadCount">3</span></button>
+            <button data-filter="wa" class="conv-filter shrink-0 px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:#25D366"></span>WA</button>
+            <button data-filter="email" class="conv-filter shrink-0 px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:#6366F1"></span>Email</button>
+          </div>
+        </div>
+
+        <!-- LIST percakapan (injected by JS) -->
+        <div id="convList" class="flex-1 overflow-y-auto thin-scroll min-h-0"></div>
+
+        <!-- empty state (filter clears all) -->
+        <div id="convEmpty" class="hidden flex-col items-center justify-center py-12 px-6 text-center">
+          <div class="w-11 h-11 rounded-full bg-muted text-muted-foreground flex items-center justify-center mb-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <p class="text-sm font-medium">Tidak ada percakapan</p>
+          <p class="text-[11px] text-muted-foreground mt-0.5">Coba ubah filter / kata kunci.</p>
+        </div>
+      </section>
+
+      <!-- ============ KOLOM 2 — THREAD CHAT (WA) ============ -->
+      <section class="flex-1 min-w-0 flex flex-col min-h-0">
+
+        <!-- (a) THREAD HEADER -->
+        <div class="h-16 shrink-0 border-b border-border bg-card flex items-center gap-3 px-4">
+          <div id="thAvatar" class="h-10 w-10 rounded-full bg-channel-wa/15 text-[#1a8d4c] flex items-center justify-center font-semibold text-sm shrink-0">SR</div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p id="thName" class="truncate text-sm font-semibold">Siti Rahma</p>
+              <!-- SENTIMENT BADGE -->
+              <span id="thSentiment" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success/12 text-success text-[10px] font-medium">😊 Positif</span>
+            </div>
+            <p id="thChannelLine" class="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
+              <span class="inline-flex items-center gap-1 px-1.5 rounded font-medium" style="background:#25D36618;color:#1a8d4c">
+                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg>WA
+              </span>
+              WhatsApp · <span id="thSeg" class="px-1.5 py-0.5 rounded-full text-[9px] font-semibold" style="background:#E1306C18;color:#c01f5b">B2C</span>
+              <span class="text-success font-medium">• online</span>
+            </p>
+          </div>
+          <!-- READINESS BADGE (skor closing-readiness % + band) -->
+          <span id="thReadiness" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+            <span id="thReadinessVal">68%</span> · <span id="thReadinessBand">Hangat</span>
+          </span>
+          <button id="togglePanel" title="Sembunyikan panel" class="h-8 w-8 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+          </button>
+        </div>
+
+        <!-- (b) OUTCOME MARKER BAR (G7) — tandai hasil obrolan -->
+        <div class="shrink-0 border-b border-border bg-muted/40 px-3 py-2 flex items-center gap-2 text-[11px]">
+          <span class="text-muted-foreground font-medium">Hasil obrolan:</span>
+          <div class="inline-flex items-center gap-1" id="outcomeCtl">
+            <button data-out="closing" class="out-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors">🏆 Closing</button>
+            <button data-out="gagal" class="out-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors">✕ Gagal</button>
+            <button data-out="stuck" class="out-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors">⏸ Stuck</button>
+          </div>
+          <span class="ml-auto inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <svg class="w-3 h-3 text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+            terdeteksi otomatis — koreksi bila salah
+          </span>
+        </div>
+
+        <!-- (c) HANDOFF TRIGGER BANNER (muncul saat pemicu aktif) -->
+        <div id="handoffBanner" class="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 flex items-center gap-2 text-[11px]">
+          <svg class="w-4 h-4 text-warning shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+          <span class="flex-1 text-amber-800"><b>Pemicu handoff aktif:</b> nasabah tanya harga 2× tanpa keputusan. AI menyarankan eskalasi ke agen manusia.</span>
+          <button id="bannerTakeover" class="h-7 px-2.5 rounded-lg border border-amber-300 bg-card text-amber-800 font-medium hover:bg-amber-100 transition-colors inline-flex items-center gap-1">🤝 Ambil alih</button>
+          <button id="bannerDismiss" class="text-amber-400 hover:text-amber-600"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <!-- (d) MESSAGES — bubble in/out, WA wallpaper -->
+        <div id="thread" class="flex-1 overflow-y-auto thin-scroll wa-bg p-4 sm:p-6 min-h-0">
+          <div id="threadInner" class="mx-auto max-w-2xl flex flex-col gap-2"></div>
+        </div>
+
+        <!-- (e) COMPOSER area: AI draft card + quick replies + input -->
+        <div class="shrink-0 border-t border-border bg-card p-3">
+          <div class="mx-auto max-w-2xl space-y-2.5">
+
+            <!-- AI AUTO-REPLY CARD (draf otomatis; Approve / Edit) -->
+            <div id="draftCard" class="rounded-lg border border-primary/30 bg-primary/[0.04] p-2.5 fade-in">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                <span class="text-[11px] font-semibold text-primary">Draf AI menunggu persetujuan</span>
+                <span class="text-[9px] text-muted-foreground">value-first · enforce metodologi closing</span>
+              </div>
+              <p id="draftText" class="rounded-lg bg-card border border-border px-3 py-2 text-[13px] leading-relaxed text-foreground/90">Untuk Paket Hemat, harga mulai Rp 149.000 sudah termasuk ongkir Jabodetabek 🚚. Boleh saya bantu siapkan rincian sesuai kebutuhan Ibu Siti? Biar pas, kira-kira pemakaiannya untuk berapa orang ya?</p>
+              <div class="flex items-center gap-2 mt-2">
+                <button id="draftApprove" class="h-7 px-3 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold shadow-soft hover:opacity-90 transition-opacity inline-flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Setujui &amp; kirim
+                </button>
+                <button id="draftEdit" class="h-7 px-3 rounded-lg bg-card border border-border text-[11px] font-medium hover:border-primary/40 transition-colors">Edit dulu</button>
+                <button id="draftDiscard" class="ml-auto text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg> Buang
+                </button>
+              </div>
+            </div>
+
+            <!-- QUICK REPLIES -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                <svg class="w-3 h-3 text-warning" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m13 2-3 7h6l-3 7"/></svg> Balasan cepat
+              </span>
+              <button class="quick px-2.5 py-1 rounded-full border border-border bg-card text-[11px] text-foreground/70 hover:border-primary/40 hover:text-foreground transition-colors">Kirim detail harga</button>
+              <button class="quick px-2.5 py-1 rounded-full border border-border bg-card text-[11px] text-foreground/70 hover:border-primary/40 hover:text-foreground transition-colors">Jadwalkan demo</button>
+              <button class="quick px-2.5 py-1 rounded-full border border-border bg-card text-[11px] text-foreground/70 hover:border-primary/40 hover:text-foreground transition-colors">Kirim katalog</button>
+              <button class="quick px-2.5 py-1 rounded-full border border-border bg-card text-[11px] text-foreground/70 hover:border-primary/40 hover:text-foreground transition-colors">Ada lagi yg bisa dibantu?</button>
+            </div>
+
+            <!-- INPUT pesan -->
+            <div class="flex items-end gap-2">
+              <button class="h-9 w-9 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors flex items-center justify-center shrink-0">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m21.4 11.05-8.49 8.49a6 6 0 0 1-8.49-8.49l8.49-8.49a4 4 0 1 1 5.66 5.66l-8.5 8.49a2 2 0 1 1-2.82-2.83l8.13-8.12"/></svg>
+              </button>
+              <div class="relative flex-1">
+                <textarea id="composer" rows="1" placeholder="Ketik pesan WhatsApp…" class="w-full max-h-28 resize-none rounded-lg bg-muted/60 border border-transparent pl-3.5 pr-10 py-2 text-[13px] leading-relaxed focus:bg-card focus:border-border focus:outline-none focus:ring-2 focus:ring-ring/30"></textarea>
+                <button title="Emoji" class="absolute right-2.5 bottom-2 text-muted-foreground hover:text-foreground">
+                  <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg>
+                </button>
+              </div>
+              <button id="sendBtn" class="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-soft hover:opacity-90 transition-opacity shrink-0">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ KOLOM 3 — PANEL KANAN (KONTAK + HANDOFF) ============ -->
+      <aside id="contextPanel" class="w-[340px] shrink-0 border-l border-border bg-card overflow-y-auto thin-scroll hidden xl:block min-h-0">
+
+        <!-- ===== SUB-PANEL A: KONTAK ===== -->
+        <div class="flex flex-col items-center gap-2 p-5 text-center border-b border-border">
+          <div id="pAvatar" class="h-16 w-16 rounded-full bg-channel-wa/15 text-[#1a8d4c] flex items-center justify-center font-bold text-xl">SR</div>
+          <div>
+            <p id="pName" class="font-semibold text-foreground">Siti Rahma</p>
+            <p id="pSub" class="text-xs text-muted-foreground">Pelanggan perorangan · Bekasi</p>
+          </div>
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/12 text-success text-[10px] font-medium">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> consent: opt-in
+          </span>
+        </div>
+
+        <!-- SEGMEN B2C/B2B + SKOR CLOSING-READINESS GAUGE -->
+        <div class="p-5 border-b border-border space-y-4">
+          <!-- Segmen -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Segmen</span>
+              <span class="inline-flex items-center gap-1 text-[9px] text-muted-foreground">
+                <svg class="w-2.5 h-2.5 text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                klasifikasi AI · bisa override
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5" id="segCtl">
+              <button data-seg="b2c" class="seg-pill px-3 h-7 rounded-full text-[11px] font-semibold" style="background:#E1306C18;color:#c01f5b">B2C</button>
+              <button data-seg="b2b" class="seg-pill px-3 h-7 rounded-full text-[11px] font-medium bg-card border border-border text-muted-foreground hover:border-primary/40 transition-colors">B2B</button>
+            </div>
+          </div>
+          <!-- Closing-readiness gauge (semicircle) -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Closing-readiness</span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">📈 <span id="gaugeBand">Hangat</span></span>
+            </div>
+            <!-- radial gauge -->
+            <div class="flex items-center gap-3 mt-1">
+              <div class="relative w-[88px] h-[52px] shrink-0">
+                <svg viewBox="0 0 100 56" class="w-full h-full">
+                  <path d="M6 52 A44 44 0 0 1 94 52" fill="none" stroke="hsl(var(--muted))" stroke-width="10" stroke-linecap="round"/>
+                  <path id="gaugeArc" d="M6 52 A44 44 0 0 1 94 52" fill="none" stroke="#F59E0B" stroke-width="10" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.7,.2,1)"/>
+                </svg>
+                <div class="absolute inset-x-0 bottom-0 text-center">
+                  <span id="gaugeVal" class="text-lg font-bold text-amber-600">68</span><span class="text-[10px] text-muted-foreground">%</span>
+                </div>
+              </div>
+              <div class="text-[11px] leading-relaxed">
+                <p class="text-muted-foreground">Next best action:</p>
+                <p id="pNba" class="font-medium text-foreground">Kirim penawaran + tawarkan jadwal demo singkat</p>
+              </div>
+            </div>
+            <!-- faktor pendorong skor -->
+            <div class="flex flex-wrap gap-1.5 mt-2.5">
+              <span class="px-1.5 py-0.5 rounded bg-success/10 text-success text-[10px] font-medium">+ tanya harga</span>
+              <span class="px-1.5 py-0.5 rounded bg-success/10 text-success text-[10px] font-medium">+ balas cepat</span>
+              <span class="px-1.5 py-0.5 rounded bg-danger/10 text-danger text-[10px] font-medium">− belum sebut budget</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- INFO KONTAK + SUMBER -->
+        <div class="p-5 border-b border-border space-y-2.5 text-[13px]">
+          <div class="flex items-start gap-2"><span class="text-muted-foreground text-xs w-24 shrink-0">Perusahaan</span><span class="text-muted-foreground">— (perorangan)</span></div>
+          <div class="flex items-start gap-2"><span class="text-muted-foreground text-xs w-24 shrink-0">Channel utama</span>
+            <span id="pChannel" class="inline-flex items-center gap-1.5 font-medium"><span class="w-2 h-2 rounded-full" style="background:#25D366"></span>WhatsApp</span>
+          </div>
+          <div class="flex items-start gap-2"><span class="text-muted-foreground text-xs w-24 shrink-0">No. HP</span><span id="pPhone" class="font-medium select-all">+62 813-8821-4407</span></div>
+          <div class="flex items-start gap-2"><span class="text-muted-foreground text-xs w-24 shrink-0">Industri</span><span class="font-medium">Ritel rumah tangga</span></div>
+          <!-- SUMBER lead -->
+          <div class="flex items-start gap-2"><span class="text-muted-foreground text-xs w-24 shrink-0">Sumber</span>
+            <span id="pSource" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted text-foreground/80 text-[11px] font-medium"><span class="w-1.5 h-1.5 rounded-full" style="background:#3B82F6"></span>Iklan WA · Meta</span>
+          </div>
+          <div class="flex items-start gap-2"><span class="text-muted-foreground text-xs w-24 shrink-0">Masuk</span><span class="text-muted-foreground">3 hari lalu · 21 Jun</span></div>
+          <a href="contacts.html" class="inline-flex items-center gap-1 text-[11px] text-primary font-medium hover:underline pt-0.5">Lihat profil &amp; data enrichment
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </a>
+        </div>
+
+        <!-- DEAL TERKAIT -->
+        <div class="p-5 border-b border-border space-y-2">
+          <p class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Deal terkait</p>
+          <a href="pipeline.html" class="block rounded-lg border border-border p-3 hover:border-primary/40 transition-colors">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[13px] font-medium text-foreground">Order Paket Hemat</p>
+              <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">Penawaran</span>
+            </div>
+            <p class="text-[12px] text-muted-foreground mt-1">Rp 1,2 jt · 60% peluang</p>
+          </a>
+        </div>
+
+        <!-- AKSI KONTAK -->
+        <div class="p-5 border-b border-border grid grid-cols-2 gap-2">
+          <button class="h-9 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Cadence
+          </button>
+          <a href="workspace.html" class="h-9 rounded-lg bg-card border border-border text-[13px] font-medium hover:border-primary/40 transition-colors inline-flex items-center justify-center gap-1.5">Workspace</a>
+        </div>
+
+        <!-- ===== SUB-PANEL B: HANDOFF & SENTIMEN ===== -->
+        <div class="p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-foreground">Handoff &amp; sentimen</h3>
+            <button class="h-7 w-7 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+            </button>
+          </div>
+
+          <!-- Sentimen + sparkline -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Sentimen saat ini</span>
+              <span id="thSentiment2" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success/12 text-success text-[10px] font-medium">😊 Positif</span>
+            </div>
+            <!-- sparkline (SVG) -->
+            <svg viewBox="0 0 200 40" class="w-full h-9">
+              <defs><linearGradient id="spark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity=".25"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0 30 L25 28 L50 31 L75 22 L100 25 L125 16 L150 18 L175 11 L200 9 L200 40 L0 40 Z" fill="url(#spark)"/>
+              <path d="M0 30 L25 28 L50 31 L75 22 L100 25 L125 16 L150 18 L175 11 L200 9" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="200" cy="9" r="2.5" fill="#10B981"/>
+            </svg>
+            <p class="text-[10px] text-muted-foreground">Tren naik — AI menangani dengan baik sejauh ini.</p>
+          </div>
+
+          <!-- Waktu balasan AI terakhir -->
+          <div class="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+            <span class="inline-flex items-center gap-1.5 text-[12px] text-foreground/80">
+              <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Balasan AI terakhir
+            </span>
+            <span class="text-[12px] font-semibold text-foreground">2 mnt lalu <span class="text-[10px] font-normal text-muted-foreground">(batas 10 mnt)</span></span>
+          </div>
+
+          <!-- Pemicu aktif -->
+          <div class="space-y-2">
+            <span class="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Pemicu aktif</span>
+            <ul class="space-y-1.5">
+              <li class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <svg class="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+                <div><p class="text-[11px] font-semibold text-amber-800">Tanya harga berulang</p><p class="text-[10px] text-amber-700/80">2× tanpa keputusan — sinyal butuh dorongan</p></div>
+              </li>
+            </ul>
+            <!-- topik terdeteksi -->
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <span class="text-[10px] text-muted-foreground w-full">Topik terdeteksi:</span>
+              <span class="px-1.5 py-0.5 rounded bg-muted text-foreground/70 text-[10px] font-medium">harga</span>
+              <span class="px-1.5 py-0.5 rounded bg-muted text-foreground/70 text-[10px] font-medium">pengiriman</span>
+              <span class="px-1.5 py-0.5 rounded bg-muted text-foreground/70 text-[10px] font-medium">stok</span>
+            </div>
+          </div>
+
+          <!-- Tombol ambil alih + auto-reply toggle (per percakapan) -->
+          <div class="space-y-2 pt-1">
+            <button id="panelTakeover" class="w-full h-9 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-1.5">
+              🤝 Ambil alih percakapan <svg class="w-4 h-4 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+            </button>
+            <div class="flex items-center justify-between rounded-lg border border-border p-3">
+              <div class="min-w-0">
+                <p class="text-[13px] font-medium text-foreground inline-flex items-center gap-1">
+                  <svg class="w-3 h-3 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                  Auto-reply AI <span class="text-[9px] font-normal text-muted-foreground">(chat ini)</span>
+                </p>
+                <p class="text-[10px] text-muted-foreground mt-0.5">AI menyusun draf otomatis. Mengikuti setelan global.</p>
+              </div>
+              <button id="autoReplySwitch" role="switch" aria-checked="true" class="relative h-5 w-9 rounded-full bg-primary transition-colors shrink-0">
+                <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all" style="right:2px"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Produk disebut (feeds market mapping) -->
+          <div class="space-y-1.5 pt-1">
+            <span class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Produk disebut</span>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 rounded-md bg-tertiary/10 text-tertiary text-[11px] font-medium">Paket Hemat</span>
+              <span class="px-2 py-0.5 rounded-md bg-tertiary/10 text-tertiary text-[11px] font-medium">Refill bulanan</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[120] hidden items-center gap-2 px-4 py-2.5 rounded-lg bg-foreground text-background text-sm shadow-soft">
+  <svg class="w-4 h-4 text-success" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg">Tersimpan</span>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  // ── DATA (API-shaped: mirrors useConversations) ─────────────────────────
+  var CONVOS = {
+    c1:{id:'c1',name:'Siti Rahma',init:'SR',channel:'wa',seg:'b2c',unread:2,time:'09:24',sub:'Pelanggan perorangan · Bekasi',
+        phone:'+62 813-8821-4407',source:'Iklan WA · Meta',sourceColor:'#3B82F6',
+        readiness:68,band:'Hangat',bandCls:'bg-amber-100 text-amber-700',gauge:'#F59E0B',
+        sentiment:'😊 Positif',sentCls:'bg-success/12 text-success',preview:'Boleh minta info harga & cara ordernya?',
+        nba:'Kirim penawaran + tawarkan jadwal demo singkat',banner:true,
+        draft:'Untuk Paket Hemat, harga mulai Rp 149.000 sudah termasuk ongkir Jabodetabek 🚚. Boleh saya bantu siapkan rincian sesuai kebutuhan Ibu Siti? Biar pas, kira-kira pemakaiannya untuk berapa orang ya?',
+        msgs:[
+          {sep:'Hari ini'},
+          {dir:'in',t:'09:18',b:'Halo, saya lihat iklannya di WA. Produknya yang Paket Hemat itu masih ada?'},
+          {dir:'out',ai:true,t:'09:19',b:'Halo Ibu Siti! 👋 Masih ready ya. Boleh saya bantu jelaskan paketnya? Biasanya untuk kebutuhan harian atau stok bulanan, Bu?'},
+          {dir:'in',t:'09:22',b:'Untuk harian sih. Boleh minta info harga & cara ordernya?'},
+          {dir:'out',ai:true,t:'09:23',b:'Tentu! Paket Hemat cocok untuk kebutuhan harian. Saya kirimkan rinciannya ya 🙏'},
+          {dir:'in',t:'09:24',b:'Iya boleh, ditunggu ya kak 🙏'}
+        ]},
+    c2:{id:'c2',name:'Budi Santoso',init:'BS',channel:'wa',seg:'b2b',unread:0,time:'Kemarin',sub:'Procurement · PT Sinar Abadi',
+        phone:'+62 812-3456-7890',source:'Crawl',sourceColor:'#3B82F6',
+        readiness:81,band:'Panas',bandCls:'bg-rose-100 text-rose-700',gauge:'#EF4444',
+        sentiment:'😐 Netral',sentCls:'bg-muted text-muted-foreground',preview:'Terima kasih, saya diskusikan dgn tim dulu…',
+        nba:'Kirim proposal + konfirmasi PIC keputusan',banner:false,
+        draft:'Baik Pak Budi 🙏. Saya siapkan proposal lengkap beserta skema harga grosir untuk PT Sinar Abadi. Boleh saya tahu siapa PIC yang akan ikut me-review, supaya bisa saya cc sekalian?',
+        msgs:[
+          {sep:'Kemarin'},
+          {dir:'in',t:'14:02',b:'Pak, untuk order grosir 500 unit ada harga khusus?'},
+          {dir:'out',ai:true,t:'14:05',b:'Tentu Pak Budi, untuk volume 500 unit ada skema grosir. Boleh saya kirimkan proposal resminya?'},
+          {dir:'in',t:'14:40',b:'Terima kasih, saya diskusikan dgn tim dulu…'}
+        ]},
+    c3:{id:'c3',name:'Dewi Lestari',init:'DL',channel:'email',seg:'b2b',unread:1,time:'2 hr lalu',sub:'Head of Ops · CV Mitra Pangan',
+        phone:'dewi.l@mitrapangan.co.id',source:'Hunter',sourceColor:'#8B5CF6',
+        readiness:44,band:'Dingin',bandCls:'bg-slate-100 text-slate-600',gauge:'#94A3B8',
+        sentiment:'😐 Netral',sentCls:'bg-muted text-muted-foreground',preview:'Re: Proposal kerja sama — mohon dikirim…',
+        nba:'Kirim ulang proposal + follow-up 3 hari',banner:false,
+        draft:'Selamat siang Bu Dewi, terima kasih atas responsnya. Terlampir proposal kerja sama yang Ibu minta. Apakah ada slot 15 menit minggu ini untuk diskusi singkat?',
+        msgs:[
+          {sep:'2 hari lalu'},
+          {dir:'out',ai:true,t:'10:00',b:'Selamat pagi Bu Dewi, kami ingin menawarkan kerja sama supply untuk CV Mitra Pangan.'},
+          {dir:'in',t:'16:20',b:'Re: Proposal kerja sama — mohon dikirim detailnya ke email ini ya.'}
+        ]},
+    c4:{id:'c4',name:'Andi Wijaya',init:'AW',channel:'wa',seg:'b2c',unread:0,time:'2 hr lalu',sub:'Pelanggan perorangan · Depok',
+        phone:'+62 856-1100-2233',source:'Iklan WA · Meta',sourceColor:'#3B82F6',
+        readiness:55,band:'Hangat',bandCls:'bg-amber-100 text-amber-700',gauge:'#F59E0B',
+        sentiment:'😊 Positif',sentCls:'bg-success/12 text-success',preview:'Oke nanti saya kabari lagi ya kak 👍',
+        nba:'Follow-up besok + tawarkan promo bundling',banner:false,
+        draft:'Siap Pak Andi 🙏 Saya kabari lagi besok ya. Btw, minggu ini ada promo bundling refill — boleh saya simpankan slotnya untuk Bapak?',
+        msgs:[
+          {sep:'2 hari lalu'},
+          {dir:'in',t:'11:00',b:'Kak ini yang refill bisa antar ke Depok?'},
+          {dir:'out',ai:true,t:'11:03',b:'Bisa Pak Andi! Untuk area Depok free ongkir min. 2 item ya.'},
+          {dir:'in',t:'11:20',b:'Oke nanti saya kabari lagi ya kak 👍'}
+        ]},
+    c5:{id:'c5',name:'Maemunah Hj.',init:'MH',channel:'wa',seg:'b2b',unread:0,time:'3 hr lalu',sub:'Pemilik · Grosir Maju Jaya',
+        phone:'+62 877-9988-1100',source:'Web search',sourceColor:'#0D9488',
+        readiness:90,band:'Panas',bandCls:'bg-rose-100 text-rose-700',gauge:'#EF4444',
+        sentiment:'😊 Positif',sentCls:'bg-success/12 text-success',preview:'Sip, saya transfer DP sekarang ya pak 🙏',
+        nba:'Kirim invoice DP + konfirmasi pengiriman',banner:false,
+        draft:'Terima kasih Bu Maemunah 🙏 Berikut invoice DP-nya. Setelah transfer, barang langsung kami proses kirim hari ini juga ya.',
+        msgs:[
+          {sep:'3 hari lalu'},
+          {dir:'in',t:'08:30',b:'Pak saya jadi ambil yang paket grosir. Totalnya berapa ya?'},
+          {dir:'out',ai:true,t:'08:33',b:'Alhamdulillah Bu Maemunah 🙏 Totalnya Rp 8,4 jt untuk 1 dus grosir. DP 30% dulu ya Bu.'},
+          {dir:'in',t:'08:35',b:'Sip, saya transfer DP sekarang ya pak 🙏'}
+        ]},
+    c6:{id:'c6',name:'Rizky Pratama',init:'RP',channel:'wa',seg:'b2c',unread:0,time:'4 hr lalu',sub:'Pelanggan perorangan · Bandung',
+        phone:'+62 821-4455-6677',source:'Impor CSV',sourceColor:'#6B7280',
+        readiness:30,band:'Dingin',bandCls:'bg-slate-100 text-slate-600',gauge:'#94A3B8',
+        sentiment:'😕 Ragu',sentCls:'bg-amber-100 text-amber-700',preview:'Hmm masih mikir-mikir dulu deh kak…',
+        nba:'Kirim testimoni + garansi, jangan dorong harga',banner:false,
+        draft:'Tidak apa-apa Pak Rizky, ambil waktu saja 🙏 Sekadar info, produk ini bergaransi 30 hari uang kembali. Kalau ada yang ingin ditanyakan, saya siap bantu ya.',
+        msgs:[
+          {sep:'4 hari lalu'},
+          {dir:'in',t:'19:10',b:'Ini beda sama yang biasa apa ya kak?'},
+          {dir:'out',ai:true,t:'19:12',b:'Bedanya di kualitas & garansi 30 hari Pak. Boleh saya kirim testimoninya?'},
+          {dir:'in',t:'19:30',b:'Hmm masih mikir-mikir dulu deh kak…'}
+        ]},
+    c7:{id:'c7',name:'Putri Anggraini',init:'PA',channel:'email',seg:'b2c',unread:0,time:'Kemarin',sub:'Pelanggan perorangan · Surabaya',
+        phone:'putri.a@gmail.com',source:'Impor CSV',sourceColor:'#6B7280',
+        readiness:60,band:'Hangat',bandCls:'bg-amber-100 text-amber-700',gauge:'#F59E0B',
+        sentiment:'😊 Positif',sentCls:'bg-success/12 text-success',preview:'Re: Promo bulan ini — menarik nih, info dong',
+        nba:'Balas dengan detail promo + CTA order',banner:false,
+        draft:'Halo Kak Putri, terima kasih sudah tertarik! Promo bulan ini diskon 20% + free refill pertama. Mau saya bantu proseskan ordernya sekarang?',
+        msgs:[
+          {sep:'Kemarin'},
+          {dir:'out',ai:true,t:'09:00',b:'Halo Kak Putri, ada promo spesial bulan ini nih untuk pelanggan baru.'},
+          {dir:'in',t:'13:15',b:'Re: Promo bulan ini — menarik nih, info dong'}
+        ]}
+  };
+  var ORDER = ['c1','c2','c3','c4','c5','c6','c7'];
+  var activeId = 'c1';
+  var filter = 'all';
+
+  // ── helpers ─────────────────────────────────────────────────────────────
+  function el(id){return document.getElementById(id);}
+  function segBadge(seg){
+    return seg==='b2b'
+      ? '<span class="px-1.5 py-0.5 rounded-full text-[9px] font-semibold" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span>'
+      : '<span class="px-1.5 py-0.5 rounded-full text-[9px] font-semibold" style="background:#E1306C18;color:#c01f5b">B2C</span>';
+  }
+  function readinessDot(c){
+    var col = c.band==='Panas'?'#EF4444':c.band==='Hangat'?'#F59E0B':'#94A3B8';
+    return '<span class="h-2.5 w-2.5 rounded-full" style="background:'+col+'" title="readiness '+c.readiness+'% · '+c.band+'"></span>';
+  }
+  function channelDot(ch){
+    return ch==='wa'
+      ? '<span class="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-card border border-border flex items-center justify-center" style="color:#1a8d4c"><svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg></span>'
+      : '<span class="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-card border border-border flex items-center justify-center" style="color:#6366F1"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg></span>';
+  }
+  function avatarBg(ch){ return ch==='wa' ? 'bg-channel-wa/15 text-[#1a8d4c]' : 'bg-channel-email/15 text-[#5358d6]'; }
+
+  // ── Render conversation list ────────────────────────────────────────────
+  var list = el('convList');
+  function renderList(){
+    var q = el('convSearch').value.trim().toLowerCase();
+    var shown = 0;
+    list.innerHTML = ORDER.map(function(id){
+      var c = CONVOS[id];
+      var match = (filter==='all') || (filter==='unread' && c.unread>0) || (filter==='wa' && c.channel==='wa') || (filter==='email' && c.channel==='email');
+      var qok = !q || c.name.toLowerCase().indexOf(q)>-1 || c.preview.toLowerCase().indexOf(q)>-1;
+      if(!match || !qok) return '';
+      shown++;
+      var active = id===activeId;
+      var unreadBadge = c.unread>0 ? '<span class="h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center">'+c.unread+'</span>' : '';
+      return '<button data-id="'+id+'" class="conv '+(active?'active ':'')+'w-full text-left flex gap-3 p-3 border-b border-border hover:bg-muted/40 transition-colors relative">'+
+        '<span class="conv-bar absolute left-0 top-2 bottom-2 w-1 rounded-r bg-primary opacity-0 transition-opacity"></span>'+
+        '<span class="relative shrink-0"><span class="h-10 w-10 rounded-full '+avatarBg(c.channel)+' flex items-center justify-center font-semibold text-sm">'+c.init+'</span>'+channelDot(c.channel)+'</span>'+
+        '<span class="min-w-0 flex-1 block">'+
+          '<span class="flex items-center justify-between gap-2">'+
+            '<span class="truncate text-sm '+(c.unread>0?'font-semibold text-foreground':'font-medium text-foreground/80')+'">'+c.name+'</span>'+
+            '<span class="flex items-center gap-1.5 shrink-0">'+readinessDot(c)+'<span class="text-[10px] text-muted-foreground">'+c.time+'</span></span>'+
+          '</span>'+
+          '<span class="flex items-center justify-between gap-2 mt-0.5">'+
+            '<span class="line-clamp-1 text-[11px] '+(c.unread>0?'text-foreground/70':'text-muted-foreground')+'">'+c.preview+'</span>'+unreadBadge+
+          '</span>'+
+          '<span class="inline-block mt-1">'+segBadge(c.seg)+'</span>'+
+        '</span>'+
+      '</button>';
+    }).join('');
+    el('convEmpty').classList.toggle('hidden', shown>0);
+    el('convEmpty').classList.toggle('flex', shown===0);
+    list.classList.toggle('hidden', shown===0);
+    // wire clicks
+    list.querySelectorAll('.conv').forEach(function(b){ b.addEventListener('click', function(){ selectConvo(b.dataset.id); }); });
+  }
+
+  // ── Render thread + header + panel for a conversation ───────────────────
+  function bubble(m){
+    if(m.sep) return '<div class="text-center my-1.5"><span class="px-2.5 py-0.5 rounded-full bg-card/80 border border-border text-[10px] text-muted-foreground shadow-sm">'+m.sep+'</span></div>';
+    if(m.dir==='in'){
+      return '<div class="flex justify-start"><div class="bubble-in max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2 shadow-sm">'+
+        '<p class="text-[13px] leading-relaxed text-foreground/90">'+m.b+'</p>'+
+        '<span class="block text-right text-[9px] text-muted-foreground mt-0.5">'+m.t+'</span></div></div>';
+    }
+    var aiTag = m.ai ? '<span class="inline-flex items-center gap-0.5 mr-1 text-[#0f766e]"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg></span>' : '';
+    return '<div class="flex justify-end"><div class="bubble-out max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2 shadow-sm">'+
+      '<p class="text-[13px] leading-relaxed text-[#0c2b1c]">'+m.b+'</p>'+
+      '<span class="block text-right text-[9px] text-[#3b7a55] mt-0.5">'+aiTag+m.t+' ✓✓</span></div></div>';
+  }
+
+  function selectConvo(id){
+    activeId = id;
+    var c = CONVOS[id];
+    if(c.unread>0){ c.unread=0; recomputeCounts(); }
+    renderList();
+
+    // header
+    el('thAvatar').textContent = c.init;
+    el('thAvatar').className = 'h-10 w-10 rounded-full '+avatarBg(c.channel)+' flex items-center justify-center font-semibold text-sm shrink-0';
+    el('thName').textContent = c.name;
+    el('thSentiment').textContent = c.sentiment;
+    el('thSentiment').className = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium '+c.sentCls;
+    // rebuild the channel line (channel chip + segment + online)
+    var segHtml = c.seg==='b2b'
+      ? '<span id="thSeg" class="px-1.5 py-0.5 rounded-full text-[9px] font-semibold" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span>'
+      : '<span id="thSeg" class="px-1.5 py-0.5 rounded-full text-[9px] font-semibold" style="background:#E1306C18;color:#c01f5b">B2C</span>';
+    el('thChannelLine').innerHTML = chLine(c) + segHtml + ' <span class="text-success font-medium">• online</span>';
+    el('thReadinessVal').textContent = c.readiness+'%';
+    el('thReadinessBand').textContent = c.band;
+    el('thReadiness').className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold '+c.bandCls;
+
+    // banner
+    el('handoffBanner').style.display = c.banner ? '' : 'none';
+
+    // thread
+    var inner = el('threadInner');
+    inner.innerHTML = c.msgs.map(bubble).join('');
+    if(!reduce){ inner.querySelectorAll('.flex').forEach(function(n,i){ n.classList.add('fade-in'); n.style.animationDelay=(i*0.03)+'s'; }); }
+    var th = el('thread'); th.scrollTop = th.scrollHeight;
+
+    // draft card
+    el('draftText').textContent = c.draft;
+    el('draftCard').style.display = '';
+
+    // ── right panel ──
+    el('pAvatar').textContent = c.init;
+    el('pAvatar').className = 'h-16 w-16 rounded-full '+avatarBg(c.channel)+' flex items-center justify-center font-bold text-xl';
+    el('pName').textContent = c.name;
+    el('pSub').textContent = c.sub;
+    el('pPhone').textContent = c.phone;
+    el('pChannel').innerHTML = c.channel==='wa'
+      ? '<span class="w-2 h-2 rounded-full" style="background:#25D366"></span>WhatsApp'
+      : '<span class="w-2 h-2 rounded-full" style="background:#6366F1"></span>Email';
+    el('pSource').innerHTML = '<span class="w-1.5 h-1.5 rounded-full" style="background:'+c.sourceColor+'"></span>'+c.source;
+    el('thSentiment2').textContent = c.sentiment;
+    el('thSentiment2').className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium '+c.sentCls;
+    el('pNba').textContent = c.nba;
+    // segment pills
+    setSeg(c.seg, false);
+    // gauge
+    setGauge(c.readiness, c.gauge, c.band);
+  }
+
+  function chLine(c){
+    if(c.channel==='wa') return '<span class="inline-flex items-center gap-1 px-1.5 rounded font-medium" style="background:#25D36618;color:#1a8d4c"><svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Z"/></svg>WA</span> WhatsApp · ';
+    return '<span class="inline-flex items-center gap-1 px-1.5 rounded font-medium" style="background:#6366F118;color:#5358d6"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>Email</span> Email · ';
+  }
+
+  // gauge: semicircle dash. total length ≈ 138.2
+  function setGauge(val,color,band){
+    var arc=el('gaugeArc'); var total=138.2;
+    arc.style.stroke=color;
+    el('gaugeVal').textContent=val;
+    el('gaugeVal').style.color=color;
+    var off = total*(1-val/100);
+    if(reduce){ arc.style.transition='none'; arc.style.strokeDashoffset=off; }
+    else { arc.style.strokeDashoffset=total; requestAnimationFrame(function(){requestAnimationFrame(function(){arc.style.strokeDashoffset=off;});}); }
+    el('gaugeBand').textContent=band;
+    var bandCls = band==='Panas'?'bg-rose-100 text-rose-700':band==='Hangat'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-600';
+    el('gaugeBand').parentElement.className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold '+bandCls;
+  }
+
+  // segment pill control (panel)
+  function setSeg(seg, toast){
+    document.querySelectorAll('#segCtl .seg-pill').forEach(function(b){
+      var on = b.dataset.seg===seg;
+      if(on){
+        b.className='seg-pill px-3 h-7 rounded-full text-[11px] font-semibold';
+        b.style.cssText = seg==='b2b' ? 'background:hsl(173 80% 40% / .14);color:#0d9488' : 'background:#E1306C18;color:#c01f5b';
+      } else {
+        b.className='seg-pill px-3 h-7 rounded-full text-[11px] font-medium bg-card border border-border text-muted-foreground hover:border-primary/40 transition-colors';
+        b.style.cssText='';
+      }
+    });
+    if(toast) showToast('Segmen di-override → '+seg.toUpperCase());
+  }
+
+  // ── unread counts ───────────────────────────────────────────────────────
+  function recomputeCounts(){
+    var tot=0, unr=0;
+    ORDER.forEach(function(id){ if(CONVOS[id].unread>0){ tot+=CONVOS[id].unread; unr++; } });
+    el('navUnread').textContent=tot; el('navUnread').style.display = tot? '':'none';
+    el('unreadCount').textContent=unr; el('unreadCount').style.display = unr? '':'none';
+  }
+
+  // ── Toast ───────────────────────────────────────────────────────────────
+  var toastT;
+  function showToast(msg){
+    el('toastMsg').textContent=msg;
+    var t=el('toast'); t.classList.remove('hidden'); t.classList.add('flex');
+    clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.add('hidden'); t.classList.remove('flex'); },2200);
+  }
+
+  // ── Wire static controls ────────────────────────────────────────────────
+  // filter pills
+  document.querySelectorAll('.conv-filter').forEach(function(b){
+    b.addEventListener('click', function(){
+      filter=b.dataset.filter;
+      document.querySelectorAll('.conv-filter').forEach(function(x){
+        var on=x===b;
+        x.classList.toggle('bg-foreground', on); x.classList.toggle('text-background', on); x.classList.toggle('font-semibold', on);
+        x.classList.toggle('bg-card', !on); x.classList.toggle('border', !on); x.classList.toggle('border-border', !on);
+        x.classList.toggle('text-foreground/70', !on); x.classList.toggle('font-medium', !on);
+      });
+      renderList();
+    });
+  });
+  el('convSearch').addEventListener('input', renderList);
+
+  // segment override
+  document.querySelectorAll('#segCtl .seg-pill').forEach(function(b){
+    b.addEventListener('click', function(){ CONVOS[activeId].seg=b.dataset.seg; setSeg(b.dataset.seg,true); renderList(); selectConvo(activeId); });
+  });
+
+  // outcome marker
+  document.querySelectorAll('.out-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.out-btn').forEach(function(x){
+        x.className='out-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors';
+      });
+      var map={closing:'bg-success text-white border-transparent',gagal:'bg-danger text-white border-transparent',stuck:'bg-warning text-white border-transparent'};
+      b.className='out-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold '+map[b.dataset.out];
+      var lbl={closing:'Closing 🏆',gagal:'Gagal',stuck:'Stuck'};
+      showToast('Hasil obrolan ditandai: '+lbl[b.dataset.out]);
+    });
+  });
+
+  // draft card actions
+  el('draftApprove').addEventListener('click', function(){
+    var c=CONVOS[activeId];
+    var now=new Date(); var t=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    c.msgs.push({dir:'out',ai:true,t:t,b:c.draft});
+    el('threadInner').insertAdjacentHTML('beforeend', bubble(c.msgs[c.msgs.length-1]));
+    var th=el('thread'); th.scrollTop=th.scrollHeight;
+    el('draftCard').style.display='none';
+    showToast('Draf disetujui & dikirim');
+  });
+  el('draftEdit').addEventListener('click', function(){
+    el('composer').value=CONVOS[activeId].draft; el('composer').focus(); autoGrow(); el('draftCard').style.display='none';
+  });
+  el('draftDiscard').addEventListener('click', function(){ el('draftCard').style.display='none'; showToast('Draf dibuang'); });
+
+  // quick replies → fill composer
+  document.querySelectorAll('.quick').forEach(function(b){
+    b.addEventListener('click', function(){ el('composer').value=b.textContent.trim(); el('composer').focus(); autoGrow(); });
+  });
+
+  // composer send (with simulated incoming reply + typing)
+  function sendMessage(){
+    var v=el('composer').value.trim(); if(!v) return;
+    var c=CONVOS[activeId];
+    var now=new Date(); var t=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    c.msgs.push({dir:'out',t:t,b:v});
+    el('threadInner').insertAdjacentHTML('beforeend', bubble(c.msgs[c.msgs.length-1]));
+    el('composer').value=''; autoGrow();
+    var th=el('thread'); th.scrollTop=th.scrollHeight;
+    // typing indicator → incoming
+    var typing=document.createElement('div');
+    typing.className='flex justify-start'; typing.id='typingRow';
+    typing.innerHTML='<div class="bubble-in rounded-2xl rounded-bl-sm px-3.5 py-2.5 shadow-sm flex items-center gap-1"><span class="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"></span><span class="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"></span><span class="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground"></span></div>';
+    el('threadInner').appendChild(typing); th.scrollTop=th.scrollHeight;
+    setTimeout(function(){
+      var tr=el('typingRow'); if(tr) tr.remove();
+      var t2=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()+1).padStart(2,'0');
+      var reply={dir:'in',t:t2,b:'Baik kak, makasih infonya 🙏 saya pertimbangkan ya.'};
+      c.msgs.push(reply);
+      el('threadInner').insertAdjacentHTML('beforeend', bubble(reply));
+      th.scrollTop=th.scrollHeight;
+    }, reduce?300:1500);
+  }
+  el('sendBtn').addEventListener('click', sendMessage);
+  function autoGrow(){ var t=el('composer'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,112)+'px'; }
+  el('composer').addEventListener('input', autoGrow);
+  el('composer').addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+
+  // takeover buttons
+  function doTakeover(){
+    el('autoReplySwitch').setAttribute('aria-checked','false');
+    el('autoReplySwitch').classList.remove('bg-primary'); el('autoReplySwitch').classList.add('bg-muted-foreground/40');
+    el('autoReplySwitch').querySelector('span').style.right='auto'; el('autoReplySwitch').querySelector('span').style.left='2px';
+    el('handoffBanner').style.display='none';
+    el('draftCard').style.display='none';
+    showToast('Kamu mengambil alih — auto-reply AI dimatikan untuk chat ini');
+  }
+  el('bannerTakeover').addEventListener('click', doTakeover);
+  el('panelTakeover').addEventListener('click', doTakeover);
+  el('bannerDismiss').addEventListener('click', function(){ el('handoffBanner').style.display='none'; });
+
+  // auto-reply switch
+  el('autoReplySwitch').addEventListener('click', function(){
+    var on=this.getAttribute('aria-checked')==='true'; on=!on;
+    this.setAttribute('aria-checked',String(on));
+    this.classList.toggle('bg-primary',on); this.classList.toggle('bg-muted-foreground/40',!on);
+    var k=this.querySelector('span'); if(on){k.style.left='auto';k.style.right='2px';}else{k.style.right='auto';k.style.left='2px';}
+    showToast(on?'Auto-reply AI diaktifkan':'Auto-reply AI dimatikan');
+  });
+
+  // WA mode toggle (AI auto / manual)
+  el('waMode').addEventListener('click', function(){
+    var ai = el('waModeLabel').textContent==='AI auto';
+    ai=!ai;
+    el('waModeLabel').textContent = ai?'AI auto':'Manual';
+    var track=el('waModeTrack'), knob=el('waModeKnob');
+    if(ai){ this.className='inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border border-tertiary/30 bg-tertiary/10 text-tertiary text-[11px] font-semibold transition-colors';
+      track.className='relative inline-block h-3.5 w-7 rounded-full bg-tertiary transition-colors'; knob.style.left='auto';knob.style.right='2px'; }
+    else { this.className='inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border border-border bg-card text-muted-foreground text-[11px] font-semibold transition-colors';
+      track.className='relative inline-block h-3.5 w-7 rounded-full bg-muted-foreground/40 transition-colors'; knob.style.right='auto';knob.style.left='2px'; }
+    showToast(ai?'Mode WA: AI auto-reply':'Mode WA: Manual (semua dibalas agen)');
+  });
+
+  // toggle right panel
+  el('togglePanel').addEventListener('click', function(){
+    el('contextPanel').classList.toggle('hidden');
+  });
+
+  // ── init ────────────────────────────────────────────────────────────────
+  recomputeCounts();
+  renderList();
+  selectConvo('c1');
+})();
+</script>
+</body></html>

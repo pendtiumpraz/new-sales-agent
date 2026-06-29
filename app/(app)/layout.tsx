@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 
 import { SideNav, TopBar } from "@/components/layout/side-nav";
 import { WorkspaceGate } from "@/components/layout/workspace-gate";
+import { UserThemeProvider } from "@/components/layout/user-theme-provider";
 import { useKbStore } from "@/lib/stores/kb-store";
 
 export default function AppLayout({
@@ -58,14 +59,16 @@ export default function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <SideNav />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main className="min-w-0 flex-1">
-          <WorkspaceGate>{children}</WorkspaceGate>
-        </main>
+    <UserThemeProvider>
+      <div className="flex min-h-screen bg-background">
+        <SideNav />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar />
+          <main className="min-w-0 flex-1">
+            <WorkspaceGate>{children}</WorkspaceGate>
+          </main>
+        </div>
       </div>
-    </div>
+    </UserThemeProvider>
   );
 }

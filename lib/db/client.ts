@@ -1,7 +1,12 @@
 import { drizzle } from "drizzle-orm/vercel-postgres";
 import { createPool, sql as defaultSql } from "@vercel/postgres";
 
-import * as schema from "./schema";
+import * as legacySchema from "./schema";
+// Rebuild (Sainskerta Loop) module tables live under modules/<domain>/schema.ts
+// and are merged into the same drizzle client so both worlds share one connection.
+import * as moduleSchema from "@/modules";
+
+const schema = { ...legacySchema, ...moduleSchema };
 
 /**
  * Find a Postgres connection string in process.env, tolerating Vercel

@@ -1,0 +1,54 @@
+M4 (Inbox / WhatsApp) Backend — Verification Report
+Date: 2026-06-29
+Branch: new-main
+
+Scope verified (new M4 code):
+  modules/inbox/{schema,repo,service}.ts
+  modules/wa/{schema,repo,service}.ts
+  app/api/conversations/* (route.ts, [id]/, trashed/)
+  app/api/messages/* (route.ts, [id]/, trashed/)
+  app/api/wa/session/*, app/api/wa/sessions/*, app/api/wa/outbox/*
+
+======================================================================
+1) npx tsc --noEmit
+======================================================================
+Exit code: 0
+Result: PASS — 0 type errors across the whole project, including all
+new M4 module + route code.
+
+======================================================================
+2) npm run lint  (next lint)
+======================================================================
+Exit code: 0
+Result: PASS — 0 errors.
+
+Only 2 warnings, both PRE-EXISTING and OUTSIDE M4 scope:
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.
+            @typescript-eslint/no-unused-vars
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.
+            @typescript-eslint/no-unused-vars
+
+No warnings or errors originate from any new M4 file
+(modules/inbox/*, modules/wa/*, app/api/{conversations,messages,wa}/*).
+
+======================================================================
+OVERALL: PASS — build is GREEN.
+======================================================================
+
+======================================================================
+RE-VERIFICATION (fix pass) — 2026-06-29
+======================================================================
+Re-ran after fix task on new M4 code (modules/inbox/*, modules/wa/*,
+app/api/{conversations,messages,wa}/*).
+
+  npx tsc --noEmit  -> Exit code: 0  (PASS — 0 type errors)
+  npm run lint      -> Exit code: 0  (PASS — 0 errors)
+                       Only the 2 PRE-EXISTING warnings remain
+                       (settings/diagnostics/page.tsx:514,
+                        components/shared/table-pagination.tsx:65) —
+                       both OUTSIDE M4 scope.
+
+No tsc/lint errors found in new M4 code; nothing to fix. Build GREEN.
+======================================================================

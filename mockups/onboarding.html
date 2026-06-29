@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.hero-orb{background:radial-gradient(closest-side, hsl(var(--primary)/0.18), transparent)}
+.reveal{opacity:0;transform:translateY(10px);animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+/* step panel cross-fade */
+.step-panel{display:none}
+.step-panel.active{display:block;animation:rise .42s cubic-bezier(.2,.7,.2,1)}
+/* selectable vertical card */
+.usecard{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease}
+.usecard:hover{transform:translateY(-2px)}
+.usecard[aria-pressed="true"]{border-color:hsl(var(--primary));background:hsl(var(--accent));box-shadow:0 0 0 1px hsl(var(--primary)),0 12px 28px -10px hsl(var(--primary)/0.4)}
+.usecard[aria-pressed="true"] .radio{border-color:hsl(var(--primary));background:hsl(var(--primary))}
+.usecard[aria-pressed="true"] .radio svg{opacity:1}
+.usecard .radio svg{opacity:0;transition:opacity .15s ease}
+/* color swatch picker */
+.cswatch{transition:transform .15s ease, box-shadow .15s ease}
+.cswatch:hover{transform:scale(1.08)}
+.cswatch[aria-pressed="true"]{box-shadow:0 0 0 3px hsl(var(--card)),0 0 0 5px hsl(var(--foreground)/0.55)}
+.cswatch[aria-pressed="true"] svg{opacity:1}
+.cswatch svg{opacity:0;transition:opacity .12s ease}
+/* stepper progress connector fill */
+.conn{position:relative;height:3px;border-radius:9999px;background:hsl(var(--border));overflow:hidden}
+.conn>i{position:absolute;inset:0;width:0;background:hsl(var(--primary));border-radius:9999px;transition:width .4s cubic-bezier(.2,.7,.2,1)}
+.invite-row{transition:opacity .2s ease}
+.btn-primary{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}
+.btn-primary:hover{filter:brightness(.97)}
+@media (prefers-reduced-motion:reduce){.usecard,.cswatch,.conn>i{transition:none}.reveal,.step-panel.active{animation:none;opacity:1;transform:none}}
+</style>
+</head>
+<body class="bg-background text-foreground min-h-screen">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<!-- high-fi banner -->
+<div class="chrome border-b text-center text-[11px] py-1.5" style="color:hsl(var(--muted-foreground))">
+  MOCKUP HIGH-FI — untuk <b class="text-foreground">approval final</b> · wizard full-screen, 1 langkah tampil · interaktif · tema <b class="text-foreground">Coral Sunset</b>
+</div>
+
+<main class="relative">
+  <!-- soft background orbs -->
+  <div class="hero-orb absolute -top-10 -left-24 w-80 h-80 rounded-full pointer-events-none" aria-hidden="true"></div>
+  <div class="hero-orb absolute top-24 right-0 w-72 h-72 rounded-full pointer-events-none opacity-60" aria-hidden="true"></div>
+
+  <div class="relative w-full max-w-3xl mx-auto px-4 sm:px-6 py-9 sm:py-12">
+
+    <!-- ============ HEADER WIZARD ============ -->
+    <header class="text-center mb-7 reveal">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg text-primary-foreground font-bold text-lg shadow-soft mb-3" style="background:linear-gradient(135deg,hsl(var(--primary)),hsl(12 92% 60%))">M</div>
+      <h1 class="text-2xl sm:text-[28px] font-bold tracking-tight">Selamat datang — atur workspace kamu</h1>
+      <p class="text-sm mt-1.5" style="color:hsl(var(--muted-foreground))">3 langkah cepat sebelum mulai. Semua bisa diubah lagi nanti di Pengaturan.</p>
+    </header>
+
+    <!-- ============ STEPPER — 3 langkah ============ -->
+    <div class="reveal mb-7" style="animation-delay:.05s">
+      <div class="flex items-center" id="stepper">
+
+        <!-- Step 1 -->
+        <div class="flex items-center gap-2.5 shrink-0" data-stephead="1">
+          <div class="dot w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all"></div>
+          <div class="text-left hidden sm:block">
+            <div class="lbl text-[13px] font-semibold leading-tight"></div>
+            <div class="sub text-[11px] leading-tight" style="color:hsl(var(--muted-foreground))"></div>
+          </div>
+        </div>
+
+        <div class="conn flex-1 mx-2.5 sm:mx-4" data-conn="1"><i></i></div>
+
+        <!-- Step 2 -->
+        <div class="flex items-center gap-2.5 shrink-0" data-stephead="2">
+          <div class="dot w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all"></div>
+          <div class="text-left hidden sm:block">
+            <div class="lbl text-[13px] font-semibold leading-tight"></div>
+            <div class="sub text-[11px] leading-tight" style="color:hsl(var(--muted-foreground))"></div>
+          </div>
+        </div>
+
+        <div class="conn flex-1 mx-2.5 sm:mx-4" data-conn="2"><i></i></div>
+
+        <!-- Step 3 -->
+        <div class="flex items-center gap-2.5 shrink-0" data-stephead="3">
+          <div class="dot w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all"></div>
+          <div class="text-left hidden sm:block">
+            <div class="lbl text-[13px] font-semibold leading-tight"></div>
+            <div class="sub text-[11px] leading-tight" style="color:hsl(var(--muted-foreground))"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- STEP 1 — PILIH USAGE / VERTICAL (set modul aktif)                  -->
+    <!-- ================================================================= -->
+    <section class="step-panel active" data-step="1">
+      <div class="bg-card border border-border rounded-lg shadow-soft p-6 sm:p-7">
+        <div class="flex items-baseline gap-2 mb-1.5">
+          <span class="rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide bg-accent" style="color:hsl(var(--primary))">STEP 1</span>
+          <h2 class="text-lg font-bold">Pilih usage / vertical</h2>
+        </div>
+        <p class="text-[13px] mb-5 leading-relaxed" style="color:hsl(var(--muted-foreground))">
+          Pilihan ini menentukan <span class="font-semibold text-foreground">modul &amp; entitlement</span> yang aktif untuk tenant kamu. <span class="text-foreground/70">(grain = tenant — berlaku untuk seluruh tim)</span>
+        </p>
+
+        <!-- Kartu pilihan vertical: HR / Sales / Lainnya -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-5" role="radiogroup" aria-label="Pilih usage / vertical" id="verticalGroup">
+
+          <!-- Kartu HR -->
+          <button type="button" class="usecard text-left bg-card border border-border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-ring/50"
+            role="radio" aria-pressed="false" data-vertical="hr"
+            data-modules="CRM · Inbox · Kandidat · Cadence"
+            data-summary="HR mengaktifkan modul CRM, Inbox, database Kandidat, dan Cadence rekrutmen.">
+            <div class="flex items-start justify-between mb-3">
+              <span class="w-10 h-10 rounded-md flex items-center justify-center text-white shadow-soft" style="background:#14B8A6">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/><path d="M16.5 5a3 3 0 0 1 0 6M21 19a5 5 0 0 0-4-4.9" stroke-linecap="round"/></svg>
+              </span>
+              <span class="radio w-5 h-5 rounded-full border-2 border-border flex items-center justify-center transition-all">
+                <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+            <div class="text-[15px] font-bold mb-1">HR</div>
+            <p class="text-[12px] leading-relaxed mb-3" style="color:hsl(var(--muted-foreground))">Rekrutmen &amp; outreach kandidat.</p>
+            <div class="text-[10px] font-medium uppercase tracking-wide mb-1.5" style="color:hsl(var(--muted-foreground))">Modul aktif</div>
+            <div class="flex flex-wrap gap-1">
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">CRM</span>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">Inbox</span>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">Kandidat</span>
+            </div>
+          </button>
+
+          <!-- Kartu Sales (default selected) -->
+          <button type="button" class="usecard text-left bg-card border border-border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-ring/50"
+            role="radio" aria-pressed="true" data-vertical="sales"
+            data-modules="CRM · Inbox/WA · Produk · Enrichment · Pipeline"
+            data-summary="Sales mengaktifkan modul CRM, Inbox/WA, Produk, Enrichment, dan Pipeline closing. Kuota &amp; masa aktif mengikuti aktivasi superadmin.">
+            <div class="flex items-start justify-between mb-3">
+              <span class="w-10 h-10 rounded-md flex items-center justify-center text-white shadow-soft" style="background:hsl(var(--primary))">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-5 4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 7v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="radio w-5 h-5 rounded-full border-2 border-border flex items-center justify-center transition-all">
+                <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+            <div class="text-[15px] font-bold mb-1 flex items-center gap-1.5">Sales <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:hsl(var(--highlight)/0.18);color:hsl(38 80% 34%)">populer</span></div>
+            <p class="text-[12px] leading-relaxed mb-3" style="color:hsl(var(--muted-foreground))">Pipeline, deals &amp; closing WA-first.</p>
+            <div class="text-[10px] font-medium uppercase tracking-wide mb-1.5" style="color:hsl(var(--muted-foreground))">Modul aktif</div>
+            <div class="flex flex-wrap gap-1">
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">CRM</span>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">Inbox/WA</span>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">Produk</span>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">Enrichment</span>
+            </div>
+          </button>
+
+          <!-- Kartu Lainnya -->
+          <button type="button" class="usecard text-left bg-card border border-border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-ring/50"
+            role="radio" aria-pressed="false" data-vertical="lainnya"
+            data-modules="pilih modul manual"
+            data-summary="Custom — kamu pilih sendiri modul yang aktif. Cocok untuk vertical di luar HR/Sales.">
+            <div class="flex items-start justify-between mb-3">
+              <span class="w-10 h-10 rounded-md flex items-center justify-center text-white shadow-soft" style="background:#8B5CF6">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7" stroke-linecap="round"/></svg>
+              </span>
+              <span class="radio w-5 h-5 rounded-full border-2 border-border flex items-center justify-center transition-all">
+                <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+            <div class="text-[15px] font-bold mb-1">Lainnya</div>
+            <p class="text-[12px] leading-relaxed mb-3" style="color:hsl(var(--muted-foreground))">Custom — pilih modul manual.</p>
+            <div class="text-[10px] font-medium uppercase tracking-wide mb-1.5" style="color:hsl(var(--muted-foreground))">Modul aktif</div>
+            <div class="flex flex-wrap gap-1">
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted" style="color:hsl(var(--secondary-foreground))">pilih sendiri…</span>
+            </div>
+          </button>
+
+        </div>
+
+        <!-- Ringkasan entitlement (read-only, ngikut kartu yang dipilih) -->
+        <div class="rounded-lg chrome border p-3.5 text-[12px] leading-relaxed flex gap-2.5" style="color:hsl(var(--foreground))">
+          <svg class="w-4 h-4 shrink-0 mt-0.5" style="color:hsl(var(--primary))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="summaryLine"></span>
+        </div>
+      </div>
+
+      <!-- Aksi step 1 -->
+      <div class="flex items-center justify-between mt-5">
+        <span class="text-[12px] font-medium" style="color:hsl(var(--muted-foreground))">Langkah 1 dari 3</span>
+        <button type="button" data-next class="btn-primary h-11 px-6 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 shadow-soft transition">
+          Lanjut
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- STEP 2 — TAMPILAN PERSONAL (brand, logo, primary color, preview)   -->
+    <!-- ================================================================= -->
+    <section class="step-panel" data-step="2">
+      <div class="bg-card border border-border rounded-lg shadow-soft p-6 sm:p-7">
+        <div class="flex items-baseline gap-2 mb-1.5">
+          <span class="rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide bg-accent" style="color:hsl(var(--primary))">STEP 2</span>
+          <h2 class="text-lg font-bold">Tampilan personal</h2>
+        </div>
+        <p class="text-[13px] mb-2 leading-relaxed" style="color:hsl(var(--muted-foreground))">
+          Atur identitas brand yang kamu lihat di app — nama, logo, dan warna aksen. Di-apply real-time ke sidebar, tombol &amp; aksen.
+        </p>
+        <!-- scope note -->
+        <div class="rounded-md border border-dashed px-3 py-2 mb-5 text-[12px] flex items-center gap-2" style="border-color:hsl(var(--tertiary)/0.45);background:hsl(var(--tertiary)/0.06);color:hsl(var(--foreground))">
+          <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:hsl(var(--tertiary))"></span>
+          Pengaturan ini <b>berlaku untuk akun kamu</b> (grain user). Versi lengkap — token warna penuh, favicon, custom CSS — ada di <span class="font-mono px-1 py-0.5 rounded bg-card border border-border">/branding</span>.
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- KIRI: form -->
+          <div class="space-y-4">
+
+            <!-- Nama brand -->
+            <div>
+              <label class="block text-[13px] font-medium mb-1.5" for="brandName">Nama Brand</label>
+              <input id="brandName" type="text" value="Maira Sales"
+                class="h-11 w-full rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition"
+                placeholder="mis. Maira Sales" />
+            </div>
+
+            <!-- Upload logo -->
+            <div>
+              <label class="block text-[13px] font-medium mb-1.5">Logo</label>
+              <label class="group flex flex-col items-center justify-center gap-1.5 h-28 w-full rounded-md border-2 border-dashed border-input bg-muted/40 cursor-pointer hover:border-primary/60 hover:bg-accent/50 transition text-center px-3">
+                <span class="w-10 h-10 rounded-md flex items-center justify-center text-primary-foreground shadow-soft" style="background:linear-gradient(135deg,hsl(var(--primary)),hsl(12 92% 60%))" id="logoGlyph">M</span>
+                <span class="text-[12px]" style="color:hsl(var(--muted-foreground))">Tarik &amp; lepas atau <span class="font-semibold" style="color:hsl(var(--primary))">pilih file</span> (PNG/SVG)</span>
+              </label>
+              <p class="text-[11px] mt-1" style="color:hsl(var(--muted-foreground))">Rekomendasi rasio 1:1, maks 1MB.</p>
+            </div>
+
+            <!-- Primary color = baris swatch warna + live -->
+            <div>
+              <label class="block text-[13px] font-medium mb-1.5">Warna Utama</label>
+              <div class="flex items-center gap-2 flex-wrap" id="colorPicker" role="radiogroup" aria-label="Warna utama">
+                <button type="button" class="cswatch w-8 h-8 rounded-full border border-border focus:outline-none focus:ring-2 focus:ring-ring/50" role="radio" aria-pressed="true"  data-p="12 96% 67%"  data-hex="#FD7A5C" title="Coral Sunset (default)" style="background:hsl(12 96% 67%)"><svg class="w-4 h-4 text-white mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="cswatch w-8 h-8 rounded-full border border-border focus:outline-none focus:ring-2 focus:ring-ring/50" role="radio" aria-pressed="false" data-p="173 80% 40%" data-hex="#14B8A6" title="Teal" style="background:hsl(173 80% 40%)"><svg class="w-4 h-4 text-white mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="cswatch w-8 h-8 rounded-full border border-border focus:outline-none focus:ring-2 focus:ring-ring/50" role="radio" aria-pressed="false" data-p="221 83% 53%" data-hex="#2563EB" title="Ocean Blue" style="background:hsl(221 83% 53%)"><svg class="w-4 h-4 text-white mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="cswatch w-8 h-8 rounded-full border border-border focus:outline-none focus:ring-2 focus:ring-ring/50" role="radio" aria-pressed="false" data-p="262 83% 58%" data-hex="#8B5CF6" title="Violet" style="background:hsl(262 83% 58%)"><svg class="w-4 h-4 text-white mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="cswatch w-8 h-8 rounded-full border border-border focus:outline-none focus:ring-2 focus:ring-ring/50" role="radio" aria-pressed="false" data-p="160 84% 39%" data-hex="#10B981" title="Emerald" style="background:hsl(160 84% 39%)"><svg class="w-4 h-4 text-white mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="cswatch w-8 h-8 rounded-full border border-border focus:outline-none focus:ring-2 focus:ring-ring/50" role="radio" aria-pressed="false" data-p="333 80% 52%" data-hex="#E1306C" title="Rose" style="background:hsl(333 80% 52%)"><svg class="w-4 h-4 text-white mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <!-- custom hex trigger -->
+                <span class="w-px h-7 bg-border mx-0.5"></span>
+                <label class="w-8 h-8 rounded-full border border-dashed border-input flex items-center justify-center cursor-pointer hover:border-primary transition" title="Warna kustom">
+                  <input id="customColor" type="color" value="#FD7A5C" class="sr-only" />
+                  <svg class="w-4 h-4" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+                </label>
+              </div>
+              <div class="mt-2 inline-flex items-center gap-2 h-9 rounded-md border border-input bg-muted/40 px-2.5 text-[12px] font-mono" style="color:hsl(var(--muted-foreground))">
+                <span class="w-3.5 h-3.5 rounded-sm border border-border" id="hexSwatch" style="background:#FD7A5C"></span>
+                <span id="hexValue">#FD7A5C</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- KANAN: live preview -->
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5">Live Preview</label>
+            <div class="rounded-lg chrome border p-3">
+              <!-- mini app shell preview: sidebar + topbar + tombol pakai brand color -->
+              <div class="bg-card border border-border rounded-md overflow-hidden flex h-52 shadow-soft">
+                <!-- mini sidebar -->
+                <div class="w-20 p-2.5 flex flex-col gap-2" style="background:hsl(var(--primary)/0.08)">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-primary-foreground shrink-0" id="prevLogo" style="background:hsl(var(--primary))">M</span>
+                  </div>
+                  <div class="h-6 rounded-md flex items-center px-1.5 gap-1 text-primary-foreground text-[8px] font-medium" style="background:hsl(var(--primary))">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-white/80"></span>Menu
+                  </div>
+                  <div class="h-5 rounded-md bg-muted"></div>
+                  <div class="h-5 rounded-md bg-muted"></div>
+                  <div class="h-5 rounded-md bg-muted"></div>
+                </div>
+                <!-- mini content -->
+                <div class="flex-1 p-3 flex flex-col gap-2.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[12px] font-bold" id="prevBrand">Maira Sales</span>
+                    <span class="w-6 h-6 rounded-full" style="background:hsl(var(--primary)/0.2)"></span>
+                  </div>
+                  <div class="h-14 rounded-md border border-border bg-muted/50 flex items-center px-2.5 gap-2">
+                    <span class="w-8 h-8 rounded-md" style="background:hsl(var(--primary)/0.15)"></span>
+                    <span class="flex-1 space-y-1.5"><span class="block h-2 w-3/4 rounded bg-muted"></span><span class="block h-2 w-1/2 rounded bg-muted"></span></span>
+                  </div>
+                  <div class="flex gap-2 mt-auto">
+                    <button class="h-8 px-3 rounded-md text-[11px] font-semibold text-primary-foreground" style="background:hsl(var(--primary))">Tombol utama</button>
+                    <button class="h-8 px-3 rounded-md text-[11px] font-medium border border-border bg-card">Batal</button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[11px] mt-2 text-center" style="color:hsl(var(--muted-foreground))">Preview update real-time saat warna / logo / nama diubah.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Aksi step 2 -->
+      <div class="flex items-center justify-between mt-5">
+        <button type="button" data-back class="h-11 px-5 rounded-md border border-border bg-card text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-muted/60 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Kembali
+        </button>
+        <div class="flex items-center gap-3">
+          <span class="text-[12px] font-medium hidden sm:inline" style="color:hsl(var(--muted-foreground))">Langkah 2 dari 3</span>
+          <button type="button" data-next class="btn-primary h-11 px-6 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 shadow-soft transition">
+            Lanjut
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- STEP 3 — UNDANG SEAT (email list + kuota)                          -->
+    <!-- ================================================================= -->
+    <section class="step-panel" data-step="3">
+      <div class="bg-card border border-border rounded-lg shadow-soft p-6 sm:p-7">
+        <div class="flex items-baseline gap-2 mb-1.5">
+          <span class="rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide bg-accent" style="color:hsl(var(--primary))">STEP 3</span>
+          <h2 class="text-lg font-bold">Undang anggota tim (seat)</h2>
+        </div>
+        <p class="text-[13px] mb-5 leading-relaxed" style="color:hsl(var(--muted-foreground))">
+          Undang sales rep ke workspace. Jumlah seat dibatasi kuota tenant (dari aktivasi superadmin). Bisa di-skip &amp; undang nanti.
+        </p>
+
+        <!-- Counter kuota seat -->
+        <div class="rounded-lg border border-border p-3 mb-4 flex items-center justify-between bg-muted/40">
+          <div class="flex items-center gap-2 text-[13px]">
+            <svg class="w-4 h-4" style="color:hsl(var(--tertiary))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/><path d="M16.5 5a3 3 0 0 1 0 6M21 19a5 5 0 0 0-4-4.9" stroke-linecap="round"/></svg>
+            <span class="font-medium">Seat terpakai</span>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-28 h-2 rounded-full bg-border overflow-hidden">
+              <div id="seatBar" class="h-full rounded-full transition-all" style="width:60%;background:hsl(var(--primary))"></div>
+            </div>
+            <span class="text-[13px] font-bold tabular-nums"><span id="seatUsed">3</span> / 5 <span class="font-normal text-[11px]" style="color:hsl(var(--muted-foreground))">kuota tenant</span></span>
+          </div>
+        </div>
+
+        <!-- Email list -->
+        <label class="block text-[13px] font-medium mb-1.5">Daftar Email Undangan</label>
+        <div class="space-y-2" id="inviteList">
+
+          <!-- baris 1 (pre-filled) -->
+          <div class="invite-row flex items-center gap-2">
+            <input type="email" value="rina@perusahaan.com" class="h-11 flex-1 min-w-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition" placeholder="email anggota…" />
+            <div class="relative shrink-0">
+              <select class="h-11 w-32 rounded-md border border-input bg-card pl-3 pr-7 text-[13px] appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition">
+                <option>Sales Rep</option><option>Manager</option><option>Admin</option><option>Viewer</option>
+              </select>
+              <svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <button type="button" data-remove class="h-11 w-11 shrink-0 rounded-md border border-border bg-card flex items-center justify-center hover:border-danger hover:text-danger transition" style="color:hsl(var(--muted-foreground))" aria-label="Hapus baris">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+
+          <!-- baris 2 (pre-filled) -->
+          <div class="invite-row flex items-center gap-2">
+            <input type="email" value="dimas@perusahaan.com" class="h-11 flex-1 min-w-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition" placeholder="email anggota…" />
+            <div class="relative shrink-0">
+              <select class="h-11 w-32 rounded-md border border-input bg-card pl-3 pr-7 text-[13px] appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition">
+                <option>Sales Rep</option><option>Manager</option><option>Admin</option><option>Viewer</option>
+              </select>
+              <svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <button type="button" data-remove class="h-11 w-11 shrink-0 rounded-md border border-border bg-card flex items-center justify-center hover:border-danger hover:text-danger transition" style="color:hsl(var(--muted-foreground))" aria-label="Hapus baris">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Tambah baris -->
+        <button type="button" id="addInvite" class="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold transition hover:opacity-80" style="color:hsl(var(--primary))">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+          Tambah email
+        </button>
+        <p id="seatFull" class="hidden mt-2 text-[12px] font-medium" style="color:hsl(var(--danger))">Kuota seat penuh — upgrade paket atau hapus salah satu undangan.</p>
+      </div>
+
+      <!-- Aksi step 3 -->
+      <div class="flex items-center justify-between mt-5 gap-3 flex-wrap">
+        <button type="button" data-back class="h-11 px-5 rounded-md border border-border bg-card text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-muted/60 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Kembali
+        </button>
+        <div class="flex items-center gap-3 flex-wrap">
+          <a href="dashboard-shell.html" class="text-[12px] font-medium underline decoration-border hover:decoration-primary transition" style="color:hsl(var(--muted-foreground))">Lewati untuk sekarang</a>
+          <span class="text-[12px] font-medium hidden sm:inline" style="color:hsl(var(--muted-foreground))">Langkah 3 dari 3</span>
+          <button type="button" id="finishBtn" class="btn-primary h-11 px-6 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 shadow-soft transition">
+            Selesai
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Flow note -->
+    <p class="text-center text-[11px] mt-7" style="color:hsl(var(--muted-foreground))">
+      Flow: <a href="login.html" class="underline decoration-border hover:decoration-primary">login</a> (tenant aktif) → onboarding (3 langkah) →
+      <a href="dashboard-shell.html" class="underline decoration-border hover:decoration-primary">dashboard</a>.
+      Step 1 nge-set modul aktif · Step 2 tampilan personal (grain user, lengkap di /branding).
+    </p>
+
+  </div>
+</main>
+
+<!-- ============ FINISH OVERLAY (progress modal) ============ -->
+<div id="finishOverlay" class="fixed inset-0 z-[120] hidden items-center justify-center px-4" style="background:hsl(var(--foreground)/0.45);backdrop-filter:blur(4px)">
+  <div class="glass border border-border rounded-lg shadow-soft p-7 w-full max-w-sm text-center">
+    <div class="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style="background:hsl(var(--primary)/0.14)">
+      <svg id="spin" class="w-6 h-6 animate-spin" style="color:hsl(var(--primary))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg>
+      <svg id="done" class="w-6 h-6 hidden" style="color:hsl(var(--primary))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <p id="overlayTitle" class="text-[15px] font-bold">Menyiapkan workspace…</p>
+    <p id="overlayMsg" class="text-[12px] mt-1" style="color:hsl(var(--muted-foreground))">Mengaktifkan modul, menerapkan tema, mengirim undangan.</p>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Wizard state machine — 1 step visible at a time (Lanjut / Kembali)
+   ===================================================================== */
+(function(){
+  var STEPS=[
+    {n:1,lbl:'Usage / Vertical',cur:'Langkah aktif',next:'Berikutnya'},
+    {n:2,lbl:'Tampilan personal',cur:'Langkah aktif',next:'Terakhir'},
+    {n:3,lbl:'Undang Seat',cur:'Langkah aktif',next:''}
+  ];
+  var current=1;
+  var panels=document.querySelectorAll('.step-panel');
+  var heads=document.querySelectorAll('[data-stephead]');
+  var conns=document.querySelectorAll('[data-conn]');
+
+  function renderStepper(){
+    heads.forEach(function(h){
+      var n=+h.dataset.stephead, dot=h.querySelector('.dot'), lbl=h.querySelector('.lbl'), sub=h.querySelector('.sub');
+      lbl.textContent=STEPS[n-1].lbl;
+      if(n<current){ // done
+        dot.style.background='hsl(var(--primary))'; dot.style.borderColor='hsl(var(--primary))'; dot.style.color='hsl(var(--primary-foreground))';
+        dot.innerHTML='<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        sub.textContent='Selesai'; lbl.style.color='hsl(var(--foreground))';
+      } else if(n===current){ // active
+        dot.style.background='hsl(var(--primary))'; dot.style.borderColor='hsl(var(--primary))'; dot.style.color='hsl(var(--primary-foreground))';
+        dot.textContent=n; sub.textContent='Langkah aktif'; lbl.style.color='hsl(var(--foreground))';
+      } else { // upcoming
+        dot.style.background='hsl(var(--card))'; dot.style.borderColor='hsl(var(--border))'; dot.style.color='hsl(var(--muted-foreground))';
+        dot.textContent=n; sub.textContent=STEPS[n-1].next||'Berikutnya'; lbl.style.color='hsl(var(--muted-foreground))';
+      }
+    });
+    conns.forEach(function(c){ c.querySelector('i').style.width=(+c.dataset.conn < current)?'100%':'0'; });
+  }
+
+  function show(n){
+    current=Math.max(1,Math.min(3,n));
+    panels.forEach(function(p){ p.classList.toggle('active', +p.dataset.step===current); });
+    renderStepper();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  document.querySelectorAll('[data-next]').forEach(function(b){ b.addEventListener('click',function(){ show(current+1); }); });
+  document.querySelectorAll('[data-back]').forEach(function(b){ b.addEventListener('click',function(){ show(current-1); }); });
+
+  // allow clicking a completed/active stephead to jump back
+  heads.forEach(function(h){ h.style.cursor='pointer'; h.addEventListener('click',function(){ if(+h.dataset.stephead<=current) show(+h.dataset.stephead); }); });
+
+  renderStepper();
+
+  /* ===== STEP 1 — vertical radio cards → summary line ===== */
+  var cards=document.querySelectorAll('#verticalGroup .usecard');
+  var summary=document.getElementById('summaryLine');
+  function pickVertical(card){
+    cards.forEach(function(c){ c.setAttribute('aria-pressed', c===card?'true':'false'); });
+    summary.innerHTML='Ringkasan: vertical <b>'+card.dataset.vertical.replace(/^./,function(m){return m.toUpperCase();})+'</b> — '+card.dataset.summary;
+  }
+  cards.forEach(function(c){ c.addEventListener('click',function(){ pickVertical(c); }); });
+  pickVertical(document.querySelector('#verticalGroup .usecard[aria-pressed="true"]'));
+
+  /* ===== STEP 2 — live appearance (brand name / logo / primary color) ===== */
+  var root=document.documentElement.style;
+  var brandIn=document.getElementById('brandName');
+  var prevBrand=document.getElementById('prevBrand');
+  var prevLogo=document.getElementById('prevLogo');
+  var logoGlyph=document.getElementById('logoGlyph');
+  var hexSwatch=document.getElementById('hexSwatch');
+  var hexValue=document.getElementById('hexValue');
+  var custom=document.getElementById('customColor');
+  var swatches=document.querySelectorAll('#colorPicker .cswatch');
+
+  function syncName(){
+    var v=brandIn.value.trim()||'Workspace';
+    prevBrand.textContent=v;
+    var initial=v.charAt(0).toUpperCase();
+    prevLogo.textContent=initial; logoGlyph.textContent=initial;
+  }
+  brandIn.addEventListener('input',syncName);
+
+  function setPrimary(hsl,hex){
+    root.setProperty('--primary',hsl);
+    root.setProperty('--ring',hsl);
+    hexSwatch.style.background=hex; hexValue.textContent=hex.toUpperCase();
+    if(custom.value.toLowerCase()!==hex.toLowerCase()) custom.value=hex;
+  }
+  swatches.forEach(function(s){
+    s.addEventListener('click',function(){
+      swatches.forEach(function(x){ x.setAttribute('aria-pressed', x===s?'true':'false'); });
+      setPrimary(s.dataset.p, s.dataset.hex);
+    });
+  });
+  // custom hex → convert to HSL for the CSS var
+  function hexToHsl(hex){
+    var r=parseInt(hex.substr(1,2),16)/255, g=parseInt(hex.substr(3,2),16)/255, b=parseInt(hex.substr(5,2),16)/255;
+    var mx=Math.max(r,g,b), mn=Math.min(r,g,b), h=0,s=0,l=(mx+mn)/2;
+    if(mx!==mn){ var d=mx-mn; s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+      h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4; h/=6; }
+    return Math.round(h*360)+' '+Math.round(s*100)+'% '+Math.round(l*100)+'%';
+  }
+  custom.addEventListener('input',function(){
+    swatches.forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+    setPrimary(hexToHsl(custom.value), custom.value);
+  });
+
+  /* ===== STEP 3 — invite seats + quota ===== */
+  var QUOTA=5, BASE=1; // owner already takes 1 seat
+  var list=document.getElementById('inviteList');
+  var addBtn=document.getElementById('addInvite');
+  var used=document.getElementById('seatUsed');
+  var bar=document.getElementById('seatBar');
+  var full=document.getElementById('seatFull');
+
+  function rowTemplate(){
+    var wrap=document.createElement('div');
+    wrap.className='invite-row flex items-center gap-2';
+    wrap.innerHTML=''
+      +'<input type="email" class="h-11 flex-1 min-w-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition" placeholder="email anggota…" />'
+      +'<div class="relative shrink-0">'
+      +'<select class="h-11 w-32 rounded-md border border-input bg-card pl-3 pr-7 text-[13px] appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition"><option>Sales Rep</option><option>Manager</option><option>Admin</option><option>Viewer</option></select>'
+      +'<svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      +'</div>'
+      +'<button type="button" data-remove class="h-11 w-11 shrink-0 rounded-md border border-border bg-card flex items-center justify-center hover:border-danger hover:text-danger transition" style="color:hsl(var(--muted-foreground))" aria-label="Hapus baris"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>';
+    return wrap;
+  }
+  function refreshQuota(){
+    var rows=list.querySelectorAll('.invite-row').length;
+    var u=BASE+rows;
+    used.textContent=u;
+    var pct=Math.min(100, Math.round(u/QUOTA*100));
+    bar.style.width=pct+'%';
+    bar.style.background = u>=QUOTA ? 'hsl(var(--highlight))' : 'hsl(var(--primary))';
+    var atCap=u>=QUOTA;
+    addBtn.disabled=atCap;
+    addBtn.classList.toggle('opacity-40',atCap);
+    addBtn.classList.toggle('cursor-not-allowed',atCap);
+    full.classList.toggle('hidden',!atCap);
+  }
+  addBtn.addEventListener('click',function(){
+    if(addBtn.disabled) return;
+    var row=rowTemplate(); list.appendChild(row); refreshQuota();
+    row.querySelector('input').focus();
+  });
+  list.addEventListener('click',function(e){
+    var btn=e.target.closest('[data-remove]'); if(!btn) return;
+    var rows=list.querySelectorAll('.invite-row');
+    if(rows.length<=1){ btn.closest('.invite-row').querySelector('input').value=''; }
+    else { btn.closest('.invite-row').remove(); }
+    refreshQuota();
+  });
+  refreshQuota();
+
+  /* ===== FINISH — progress overlay then go to dashboard ===== */
+  var finishBtn=document.getElementById('finishBtn');
+  var overlay=document.getElementById('finishOverlay');
+  finishBtn.addEventListener('click',function(){
+    overlay.classList.remove('hidden'); overlay.classList.add('flex');
+    setTimeout(function(){
+      document.getElementById('spin').classList.add('hidden');
+      document.getElementById('done').classList.remove('hidden');
+      document.getElementById('overlayTitle').textContent='Workspace siap!';
+      document.getElementById('overlayMsg').textContent='Mengarahkan ke dashboard…';
+    },1300);
+    setTimeout(function(){ window.location.href='dashboard-shell.html'; },2100);
+  });
+})();
+</script>
+
+</body></html>

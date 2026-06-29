@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Branding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers (branding page) */
+.drawer-backdrop{transition:opacity .3s ease}
+/* the live preview is a self-contained themed surface — its OWN CSS vars,
+   so editing a token re-themes the preview WITHOUT touching the real chrome */
+#prevScope{
+  --p-primary:#FD7A5C;--p-primary-fg:#FFFFFF;--p-brand:#0D9488;--p-tertiary:#14B8A6;
+  --p-highlight:#F59E0B;--p-bg:#FFF8F5;--p-fg:#1B1A19;--p-card:#FFFFFF;--p-border:#EFE2DA;
+  --p-success:#10B981;--p-warning:#F59E0B;--p-danger:#EF4444;--p-radius:14px;
+  background:var(--p-bg);color:var(--p-fg);
+}
+.tok-swatch{transition:background .15s ease,border-color .15s ease}
+.hexline{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.saved-pop{animation:savedpop .3s ease}
+@keyframes savedpop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.toast{animation:toastin .3s ease}
+@keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}.saved-pop,.toast{animation:none}}
+/* native color input → tidy square chip */
+input[type=color]{-webkit-appearance:none;appearance:none;border:none;padding:0;background:transparent;cursor:pointer}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:7px}
+input[type=color]::-moz-color-swatch{border:none;border-radius:7px}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-33px)]">
+
+  <!-- ===================== SIDEBAR (w-64) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+
+    <!-- BRAND TENANT (white-label slot: logo + nama brand) -->
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-soft">SA</div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Sapa<span class="text-primary">AI</span></div>
+        <div class="text-[10px] text-muted-foreground truncate">CV Maju Bersama</div>
+      </div>
+    </div>
+
+    <!-- MENU -->
+    <nav class="flex-1 overflow-y-auto py-4 text-sm space-y-5">
+
+      <!-- GROUP: UTAMA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="dashboard-shell.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+          Workspace
+        </a>
+      </div>
+
+      <!-- GROUP: LEADS -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6366F1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kontak
+        </a>
+        <a href="enrichment.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#8B5CF6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Pengayaan Data
+        </a>
+        <a href="pipeline.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="12" width="3" height="6" rx="1"/></svg>
+          Pipeline
+        </a>
+      </div>
+
+      <!-- GROUP: EKSEKUSI -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eksekusi</p>
+        <a href="inbox.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#25D366" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Inbox
+          <span class="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">7</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#F59E0B" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/><path d="m9 12 2 2 4-4"/></svg>
+          Cadence
+        </a>
+      </div>
+
+      <!-- GROUP: LAINNYA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Lainnya</p>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#0EA5E9" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Laporan
+        </a>
+      </div>
+
+      <!-- GROUP: PENGATURAN -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pengaturan</p>
+        <a href="branding.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg>
+          Branding
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6B7280" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Pengaturan
+        </a>
+      </div>
+    </nav>
+
+    <!-- Sidebar footer: akun user -->
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center font-semibold text-xs">RA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Rini Aprilia</div>
+        <div class="text-muted-foreground truncate">Sales Rep</div>
+      </div>
+      <a href="login.html" title="Keluar" class="text-muted-foreground hover:text-danger transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR (h-14, glass) -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-[33px] z-20">
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari kontak, deal, percakapan…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Paket UMKM Pro</span>
+          <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="relative h-9 w-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-card"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">RA</div>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 overflow-auto">
+
+      <!-- Page header strip -->
+      <div class="px-6 pt-6 pb-1 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Branding &amp; Tampilan</h1>
+          <p class="text-sm text-muted-foreground mt-0.5 max-w-2xl">
+            Atur tampilan aplikasi untuk dirimu sendiri — logo, favicon, semua token warna, &amp; Custom CSS.
+            Default-nya tema bawaan <span class="font-medium text-foreground/80">"Coral Sunset"</span>.
+          </p>
+        </div>
+        <!-- konteks akun aktif -->
+        <span class="h-9 px-3 rounded-lg bg-card border border-border text-muted-foreground text-xs inline-flex items-center gap-2 shrink-0">
+          <span class="w-5 h-5 rounded-full bg-tertiary/15 text-tertiary text-[9px] font-bold flex items-center justify-center">RA</span>
+          Akun: <span class="font-medium text-foreground/80">Rini Aprilia</span>
+        </span>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- BANNER GRAIN — "perubahan hanya berlaku untuk akun kamu" (penekanan utama) -->
+        <div class="rounded-lg border border-tertiary/30 bg-tertiary/8 px-4 py-3 flex items-start gap-3" style="background:hsl(173 80% 40% / .08)">
+          <span class="w-7 h-7 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </span>
+          <div class="text-[13px] leading-relaxed">
+            <b class="text-foreground">Perubahan hanya berlaku untuk akun kamu.</b>
+            <span class="text-muted-foreground">Rekan satu tim &amp; tenant tetap melihat tampilan mereka sendiri. Branding disimpan per-user (bukan se-tenant), diterapkan saat sesi login kamu. Entitlement/modul/kuota tetap per-tenant.</span>
+          </div>
+        </div>
+
+        <!-- ====================================================================
+             LAYOUT 2 KOLOM: kiri = editor / kanan = Live Preview + aksi (sticky)
+        ===================================================================== -->
+        <div class="grid lg:grid-cols-3 gap-5 items-start">
+
+          <!-- ============ KOLOM EDITOR (2/3) ============ -->
+          <div class="lg:col-span-2 space-y-5">
+
+            <!-- ----------------------------------------------------------------
+                 (1) IDENTITAS — Logo + Favicon + Nama brand
+            ---------------------------------------------------------------- -->
+            <section class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+              <div class="px-5 py-4 border-b border-border flex items-center gap-3">
+                <span class="w-7 h-7 rounded-lg bg-primary/12 text-primary text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                <div>
+                  <h2 class="text-sm font-semibold">Identitas</h2>
+                  <p class="text-[11px] text-muted-foreground">Logo, favicon, &amp; nama brand di sidebar + tab browser.</p>
+                </div>
+              </div>
+              <div class="p-5 space-y-5">
+
+                <!-- Logo upload + preview -->
+                <div class="flex items-start gap-4 flex-wrap">
+                  <span class="text-[13px] font-medium text-foreground w-28 shrink-0 pt-2">Logo</span>
+                  <div id="logoPreview" class="w-32 h-14 rounded-lg border border-border bg-muted/40 flex items-center justify-center text-[10px] text-muted-foreground overflow-hidden shrink-0">
+                    <span class="flex items-center gap-1.5 font-semibold text-foreground/70"><span class="w-5 h-5 rounded bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">SA</span> SapaAI</span>
+                  </div>
+                  <div class="flex flex-col gap-2 flex-1 min-w-[180px]">
+                    <div class="flex items-center gap-2">
+                      <label class="h-8 px-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground/80 hover:bg-muted transition-colors cursor-pointer inline-flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                        Upload .png/.svg
+                        <input id="logoFile" type="file" accept=".png,.svg,.jpg,.jpeg" class="hidden">
+                      </label>
+                      <button id="logoClear" class="h-8 px-2 rounded-lg text-xs text-muted-foreground hover:text-danger transition-colors">Hapus</button>
+                    </div>
+                    <p class="text-[11px] text-muted-foreground">PNG/SVG, maks ~1MB, rasio lebar. Kosong → pakai logo default.</p>
+                  </div>
+                </div>
+
+                <!-- Favicon upload + 16px preview -->
+                <div class="flex items-start gap-4 flex-wrap border-t border-border/70 pt-5">
+                  <span class="text-[13px] font-medium text-foreground w-28 shrink-0 pt-1">Favicon</span>
+                  <div class="flex items-center gap-3">
+                    <div id="favPreview32" class="w-8 h-8 rounded-md border border-border bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold overflow-hidden">SA</div>
+                    <div class="flex flex-col items-center gap-1">
+                      <div id="favPreview16" class="w-4 h-4 rounded-sm border border-border bg-primary text-primary-foreground flex items-center justify-center text-[6px] font-bold overflow-hidden">S</div>
+                      <span class="text-[9px] text-muted-foreground">16px (tab)</span>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-2 flex-1 min-w-[180px]">
+                    <label class="h-8 px-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground/80 hover:bg-muted transition-colors cursor-pointer inline-flex items-center gap-1.5 w-fit">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                      Upload .png/.ico
+                      <input id="favFile" type="file" accept=".png,.ico,.svg" class="hidden">
+                    </label>
+                    <p class="text-[11px] text-muted-foreground">Persegi, ≥32×32. Dipakai di tab browser hanya untuk sesi kamu.</p>
+                  </div>
+                </div>
+
+                <!-- Nama brand -->
+                <div class="flex items-center gap-4 flex-wrap border-t border-border/70 pt-5">
+                  <span class="text-[13px] font-medium text-foreground w-28 shrink-0">Nama brand</span>
+                  <input id="brandName" type="text" value="SapaAI" placeholder='Mis. "Maira Sales"'
+                    class="h-9 flex-1 min-w-[200px] rounded-lg bg-card border border-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40">
+                </div>
+              </div>
+            </section>
+
+            <!-- ----------------------------------------------------------------
+                 (2) SKEMA WARNA — editor SEMUA token (baris: label + color + hex)
+            ---------------------------------------------------------------- -->
+            <section class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+              <div class="px-5 py-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-lg bg-primary/12 text-primary text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                  <div>
+                    <h2 class="text-sm font-semibold">Skema Warna</h2>
+                    <p class="text-[11px] text-muted-foreground">Edit <b>semua</b> token. Tiap baris: label · color picker · hex.</p>
+                  </div>
+                </div>
+                <button id="loadPreset" class="h-8 px-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground/80 hover:bg-muted transition-colors inline-flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                  Muat preset "Coral Sunset"
+                </button>
+              </div>
+
+              <!-- Sub-grup: Inti -->
+              <div class="px-5 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground/70 font-semibold">Inti — brand &amp; aksen</div>
+              <div class="divide-y divide-border" id="tokGroupCore"></div>
+
+              <!-- Sub-grup: Permukaan -->
+              <div class="px-5 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground/70 font-semibold border-t border-border">Permukaan &amp; teks</div>
+              <div class="divide-y divide-border" id="tokGroupSurface"></div>
+
+              <!-- Sub-grup: Status -->
+              <div class="px-5 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground/70 font-semibold border-t border-border">Status</div>
+              <div class="divide-y divide-border" id="tokGroupStatus"></div>
+
+              <div class="px-5 py-3 border-t border-border bg-muted/30 text-[11px] text-muted-foreground flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                Swatch = color picker. Nilai hex bisa diketik manual. Setiap perubahan langsung tercermin di Live Preview.
+              </div>
+            </section>
+
+            <!-- ----------------------------------------------------------------
+                 (3) ADVANCED — Custom CSS textarea
+            ---------------------------------------------------------------- -->
+            <section class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+              <div class="px-5 py-4 border-b border-border flex items-center gap-3">
+                <span class="w-7 h-7 rounded-lg bg-primary/12 text-primary text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                <div>
+                  <h2 class="text-sm font-semibold">Advanced — Custom CSS</h2>
+                  <p class="text-[11px] text-muted-foreground">Override penuh lewat CSS mentah. Untuk pengguna lanjutan.</p>
+                </div>
+              </div>
+              <div class="p-5 space-y-2">
+                <textarea id="customCss" rows="6" spellcheck="false"
+                  class="w-full rounded-lg bg-[#1B1A19] text-[#e8e2dd] border border-border px-3 py-2.5 text-[12px] font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/40 resize-y"
+                  placeholder="/* contoh */&#10;:root { --radius: 0.75rem; }&#10;.sidebar { letter-spacing: .01em; }">/* Override di sini menang terhadap token di atas.
+   Hanya berlaku untuk sesi login kamu. */
+</textarea>
+                <p class="text-[11px] text-muted-foreground">Disuntik setelah token warna, jadi mengalahkan skema di atas. Salah CSS hanya merusak tampilan-mu sendiri.</p>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- ============ KOLOM PREVIEW + AKSI (1/3, sticky) ============ -->
+          <div class="space-y-5 lg:sticky lg:top-[88px]">
+
+            <!-- ----------------------------------------------------------------
+                 (4) LIVE PREVIEW — mini app-shell yg re-theme live
+            ---------------------------------------------------------------- -->
+            <section class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+              <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-7 h-7 rounded-lg bg-primary/12 text-primary text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                  <h2 class="text-sm font-semibold">Live Preview</h2>
+                </div>
+                <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-tertiary">
+                  <span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span> update langsung
+                </span>
+              </div>
+              <div class="p-4">
+                <!-- mini app-shell — THEMED BY --p-* vars on #prevScope -->
+                <div id="prevScope" class="rounded-xl overflow-hidden border" style="border-color:var(--p-border)">
+
+                  <!-- mini topbar -->
+                  <div class="h-9 flex items-center justify-between px-3 border-b" style="background:var(--p-card);border-color:var(--p-border)">
+                    <div id="prevBrand" class="flex items-center gap-1.5 text-[11px] font-semibold" style="color:var(--p-fg)">
+                      <span id="prevLogoMark" class="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold" style="background:var(--p-primary);color:var(--p-primary-fg)">SA</span>
+                      <span id="prevBrandName">SapaAI</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-1.5 h-1.5 rounded-full" style="background:var(--p-tertiary)"></span>
+                      <span class="w-4 h-4 rounded-full" style="background:var(--p-primary)"></span>
+                    </div>
+                  </div>
+
+                  <div class="flex" style="height:210px">
+                    <!-- mini sidebar -->
+                    <div class="w-20 border-r p-2 space-y-1.5" style="background:var(--p-card);border-color:var(--p-border)">
+                      <!-- active item -->
+                      <div class="h-5 rounded px-1.5 flex items-center text-[8px] font-semibold" style="background:color-mix(in srgb, var(--p-primary) 14%, transparent);color:var(--p-primary)">Dasbor</div>
+                      <div class="h-4 rounded px-1.5 flex items-center text-[8px]" style="color:var(--p-fg);opacity:.6">Kontak</div>
+                      <div class="h-4 rounded px-1.5 flex items-center text-[8px]" style="color:var(--p-fg);opacity:.6">Inbox</div>
+                      <div class="h-4 rounded px-1.5 flex items-center text-[8px]" style="color:var(--p-fg);opacity:.6">Pipeline</div>
+                      <div class="h-4 rounded px-1.5 flex items-center text-[8px]" style="color:var(--p-fg);opacity:.6">Branding</div>
+                    </div>
+
+                    <!-- mini konten -->
+                    <div class="flex-1 p-3 space-y-2.5" style="background:var(--p-bg)">
+                      <div class="text-[10px] font-bold" style="color:var(--p-fg)">Halo, Rini 👋</div>
+                      <!-- buttons -->
+                      <div class="flex gap-1.5">
+                        <div class="h-6 px-2.5 rounded-md flex items-center text-[8px] font-semibold shadow-sm" style="background:var(--p-primary);color:var(--p-primary-fg)">Buka Workspace</div>
+                        <div class="h-6 px-2.5 rounded-md flex items-center text-[8px] font-medium border" style="color:var(--p-tertiary);border-color:var(--p-tertiary)">Aksi</div>
+                      </div>
+                      <!-- card -->
+                      <div class="rounded-lg border p-2" style="background:var(--p-card);border-color:var(--p-border)">
+                        <div class="text-[8px] font-semibold mb-1" style="color:var(--p-fg)">Deal jalan</div>
+                        <div class="text-[12px] font-bold" style="color:var(--p-tertiary)">Rp 284 jt</div>
+                        <!-- mini progress -->
+                        <div class="mt-1.5 h-1.5 rounded-full overflow-hidden" style="background:color-mix(in srgb, var(--p-fg) 10%, transparent)">
+                          <div class="h-full rounded-full" style="width:62%;background:var(--p-highlight)"></div>
+                        </div>
+                      </div>
+                      <!-- status badges -->
+                      <div class="flex flex-wrap gap-1">
+                        <span class="text-[7px] font-semibold px-1.5 py-0.5 rounded-full" style="background:color-mix(in srgb, var(--p-success) 16%, transparent);color:var(--p-success)">Sukses</span>
+                        <span class="text-[7px] font-semibold px-1.5 py-0.5 rounded-full" style="background:color-mix(in srgb, var(--p-warning) 18%, transparent);color:var(--p-warning)">Peringatan</span>
+                        <span class="text-[7px] font-semibold px-1.5 py-0.5 rounded-full" style="background:color-mix(in srgb, var(--p-danger) 14%, transparent);color:var(--p-danger)">Error</span>
+                        <span class="text-[7px] font-semibold px-1.5 py-0.5 rounded-full" style="background:color-mix(in srgb, var(--p-highlight) 18%, transparent);color:color-mix(in srgb, var(--p-highlight) 75%, var(--p-fg))">Sorotan</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-[11px] text-muted-foreground mt-2.5 flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Cermin sidebar · topbar · tombol · card · badge dengan token kamu — termasuk favicon di tab.
+                </p>
+              </div>
+            </section>
+
+            <!-- ----------------------------------------------------------------
+                 (5) AKSI — Simpan + Reset ke default (Coral Sunset)
+            ---------------------------------------------------------------- -->
+            <section class="bg-card rounded-lg border border-border shadow-soft p-4 space-y-3">
+              <div id="dirtyNote" class="hidden text-[11px] text-warning bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+                Ada perubahan belum disimpan.
+              </div>
+              <button id="saveBtn" class="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-soft hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                Simpan perubahan
+              </button>
+              <button id="resetBtn" class="w-full h-9 rounded-lg border border-border bg-card text-sm font-medium text-foreground/80 hover:bg-muted transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Reset ke default (Coral Sunset)
+              </button>
+              <p class="text-[11px] text-muted-foreground text-center">Reset mengembalikan logo, favicon, &amp; semua token ke tema bawaan. Konfirmasi dulu via panel kanan.</p>
+            </section>
+
+          </div>
+        </div>
+
+        <!-- catatan grain (konsisten dgn shell lain) -->
+        <p class="text-[11px] text-muted-foreground">
+          Grain: <b>branding = per-user</b> (appearance), terpisah dari <b>entitlements/modul/kuota = per-tenant</b>.
+          Token warna ter-apply via CSS variable di brand mark, menu aktif, tombol primary, &amp; aksen di seluruh shell aplikasi.
+        </p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===================== RESET CONFIRM — RIGHT DRAWER ===================== -->
+<div id="drawerWrap" class="fixed inset-0 z-[80] pointer-events-none">
+  <div id="drawerBackdrop" class="drawer-backdrop absolute inset-0 bg-foreground/40 opacity-0 pointer-events-none"></div>
+  <aside id="drawer" class="drawer closed absolute top-0 right-0 h-full w-[400px] max-w-full bg-card border-l border-border shadow-soft flex flex-col pointer-events-auto">
+    <div class="h-14 flex items-center justify-between px-5 border-b border-border shrink-0">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-lg bg-danger/12 text-danger flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </div>
+        <div class="min-w-0">
+          <h2 class="text-sm font-bold text-foreground truncate">Reset ke Coral Sunset?</h2>
+          <p class="text-[11px] text-muted-foreground truncate">Tema bawaan · hanya akun kamu</p>
+        </div>
+      </div>
+      <button type="button" id="drawerClose" class="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+      <div class="rounded-lg border border-warning/30 bg-warning/8 px-3 py-2.5 text-[12px] text-foreground/80 flex items-start gap-2" style="background:hsl(38 92% 50% / .08)">
+        <svg class="w-4 h-4 text-warning shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        Tindakan ini mengembalikan <b>logo, favicon, nama brand, semua token warna, &amp; Custom CSS</b> ke tema bawaan. Tidak bisa dibatalkan setelah Simpan.
+      </div>
+      <ul class="text-[12px] text-muted-foreground space-y-2">
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm" style="background:#FD7A5C"></span> Primary → <span class="font-medium text-foreground/80">#FD7A5C</span> (coral)</li>
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm" style="background:#0D9488"></span> Brand → <span class="font-medium text-foreground/80">#0D9488</span> (teal)</li>
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm" style="background:#F59E0B"></span> Highlight → <span class="font-medium text-foreground/80">#F59E0B</span> (amber)</li>
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm border border-border" style="background:#FFF8F5"></span> Background → <span class="font-medium text-foreground/80">#FFF8F5</span> (warm-white)</li>
+      </ul>
+      <p class="text-[11px] text-muted-foreground">Branding rekan tim &amp; tenant tidak terpengaruh.</p>
+    </div>
+    <div class="px-5 py-4 border-t border-border flex items-center gap-2.5 shrink-0">
+      <button type="button" id="resetCancel" class="flex-1 h-9 rounded-lg border border-border bg-card text-sm font-medium text-foreground/80 hover:bg-muted transition-colors">Batal</button>
+      <button type="button" id="resetConfirm" class="flex-1 h-9 rounded-lg bg-danger text-white text-sm font-semibold hover:opacity-90 transition-opacity">Ya, reset</button>
+    </div>
+  </aside>
+</div>
+
+<!-- toast -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] toast">
+  <div class="bg-foreground text-background rounded-lg shadow-soft px-4 py-2.5 text-sm font-medium flex items-center gap-2">
+    <svg class="w-4 h-4 text-success" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+    <span id="toastMsg">Tersimpan</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ── Token definitions (Coral Sunset defaults) ──────────────────────────
+  // key = preview CSS var name on #prevScope; hex = default; label/desc = copy
+  var DEFAULTS = {
+    primary  : { hex:"#FD7A5C", label:"Primary",          desc:"Tombol utama, link, active",        v:"--p-primary",   group:"core" },
+    brand    : { hex:"#0D9488", label:"Brand (teal)",     desc:"Aksen brand sekunder",              v:"--p-brand",     group:"core" },
+    tertiary : { hex:"#14B8A6", label:"Tertiary",         desc:"Aksen ketiga — teal terang",        v:"--p-tertiary",  group:"core" },
+    highlight: { hex:"#F59E0B", label:"Highlight (amber)",desc:"Sorotan / badge perhatian",         v:"--p-highlight", group:"core" },
+    background:{ hex:"#FFF8F5", label:"Background",        desc:"Kanvas halaman — warm-white",       v:"--p-bg",        group:"surface" },
+    foreground:{ hex:"#1B1A19", label:"Foreground",       desc:"Warna teks utama",                  v:"--p-fg",        group:"surface" },
+    card     : { hex:"#FFFFFF", label:"Card",             desc:"Permukaan card / modal / form",     v:"--p-card",      group:"surface" },
+    border   : { hex:"#EFE2DA", label:"Border",           desc:"Garis / divider / input border",    v:"--p-border",    group:"surface" },
+    success  : { hex:"#10B981", label:"Success",          desc:"Sukses · restore · approval",       v:"--p-success",   group:"status" },
+    warning  : { hex:"#F59E0B", label:"Warning",          desc:"Peringatan",                        v:"--p-warning",   group:"status" },
+    danger   : { hex:"#EF4444", label:"Danger",           desc:"Delete · error · destruktif",       v:"--p-danger",    group:"status" }
+  };
+  var GROUP_EL = {
+    core   : document.getElementById("tokGroupCore"),
+    surface: document.getElementById("tokGroupSurface"),
+    status : document.getElementById("tokGroupStatus")
+  };
+  var prev = document.getElementById("prevScope");
+  var dirtyNote = document.getElementById("dirtyNote");
+  var inputs = {}; // key -> {color, hex}
+
+  // ── Build a token row: label · color picker · hex text ─────────────────
+  function buildRow(key, def){
+    var row = document.createElement("div");
+    row.className = "flex items-center gap-3 px-5 py-2.5";
+    row.innerHTML =
+      '<label class="relative w-8 h-8 rounded-md border border-border shrink-0 overflow-hidden tok-swatch">' +
+        '<input type="color" data-key="'+key+'" class="tok-color absolute inset-0 w-full h-full" value="'+def.hex+'">' +
+      '</label>' +
+      '<div class="flex-1 min-w-0">' +
+        '<div class="text-[13px] font-medium text-foreground truncate">'+def.label+'</div>' +
+        '<div class="text-[11px] text-muted-foreground truncate">'+def.desc+'</div>' +
+      '</div>' +
+      '<input type="text" data-key="'+key+'" maxlength="7" value="'+def.hex.toUpperCase()+'" ' +
+        'class="tok-hex hexline w-24 h-8 rounded-lg bg-card border border-border px-2 text-[12px] text-center uppercase focus:outline-none focus:ring-2 focus:ring-ring/40">';
+    GROUP_EL[def.group].appendChild(row);
+    inputs[key] = { color: row.querySelector(".tok-color"), hex: row.querySelector(".tok-hex") };
+  }
+  Object.keys(DEFAULTS).forEach(function(k){ buildRow(k, DEFAULTS[k]); });
+
+  // ── Apply one token to the live preview ────────────────────────────────
+  function applyToken(key, hex){
+    var def = DEFAULTS[key];
+    if(!def) return;
+    prev.style.setProperty(def.v, hex);
+    // primary needs a readable foreground → flip white/dark by luminance
+    if(key === "primary"){
+      prev.style.setProperty("--p-primary-fg", luminance(hex) > 0.6 ? "#1B1A19" : "#FFFFFF");
+    }
+  }
+  function luminance(hex){
+    var c = hex.replace("#",""); if(c.length===3) c=c.split("").map(function(x){return x+x;}).join("");
+    var r=parseInt(c.substr(0,2),16)/255, g=parseInt(c.substr(2,2),16)/255, b=parseInt(c.substr(4,2),16)/255;
+    return 0.2126*r + 0.7152*g + 0.0722*b;
+  }
+  var HEX_RE = /^#([0-9a-fA-F]{6})$/;
+  function markDirty(){ dirtyNote.classList.remove("hidden"); }
+
+  // ── Wire every token: color ⇄ hex, both push to preview ────────────────
+  Object.keys(inputs).forEach(function(key){
+    var pair = inputs[key];
+    pair.color.addEventListener("input", function(){
+      var v = pair.color.value.toUpperCase();
+      pair.hex.value = v;
+      pair.hex.classList.remove("border-danger");
+      applyToken(key, v); markDirty();
+    });
+    pair.hex.addEventListener("input", function(){
+      var v = pair.hex.value.trim();
+      if(v && v[0] !== "#") v = "#"+v;
+      if(HEX_RE.test(v)){
+        pair.hex.classList.remove("border-danger");
+        pair.color.value = v;
+        applyToken(key, v.toUpperCase()); markDirty();
+      } else {
+        pair.hex.classList.add("border-danger"); // invalid hex cue, don't apply
+      }
+    });
+  });
+
+  // ── Identitas: brand name → sidebar + preview ──────────────────────────
+  var brandName = document.getElementById("brandName");
+  var prevBrandName = document.getElementById("prevBrandName");
+  brandName.addEventListener("input", function(){
+    prevBrandName.textContent = brandName.value || "Brand";
+    markDirty();
+  });
+
+  // ── Identitas: logo upload → preview (+ mini preview) ──────────────────
+  var logoFile = document.getElementById("logoFile");
+  var logoPreview = document.getElementById("logoPreview");
+  var prevLogoMark = document.getElementById("prevLogoMark");
+  logoFile.addEventListener("change", function(){
+    var f = logoFile.files && logoFile.files[0]; if(!f) return;
+    var url = URL.createObjectURL(f);
+    logoPreview.innerHTML = '<img src="'+url+'" alt="logo" class="max-h-12 max-w-full object-contain">';
+    prevLogoMark.innerHTML = ''; prevLogoMark.style.backgroundImage = "url("+url+")";
+    prevLogoMark.style.backgroundSize = "cover"; prevLogoMark.style.backgroundPosition = "center";
+    markDirty();
+  });
+  document.getElementById("logoClear").addEventListener("click", function(){
+    logoPreview.innerHTML = '<span class="flex items-center gap-1.5 font-semibold text-foreground/70"><span class="w-5 h-5 rounded bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">SA</span> '+(brandName.value||"SapaAI")+'</span>';
+    prevLogoMark.style.backgroundImage = ""; prevLogoMark.textContent = "SA";
+    logoFile.value = ""; markDirty();
+  });
+
+  // ── Identitas: favicon upload → 32 + 16 previews + browser tab ─────────
+  var favFile = document.getElementById("favFile");
+  var fav32 = document.getElementById("favPreview32");
+  var fav16 = document.getElementById("favPreview16");
+  favFile.addEventListener("change", function(){
+    var f = favFile.files && favFile.files[0]; if(!f) return;
+    var url = URL.createObjectURL(f);
+    [fav32, fav16].forEach(function(el){
+      el.textContent = ""; el.style.backgroundImage = "url("+url+")";
+      el.style.backgroundSize = "cover"; el.style.backgroundPosition = "center";
+    });
+    // actually swap the browser-tab favicon (per-session, exactly as described)
+    var link = document.querySelector("link[rel='icon']") || document.createElement("link");
+    link.rel = "icon"; link.href = url; document.head.appendChild(link);
+    markDirty();
+  });
+
+  // ── Preset / Reset → re-seed every input + preview ─────────────────────
+  function seedDefaults(){
+    Object.keys(DEFAULTS).forEach(function(k){
+      var def = DEFAULTS[k], pair = inputs[k];
+      pair.color.value = def.hex; pair.hex.value = def.hex.toUpperCase();
+      pair.hex.classList.remove("border-danger");
+      applyToken(k, def.hex);
+    });
+    prev.style.setProperty("--p-primary-fg", "#FFFFFF");
+    brandName.value = "SapaAI"; prevBrandName.textContent = "SapaAI";
+    document.getElementById("customCss").value = "/* Override di sini menang terhadap token di atas.\n   Hanya berlaku untuk sesi login kamu. */\n";
+    logoPreview.innerHTML = '<span class="flex items-center gap-1.5 font-semibold text-foreground/70"><span class="w-5 h-5 rounded bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">SA</span> SapaAI</span>';
+    prevLogoMark.style.backgroundImage = ""; prevLogoMark.textContent = "SA";
+    [fav32, fav16].forEach(function(el){ el.style.backgroundImage = ""; });
+    fav32.textContent = "SA"; fav16.textContent = "S";
+  }
+  document.getElementById("loadPreset").addEventListener("click", function(){
+    seedDefaults(); markDirty(); showToast('Preset "Coral Sunset" dimuat');
+  });
+
+  // ── Toast helper ───────────────────────────────────────────────────────
+  var toast = document.getElementById("toast"), toastMsg = document.getElementById("toastMsg"), toastT;
+  function showToast(msg){
+    toastMsg.textContent = msg; toast.classList.remove("hidden");
+    toast.classList.remove("toast"); void toast.offsetWidth; toast.classList.add("toast");
+    clearTimeout(toastT); toastT = setTimeout(function(){ toast.classList.add("hidden"); }, 2200);
+  }
+
+  // ── Save ───────────────────────────────────────────────────────────────
+  var saveBtn = document.getElementById("saveBtn");
+  saveBtn.addEventListener("click", function(){
+    var orig = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg> Menyimpan…';
+    setTimeout(function(){
+      saveBtn.disabled = false; saveBtn.innerHTML = orig;
+      dirtyNote.classList.add("hidden");
+      showToast("Branding tersimpan — berlaku di sesi kamu");
+    }, 850);
+  });
+
+  // ── Reset → right drawer confirm ───────────────────────────────────────
+  var wrap = document.getElementById("drawerWrap");
+  var drawer = document.getElementById("drawer");
+  var backdrop = document.getElementById("drawerBackdrop");
+  function openDrawer(){
+    wrap.classList.add("pointer-events-auto");
+    backdrop.classList.remove("opacity-0","pointer-events-none"); backdrop.classList.add("opacity-100");
+    requestAnimationFrame(function(){ drawer.classList.remove("closed"); });
+  }
+  function closeDrawer(){
+    drawer.classList.add("closed");
+    backdrop.classList.remove("opacity-100"); backdrop.classList.add("opacity-0");
+    setTimeout(function(){ wrap.classList.remove("pointer-events-auto"); backdrop.classList.add("pointer-events-none"); }, 300);
+  }
+  document.getElementById("resetBtn").addEventListener("click", openDrawer);
+  document.getElementById("drawerClose").addEventListener("click", closeDrawer);
+  document.getElementById("resetCancel").addEventListener("click", closeDrawer);
+  backdrop.addEventListener("click", closeDrawer);
+  document.getElementById("resetConfirm").addEventListener("click", function(){
+    seedDefaults(); closeDrawer(); dirtyNote.classList.add("hidden");
+    // restore browser-tab favicon would happen here in real app
+    showToast("Direset ke Coral Sunset");
+  });
+  document.addEventListener("keydown", function(e){ if(e.key === "Escape") closeDrawer(); });
+
+  // initial paint
+  seedDefaults();
+})();
+</script>
+
+</body></html>

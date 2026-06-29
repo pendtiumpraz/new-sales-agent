@@ -1,1354 +1,1412 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
-import Link from "next/link";
+// Laporan & Analitik — Module 9 FRONTEND (Sainskerta Loop Phase 04, FINAL
+// secondary tick). Wired to the NEW M9 reports backend (no mock data): a
+// read-only dashboard that AGGREGATES over the existing rebuild tables, plus
+// CRUD for the thin `saved_report` config. Wires to:
+//   GET    /api/reports/overview              (one-shot DashboardOverview — KPI totals + every roll-up)
+//   GET    /api/reports/saved                 (list saved reports — SavedReportRow[])
+//   GET    /api/reports/saved/trashed         (Sampah view)
+//   POST   /api/reports/saved                 (save a report config)
+//   DELETE /api/reports/saved/[id]            (SOFT delete → Sampah)
+//   PATCH  /api/reports/saved/[id]/restore    (un-trash)
+//   DELETE /api/reports/saved/[id]/purge      (HARD delete — irreversible)
+// The numbers are computed LIVE by the service against crm / inbox / sales /
+// ecommerce / field tables — the page never fabricates a metric. Charts are
+// styled divs/bars (no chart lib). Matches the established design system
+// (Coral Sunset, the (app) shell): stat strip, cards, list table, confirm
+// modals. Every band has loading + empty + error states.
+
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-  CalendarClock,
+  BarChart3,
+  Boxes,
+  Building2,
   CheckCircle2,
   Coins,
-  Database,
-  Frown,
-  Gauge,
-  Hash,
-  ListChecks,
-  Megaphone,
-  MessageSquareWarning,
-  Percent,
-  Printer,
-  Radio,
-  ShieldCheck,
-  Smile,
-  Sparkles,
-  Trophy,
-  Workflow,
+  Flame,
+  MapPin,
+  MessageSquare,
+  Plus,
+  RotateCcw,
+  Save,
+  Star,
+  Target,
+  Trash2,
+  TrendingUp,
+  Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { STEP_KIND } from "@/components/autopilot/step-card";
-import { SentimentMap } from "@/components/inbox/sentiment-map";
 import { PageHeader } from "@/components/layout/page-header";
-import { IDRAmount } from "@/components/shared/idr-amount";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatRowSkeleton, TableSkeleton } from "@/components/shared/skeletons";
-import { KpiTile, KpiStrip } from "@/components/shared/kpi-tile";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  aiErrorReport as aiErrorReportFallback,
-  salesReport as salesReportFallback,
-} from "@/lib/api-mock/analytics";
-import { productSentiments } from "@/lib/api-mock/handoff";
-import { useCadences, useContacts, useDeals } from "@/lib/api-mock/hooks";
-import { useAutopilotStore } from "@/lib/stores/autopilot-store";
-import type { AutopilotRun, AutopilotStep } from "@/lib/types/autopilot";
-import type { Cadence, Contact, Deal } from "@/lib/types";
-import type {
-  AiErrorTrendPoint,
-  AiErrorTypeBreakdown,
-  AiFlaggedResponse,
-  ChannelFunnelDatum,
-  PipelineIssueSeverity,
-} from "@/lib/types/analytics";
-import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 
-// Recharts is heavy and depends on browser APIs (ResizeObserver) — defer SSR
-// matching how dashboard/page.tsx loads pipeline-stage-chart.
-const ErrorRateTrendChart = dynamic(
-  () =>
-    import("@/components/analytics/error-rate-trend-chart").then(
-      (m) => m.ErrorRateTrendChart,
-    ),
-  { ssr: false, loading: () => <Skeleton className="h-[260px] w-full" /> },
-);
+// ── API envelope + shapes (NEW M9 reports backend — { ok, data }) ─────────────
 
-const ErrorTypeBreakdownChart = dynamic(
-  () =>
-    import("@/components/analytics/error-type-breakdown-chart").then(
-      (m) => m.ErrorTypeBreakdownChart,
-    ),
-  { ssr: false, loading: () => <Skeleton className="h-[220px] w-full" /> },
-);
+interface ApiOk<T> {
+  ok: true;
+  data: T;
+}
+interface ApiErr {
+  ok: false;
+  error: string;
+  code?: string;
+}
+type ApiResult<T> = ApiOk<T> | ApiErr;
 
-const ChannelFunnelChart = dynamic(
-  () =>
-    import("@/components/analytics/channel-funnel-chart").then(
-      (m) => m.ChannelFunnelChart,
-    ),
-  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
-);
-
-// G7 calibration dashboard — self-contained (own fetch + recharts), deferred SSR.
-const CalibrationPanel = dynamic(
-  () =>
-    import("@/components/analytics/calibration-panel").then((m) => m.CalibrationPanel),
-  { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> },
-);
-
-const SEVERITY: Record<
-  PipelineIssueSeverity,
-  { label: string; variant: "destructive" | "warning" | "muted"; bar: string }
-> = {
-  tinggi: { label: "Tinggi", variant: "destructive", bar: "bg-danger" },
-  sedang: { label: "Sedang", variant: "warning", bar: "bg-warning" },
-  rendah: { label: "Rendah", variant: "muted", bar: "bg-stone-400" },
-};
-
-const CHANNEL_ACCENT: Record<string, string> = {
-  WhatsApp: "#25D366",
-  Email: "#3B82F6",
-  Instagram: "#E1306C",
-  Tokopedia: "#03AC0E",
-};
-
-// Friendly channel labels — deals use lowercase keys; we re-key for display.
-const CHANNEL_LABEL: Record<string, string> = {
-  whatsapp: "WhatsApp",
-  email: "Email",
-  instagram: "Instagram",
-  tokopedia: "Tokopedia",
-};
-
-// Deterministic mini-hash — used for stable "feels alive" numbers that don't
-// have a live source yet (avg cycle days, stagnant deal count).
-function hashStr(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
+/** Row from the deals-by-stage roll-up (modules/reports · service). */
+interface DealsByStageRow {
+  stageId: string | null;
+  stageName: string;
+  sort: number;
+  isWon: boolean;
+  isLost: boolean;
+  count: number;
+  value: number;
 }
 
-// ── Sentimen Pasar — derived aggregates from productSentiments ─────────────
-function buildSentimentStats() {
-  const list = productSentiments;
-  const totalMentions = list.reduce((s, p) => s + p.mentions, 0);
-  // Mention-weighted average so heavy-traffic products dominate the headline.
-  const weightedSum = list.reduce(
-    (s, p) => s + p.averageScore * p.mentions,
-    0,
-  );
-  const avgScore = totalMentions > 0 ? weightedSum / totalMentions : 0;
-  const weightedTrendSum = list.reduce(
-    (s, p) => s + p.trendVsLastWeek * p.mentions,
-    0,
-  );
-  const avgTrend = totalMentions > 0 ? weightedTrendSum / totalMentions : 0;
-  const sortedByScore = [...list].sort(
-    (a, b) => b.averageScore - a.averageScore,
-  );
-  return {
-    avgScore,
-    avgTrend,
-    totalMentions,
-    topProduct: sortedByScore[0]!,
-    bottomProduct: sortedByScore[sortedByScore.length - 1]!,
+/** GET /api/reports/overview → the composed dashboard overview. */
+interface DashboardOverview {
+  contactsBySegment: { segment: string; count: number }[];
+  contactsByLifecycle: { stage: string; count: number }[];
+  dealsByStatus: { status: string; count: number; value: number }[];
+  dealsByStage: DealsByStageRow[];
+  conversationsByStatus: { status: string; count: number }[];
+  closingReadinessByBand: { band: string; count: number }[];
+  ordersByChannel: { channel: string; count: number; total: number }[];
+  visitsByStatus: { status: string; count: number }[];
+  totals: {
+    contacts: number;
+    openDeals: number;
+    openDealValue: number;
+    wonDeals: number;
+    wonValue: number;
+    conversations: number;
+    orders: number;
+    orderRevenue: number;
+    visits: number;
   };
 }
 
-function buildSentimentInsights(): {
-  title: string;
-  body: string;
-  tone: "positive" | "negative" | "neutral";
-}[] {
-  const list = productSentiments;
-  const biggestGain = [...list].sort(
-    (a, b) => b.trendVsLastWeek - a.trendVsLastWeek,
-  )[0]!;
-  const biggestDrop = [...list].sort(
-    (a, b) => a.trendVsLastWeek - b.trendVsLastWeek,
-  )[0]!;
-  const mostMentioned = [...list].sort((a, b) => b.mentions - a.mentions)[0]!;
-  const out: {
-    title: string;
-    body: string;
-    tone: "positive" | "negative" | "neutral";
-  }[] = [];
-  if (biggestGain.trendVsLastWeek > 0) {
-    out.push({
-      tone: "positive",
-      title: `${biggestGain.productName} naik +${biggestGain.trendVsLastWeek} poin`,
-      body: `Sentimen menguat minggu ini — penjelasan harga & value yang lebih jelas tampak berperan. Pertimbangkan amplifikasi materi promosi yang sama ke channel lain.`,
-    });
-  }
-  if (biggestDrop.trendVsLastWeek < 0) {
-    out.push({
-      tone: "negative",
-      title: `${biggestDrop.productName} turun ${biggestDrop.trendVsLastWeek} poin`,
-      body: `Sentimen melemah — sebagian besar keluhan terkait harga/skala. Tim sales perlu mempersiapkan opsi negosiasi atau bundling untuk segmen ini.`,
-    });
-  }
-  out.push({
-    tone: "neutral",
-    title: `${mostMentioned.productName} paling sering dibahas`,
-    body: `Dengan ${mostMentioned.mentions} sebutan minggu ini, produk ini adalah sinyal pasar paling kuat — gunakan kutipan & objection-nya untuk update konten & cadence.`,
-  });
-  return out.slice(0, 3);
+/** Row from GET /api/reports/saved (modules/reports · saved_report). */
+interface SavedReportRow {
+  id: string;
+  tenantId: string;
+  ownerUserId: string | null;
+  workspaceId: string | null;
+  name: string;
+  kind: string;
+  description: string | null;
+  config: Record<string, unknown> | null;
+  scope: string; // private | tenant
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
 }
 
-// ── Derivation builders ───────────────────────────────────────────────────
+// ── enums / display metadata ─────────────────────────────────────────────────
 
-interface SalesDerived {
-  revenueMtdIDR: number;
-  dealsClosedMtd: number;
-  conversionRate: number;
-  avgCycleDays: number;
-  byChannel: ChannelFunnelDatum[];
-  topCadences: { name: string; replyRate: number; enrolled: number }[];
-  leaderboard: { name: string; deals: number; valueIDR: number }[];
-}
+type MainTab = "ringkasan" | "tersimpan" | "sampah";
 
-function deriveSales(
-  deals: Deal[] | undefined,
-  cadences: Cadence[] | undefined,
-): SalesDerived {
-  const dealList = deals ?? [];
-  const cadenceList = cadences ?? [];
+/** The aggregates a saved report can pin to (mirrors the backend REPORT_KINDS). */
+const REPORT_KINDS = [
+  { value: "overview", label: "Ringkasan menyeluruh" },
+  { value: "contacts_by_segment", label: "Kontak per segmen" },
+  { value: "deals_by_stage", label: "Deal per tahap" },
+  { value: "pipeline_overview", label: "Ringkasan pipeline" },
+  { value: "closing_funnel", label: "Funnel closing" },
+  { value: "marketplace_sales", label: "Penjualan marketplace" },
+  { value: "field_activity", label: "Aktivitas lapangan" },
+] as const;
 
-  // Closed deals — for MTD, prefer those with expectedClose inside the last
-  // 30 days; fall back to "all closed" so the tile never says "0" on a fresh
-  // mock seed.
-  const closed = dealList.filter((d) => d.stage === "tutup");
-  const now = Date.now();
-  const window30d = 30 * 864e5;
-  const closedMtd = closed.filter(
-    (d) => now - +new Date(d.expectedClose) <= window30d,
-  );
-  const closedForMtd = closedMtd.length > 0 ? closedMtd : closed;
-  const revenueMtdIDR = closedForMtd.reduce((s, d) => s + d.value, 0);
-  const dealsClosedMtd = closedForMtd.length;
+const KIND_LABEL: Record<string, string> = Object.fromEntries(
+  REPORT_KINDS.map((k) => [k.value, k.label]),
+);
 
-  // Conversion rate: closed / total (guard against empty pipeline).
-  const conversionRate =
-    dealList.length > 0 ? (closed.length / dealList.length) * 100 : 0;
-
-  // Average cycle — REAL: mean of (expectedClose − createdAt) across closed
-  // deals that carry both dates. 0 (rendered "—") when unmeasurable, never a
-  // hash-derived fake presented as live analytics.
-  const cycleSamples = closed
-    .map((d) => {
-      const start = d.createdAt ? +new Date(d.createdAt) : NaN;
-      const end = d.expectedClose ? +new Date(d.expectedClose) : NaN;
-      return Number.isFinite(start) && Number.isFinite(end) ? (end - start) / 864e5 : NaN;
-    })
-    .filter((n) => Number.isFinite(n) && n >= 0);
-  const avgCycleDays = cycleSamples.length
-    ? Math.round(cycleSamples.reduce((s, n) => s + n, 0) / cycleSamples.length)
-    : 0;
-
-  // Channel funnel — group by sourceChannel + stage. Stage → funnel bucket
-  // mapping: prospek → prospect, kualifikasi → qualified, penawaran|negosiasi
-  // → offer, tutup → won. Channels normalized to the canonical labels we
-  // already colour-code (WhatsApp / Email / Instagram / Tokopedia).
-  const channelGroups = new Map<string, ChannelFunnelDatum>();
-  for (const d of dealList) {
-    const raw = String(d.sourceChannel ?? "").toLowerCase();
-    // Don't silently DROP deals on channels we don't colour-code — bucket them as
-    // "Lainnya" so the funnel total matches the headline deal count.
-    const label = CHANNEL_LABEL[raw] ?? "Lainnya";
-    let row = channelGroups.get(label);
-    if (!row) {
-      row = { channel: label, prospect: 0, qualified: 0, offer: 0, won: 0 };
-      channelGroups.set(label, row);
-    }
-    if (d.stage === "prospek") row.prospect += 1;
-    else if (d.stage === "kualifikasi") row.qualified += 1;
-    else if (d.stage === "penawaran" || d.stage === "negosiasi")
-      row.offer += 1;
-    else if (d.stage === "tutup") row.won += 1;
-  }
-  // Preserve a stable channel order to match the colour map.
-  const channelOrder = ["WhatsApp", "Email", "Instagram", "Tokopedia", "Lainnya"];
-  const byChannel: ChannelFunnelDatum[] =
-    channelGroups.size > 0
-      ? [
-          ...channelOrder.map((c) => channelGroups.get(c)).filter((r): r is ChannelFunnelDatum => Boolean(r)),
-          // any channel not in the fixed order (defensive — shouldn't happen with the Lainnya bucket)
-          ...[...channelGroups.values()].filter((r) => !channelOrder.includes(r.channel)),
-        ]
-      : salesReportFallback.byChannel;
-
-  // Top cadences — sort by replyRate desc, top 5.
-  const topCadences =
-    cadenceList.length > 0
-      ? [...cadenceList]
-          .sort((a, b) => b.replyRate - a.replyRate)
-          .slice(0, 5)
-          .map((c) => ({
-            name: c.name,
-            replyRate: c.replyRate,
-            enrolled: c.enrolled,
-          }))
-      : salesReportFallback.topCadences;
-
-  // Leaderboard — group closed deals by owner, sum value, sort desc.
-  const ownerAgg = new Map<string, { deals: number; valueIDR: number }>();
-  for (const d of closed) {
-    const key = d.owner || "—";
-    const row = ownerAgg.get(key) ?? { deals: 0, valueIDR: 0 };
-    row.deals += 1;
-    row.valueIDR += d.value;
-    ownerAgg.set(key, row);
-  }
-  const leaderboard =
-    ownerAgg.size > 0
-      ? Array.from(ownerAgg.entries())
-          .map(([name, row]) => ({ name, ...row }))
-          .sort((a, b) => b.valueIDR - a.valueIDR)
-          .slice(0, 5)
-      : salesReportFallback.leaderboard;
-
-  return {
-    revenueMtdIDR,
-    dealsClosedMtd,
-    conversionRate,
-    avgCycleDays,
-    byChannel,
-    topCadences,
-    leaderboard,
-  };
-}
-
-interface AiDerived {
-  totalResponses: number;
-  errorCount: number;
-  errorRate: number;
-  errorRateDeltaPctPoints: number;
-  trend30d: AiErrorTrendPoint[];
-  byType: AiErrorTypeBreakdown[];
-  recentFlagged: AiFlaggedResponse[];
-}
-
-const AI_TYPE_LABEL: Record<AutopilotStep, string> = {
-  "select-audience": "Pemilihan audiens",
-  "generate-li-notes": "Catatan LinkedIn",
-  "send-li-requests": "Pengiriman LinkedIn",
-  "track-acceptances": "Pantauan koneksi",
-  "generate-intro-dms": "Pesan DM",
-  "send-intro-dms": "Pengiriman DM",
-  "track-replies": "Pantauan balasan",
-  "propose-meetings": "Agenda meeting",
-  "book-meetings": "Booking kalender",
-  "deploy-cos": "Ringkasan CoS",
+const SEGMENT_META: Record<string, { label: string; color: string }> = {
+  b2c: { label: "B2C (perorangan)", color: "#E1306C" },
+  b2b: { label: "B2B (perusahaan)", color: "#0D9488" },
+  unknown: { label: "Belum diklasifikasi", color: "#9CA3AF" },
 };
 
-function deriveAi(
-  currentRun: AutopilotRun | null,
-  history: AutopilotRun[],
-): AiDerived {
-  // Walk every ai-text event from currentRun + history. "Errors" = events
-  // whose source fell back to "mock" (Deepseek unreachable → template).
-  const runs: AutopilotRun[] = [
-    ...(currentRun ? [currentRun] : []),
-    ...history,
-  ];
-  const allEvents = runs.flatMap((r) => r.events);
-  const aiTextEvents = allEvents.filter(
-    (e) => STEP_KIND[e.step] === "ai-text",
-  );
-  const totalResponses = aiTextEvents.length;
-  const mockEvents = aiTextEvents.filter((e) => e.source === "mock");
-  const errorCount = mockEvents.length;
+const LIFECYCLE_META: Record<string, { label: string; color: string }> = {
+  lead: { label: "Lead", color: "#9CA3AF" },
+  mql: { label: "MQL", color: "#3B82F6" },
+  sql: { label: "SQL", color: "#6366F1" },
+  customer: { label: "Customer", color: "#10B981" },
+  churned: { label: "Churned", color: "#EF4444" },
+};
 
-  // If there's no autopilot activity yet, fall back to the static demo data
-  // — empty zeros across the tab would feel broken on a fresh session.
-  if (totalResponses === 0) {
-    return {
-      totalResponses: aiErrorReportFallback.totalResponses,
-      errorCount: aiErrorReportFallback.errorCount,
-      errorRate: aiErrorReportFallback.errorRate,
-      errorRateDeltaPctPoints: aiErrorReportFallback.errorRateDeltaPctPoints,
-      trend30d: aiErrorReportFallback.trend30d,
-      byType: aiErrorReportFallback.byType,
-      recentFlagged: aiErrorReportFallback.recentFlagged,
-    };
+const CONV_STATUS_META: Record<string, { label: string; color: string }> = {
+  open: { label: "Terbuka", color: "#FB5E3B" },
+  snoozed: { label: "Ditunda", color: "#F59E0B" },
+  closed: { label: "Selesai", color: "#10B981" },
+};
+
+const BAND_META: Record<string, { label: string; color: string }> = {
+  hot: { label: "Hot — siap closing", color: "#EF4444" },
+  warm: { label: "Warm — dipanaskan", color: "#F59E0B" },
+  cold: { label: "Cold — awal", color: "#3B82F6" },
+};
+const BAND_ORDER = ["hot", "warm", "cold"];
+
+const VISIT_STATUS_META: Record<string, { label: string; color: string }> = {
+  planned: { label: "Direncanakan", color: "#3B82F6" },
+  in_progress: { label: "Berjalan", color: "#F59E0B" },
+  completed: { label: "Selesai", color: "#10B981" },
+  cancelled: { label: "Dibatalkan", color: "#9CA3AF" },
+  no_show: { label: "Tidak hadir", color: "#EF4444" },
+};
+
+const CHANNEL_DOT: Record<string, string> = {
+  tokopedia: "#16A34A",
+  shopee: "#EE4D2D",
+  tiktok: "#111111",
+  lazada: "#0F146D",
+  other: "#6B7280",
+};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+async function readJson<T>(r: Response): Promise<T> {
+  const j = (await r.json().catch(() => null)) as ApiResult<T> | null;
+  if (!r.ok || !j || j.ok === false) {
+    if (r.status === 403) throw new Error("forbidden");
+    throw new Error((j && "error" in j && j.error) || "Permintaan gagal");
   }
-
-  const errorRate = totalResponses > 0 ? (errorCount / totalResponses) * 100 : 0;
-
-  // Delta vs prior 7d window — approximate by splitting recent vs older
-  // events. With <10 events this is noisy, so we just report a small
-  // illustrative delta proportional to the current error rate.
-  const errorRateDeltaPctPoints = -Math.min(errorRate * 0.3, 1.4);
-
-  // 30-day trend — synthesize from history grouped by day. If too few
-  // events to draw a meaningful line, fall back to the static curve.
-  const trend30d: AiErrorTrendPoint[] = (() => {
-    if (aiTextEvents.length < 8) return aiErrorReportFallback.trend30d;
-    const end = new Date();
-    end.setHours(0, 0, 0, 0);
-    const buckets: Record<string, { total: number; errors: number }> = {};
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(end.getTime() - i * 864e5);
-      buckets[d.toISOString().slice(0, 10)] = { total: 0, errors: 0 };
-    }
-    for (const e of aiTextEvents) {
-      const day = (e.finishedAt ?? e.startedAt).slice(0, 10);
-      if (!buckets[day]) continue;
-      buckets[day].total += 1;
-      if (e.source === "mock") buckets[day].errors += 1;
-    }
-    return Object.entries(buckets).map(([date, b]) => ({
-      date,
-      rate:
-        b.total > 0
-          ? +((b.errors / b.total) * 100).toFixed(2)
-          : +((errorRate * 0.7 + (hashStr(date) % 100) / 60).toFixed(2)),
-    }));
-  })();
-
-  // By type — group mock events by step, then map step → friendly label.
-  const typeCount = new Map<AutopilotStep, number>();
-  for (const e of mockEvents) {
-    typeCount.set(e.step, (typeCount.get(e.step) ?? 0) + 1);
-  }
-  const byType: AiErrorTypeBreakdown[] =
-    typeCount.size > 0
-      ? Array.from(typeCount.entries())
-          .map(([step, count]) => ({
-            type: AI_TYPE_LABEL[step] ?? String(step),
-            count,
-            rate:
-              totalResponses > 0 ? +((count / totalResponses) * 100).toFixed(2) : 0,
-          }))
-          .sort((a, b) => b.count - a.count)
-      : aiErrorReportFallback.byType;
-
-  // Recent flagged — last 5 mock events as quick-look table.
-  const recentFlagged: AiFlaggedResponse[] =
-    mockEvents.length > 0
-      ? mockEvents
-          .slice()
-          .sort((a, b) =>
-            (b.finishedAt ?? b.startedAt).localeCompare(
-              a.finishedAt ?? a.startedAt,
-            ),
-          )
-          .slice(0, 5)
-          .map((e) => ({
-            id: e.id,
-            conversationId: e.prospectId ?? e.id,
-            snippet:
-              e.detail?.slice(0, 200) ??
-              `Fallback template digunakan untuk ${e.title.toLowerCase()}.`,
-            reason: `${AI_TYPE_LABEL[e.step] ?? e.step} — fallback template (Deepseek tidak tersedia)`,
-            flaggedAt: e.finishedAt ?? e.startedAt,
-          }))
-      : aiErrorReportFallback.recentFlagged;
-
-  return {
-    totalResponses,
-    errorCount,
-    errorRate,
-    errorRateDeltaPctPoints,
-    trend30d,
-    byType,
-    recentFlagged,
-  };
+  return j.data;
 }
 
-interface QualityDerived {
-  totalDeals: number;
-  cleanDeals: number;
-  cleanRate: number;
-  issues: {
-    id: string;
-    type: string;
-    count: number;
-    severity: PipelineIssueSeverity;
-  }[];
+function titleCase(s: string): string {
+  return s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function deriveQuality(
-  deals: Deal[] | undefined,
-  contacts: Contact[] | undefined,
-): QualityDerived {
-  const dealList = deals ?? [];
-  const contactList = contacts ?? [];
-  const totalDeals = dealList.length;
-
-  const cleanDeals = dealList.filter(
-    (d) =>
-      Boolean(d.contactId) &&
-      Boolean(d.contactName) &&
-      d.value > 0 &&
-      Boolean(d.expectedClose) &&
-      Boolean(d.owner),
-  ).length;
-  const cleanRate = totalDeals > 0 ? (cleanDeals / totalDeals) * 100 : 0;
-
-  const noValue = dealList.filter((d) => !d.value || d.value === 0).length;
-  const noContact = dealList.filter((d) => !d.contactId).length;
-
-  // Stagnant deals — expectedClose in the past and not yet closed. Report the
-  // REAL count (no hash boost); "0 masalah" is a valid, honest answer.
-  const now = Date.now();
-  const stagnant = dealList.filter(
-    (d) =>
-      d.stage !== "tutup" &&
-      d.expectedClose &&
-      now - +new Date(d.expectedClose) > 30 * 864e5,
-  ).length;
-
-  const noEmail = contactList.filter((c) => !c.email).length;
-  const noPhone = contactList.filter((c) => !c.phone).length;
-
-  const sevOf = (n: number): PipelineIssueSeverity =>
-    n > 20 ? "tinggi" : n > 10 ? "sedang" : "rendah";
-
-  const issues = [
-    { id: "issue-value", type: "Deal tanpa nilai", count: noValue, severity: sevOf(noValue) },
-    { id: "issue-contact", type: "Deal tanpa kontak", count: noContact, severity: sevOf(noContact) },
-    { id: "issue-stale", type: "Deal stagnan > 30 hari", count: stagnant, severity: sevOf(stagnant) },
-    { id: "issue-email", type: "Kontak tanpa email", count: noEmail, severity: sevOf(noEmail) },
-    { id: "issue-phone", type: "Kontak tanpa nomor telepon", count: noPhone, severity: sevOf(noPhone) },
-  ];
-
-  return { totalDeals, cleanDeals, cleanRate, issues };
+function fmtRelID(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diff = Date.now() - d.getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "Baru saja";
+  if (h < 24) return `${h} jam lalu`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `${days} hari lalu`;
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
+
+/** Compact IDR — drives the revenue KPI captions. */
+function fmtIDR(value: number): string {
+  if (value >= 1e9) return `Rp ${(value / 1e9).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
+  if (value >= 1e6) return `Rp ${(value / 1e6).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
+  if (value >= 1e3) return `Rp ${(value / 1e3).toLocaleString("id-ID", { maximumFractionDigits: 0 })} rb`;
+  return `Rp ${value.toLocaleString("id-ID")}`;
+}
+
+function num(n: number): string {
+  return n.toLocaleString("id-ID");
+}
+
+// ── save-report form ──────────────────────────────────────────────────────────
+
+interface SaveForm {
+  open: boolean;
+  name: string;
+  kind: string;
+  description: string;
+  scope: string;
+  isPinned: boolean;
+}
+
+const EMPTY_SAVE_FORM: SaveForm = {
+  open: false,
+  name: "",
+  kind: "overview",
+  description: "",
+  scope: "private",
+  isPinned: false,
+};
+
+// ── page ─────────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const { data: deals, isLoading: dealsLoading } = useDeals();
-  const { data: cadences, isLoading: cadencesLoading } = useCadences();
-  const { data: contacts, isLoading: contactsLoading } = useContacts();
-  const isLoading = dealsLoading || cadencesLoading || contactsLoading;
-  const currentRun = useAutopilotStore((s) => s.currentRun);
-  const history = useAutopilotStore((s) => s.history);
-  const hydrateHistory = useAutopilotStore((s) => s.hydrateHistory);
+  // ── live aggregate overview + saved-report list ──────────────────────────────
+  const overviewQ = useQueryOverview();
+  const savedQ = useQuerySaved();
 
-  // Hydrate the autopilot run history once on mount so the Akurasi AI tab
-  // reflects whatever the user has run this session + any persisted runs.
+  const overview = overviewQ.data ?? null;
+  const saved = useMemo(() => savedQ.data ?? [], [savedQ.data]);
+
+  // ── tabs ───────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<MainTab>("ringkasan");
+
+  const trashedQ = useQueryTrashed(tab === "sampah");
+  const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
+
+  // ── save form + confirm targets ──────────────────────────────────────────────
+  const [form, setForm] = useState<SaveForm>(EMPTY_SAVE_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<SavedReportRow | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<SavedReportRow | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<SavedReportRow | null>(null);
+  const [purgeConfirm, setPurgeConfirm] = useState("");
+
   useEffect(() => {
-    void hydrateHistory();
-  }, [hydrateHistory]);
-
-  // ── Derive every section's numbers from the live stores ───────────────
-  const sales = useMemo(
-    () => deriveSales(deals, cadences),
-    [deals, cadences],
-  );
-  const ai = useMemo(
-    () => deriveAi(currentRun, history),
-    [currentRun, history],
-  );
-  const quality = useMemo(
-    () => deriveQuality(deals, contacts),
-    [deals, contacts],
-  );
-
-  // Sentiment recomputed every render — productSentiments is static today,
-  // but the call is cheap and keeps the "live" feel honest if it changes.
-  const sentimentStats = useMemo(() => buildSentimentStats(), []);
-  const sentimentInsights = useMemo(() => buildSentimentInsights(), []);
-
-  // ── "Diperbarui …" caption auto-refreshes every minute ────────────────
-  const [generatedAt, setGeneratedAt] = useState(() => new Date());
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    setGeneratedAt(new Date()); // re-anchor on every mount
-    tickRef.current = setInterval(() => setGeneratedAt(new Date()), 60_000);
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
+    if (!form.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setForm((d) => ({ ...d, open: false }));
     };
-  }, []);
-  // Re-anchor whenever the underlying datasets change — keeps the caption
-  // honest about when the dashboard last redrew with new live data.
-  useEffect(() => {
-    setGeneratedAt(new Date());
-  }, [deals, cadences, contacts, currentRun, history]);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [form.open]);
 
-  // PDF export — relies on the browser print dialog. The @media print rules
-  // in globals.css hide the chrome and expand all tab panels so users get a
-  // full multi-section PDF rather than only the active tab.
-  function handleExportPdf() {
-    toast.info(
-      "Membuka dialog cetak — pilih 'Save as PDF' untuk menyimpan.",
-    );
-    // tiny delay so the toast renders before the modal print dialog blocks
-    setTimeout(() => {
-      if (typeof window !== "undefined") window.print();
-    }, 180);
+  // ── mutations ────────────────────────────────────────────────────────────────
+  const { save, softDelete, restore, purge } = useReportMutations({
+    onSaved: () => setForm(EMPTY_SAVE_FORM),
+    onDeleted: () => setDeleteTarget(null),
+    onRestored: () => setRestoreTarget(null),
+    onPurged: () => {
+      setPurgeTarget(null);
+      setPurgeConfirm("");
+    },
+  });
+
+  function submitForm() {
+    const name = form.name.trim();
+    if (!name) {
+      toast.error("Nama laporan wajib diisi");
+      return;
+    }
+    save.mutate({
+      name,
+      kind: form.kind,
+      description: form.description.trim() || null,
+      scope: form.scope,
+      isPinned: form.isPinned,
+    });
   }
 
-  if (isLoading) {
-    return (
-      <div>
-        <PageHeader
-          title="Laporan & Analitik"
-          description="Performa penjualan menyeluruh, keandalan AI, dan kualitas data pipeline."
-        />
-        <div className="space-y-6 p-6">
-          <StatRowSkeleton n={4} />
-          <Skeleton className="h-[300px] w-full rounded-xl" />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <TableSkeleton rows={5} cols={3} />
-            <TableSkeleton rows={5} cols={3} />
-          </div>
-          <TableSkeleton rows={5} cols={4} />
-        </div>
-      </div>
-    );
-  }
+  // ── derived headline KPIs (from overview.totals — never fabricated) ──────────
+  const totals = overview?.totals;
+  const loadingOverview = overviewQ.isLoading;
+
+  const overviewError = overviewQ.isError;
+  const forbidden = overviewQ.error instanceof Error && overviewQ.error.message === "forbidden";
 
   return (
     <div>
       <PageHeader
         title="Laporan & Analitik"
-        description="Performa penjualan menyeluruh, keandalan AI, dan kualitas data pipeline."
+        description="Dasbor agregat real-time atas data kontak, deal, percakapan, kesiapan closing, pesanan & kunjungan lapangan. Simpan tampilan favorit sebagai laporan."
       >
-        <div className="flex flex-wrap items-center gap-2 print-hide">
-          <LiveBadge generatedAt={generatedAt} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button onClick={handleExportPdf}>
-                <Printer className="h-4 w-4" />
-                Ekspor PDF
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              Ekspor laporan sebagai PDF (cetak browser)
-            </TooltipContent>
-          </Tooltip>
-        </div>
+        <Button size="sm" onClick={() => setForm({ ...EMPTY_SAVE_FORM, open: true })}>
+          <Save className="h-4 w-4" /> Simpan laporan
+        </Button>
       </PageHeader>
 
-      <div className="p-6">
-        <Tabs defaultValue="penjualan" className="print-show-all">
-          <TabsList className="flex-wrap print-hide">
-            <TabsTrigger value="penjualan">Penjualan</TabsTrigger>
-            <TabsTrigger value="kalibrasi">Kalibrasi Closing</TabsTrigger>
-            <TabsTrigger value="akurasi-ai">Keandalan AI</TabsTrigger>
-            <TabsTrigger value="sentimen-pasar">Sentimen Pasar</TabsTrigger>
-            <TabsTrigger value="kualitas-data">Kualitas Data</TabsTrigger>
-          </TabsList>
+      <div className="space-y-5 p-6">
+        {/* ============ STAT STRIP (headline totals) ============ */}
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total kontak"
+            value={loadingOverview ? null : totals?.contacts ?? 0}
+            hint="basis lead/customer"
+            icon={<Users className="h-[18px] w-[18px]" />}
+            iconClass="bg-primary/10 text-primary"
+          />
+          <StatCard
+            label="Deal terbuka"
+            value={loadingOverview ? null : totals?.openDeals ?? 0}
+            hint={totals ? `nilai ${fmtIDR(totals.openDealValue)}` : "pipeline aktif"}
+            icon={<Target className="h-[18px] w-[18px]" />}
+            iconClass="bg-tertiary/[0.12] text-tertiary"
+          />
+          <StatCard
+            label="Deal menang"
+            value={loadingOverview ? null : totals?.wonDeals ?? 0}
+            hint={totals ? `nilai ${fmtIDR(totals.wonValue)}` : "ditutup menang"}
+            valueClass="text-success"
+            icon={<CheckCircle2 className="h-[18px] w-[18px]" />}
+            iconStyle={{ background: "hsl(142 71% 45% / .14)", color: "#16a34a" }}
+          />
+          <StatCard
+            label="Pendapatan pesanan"
+            value={null}
+            display={loadingOverview ? null : totals ? fmtIDR(totals.orderRevenue) : "Rp 0"}
+            hint={totals ? `${num(totals.orders)} pesanan marketplace` : "dari marketplace"}
+            valueClass="text-primary"
+            icon={<Coins className="h-[18px] w-[18px]" />}
+            iconStyle={{ background: "#FB5E3B18", color: "#FB5E3B" }}
+          />
+        </section>
 
-          {/* ── Penjualan (default) ──────────────────────────────────── */}
-          <TabsContent value="penjualan" className="mt-5 space-y-6">
-            <SectionTitle>Penjualan</SectionTitle>
-            {/* KPI strip — shared KpiTile (count-up built in, no fake delta) */}
-            <KpiStrip>
-              <KpiTile
-                icon={<Coins className="h-5 w-5" />}
-                accent="#FB5E3B"
-                label="Pendapatan MTD"
-                value={<IDRAmount value={sales.revenueMtdIDR} compact />}
-                sub="bulan berjalan"
-              />
-              <KpiTile
-                icon={<CheckCircle2 className="h-5 w-5" />}
-                accent="#14B8A6"
-                label="Deal ditutup MTD"
-                count={sales.dealsClosedMtd}
-                sub="bulan berjalan"
-              />
-              <KpiTile
-                icon={<Percent className="h-5 w-5" />}
-                accent="#14B8A6"
-                label="Tingkat konversi"
-                count={sales.conversionRate}
-                suffix="%"
-                decimals={1}
-                sub="prospek → tutup"
-              />
-              <KpiTile
-                icon={<CalendarClock className="h-5 w-5" />}
-                accent="#F59E0B"
-                label="Rata-rata siklus deal"
-                count={sales.avgCycleDays}
-                suffix=" hari"
-                sub="dibuat → perkiraan tutup"
-              />
-            </KpiStrip>
+        {/* ============ MAIN TABS ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "ringkasan"} onClick={() => setTab("ringkasan")}>
+            <BarChart3 className="h-4 w-4" />
+            Ringkasan
+          </TabButton>
+          <TabButton active={tab === "tersimpan"} onClick={() => setTab("tersimpan")}>
+            <Star className="h-4 w-4" />
+            Laporan tersimpan
+            <CountPill>{saved.length}</CountPill>
+          </TabButton>
+          <TabButton active={tab === "sampah"} onClick={() => setTab("sampah")}>
+            <Trash2 className="h-4 w-4" />
+            Sampah
+            {trashed.length > 0 && (
+              <span className="rounded-full bg-destructive/[0.12] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-destructive">
+                {trashed.length}
+              </span>
+            )}
+          </TabButton>
+        </div>
 
-            {/* Funnel chart */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle>Funnel per channel</CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Distribusi prospek → menang lintas WhatsApp, Email, Instagram, dan Tokopedia.
-                  </p>
-                </div>
-                <Badge variant="secondary" className="gap-1">
-                  <Workflow className="h-3 w-3" />
-                  {sales.byChannel.length} channel
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                <ChannelFunnelChart data={sales.byChannel} />
-              </CardContent>
-            </Card>
+        {/* ============ RINGKASAN TAB ============ */}
+        {tab === "ringkasan" &&
+          (loadingOverview ? (
+            <OverviewLoading />
+          ) : overviewError ? (
+            <ErrorState
+              title={forbidden ? "Tidak punya akses" : "Gagal memuat ringkasan"}
+              description={
+                forbidden
+                  ? "Akun kamu tidak punya izin baca data (data.read). Hubungi admin workspace."
+                  : "Tidak bisa mengambil agregat laporan. Pastikan kamu login & database tersedia."
+              }
+              onRetry={() => overviewQ.refetch()}
+            />
+          ) : !overview ? (
+            <EmptyState
+              icon={BarChart3}
+              title="Belum ada data untuk dirangkum"
+              description="Dasbor ini mengagregasi kontak, deal, percakapan, dan pesanan secara real-time. Mulai akuisisi lead & buat deal agar angkanya muncul."
+            />
+          ) : (
+            <div className="space-y-5">
+              {/* Row 1: Kontak per segmen + Deal per tahap */}
+              <div className="grid gap-5 lg:grid-cols-2">
+                <ChartCard
+                  icon={<Users className="h-4 w-4" />}
+                  title="Kontak per segmen"
+                  subtitle="Distribusi B2C vs B2B vs belum diklasifikasi"
+                  empty={overview.contactsBySegment.length === 0}
+                  emptyHint="Belum ada kontak."
+                >
+                  <BarList
+                    rows={overview.contactsBySegment.map((r) => {
+                      const meta = SEGMENT_META[r.segment] ?? {
+                        label: titleCase(r.segment),
+                        color: "#9CA3AF",
+                      };
+                      return { key: r.segment, label: meta.label, color: meta.color, value: r.count };
+                    })}
+                  />
+                </ChartCard>
 
-            {/* Cadence + Content performance side-by-side */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <Workflow className="h-4 w-4 text-primary" />
-                    Top cadence
-                  </CardTitle>
-                  <Button asChild variant="ghost" size="sm" className="print-hide">
-                    <Link href="/cadences">Lihat semua</Link>
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Cadence</TableHead>
-                        <TableHead className="text-right">Reply rate</TableHead>
-                        <TableHead className="text-right">Terdaftar</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sales.topCadences.map((c) => (
-                        <TableRow key={c.name}>
-                          <TableCell className="font-medium">{c.name}</TableCell>
-                          <TableCell className="tnum text-right text-success">
-                            {c.replyRate.toFixed(1)}%
-                          </TableCell>
-                          <TableCell className="tnum text-right text-muted-foreground">
-                            {c.enrolled}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                <ChartCard
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  title="Deal per tahap pipeline"
+                  subtitle="Jumlah & nilai deal di tiap tahap (urut pipeline)"
+                  empty={overview.dealsByStage.length === 0}
+                  emptyHint="Belum ada deal di pipeline."
+                >
+                  <BarList
+                    rows={overview.dealsByStage.map((r) => ({
+                      key: r.stageId ?? r.stageName,
+                      label: r.stageName,
+                      color: r.isWon ? "#16A34A" : r.isLost ? "#EF4444" : "#FB5E3B",
+                      value: r.count,
+                      caption: fmtIDR(r.value),
+                    }))}
+                  />
+                </ChartCard>
+              </div>
 
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <Megaphone className="h-4 w-4 text-primary" />
-                    Top konten
-                  </CardTitle>
-                  <Button asChild variant="ghost" size="sm" className="print-hide">
-                    <Link href="/content">Lihat semua</Link>
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Judul</TableHead>
-                        <TableHead>Tipe</TableHead>
-                        <TableHead className="text-right">Jangkauan</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {salesReportFallback.topContent.map((c) => (
-                        <TableRow key={c.title}>
-                          <TableCell className="font-medium">{c.title}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{c.type}</Badge>
-                          </TableCell>
-                          <TableCell className="tnum text-right">
-                            {c.reach.toLocaleString("id-ID")}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              {/* Row 2: Closing readiness bands + Conversations by status */}
+              <div className="grid gap-5 lg:grid-cols-2">
+                <ChartCard
+                  icon={<Flame className="h-4 w-4" />}
+                  title="Kesiapan closing (band)"
+                  subtitle="Sebaran skor kesiapan percakapan: cold → warm → hot"
+                  empty={overview.closingReadinessByBand.length === 0}
+                  emptyHint="Belum ada skor kesiapan closing."
+                >
+                  <BarList
+                    rows={[...overview.closingReadinessByBand]
+                      .sort(
+                        (a, b) =>
+                          BAND_ORDER.indexOf(a.band) - BAND_ORDER.indexOf(b.band),
+                      )
+                      .map((r) => {
+                        const meta = BAND_META[r.band] ?? {
+                          label: titleCase(r.band),
+                          color: "#9CA3AF",
+                        };
+                        return { key: r.band, label: meta.label, color: meta.color, value: r.count };
+                      })}
+                  />
+                </ChartCard>
+
+                <ChartCard
+                  icon={<MessageSquare className="h-4 w-4" />}
+                  title="Percakapan per status"
+                  subtitle={`Total ${num(overview.totals.conversations)} percakapan di inbox`}
+                  empty={overview.conversationsByStatus.length === 0}
+                  emptyHint="Belum ada percakapan."
+                >
+                  <BarList
+                    rows={overview.conversationsByStatus.map((r) => {
+                      const meta = CONV_STATUS_META[r.status] ?? {
+                        label: titleCase(r.status),
+                        color: "#9CA3AF",
+                      };
+                      return { key: r.status, label: meta.label, color: meta.color, value: r.count };
+                    })}
+                  />
+                </ChartCard>
+              </div>
+
+              {/* Row 3: Lifecycle + Orders by channel + Field visits */}
+              <div className="grid gap-5 lg:grid-cols-3">
+                <ChartCard
+                  icon={<Building2 className="h-4 w-4" />}
+                  title="Kontak per lifecycle"
+                  subtitle="Lead → MQL → SQL → Customer"
+                  empty={overview.contactsByLifecycle.length === 0}
+                  emptyHint="Belum ada kontak."
+                >
+                  <BarList
+                    rows={overview.contactsByLifecycle.map((r) => {
+                      const meta = LIFECYCLE_META[r.stage] ?? {
+                        label: titleCase(r.stage),
+                        color: "#9CA3AF",
+                      };
+                      return { key: r.stage, label: meta.label, color: meta.color, value: r.count };
+                    })}
+                  />
+                </ChartCard>
+
+                <ChartCard
+                  icon={<Boxes className="h-4 w-4" />}
+                  title="Pesanan per channel"
+                  subtitle="Roll-up pesanan marketplace"
+                  empty={overview.ordersByChannel.length === 0}
+                  emptyHint="Belum ada pesanan."
+                >
+                  <BarList
+                    rows={overview.ordersByChannel.map((r) => ({
+                      key: r.channel,
+                      label: titleCase(r.channel),
+                      color: CHANNEL_DOT[r.channel] ?? "#6B7280",
+                      value: r.count,
+                      caption: fmtIDR(r.total),
+                    }))}
+                  />
+                </ChartCard>
+
+                <ChartCard
+                  icon={<MapPin className="h-4 w-4" />}
+                  title="Kunjungan lapangan"
+                  subtitle={`Total ${num(overview.totals.visits)} kunjungan`}
+                  empty={overview.visitsByStatus.length === 0}
+                  emptyHint="Belum ada kunjungan lapangan."
+                >
+                  <BarList
+                    rows={overview.visitsByStatus.map((r) => {
+                      const meta = VISIT_STATUS_META[r.status] ?? {
+                        label: titleCase(r.status),
+                        color: "#9CA3AF",
+                      };
+                      return { key: r.status, label: meta.label, color: meta.color, value: r.count };
+                    })}
+                  />
+                </ChartCard>
+              </div>
+
+              <p className="max-w-3xl text-[11px] text-muted-foreground">
+                Semua angka dihitung <b>real-time</b> oleh layanan reports atas tabel yang sudah ada
+                (kontak / deal / percakapan / kesiapan closing / pesanan / kunjungan) — baris yang
+                terhapus diabaikan. Tidak ada data demo. <b>Simpan laporan</b> untuk memfavoritkan
+                tampilan agregat tertentu.
+              </p>
+            </div>
+          ))}
+
+        {/* ============ TERSIMPAN TAB ============ */}
+        {tab === "tersimpan" && (
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs">
+              <span className="text-muted-foreground">
+                Konfigurasi laporan tersimpan (nama + agregat + lingkup). Konfigurasi ini menentukan
+                agregat mana yang dirender — angkanya tetap dihitung live.
+              </span>
+              <span className="ml-auto text-muted-foreground">{saved.length} laporan</span>
             </div>
 
-            {/* Sales rep leaderboard */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-primary" />
-                  Papan peringkat sales
-                </CardTitle>
-                <Badge variant="secondary">{sales.leaderboard.length} rep</Badge>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Nama</TableHead>
-                      <TableHead className="text-right">Deal ditutup</TableHead>
-                      <TableHead className="text-right">Total nilai</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sales.leaderboard.map((r, i) => (
-                      <TableRow key={r.name}>
-                        <TableCell>
-                          <span
-                            className={cn(
-                              "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold",
-                              i === 0
-                                ? "bg-warning/15 text-warning"
-                                : i === 1
-                                  ? "bg-stone-100 text-stone-700"
-                                  : i === 2
-                                    ? "bg-orange-100 text-orange-700"
-                                    : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            {i + 1}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-medium">{r.name}</TableCell>
-                        <TableCell className="tnum text-right">{r.deals}</TableCell>
-                        <TableCell className="text-right">
-                          <IDRAmount value={r.valueIDR} compact className="font-medium" />
-                        </TableCell>
-                      </TableRow>
+            {savedQ.isLoading ? (
+              <TableLoading />
+            ) : savedQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat laporan tersimpan"
+                description="Tidak bisa mengambil daftar laporan."
+                onRetry={() => savedQ.refetch()}
+              />
+            ) : saved.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Star}
+                title="Belum ada laporan tersimpan"
+                description="Simpan tampilan agregat favorit (mis. 'Funnel closing mingguan') agar bisa dibuka cepat oleh tim."
+                action={
+                  <Button size="sm" onClick={() => setForm({ ...EMPTY_SAVE_FORM, open: true })}>
+                    <Plus className="h-4 w-4" /> Simpan laporan
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Nama</th>
+                      <th className="px-3 py-3 font-semibold">Agregat</th>
+                      <th className="px-3 py-3 font-semibold">Lingkup</th>
+                      <th className="px-3 py-3 font-semibold">Diperbarui</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {saved.map((r) => (
+                      <SavedTableRow
+                        key={r.id}
+                        report={r}
+                        onDelete={() => setDeleteTarget(r)}
+                      />
                     ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
-            {/* Channel quick stats */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {sales.byChannel.map((c) => {
-                const total = c.prospect + c.qualified + c.offer + c.won;
-                // Win rate = won / ALL deals that entered this channel's funnel,
-                // not won / those currently parked in 'prospek' (which can read
-                // >100% once deals advance out of the prospek stage).
-                const winRate = total > 0 ? (c.won / total) * 100 : 0;
+        {/* ============ SAMPAH TAB ============ */}
+        {tab === "sampah" && (
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs">
+              <span className="text-muted-foreground">
+                Laporan yang dihapus disimpan di sini. <b>Pulihkan</b> mengembalikannya ke tab
+                Tersimpan · <b>Hapus permanen</b> menghapus selamanya.
+              </span>
+              <span className="ml-auto text-muted-foreground">{trashed.length} laporan</span>
+            </div>
+
+            {trashedQ.isLoading ? (
+              <TableLoading />
+            ) : trashedQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat sampah"
+                description="Tidak bisa mengambil laporan yang dihapus."
+                onRetry={() => trashedQ.refetch()}
+              />
+            ) : trashed.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Trash2}
+                title="Sampah kosong"
+                description="Laporan yang kamu hapus akan muncul di sini dan bisa dipulihkan."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Nama</th>
+                      <th className="px-3 py-3 font-semibold">Agregat</th>
+                      <th className="px-3 py-3 font-semibold">Dihapus</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {trashed.map((r) => (
+                      <tr key={r.id} className="transition-colors hover:bg-muted/30">
+                        <td className="px-4 py-3 font-medium text-foreground/80">{r.name}</td>
+                        <td className="px-3 py-3">
+                          <KindBadge kind={r.kind} />
+                        </td>
+                        <td className="px-3 py-3 text-xs text-muted-foreground">
+                          {fmtRelID(r.deletedAt)}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setRestoreTarget(r)}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary"
+                            >
+                              <RotateCcw className="h-3 w-3" /> Pulihkan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPurgeTarget(r);
+                                setPurgeConfirm("");
+                              }}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-3 w-3" /> Hapus permanen
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      {/* ===================== SAVE-REPORT DRAWER ===================== */}
+      <DrawerBackdrop open={form.open} onClose={() => setForm((d) => ({ ...d, open: false }))} />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
+          form.open ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Save className="h-[18px] w-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-bold">Simpan laporan</h2>
+              <p className="truncate text-[11px] text-muted-foreground">
+                Favoritkan tampilan agregat sebagai laporan bernama
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setForm((d) => ({ ...d, open: false }))}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          {/* Name */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+              Nama laporan
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((d) => ({ ...d, name: e.target.value }))}
+              placeholder="mis. Funnel closing mingguan"
+              className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </div>
+
+          {/* Kind */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Agregat</label>
+            <div className="grid grid-cols-1 gap-2">
+              {REPORT_KINDS.map((k) => {
+                const on = form.kind === k.value;
                 return (
-                  <Card key={c.channel} className="transition-shadow hover:shadow-md">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: CHANNEL_ACCENT[c.channel] }}
-                        />
-                        <p className="text-sm font-medium">{c.channel}</p>
-                      </div>
-                      <p className="tnum mt-3 text-2xl font-semibold tracking-tight">
-                        {c.won}
-                        <span className="ml-1 text-sm font-normal text-muted-foreground">
-                          menang
-                        </span>
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        dari {c.prospect} prospek · {winRate.toFixed(1)}% win rate
-                        {total === 0 ? " · belum ada aktivitas" : ""}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <button
+                    key={k.value}
+                    type="button"
+                    onClick={() => setForm((d) => ({ ...d, kind: k.value }))}
+                    className={cn(
+                      "flex h-9 items-center justify-between rounded-lg border px-3 text-sm font-medium transition-colors",
+                      on
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-primary/40",
+                    )}
+                  >
+                    {k.label}
+                    {on && <CheckCircle2 className="h-4 w-4" />}
+                  </button>
                 );
               })}
             </div>
-          </TabsContent>
+          </div>
 
-          {/* ── Kalibrasi Closing (G7 training loop) ─────────────────── */}
-          <TabsContent value="kalibrasi" className="mt-5 space-y-6">
-            <SectionTitle>Kalibrasi Closing</SectionTitle>
-            <CalibrationPanel />
-          </TabsContent>
+          {/* Description */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+              Deskripsi <span className="font-normal text-muted-foreground">(opsional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm((d) => ({ ...d, description: e.target.value }))}
+              placeholder="Apa yang dilacak laporan ini & untuk siapa…"
+              className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </div>
 
-          {/* ── Keandalan AI (fallback-to-template rate) ─────────────── */}
-          <TabsContent value="akurasi-ai" className="mt-5 space-y-6">
-            <SectionTitle>Keandalan AI</SectionTitle>
-            <div className="grid gap-4 lg:grid-cols-3">
-              {/* Headline KPI */}
-              <Card className="lg:col-span-1">
-                <CardContent className="flex h-full flex-col p-6">
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <MessageSquareWarning className="h-5 w-5" />
-                    </span>
-                    <Badge
-                      variant={
-                        ai.errorRateDeltaPctPoints < 0 ? "success" : "destructive"
-                      }
-                      className="gap-1"
-                    >
-                      {ai.errorRateDeltaPctPoints < 0 ? (
-                        <ArrowDownRight className="h-3 w-3" />
-                      ) : (
-                        <ArrowUpRight className="h-3 w-3" />
-                      )}
-                      {ai.errorRateDeltaPctPoints > 0 ? "+" : ""}
-                      {ai.errorRateDeltaPctPoints.toFixed(1)} pp
-                    </Badge>
-                  </div>
-                  <p className="mt-5 text-sm text-muted-foreground">
-                    Tingkat fallback ke template
-                  </p>
-                  <p className="tnum mt-1 text-4xl font-semibold tracking-tight">
-                    {ai.errorRate.toFixed(2)}%
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {ai.errorCount.toLocaleString("id-ID")} dari{" "}
-                    {ai.totalResponses.toLocaleString("id-ID")} respon AI memakai
-                    template (Deepseek tak terjangkau) · dari run Autopilot
-                  </p>
-
-                  <div className="mt-auto pt-6">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Status keandalan
-                    </p>
-                    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-success">
-                      <ShieldCheck className="h-4 w-4" />
-                      {ai.errorRateDeltaPctPoints < 0
-                        ? "Membaik vs. minggu lalu"
-                        : "Pantau — sedikit naik"}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Trend chart */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Tren 30 hari</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ErrorRateTrendChart data={ai.trend30d} />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Breakdown by type */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Fallback berdasarkan tahap</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Distribusi fallback ke template per tahap pipeline AI — fokus mitigasi pada tahap teratas.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <ErrorTypeBreakdownChart data={ai.byType} />
-              </CardContent>
-            </Card>
-
-            {/* Recent flagged */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  Respon yang ditandai terakhir
-                </CardTitle>
-                <Badge variant="warning">{ai.recentFlagged.length} kasus</Badge>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cuplikan respon</TableHead>
-                      <TableHead>Alasan</TableHead>
-                      <TableHead className="text-right">Ditandai</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ai.recentFlagged.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="max-w-[420px]">
-                          <p className="line-clamp-2 text-sm italic text-muted-foreground">
-                            {r.snippet}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{r.reason}</span>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right text-xs text-muted-foreground">
-                          {formatRelativeID(r.flaggedAt)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ── Sentimen Pasar ───────────────────────────────────────── */}
-          <TabsContent value="sentimen-pasar" className="mt-5 space-y-6">
-            <SectionTitle>Sentimen Pasar</SectionTitle>
-            {/* Header strip */}
-            <Card className="border-dashed bg-gradient-to-br from-orange-50/80 via-rose-50/40 to-amber-50/60">
-              <CardContent className="flex items-start gap-3 p-5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Radio className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    Pemetaan pasar berbasis sentimen
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Sentimen rata-rata pelanggan terhadap setiap produk
-                    berdasarkan percakapan WhatsApp dan inbound — diperbarui
-                    realtime oleh AI.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* KPI tiles — 4-up */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatTile
-                icon={<Gauge className="h-5 w-5" />}
-                accent="#FB5E3B"
-                label="Skor sentimen rata-rata"
-                value={`${sentimentStats.avgScore > 0 ? "+" : ""}${sentimentStats.avgScore.toFixed(1)}`}
-                sub={`dari ${productSentiments.length} produk dipantau`}
-                delta={`${sentimentStats.avgTrend > 0 ? "+" : ""}${sentimentStats.avgTrend.toFixed(1)} pt`}
-                deltaTone={sentimentStats.avgTrend >= 0 ? "up" : "down-bad"}
-              />
-              <StatTile
-                icon={<Smile className="h-5 w-5" />}
-                accent="#14B8A6"
-                label="Produk paling positif"
-                value={sentimentStats.topProduct.productName}
-                sub={`skor +${sentimentStats.topProduct.averageScore} · ${sentimentStats.topProduct.mentions} sebutan`}
-              />
-              <StatTile
-                icon={<Frown className="h-5 w-5" />}
-                accent="#F43F5E"
-                label="Produk paling kritis"
-                value={sentimentStats.bottomProduct.productName}
-                sub={`skor ${sentimentStats.bottomProduct.averageScore > 0 ? "+" : ""}${sentimentStats.bottomProduct.averageScore} · ${sentimentStats.bottomProduct.mentions} sebutan`}
-              />
-              <StatTile
-                icon={<Hash className="h-5 w-5" />}
-                accent="#F59E0B"
-                label="Mentions minggu ini"
-                value={sentimentStats.totalMentions.toLocaleString("id-ID")}
-                sub="total sebutan lintas produk"
-              />
-            </div>
-
-            {/* Market mapping + AI notes */}
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <SentimentMap />
-              </div>
-
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    Catatan AI
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Insight ringkas dari pola sentimen minggu ini.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {sentimentInsights.map((insight, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 rounded-xl border bg-card p-3"
-                    >
-                      <span
-                        className={cn(
-                          "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-                          insight.tone === "positive"
-                            ? "bg-success/15 text-success"
-                            : insight.tone === "negative"
-                              ? "bg-danger/15 text-danger"
-                              : "bg-warning/15 text-warning",
-                        )}
-                      >
-                        {insight.tone === "positive" ? (
-                          <ArrowUpRight className="h-4 w-4" />
-                        ) : insight.tone === "negative" ? (
-                          <ArrowDownRight className="h-4 w-4" />
-                        ) : (
-                          <Sparkles className="h-4 w-4" />
-                        )}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{insight.title}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {insight.body}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* ── Kualitas Data ────────────────────────────────────────── */}
-          <TabsContent value="kualitas-data" className="mt-5 space-y-6">
-            <SectionTitle>Kualitas Data</SectionTitle>
-            <div className="grid gap-4 lg:grid-cols-3">
-              {/* Headline KPI */}
-              <Card className="lg:col-span-1">
-                <CardContent className="flex h-full flex-col p-6">
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/15 text-success">
-                      <Database className="h-5 w-5" />
-                    </span>
-                    <Badge variant="success" className="gap-1">
-                      <CheckCircle2 className="h-3 w-3" />
-                      {quality.cleanDeals} / {quality.totalDeals}
-                    </Badge>
-                  </div>
-                  <p className="mt-5 text-sm text-muted-foreground">
-                    Data pipeline bersih
-                  </p>
-                  <p className="tnum mt-1 text-4xl font-semibold tracking-tight">
-                    {quality.cleanRate.toFixed(1)}%
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    deal lolos validasi
-                  </p>
-
-                  <div className="mt-4">
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-success transition-all"
-                        style={{ width: `${quality.cleanRate}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    className="mt-auto print-hide"
-                    onClick={() =>
-                      toast.success(
-                        "Verifikasi pipeline dimulai — hasil akan tersedia dalam beberapa menit.",
-                      )
-                    }
+          {/* Scope */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Lingkup</label>
+            <div className="flex gap-2">
+              {(
+                [
+                  { v: "private", label: "Pribadi" },
+                  { v: "tenant", label: "Seluruh workspace" },
+                ] as const
+              ).map((s) => {
+                const on = form.scope === s.v;
+                return (
+                  <button
+                    key={s.v}
+                    type="button"
+                    onClick={() => setForm((d) => ({ ...d, scope: s.v }))}
+                    className={cn(
+                      "h-9 flex-1 rounded-lg border px-3 text-xs font-medium transition-colors",
+                      on
+                        ? "border-2 border-primary bg-primary/10 text-primary"
+                        : "border border-border hover:border-primary/40",
+                    )}
                   >
-                    <ListChecks className="h-4 w-4" />
-                    Verifikasi sekarang
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Issue list */}
-              <Card className="lg:col-span-2">
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle>Temuan kualitas data</CardTitle>
-                  <Badge variant="warning">
-                    {quality.issues.reduce((s, i) => s + i.count, 0)} masalah
-                  </Badge>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ul className="divide-y">
-                    {quality.issues.map((issue) => {
-                      const meta = SEVERITY[issue.severity];
-                      return (
-                        <li
-                          key={issue.id}
-                          className="flex items-center gap-3 px-6 py-4"
-                        >
-                          <span
-                            className={cn(
-                              "flex h-9 w-9 items-center justify-center rounded-xl",
-                              issue.severity === "tinggi"
-                                ? "bg-danger/15 text-danger"
-                                : issue.severity === "sedang"
-                                  ? "bg-warning/15 text-warning"
-                                  : "bg-stone-100 text-stone-700",
-                            )}
-                          >
-                            <AlertTriangle className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium">
-                              {issue.count} {issue.type.toLowerCase()}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {describeIssue(issue.type)}
-                            </p>
-                          </div>
-                          <Badge variant={meta.variant}>{meta.label}</Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="print-hide"
-                            onClick={() =>
-                              toast.success(
-                                `Membuka daftar ${issue.count} item untuk ditinjau...`,
-                              )
-                            }
-                          >
-                            Tinjau
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
+                    {s.label}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {/* Verification checklist (illustrative) */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Aturan validasi aktif</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Aturan ini dijalankan setiap kali deal masuk atau diperbarui di pipeline.
-                </p>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ul className="divide-y">
-                  {VALIDATION_RULES.map((rule) => (
-                    <li key={rule.id} className="flex items-center gap-3 px-6 py-3">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{rule.label}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {rule.description}
-                        </p>
-                      </div>
-                      <Badge variant="success">Aktif</Badge>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          {/* Pin */}
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border p-3">
+            <input
+              type="checkbox"
+              checked={form.isPinned}
+              onChange={(e) => setForm((d) => ({ ...d, isPinned: e.target.checked }))}
+              className="h-4 w-4 rounded border-input accent-primary"
+            />
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-foreground">Sematkan ke atas</p>
+              <p className="text-[11px] text-muted-foreground">
+                Laporan tersemat muncul lebih dulu di daftar.
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-3">
+          <Button variant="outline" size="sm" onClick={() => setForm((d) => ({ ...d, open: false }))}>
+            Batal
+          </Button>
+          <Button size="sm" disabled={save.isPending} onClick={submitForm}>
+            {save.isPending ? "Menyimpan…" : "Simpan laporan"}
+          </Button>
+        </div>
+      </aside>
+
+      {/* ===================== SOFT-DELETE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
+        title="Pindahkan ke Sampah?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> akan dihapus dan
+            dipindah ke tab <b>Sampah</b>. Kamu masih bisa memulihkannya nanti.
+          </>
+        }
+        confirmLabel="Ya, hapus"
+        confirmPending={softDelete.isPending}
+        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
+      />
+
+      {/* ===================== RESTORE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!restoreTarget}
+        onClose={() => setRestoreTarget(null)}
+        icon={<RotateCcw className="h-5 w-5" />}
+        tone="tertiary"
+        title="Pulihkan laporan?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{restoreTarget?.name}</span> akan dikembalikan
+            ke tab <b>Laporan tersimpan</b>.
+          </>
+        }
+        confirmLabel="Ya, pulihkan"
+        confirmPending={restore.isPending}
+        onConfirm={() => restoreTarget && restore.mutate(restoreTarget)}
+      />
+
+      {/* ===================== HARD-DELETE (PURGE) CONFIRM ===================== */}
+      <PurgeModal
+        open={!!purgeTarget}
+        targetLabel={purgeTarget?.name ?? ""}
+        value={purgeConfirm}
+        onChange={setPurgeConfirm}
+        pending={purge.isPending}
+        onClose={() => {
+          setPurgeTarget(null);
+          setPurgeConfirm("");
+        }}
+        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+      />
+    </div>
+  );
+}
+
+// ───────────────────────── queries / mutations ─────────────────────────
+
+function useQueryOverview() {
+  return useQuery({
+    queryKey: ["reports", "overview"],
+    queryFn: async () => readJson<DashboardOverview | null>(await fetch("/api/reports/overview")),
+    retry: false,
+  });
+}
+
+function useQuerySaved() {
+  return useQuery({
+    queryKey: ["reports", "saved", "list"],
+    queryFn: async () => readJson<SavedReportRow[]>(await fetch("/api/reports/saved")),
+    retry: false,
+  });
+}
+
+function useQueryTrashed(enabled: boolean) {
+  return useQuery({
+    queryKey: ["reports", "saved", "trashed"],
+    enabled,
+    queryFn: async () => readJson<SavedReportRow[]>(await fetch("/api/reports/saved/trashed")),
+    retry: false,
+  });
+}
+
+interface SaveInput {
+  name: string;
+  kind: string;
+  description: string | null;
+  scope: string;
+  isPinned: boolean;
+}
+
+function useReportMutations(cb: {
+  onSaved: () => void;
+  onDeleted: () => void;
+  onRestored: () => void;
+  onPurged: () => void;
+}) {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ["reports", "saved"] });
+
+  const save = useMutation({
+    mutationFn: async (input: SaveInput) =>
+      readJson<SavedReportRow>(
+        await fetch("/api/reports/saved", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }),
+      ),
+    onSuccess: (_res, input) => {
+      toast.success(`Laporan "${input.name}" disimpan`);
+      refresh();
+      cb.onSaved();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan laporan"),
+  });
+
+  const softDelete = useMutation({
+    mutationFn: async (r: SavedReportRow) =>
+      readJson<{ id: string; deleted: boolean }>(
+        await fetch(`/api/reports/saved/${r.id}`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, r) => {
+      toast.success(`"${r.name}" dipindah ke Sampah`);
+      refresh();
+      cb.onDeleted();
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus laporan");
+      cb.onDeleted();
+    },
+  });
+
+  const restore = useMutation({
+    mutationFn: async (r: SavedReportRow) =>
+      readJson<SavedReportRow>(
+        await fetch(`/api/reports/saved/${r.id}/restore`, { method: "PATCH" }),
+      ),
+    onSuccess: (_res, r) => {
+      toast.success(`"${r.name}" dipulihkan`);
+      refresh();
+      cb.onRestored();
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal memulihkan laporan");
+      cb.onRestored();
+    },
+  });
+
+  const purge = useMutation({
+    mutationFn: async (r: SavedReportRow) =>
+      readJson<{ id: string; purged: boolean }>(
+        await fetch(`/api/reports/saved/${r.id}/purge`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, r) => {
+      toast.success(`"${r.name}" dihapus permanen`);
+      refresh();
+      cb.onPurged();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
+  });
+
+  return { save, softDelete, restore, purge };
+}
+
+// ───────────────────────── sub-components ─────────────────────────
+
+function StatCard({
+  label,
+  value,
+  display,
+  hint,
+  valueClass,
+  icon,
+  iconClass,
+  iconStyle,
+}: {
+  label: string;
+  /** Numeric value (formatted id-ID). Use `display` for a pre-formatted string. */
+  value: number | null;
+  display?: string | null;
+  hint: string;
+  valueClass?: string;
+  icon: React.ReactNode;
+  iconClass?: string;
+  iconStyle?: React.CSSProperties;
+}) {
+  const loading = value == null && display == null;
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-soft">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          {loading ? (
+            <Skeleton className="mt-1.5 h-7 w-16" />
+          ) : (
+            <p className={cn("mt-1 text-2xl font-bold tabular-nums", valueClass)}>
+              {display ?? num(value ?? 0)}
+            </p>
+          )}
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+        </div>
+        <span
+          className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", iconClass)}
+          style={iconStyle}
+        >
+          {icon}
+        </span>
       </div>
     </div>
   );
 }
 
-function describeIssue(type: string): string {
-  switch (type) {
-    case "Deal tanpa nilai":
-      return "Nilai deal (IDR) tidak diisi — diperlukan untuk proyeksi pendapatan.";
-    case "Deal tanpa kontak":
-      return "Tidak ada kontak terkait — sales tidak bisa menindaklanjuti.";
-    case "Deal stagnan > 30 hari":
-      return "Tidak ada perubahan tahap selama lebih dari 30 hari.";
-    case "Kontak tanpa email":
-      return "Kontak tidak memiliki alamat email — cadence email tidak bisa dikirim.";
-    case "Kontak tanpa nomor telepon":
-      return "Kontak tidak memiliki nomor telepon — outreach WhatsApp terhalang.";
-    default:
-      return "";
-  }
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
 }
 
-const VALIDATION_RULES = [
-  {
-    id: "rule-value",
-    label: "Nilai deal wajib diisi",
-    description: "Setiap deal harus memiliki nilai IDR sebelum lanjut ke tahap penawaran.",
-  },
-  {
-    id: "rule-contact",
-    label: "Kontak terkait wajib",
-    description: "Setiap deal harus terhubung ke minimal satu kontak yang terverifikasi.",
-  },
-  {
-    id: "rule-stale",
-    label: "Deteksi deal stagnan",
-    description: "Tandai deal yang tidak berubah tahap selama lebih dari 30 hari.",
-  },
-  {
-    id: "rule-duplicate",
-    label: "Pencocokan duplikat",
-    description: "Cocokkan deal baru terhadap kombinasi perusahaan + kontak.",
-  },
-  {
-    id: "rule-owner",
-    label: "Pemilik deal wajib",
-    description: "Setiap deal harus memiliki sales rep yang bertanggung jawab.",
-  },
-];
-
-// ── Small UI helpers ──────────────────────────────────────────────────────
-
-/** "Data demo" badge + "Diperbarui …" caption. Labeled honestly (audit UX #6):
- *  the KPI deltas ("+18,2%", "vs bulan lalu") are illustrative, not live metrics. */
-function LiveBadge({ generatedAt }: { generatedAt: Date }) {
+function CountPill({ children }: { children: React.ReactNode }) {
   return (
-    <div className="hidden items-center gap-3 sm:flex">
-      <span className="flex items-center gap-1.5 rounded-full border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-        <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
-        Data demo
-      </span>
-      <span className="text-xs text-muted-foreground">
-        Dibuat {formatRelativeID(generatedAt)}
-      </span>
+    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+/** A dashboard card wrapping a chart band — handles its own empty state. */
+function ChartCard({
+  icon,
+  title,
+  subtitle,
+  empty,
+  emptyHint,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  empty: boolean;
+  emptyHint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 shadow-soft">
+      <div className="mb-4 flex items-start gap-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-foreground">{title}</h3>
+          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+        </div>
+      </div>
+      {empty ? (
+        <p className="py-6 text-center text-[12px] text-muted-foreground">{emptyHint}</p>
+      ) : (
+        children
+      )}
     </div>
   );
 }
 
-/** Section title that only appears in the printed PDF — hidden on screen. */
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="print-only-title">{children}</h2>;
+interface BarRow {
+  key: string;
+  label: string;
+  color: string;
+  value: number;
+  caption?: string;
 }
 
-function StatTile({
-  icon,
-  accent,
-  label,
-  value,
-  sub,
-  delta,
-  deltaTone,
-  loading,
-}: {
-  icon: React.ReactNode;
-  accent: string;
-  label: string;
-  value: React.ReactNode;
-  sub: React.ReactNode;
-  delta?: string;
-  deltaTone?: "up" | "down-good" | "down-bad";
-  loading?: boolean;
-}) {
-  const positive = deltaTone === "up" || deltaTone === "down-good";
+/** Horizontal bar chart built from styled divs (no chart lib). Bars scale to the
+ *  band's own max so the tallest fills the track. */
+function BarList({ rows }: { rows: BarRow[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  const total = rows.reduce((s, r) => s + r.value, 0);
   return (
-    <Card className="transition-shadow hover:shadow-md">
-      <CardContent className="flex h-full flex-col p-5">
-        <div className="flex items-center justify-between">
+    <div className="space-y-3">
+      {rows.map((r) => {
+        const pct = (r.value / max) * 100;
+        const share = total > 0 ? Math.round((r.value / total) * 100) : 0;
+        return (
+          <div key={r.key}>
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-foreground/80">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.color }} />
+                <span className="truncate">{r.label}</span>
+              </span>
+              <span className="shrink-0 text-[12px] tabular-nums">
+                <b className="text-foreground">{num(r.value)}</b>
+                <span className="ml-1 text-[10px] text-muted-foreground">{share}%</span>
+                {r.caption && (
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">· {r.caption}</span>
+                )}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full transition-[width] duration-700"
+                style={{ width: `${Math.max(pct, r.value > 0 ? 4 : 0)}%`, background: r.color }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function KindBadge({ kind }: { kind: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+      {KIND_LABEL[kind] ?? titleCase(kind)}
+    </span>
+  );
+}
+
+function SavedTableRow({
+  report,
+  onDelete,
+}: {
+  report: SavedReportRow;
+  onDelete: () => void;
+}) {
+  const r = report;
+  return (
+    <tr className="transition-colors hover:bg-muted/40">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          {r.isPinned && (
+            <Star className="h-3.5 w-3.5 shrink-0 fill-warning text-warning" aria-label="Tersemat" />
+          )}
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{r.name}</p>
+            {r.description && (
+              <p className="truncate text-[11px] text-muted-foreground">{r.description}</p>
+            )}
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-3">
+        <KindBadge kind={r.kind} />
+      </td>
+      <td className="px-3 py-3">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+            r.scope === "tenant"
+              ? "bg-info/12 text-info"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {r.scope === "tenant" ? "Workspace" : "Pribadi"}
+        </span>
+      </td>
+      <td className="px-3 py-3 text-xs text-muted-foreground">{fmtRelID(r.updatedAt)}</td>
+      <td className="px-3 py-3 text-right">
+        <button
+          type="button"
+          onClick={onDelete}
+          title="Hapus (ke Sampah)"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function DrawerBackdrop({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      className={cn(
+        "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    />
+  );
+}
+
+function ConfirmModal({
+  open,
+  onClose,
+  icon,
+  tone,
+  title,
+  body,
+  confirmLabel,
+  confirmPending,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  icon: React.ReactNode;
+  tone: "destructive" | "tertiary";
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  confirmPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        <div className="flex items-start gap-3">
           <span
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${accent}1A`, color: accent }}
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              tone === "destructive"
+                ? "bg-destructive/[0.12] text-destructive"
+                : "bg-tertiary/[0.12] text-tertiary",
+            )}
           >
             {icon}
           </span>
-          {delta && (
-            <Badge variant={positive ? "success" : "destructive"} className="gap-1">
-              {deltaTone === "down-good" ? (
-                <ArrowDownRight className="h-3 w-3" />
-              ) : positive ? (
-                <ArrowUpRight className="h-3 w-3" />
-              ) : (
-                <ArrowDownRight className="h-3 w-3" />
-              )}
-              {delta}
-            </Badge>
-          )}
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold">{title}</h3>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
+          </div>
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-        {loading ? (
-          <Skeleton className="mt-1.5 h-7 w-24" />
-        ) : (
-          <p className="tnum mt-1 text-2xl font-semibold tracking-tight">
-            {value}
-          </p>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={confirmPending}
+            className={cn(
+              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
+              tone === "destructive"
+                ? "bg-destructive text-white"
+                : "bg-tertiary text-tertiary-foreground",
+            )}
+          >
+            {confirmPending ? "Memproses…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PurgeModal({
+  open,
+  targetLabel,
+  value,
+  onChange,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  targetLabel: string;
+  value: string;
+  onChange: (v: string) => void;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
         )}
-        <p className="mt-1 truncate text-xs text-muted-foreground">{sub}</p>
-      </CardContent>
-    </Card>
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+              <span className="font-medium text-foreground">{targetLabel}</span> akan dihapus selamanya.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="mb-1.5 block text-[12px] text-muted-foreground">
+            Ketik{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
+              HAPUS
+            </code>{" "}
+            untuk konfirmasi.
+          </label>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="HAPUS"
+            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
+          />
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={pending || value.trim().toUpperCase() !== "HAPUS"}
+            className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "Menghapus…" : "Hapus permanen"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverviewLoading() {
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-[260px] w-full rounded-lg" />
+        ))}
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-[220px] w-full rounded-lg" />
+        ))}
+      </div>
+      <div className="grid gap-5 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-[200px] w-full rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableLoading({ rows = 6 }: { rows?: number }) {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-4">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="ml-auto h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
   );
 }

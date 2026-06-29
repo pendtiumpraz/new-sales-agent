@@ -1,164 +1,1741 @@
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
-import Link from "next/link";
-import { ClipboardList, Smartphone, Users } from "lucide-react";
+// Sales Lapangan — Module 9 (secondary) FRONTEND (Sainskerta Loop Phase 04,
+// FINAL frontend tick). Wired to the NEW M9 field backend (no mock data):
+//   GET    /api/field/visits                       → list kunjungan lapangan (VisitRow[])
+//   GET    /api/field/visits/trashed               → the Sampah view
+//   POST   /api/field/visits                       → create a visit
+//   PATCH  /api/field/visits/[id]                  → edit a visit (status / outcome / …)
+//   DELETE /api/field/visits/[id]                  → SOFT delete (cascade → check-ins)
+//   PATCH  /api/field/visits/[id]/restore          → un-trash (cascade restore)
+//   DELETE /api/field/visits/[id]?purge=1          → HARD delete (cascade purge)
+//   GET    /api/field/visits/[id]/check-ins        → geo-stamped check-ins of a visit
+//   POST   /api/field/check-ins                    → record a check-in / check-out
+//   GET    /api/contacts  ·  GET /api/companies    → resolve contactId / companyId soft refs
+// Matches the established Coral Sunset design system (contacts / admin / workspace /
+// retention): stat strip, Aktif | Sampah tabs, a status/purpose toolbar + search, a
+// visits table (Judul · Rep · Lokasi · Jadwal · Status · Aksi), and a right drawer
+// for visit detail (map PLACEHOLDER — Leaflet skipped for now — visit info, check-ins
+// timeline, and a check-in/out form). Every band has loading + empty + error states.
+// Lives in the (app) shell.
+
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  Building2,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  LogIn,
+  LogOut,
+  MapPin,
+  Navigation,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+  User,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFieldReps } from "@/lib/api-mock/hooks";
-import { useAuthStore } from "@/lib/stores/auth-store";
-import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
-import type { FieldRep } from "@/lib/types";
 
-const FieldMap = dynamic(
-  () => import("@/components/field/field-map").then((m) => m.FieldMap),
-  { ssr: false, loading: () => <Skeleton className="h-full w-full rounded-none" /> },
-);
+// ── API envelope + row shapes (NEW M9 field backend — { ok, data }) ──────────
 
-const STATUS: Record<FieldRep["status"], { label: string; dot: string }> = {
-  kunjungan: { label: "Sedang di kunjungan", dot: "bg-success" },
-  istirahat: { label: "Istirahat", dot: "bg-warning" },
-  selesai: { label: "Selesai", dot: "bg-slate-400" },
+interface ApiOk<T> {
+  ok: true;
+  data: T;
+}
+interface ApiErr {
+  ok: false;
+  error: string;
+  code?: string;
+}
+type ApiResult<T> = ApiOk<T> | ApiErr;
+
+/** Row from GET /api/field/visits (modules/field · field_visit). */
+interface VisitRow {
+  id: string;
+  tenantId: string;
+  workspaceId: string | null;
+  contactId: string | null;
+  companyId: string | null;
+  dealId: string | null;
+  repUserId: string | null;
+  title: string;
+  purpose: string | null; // demo | negotiation | delivery | survey | relationship | other
+  address: string | null;
+  scheduledAt: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  status: string; // planned | en_route | in_progress | completed | cancelled | no_show
+  outcome: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null; // set on rows from /trashed
+}
+
+/** Row from GET /api/field/visits/[id]/check-ins (modules/field · field_check_in). */
+interface CheckInRow {
+  id: string;
+  tenantId: string;
+  visitId: string;
+  repUserId: string | null;
+  kind: string; // check_in | check_out
+  lat: number | null;
+  lng: number | null;
+  accuracy: number | null;
+  address: string | null;
+  photoUrl: string | null;
+  note: string | null;
+  recordedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Slim row from GET /api/contacts (modules/crm · contact) — resolve contactId. */
+interface ContactRow {
+  id: string;
+  fullName: string;
+  title: string | null;
+  companyId: string | null;
+}
+
+/** Slim row from GET /api/companies (modules/crm · company_v2) — resolve companyId. */
+interface CompanyRow {
+  id: string;
+  name: string;
+}
+
+// ── enums / display metadata ─────────────────────────────────────────────────
+
+type MainTab = "aktif" | "sampah";
+type StatusFilter =
+  | "all"
+  | "planned"
+  | "en_route"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+type PurposeFilter = "all" | "demo" | "negotiation" | "delivery" | "survey" | "relationship" | "other";
+
+const STATUS_META: Record<string, { label: string; cls: string; dot: string }> = {
+  planned: { label: "Direncanakan", cls: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" },
+  en_route: { label: "Dalam perjalanan", cls: "bg-info/12 text-info", dot: "bg-info" },
+  in_progress: { label: "Berlangsung", cls: "bg-warning/12 text-warning", dot: "bg-warning" },
+  completed: { label: "Selesai", cls: "bg-success/12 text-success", dot: "bg-success" },
+  cancelled: { label: "Dibatalkan", cls: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" },
+  no_show: { label: "Tidak datang", cls: "bg-destructive/10 text-destructive", dot: "bg-destructive" },
 };
 
-export default function FieldPage() {
-  const { data: reps, isLoading, isError, refetch } = useFieldReps();
-  const me = useAuthStore((s) => s.currentUser);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState("live");
+const PURPOSE_META: Record<string, { label: string; style: React.CSSProperties }> = {
+  demo: { label: "Demo produk", style: { background: "hsl(217 91% 60% / .12)", color: "#2563eb" } },
+  negotiation: { label: "Negosiasi", style: { background: "hsl(14 90% 96%)", color: "#c2410c" } },
+  delivery: { label: "Pengiriman", style: { background: "hsl(173 80% 40% / .14)", color: "#0d9488" } },
+  survey: { label: "Survei", style: { background: "#E1306C18", color: "#c01f5b" } },
+  relationship: { label: "Jaga relasi", style: { background: "hsl(38 92% 50% / .15)", color: "#b45309" } },
+  other: { label: "Lainnya", style: { background: "hsl(0 0% 90%)", color: "#525252" } },
+};
 
-  // Role scope (wireframe 06): oversight roles see the whole team; a Sales Rep
-  // sees only the reps they own. Default demo user is Superadmin → sees all.
-  const isOversight = me.role !== "Sales Rep";
-  const scoped = isOversight
-    ? reps ?? []
-    : (reps ?? []).filter((r) => r.ownerUserId === me.id);
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "planned", label: "Direncanakan" },
+  { value: "en_route", label: "Dalam perjalanan" },
+  { value: "in_progress", label: "Berlangsung" },
+  { value: "completed", label: "Selesai" },
+  { value: "cancelled", label: "Dibatalkan" },
+  { value: "no_show", label: "Tidak datang" },
+];
 
-  const list = scoped.filter((r) =>
-    tab === "live" ? r.status === "kunjungan" : true,
+const PURPOSE_OPTIONS: { value: string; label: string }[] = [
+  { value: "demo", label: "Demo produk" },
+  { value: "negotiation", label: "Negosiasi" },
+  { value: "delivery", label: "Pengiriman" },
+  { value: "survey", label: "Survei" },
+  { value: "relationship", label: "Jaga relasi" },
+  { value: "other", label: "Lainnya" },
+];
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+async function readJson<T>(r: Response): Promise<T> {
+  const j = (await r.json().catch(() => null)) as ApiResult<T> | null;
+  if (!r.ok || !j || j.ok === false) {
+    if (r.status === 403) throw new Error("forbidden");
+    throw new Error((j && "error" in j && j.error) || "Permintaan gagal");
+  }
+  return j.data;
+}
+
+function statusMeta(status: string): { label: string; cls: string; dot: string } {
+  return STATUS_META[status] ?? STATUS_META.planned;
+}
+
+function purposeMeta(purpose: string | null): { label: string; style: React.CSSProperties } | null {
+  if (!purpose) return null;
+  return PURPOSE_META[purpose] ?? PURPOSE_META.other;
+}
+
+function fmtRelID(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diff = Date.now() - d.getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (Math.abs(h) < 1) return "Baru saja";
+  if (h >= 0 && h < 24) return `${h} jam lalu`;
+  const days = Math.floor(h / 24);
+  if (h >= 0 && days < 30) return `${days} hari lalu`;
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function fmtScheduled(iso: string | null | undefined): string {
+  if (!iso) return "Tanpa jadwal";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Tanpa jadwal";
+  return d.toLocaleString("id-ID", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fmtTimeID(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("id-ID", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fmtCoords(lat: number | null, lng: number | null): string | null {
+  if (lat == null || lng == null) return null;
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function initialsOf(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .map((w) => w[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "??"
   );
-  // Resolve the selection from the VISIBLE list, not all reps — otherwise a rep
-  // picked under "Semua" keeps rendering in the detail/map after switching to
-  // "Live" even though they're no longer in the list.
-  const selected = list.find((r) => r.id === selectedId) ?? null;
+}
+
+// ── drawer form state (create visit) ──────────────────────────────────────────
+
+interface VisitForm {
+  title: string;
+  purpose: string;
+  address: string;
+  scheduledAt: string; // datetime-local value
+  contactId: string;
+  companyId: string;
+  status: string;
+  notes: string;
+}
+
+const EMPTY_VISIT_FORM: VisitForm = {
+  title: "",
+  purpose: "demo",
+  address: "",
+  scheduledAt: "",
+  contactId: "",
+  companyId: "",
+  status: "planned",
+  notes: "",
+};
+
+// ── page ─────────────────────────────────────────────────────────────────────
+
+export default function FieldPage() {
+  const qc = useQueryClient();
+
+  // live visits
+  const visitsQ = useQuery({
+    queryKey: ["field", "visits", "list"],
+    queryFn: async () => readJson<VisitRow[]>(await fetch("/api/field/visits")),
+    retry: false,
+  });
+  const visits = useMemo(() => visitsQ.data ?? [], [visitsQ.data]);
+
+  // CRM joins — resolve contactId / companyId soft refs to display names. Degrade
+  // gracefully (no torn page) when CRM is empty / unavailable.
+  const contactsQ = useQuery({
+    queryKey: ["field", "contacts", "resolve"],
+    queryFn: async () => readJson<ContactRow[]>(await fetch("/api/contacts")),
+    retry: false,
+  });
+  const companiesQ = useQuery({
+    queryKey: ["field", "companies", "resolve"],
+    queryFn: async () => readJson<CompanyRow[]>(await fetch("/api/companies")),
+    retry: false,
+  });
+  const contactById = useMemo(() => {
+    const m: Record<string, ContactRow> = {};
+    for (const c of contactsQ.data ?? []) m[c.id] = c;
+    return m;
+  }, [contactsQ.data]);
+  const companyById = useMemo(() => {
+    const m: Record<string, CompanyRow> = {};
+    for (const c of companiesQ.data ?? []) m[c.id] = c;
+    return m;
+  }, [companiesQ.data]);
+
+  // ── tabs ───────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<MainTab>("aktif");
+
+  const trashedQ = useQuery({
+    queryKey: ["field", "visits", "trashed"],
+    enabled: tab === "sampah",
+    queryFn: async () => readJson<VisitRow[]>(await fetch("/api/field/visits/trashed")),
+    retry: false,
+  });
+  const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
+
+  // ── filters ──────────────────────────────────────────────────────────────────
+  const [statusF, setStatusF] = useState<StatusFilter>("all");
+  const [purposeF, setPurposeF] = useState<PurposeFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const stats = useMemo(() => {
+    let planned = 0;
+    let inProgress = 0;
+    let completed = 0;
+    for (const v of visits) {
+      if (v.status === "planned" || v.status === "en_route") planned++;
+      else if (v.status === "in_progress") inProgress++;
+      else if (v.status === "completed") completed++;
+    }
+    return { total: visits.length, planned, inProgress, completed };
+  }, [visits]);
+
+  function locationText(v: VisitRow): string {
+    if (v.address) return v.address;
+    const company = v.companyId ? companyById[v.companyId]?.name : null;
+    if (company) return company;
+    return "—";
+  }
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return visits.filter((v) => {
+      const okStatus = statusF === "all" || v.status === statusF;
+      const okPurpose = purposeF === "all" || v.purpose === purposeF;
+      const contactName = v.contactId ? contactById[v.contactId]?.fullName ?? "" : "";
+      const companyName = v.companyId ? companyById[v.companyId]?.name ?? "" : "";
+      const hay = `${v.title} ${v.address ?? ""} ${contactName} ${companyName}`.toLowerCase();
+      const okSearch = !q || hay.includes(q);
+      return okStatus && okPurpose && okSearch;
+    });
+  }, [visits, statusF, purposeF, search, contactById, companyById]);
+
+  const visibleTrashed = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return trashed;
+    return trashed.filter((v) =>
+      `${v.title} ${v.address ?? ""}`.toLowerCase().includes(q),
+    );
+  }, [trashed, search]);
+
+  // ── drawer (detail | create) ──────────────────────────────────────────────
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState<VisitForm>(EMPTY_VISIT_FORM);
+  const [checkInNote, setCheckInNote] = useState("");
+
+  const active = useMemo(() => visits.find((v) => v.id === openId) ?? null, [visits, openId]);
+
+  const drawerOpen = !!openId || creating;
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenId(null);
+        setCreating(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
+
+  // Check-ins of the open visit.
+  const checkInsQ = useQuery({
+    queryKey: ["field", "check-ins", openId],
+    enabled: !!openId,
+    queryFn: async () =>
+      readJson<CheckInRow[]>(await fetch(`/api/field/visits/${openId}/check-ins`)),
+    retry: false,
+  });
+
+  // ── confirm targets ──────────────────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<VisitRow | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<VisitRow | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<VisitRow | null>(null);
+  const [purgeConfirm, setPurgeConfirm] = useState("");
+
+  // ── mutations ──────────────────────────────────────────────────────────────
+  function refreshAll() {
+    qc.invalidateQueries({ queryKey: ["field"] });
+  }
+
+  const createVisit = useMutation({
+    mutationFn: async (f: VisitForm) =>
+      readJson<VisitRow>(
+        await fetch("/api/field/visits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: f.title.trim(),
+            purpose: f.purpose || null,
+            address: f.address.trim() || null,
+            scheduledAt: f.scheduledAt ? new Date(f.scheduledAt).toISOString() : null,
+            contactId: f.contactId || null,
+            companyId: f.companyId || null,
+            status: f.status,
+            notes: f.notes.trim() || null,
+          }),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success(`Kunjungan "${row.title}" dibuat`);
+      refreshAll();
+      setCreating(false);
+      setForm(EMPTY_VISIT_FORM);
+      setOpenId(row.id);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat kunjungan"),
+  });
+
+  // Advance status (planned → en_route → in_progress → completed) inline.
+  const setStatus = useMutation({
+    mutationFn: async (vars: { id: string; status: string }) =>
+      readJson<VisitRow>(
+        await fetch(`/api/field/visits/${vars.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: vars.status }),
+        }),
+      ),
+    onSuccess: (_res, vars) => {
+      toast.success(`Status → ${statusMeta(vars.status).label}`);
+      refreshAll();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mengubah status"),
+  });
+
+  // Record a check-in / check-out. The backend advances the visit's lifecycle.
+  const recordCheckIn = useMutation({
+    mutationFn: async (vars: { visitId: string; kind: "check_in" | "check_out"; note: string }) =>
+      readJson<CheckInRow>(
+        await fetch("/api/field/check-ins", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            visitId: vars.visitId,
+            kind: vars.kind,
+            note: vars.note.trim() || null,
+          }),
+        }),
+      ),
+    onSuccess: (_res, vars) => {
+      toast.success(vars.kind === "check_in" ? "Check-in tercatat" : "Check-out tercatat");
+      setCheckInNote("");
+      qc.invalidateQueries({ queryKey: ["field", "check-ins", vars.visitId] });
+      qc.invalidateQueries({ queryKey: ["field", "visits"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mencatat check-in"),
+  });
+
+  const softDelete = useMutation({
+    mutationFn: async (v: VisitRow) =>
+      readJson<{ id: string; deleted: boolean }>(
+        await fetch(`/api/field/visits/${v.id}`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, v) => {
+      toast.success(`"${v.title}" dipindah ke Sampah`);
+      refreshAll();
+      setDeleteTarget(null);
+      if (openId === v.id) setOpenId(null);
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus kunjungan");
+      setDeleteTarget(null);
+    },
+  });
+
+  const restore = useMutation({
+    mutationFn: async (v: VisitRow) =>
+      readJson<VisitRow>(await fetch(`/api/field/visits/${v.id}/restore`, { method: "PATCH" })),
+    onSuccess: (_res, v) => {
+      toast.success(`"${v.title}" dipulihkan`);
+      refreshAll();
+      setRestoreTarget(null);
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal memulihkan kunjungan");
+      setRestoreTarget(null);
+    },
+  });
+
+  const purge = useMutation({
+    mutationFn: async (v: VisitRow) =>
+      readJson<{ id: string; purged: boolean }>(
+        await fetch(`/api/field/visits/${v.id}?purge=1`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, v) => {
+      toast.success(`"${v.title}" dihapus permanen`);
+      refreshAll();
+      setPurgeTarget(null);
+      setPurgeConfirm("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
+  });
+
+  // ── top-level loading / error ────────────────────────────────────────────────
+  const listError = visitsQ.isError;
+  const forbidden = visitsQ.error instanceof Error && visitsQ.error.message === "forbidden";
+
+  function openCreate() {
+    setForm(EMPTY_VISIT_FORM);
+    setCreating(true);
+    setOpenId(null);
+  }
 
   return (
     <div>
       <PageHeader
         title="Sales Lapangan"
-        description={
-          isOversight
-            ? "Pantau tim lapangan secara real-time di Jakarta & Surabaya."
-            : "Pantau aktivitas lapangan Anda secara real-time."
-        }
+        description="Kunjungan lapangan & check-in tim sales — siapa, di mana, dan statusnya. Klik baris untuk detail kunjungan + riwayat check-in."
       >
-        <Button variant="outline" asChild>
-          <Link href="/field/visits">
-            <ClipboardList className="h-4 w-4" />
-            Log kunjungan
-          </Link>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4" /> Kunjungan baru
         </Button>
       </PageHeader>
 
-      <div className="flex flex-col lg:h-[calc(100vh-9.25rem)] lg:flex-row">
-        <aside className="order-2 flex w-full shrink-0 flex-col border-t bg-card lg:order-none lg:w-80 lg:border-r lg:border-t-0">
-          <div className="border-b p-3">
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="w-full">
-                <TabsTrigger value="live" className="flex-1">
-                  Live
-                </TabsTrigger>
-                <TabsTrigger value="all" className="flex-1">
-                  Semua
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+      <div className="space-y-5 p-6">
+        {/* ============ STAT STRIP ============ */}
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total kunjungan"
+            value={visitsQ.isLoading ? null : stats.total}
+            hint="di tenant ini"
+          />
+          <StatCard
+            label="Terjadwal"
+            value={visitsQ.isLoading ? null : stats.planned}
+            hint="direncanakan / dalam perjalanan"
+          />
+          <StatCard
+            label="Berlangsung"
+            value={visitsQ.isLoading ? null : stats.inProgress}
+            hint="rep sedang di lokasi"
+            valueClass="text-warning"
+          />
+          <StatCard
+            label="Selesai"
+            value={visitsQ.isLoading ? null : stats.completed}
+            hint="kunjungan tuntas"
+            valueClass="text-success"
+          />
+        </section>
 
-          <div className="scrollbar-thin flex-1 overflow-y-auto">
-            {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="border-b p-3">
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ))
-            ) : isError ? (
+        {/* ============ MAIN TABS: Aktif | Sampah ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "aktif"} onClick={() => setTab("aktif")}>
+            <MapPin className="h-4 w-4" />
+            Aktif
+            <CountPill>{visits.length}</CountPill>
+          </TabButton>
+          <TabButton active={tab === "sampah"} onClick={() => setTab("sampah")}>
+            <Trash2 className="h-4 w-4" />
+            Sampah
+            {trashed.length > 0 && (
+              <span className="rounded-full bg-destructive/[0.12] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-destructive">
+                {trashed.length}
+              </span>
+            )}
+          </TabButton>
+        </div>
+
+        {tab === "aktif" ? (
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            {/* TOOLBAR: status select + purpose pills + search */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-border px-4 py-3">
+              {/* status select */}
+              <div className="relative">
+                <select
+                  value={statusF}
+                  onChange={(e) => setStatusF(e.target.value as StatusFilter)}
+                  className="h-7 cursor-pointer appearance-none rounded-lg border border-border bg-card pl-3 pr-7 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <option value="all">Status: Semua</option>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronRight className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-90 text-muted-foreground" />
+              </div>
+
+              <span className="hidden h-5 w-px bg-border sm:block" />
+
+              {/* purpose pills */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-0.5 text-[11px] text-muted-foreground">Tujuan:</span>
+                {(
+                  [
+                    { v: "all", label: "Semua" },
+                    { v: "demo", label: "Demo" },
+                    { v: "negotiation", label: "Negosiasi" },
+                    { v: "delivery", label: "Pengiriman" },
+                    { v: "survey", label: "Survei" },
+                  ] as const
+                ).map((p) => (
+                  <button
+                    key={p.v}
+                    type="button"
+                    onClick={() => setPurposeF(p.v)}
+                    className={cn(
+                      "h-7 rounded-full px-3 text-xs transition-colors",
+                      purposeF === p.v
+                        ? "bg-foreground font-semibold text-background"
+                        : "border border-border bg-card font-medium text-foreground/70 hover:border-primary/40",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* inline search */}
+              <div className="relative ml-auto w-44">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter judul / lokasi…"
+                  className="h-7 w-full rounded-lg border border-transparent bg-muted/60 pl-8 pr-2.5 text-xs focus:border-border focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
+
+              <span className="text-[11px] text-muted-foreground">
+                <b className="text-foreground">{visible.length}</b> hasil
+              </span>
+            </div>
+
+            {/* TABLE */}
+            {visitsQ.isLoading ? (
+              <TableLoading />
+            ) : listError ? (
               <ErrorState
-                className="m-3"
-                title="Gagal memuat rep"
-                description="Terjadi kendala saat mengambil data tim lapangan."
-                onRetry={() => refetch()}
-              />
-            ) : list.length === 0 ? (
-              <EmptyState
-                className="m-3"
-                icon={Users}
-                title={tab === "live" ? "Belum ada rep aktif" : "Belum ada rep"}
+                className="border-0"
+                title={forbidden ? "Tidak punya akses" : "Gagal memuat kunjungan"}
                 description={
-                  tab === "live"
-                    ? "Tidak ada sales yang sedang di kunjungan saat ini."
-                    : "Tim lapangan akan muncul di sini begitu terdaftar."
+                  forbidden
+                    ? "Akun kamu tidak punya izin baca data (data.read). Hubungi admin workspace."
+                    : "Tidak bisa mengambil daftar kunjungan lapangan. Pastikan kamu login & database tersedia."
+                }
+                onRetry={() => visitsQ.refetch()}
+              />
+            ) : visits.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={MapPin}
+                title="Belum ada kunjungan lapangan"
+                description="Catat kunjungan ke pelanggan / prospek di lapangan — lengkap dengan rep, lokasi, jadwal, dan check-in geo-stamped saat tiba."
+                action={
+                  <Button size="sm" onClick={openCreate}>
+                    <Plus className="h-4 w-4" /> Kunjungan baru
+                  </Button>
+                }
+              />
+            ) : visible.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Search}
+                title="Tidak ada kunjungan yang cocok"
+                description="Coba ubah filter status / tujuan, atau kata kunci pencarian."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[880px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-3 font-semibold">Kunjungan</th>
+                      <th className="px-3 py-3 font-semibold">Rep</th>
+                      <th className="px-3 py-3 font-semibold">Lokasi</th>
+                      <th className="px-3 py-3 font-semibold">Jadwal</th>
+                      <th className="px-3 py-3 font-semibold">Status</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visible.map((v) => (
+                      <VisitTableRow
+                        key={v.id}
+                        visit={v}
+                        contact={v.contactId ? contactById[v.contactId] ?? null : null}
+                        location={locationText(v)}
+                        onOpen={() => {
+                          setCreating(false);
+                          setOpenId(v.id);
+                        }}
+                        onDelete={() => setDeleteTarget(v)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ) : (
+          /* ============ SAMPAH (trash) view ============ */
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs">
+              <span className="text-muted-foreground">
+                Kunjungan yang dihapus disimpan di sini. <b>Pulihkan</b> mengembalikannya ke tab
+                Aktif, <b>Hapus permanen</b> menghapus selamanya (cascade ke check-in-nya).
+              </span>
+              <span className="ml-auto text-muted-foreground">
+                {visibleTrashed.length} dari {trashed.length} kunjungan
+              </span>
+            </div>
+
+            {trashedQ.isLoading ? (
+              <TableLoading />
+            ) : trashedQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat sampah"
+                description="Tidak bisa mengambil kunjungan yang dihapus."
+                onRetry={() => trashedQ.refetch()}
+              />
+            ) : visibleTrashed.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Trash2}
+                title={trashed.length === 0 ? "Sampah kosong" : "Tidak ada yang cocok"}
+                description={
+                  trashed.length === 0
+                    ? "Kunjungan yang kamu hapus akan muncul di sini dan bisa dipulihkan."
+                    : "Coba ubah kata kunci pencarian."
                 }
               />
             ) : (
-              list.map((rep) => (
-                  <button
-                    key={rep.id}
-                    onClick={() => setSelectedId(rep.id)}
-                    className={cn(
-                      "flex w-full items-center gap-3 border-b p-3 text-left transition-colors",
-                      rep.id === selectedId ? "bg-accent" : "hover:bg-muted/40",
-                    )}
-                  >
-                    <UserAvatar name={rep.name} color={rep.avatarColor} className="h-10 w-10" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{rep.name}</p>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className={cn("h-1.5 w-1.5 rounded-full", STATUS[rep.status].dot)} />
-                        {STATUS[rep.status].label}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {rep.visitsToday}/{rep.visitsPlanned}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatRelativeID(rep.lastCheckIn)}
-                      </p>
-                    </div>
-                  </button>
-                ))
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-3 font-semibold">Kunjungan</th>
+                      <th className="px-3 py-3 font-semibold">Lokasi</th>
+                      <th className="px-3 py-3 font-semibold">Status terakhir</th>
+                      <th className="px-3 py-3 font-semibold">Dihapus</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visibleTrashed.map((v) => (
+                      <TrashedTableRow
+                        key={v.id}
+                        visit={v}
+                        location={locationText(v)}
+                        onRestore={() => setRestoreTarget(v)}
+                        onPurge={() => {
+                          setPurgeTarget(v);
+                          setPurgeConfirm("");
+                        }}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
+          </section>
+        )}
 
-          {selected && (
-            <div className="border-t bg-card p-4">
-              <p className="text-sm font-medium">{selected.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {selected.city} · {selected.route.length} titik rute hari ini
-              </p>
-              <Button className="mt-3 w-full" asChild>
-                <Link href="/m">
-                  <Smartphone className="h-4 w-4" />
-                  Buka tampilan mobile
-                </Link>
-              </Button>
-            </div>
+        {/* Legend */}
+        <p className="max-w-3xl text-[11px] text-muted-foreground">
+          Status kunjungan:{" "}
+          {(["planned", "in_progress", "completed", "no_show"] as const).map((s, i) => (
+            <span key={s}>
+              {i > 0 && " · "}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  statusMeta(s).cls,
+                )}
+              >
+                {statusMeta(s).label}
+              </span>
+            </span>
+          ))}
+          . Klik baris → panel kanan (detail + check-in geo-stamped). Peta lapangan menyusul.
+        </p>
+      </div>
+
+      {/* ===================== RIGHT DRAWER ===================== */}
+      <div
+        onClick={() => {
+          setOpenId(null);
+          setCreating(false);
+        }}
+        className={cn(
+          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
+          drawerOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
+          drawerOpen ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {creating ? (
+          <CreateVisitDrawer
+            form={form}
+            setForm={setForm}
+            contacts={contactsQ.data ?? []}
+            companies={companiesQ.data ?? []}
+            pending={createVisit.isPending}
+            onClose={() => setCreating(false)}
+            onSubmit={() => {
+              if (!form.title.trim()) {
+                toast.error("Judul kunjungan wajib diisi");
+                return;
+              }
+              createVisit.mutate(form);
+            }}
+          />
+        ) : active ? (
+          <VisitDetailDrawer
+            visit={active}
+            contact={active.contactId ? contactById[active.contactId] ?? null : null}
+            company={active.companyId ? companyById[active.companyId] ?? null : null}
+            checkIns={checkInsQ.data ?? []}
+            checkInsLoading={checkInsQ.isLoading}
+            checkInsError={checkInsQ.isError}
+            onRetryCheckIns={() => checkInsQ.refetch()}
+            checkInNote={checkInNote}
+            setCheckInNote={setCheckInNote}
+            recordingKind={
+              recordCheckIn.isPending
+                ? (recordCheckIn.variables?.kind ?? null)
+                : null
+            }
+            onCheckIn={(kind) =>
+              recordCheckIn.mutate({ visitId: active.id, kind, note: checkInNote })
+            }
+            onSetStatus={(status) => setStatus.mutate({ id: active.id, status })}
+            statusPending={setStatus.isPending}
+            onDelete={() => setDeleteTarget(active)}
+            onClose={() => setOpenId(null)}
+          />
+        ) : null}
+      </aside>
+
+      {/* ===================== SOFT-DELETE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
+        title="Pindahkan ke Sampah?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.title}</span> akan dihapus
+            dan dipindah ke tab <b>Sampah</b> (cascade ke check-in-nya). Kamu masih bisa
+            memulihkannya nanti.
+          </>
+        }
+        confirmLabel="Ya, hapus"
+        confirmPending={softDelete.isPending}
+        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
+      />
+
+      {/* ===================== RESTORE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!restoreTarget}
+        onClose={() => setRestoreTarget(null)}
+        icon={<RotateCcw className="h-5 w-5" />}
+        tone="tertiary"
+        title="Pulihkan kunjungan?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{restoreTarget?.title}</span> akan
+            dikembalikan ke tab <b>Aktif</b> beserta check-in-nya.
+          </>
+        }
+        confirmLabel="Ya, pulihkan"
+        confirmPending={restore.isPending}
+        onConfirm={() => restoreTarget && restore.mutate(restoreTarget)}
+      />
+
+      {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setPurgeTarget(null);
+            setPurgeConfirm("");
+          }
+        }}
+        className={cn(
+          "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
+        <div
+          className={cn(
+            "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
+            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0",
           )}
-        </aside>
-
-        <div className="order-1 h-[52vh] min-w-0 lg:order-none lg:h-auto lg:flex-1">
-          <FieldMap reps={list} selectedId={selectedId} onSelect={setSelectedId} />
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+                <span className="font-medium text-foreground">{purgeTarget?.title}</span> akan
+                dihapus selamanya beserta check-in-nya.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="mb-1.5 block text-[12px] text-muted-foreground">
+              Ketik{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
+                HAPUS
+              </code>{" "}
+              untuk konfirmasi.
+            </label>
+            <input
+              type="text"
+              value={purgeConfirm}
+              onChange={(e) => setPurgeConfirm(e.target.value)}
+              placeholder="HAPUS"
+              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
+            />
+          </div>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              onClick={() => {
+                setPurgeTarget(null);
+                setPurgeConfirm("");
+              }}
+              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Batal
+            </button>
+            <button
+              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
+              disabled={purge.isPending || purgeConfirm.trim().toUpperCase() !== "HAPUS"}
+              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
+            </button>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────── sub-components ─────────────────────────
+
+function StatCard({
+  label,
+  value,
+  hint,
+  valueClass,
+}: {
+  label: string;
+  value: number | null;
+  hint: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-soft">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        {value == null ? (
+          <Skeleton className="h-7 w-12" />
+        ) : (
+          <span className={cn("text-2xl font-bold tabular-nums", valueClass)}>
+            {value.toLocaleString("id-ID")}
+          </span>
+        )}
+      </div>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CountPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const meta = statusMeta(status);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+        meta.cls,
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+      {meta.label}
+    </span>
+  );
+}
+
+function PurposeBadge({ purpose }: { purpose: string | null }) {
+  const meta = purposeMeta(purpose);
+  if (!meta) {
+    return (
+      <span className="rounded-full border border-dashed border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+        tanpa tujuan
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={meta.style}>
+      {meta.label}
+    </span>
+  );
+}
+
+function VisitTableRow({
+  visit,
+  contact,
+  location,
+  onOpen,
+  onDelete,
+}: {
+  visit: VisitRow;
+  contact: ContactRow | null;
+  location: string;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <tr onClick={onOpen} className="cursor-pointer transition-colors hover:bg-muted/40">
+      <td className="px-3 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="truncate font-medium text-foreground">{visit.title}</p>
+            <PurposeBadge purpose={visit.purpose} />
+          </div>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {contact ? contact.fullName : "Tanpa kontak terkait"}
+          </p>
+        </div>
+      </td>
+      <td className="px-3 py-3 text-sm">
+        {visit.repUserId ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-secondary-foreground">
+              {initialsOf(contact?.fullName ?? "Rep")}
+            </span>
+            <span className="text-foreground/80">Ditugaskan</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">— belum ditugaskan</span>
+        )}
+      </td>
+      <td className="px-3 py-3 text-sm">
+        <span className="inline-flex items-center gap-1.5 text-foreground/80">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="line-clamp-1 max-w-[200px]">{location}</span>
+        </span>
+      </td>
+      <td className="px-3 py-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+          {fmtScheduled(visit.scheduledAt)}
+        </span>
+      </td>
+      <td className="px-3 py-3">
+        <StatusBadge status={visit.status} />
+      </td>
+      <td className="px-3 py-3 text-right">
+        <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-primary/40"
+          >
+            Buka <ChevronRight className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Hapus (ke Sampah)"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function TrashedTableRow({
+  visit,
+  location,
+  onRestore,
+  onPurge,
+}: {
+  visit: VisitRow;
+  location: string;
+  onRestore: () => void;
+  onPurge: () => void;
+}) {
+  return (
+    <tr className="transition-colors hover:bg-muted/30">
+      <td className="px-3 py-3">
+        <p className="truncate font-medium text-foreground/80">{visit.title}</p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {purposeMeta(visit.purpose)?.label ?? "Tanpa tujuan"}
+        </p>
+      </td>
+      <td className="px-3 py-3 text-sm text-muted-foreground">
+        <span className="line-clamp-1 max-w-[220px]">{location}</span>
+      </td>
+      <td className="px-3 py-3">
+        <StatusBadge status={visit.status} />
+      </td>
+      <td className="px-3 py-3 text-xs text-muted-foreground">{fmtRelID(visit.deletedAt ?? null)}</td>
+      <td className="px-3 py-3 text-right">
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary"
+          >
+            <RotateCcw className="h-3 w-3" /> Pulihkan
+          </button>
+          <button
+            type="button"
+            onClick={onPurge}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3 w-3" /> Hapus permanen
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ── visit detail drawer ───────────────────────────────────────────────────────
+
+function VisitDetailDrawer({
+  visit,
+  contact,
+  company,
+  checkIns,
+  checkInsLoading,
+  checkInsError,
+  onRetryCheckIns,
+  checkInNote,
+  setCheckInNote,
+  recordingKind,
+  onCheckIn,
+  onSetStatus,
+  statusPending,
+  onDelete,
+  onClose,
+}: {
+  visit: VisitRow;
+  contact: ContactRow | null;
+  company: CompanyRow | null;
+  checkIns: CheckInRow[];
+  checkInsLoading: boolean;
+  checkInsError: boolean;
+  onRetryCheckIns: () => void;
+  checkInNote: string;
+  setCheckInNote: (v: string) => void;
+  recordingKind: string | null;
+  onCheckIn: (kind: "check_in" | "check_out") => void;
+  onSetStatus: (status: string) => void;
+  statusPending: boolean;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const location =
+    visit.address || company?.name || (contact ? `Lokasi ${contact.fullName}` : "Lokasi belum diisi");
+
+  return (
+    <>
+      {/* header */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+            <MapPin className="h-[18px] w-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold text-foreground">{visit.title}</h2>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {purposeMeta(visit.purpose)?.label ?? "Tanpa tujuan"}
+              {company ? ` · ${company.name}` : contact ? ` · ${contact.fullName}` : ""}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* body */}
+      <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+        {/* (A) MAP PLACEHOLDER — Leaflet skipped for now */}
+        <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-[linear-gradient(135deg,hsl(14_90%_97%),hsl(173_60%_95%))]">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.5]"
+            style={{
+              backgroundImage:
+                "linear-gradient(hsl(14 40% 80% / .35) 1px, transparent 1px), linear-gradient(90deg, hsl(14 40% 80% / .35) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }}
+          />
+          <div className="relative flex flex-col items-center gap-1 text-center">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft">
+              <MapPin className="h-4 w-4" />
+            </span>
+            <p className="text-[11px] font-medium text-foreground/80">{location}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {fmtCoords(checkIns[0]?.lat ?? null, checkIns[0]?.lng ?? null) ??
+                "Peta interaktif menyusul"}
+            </p>
+          </div>
+        </div>
+
+        {/* (B) STATUS + advance */}
+        <div className="rounded-lg border border-border bg-muted/30 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-foreground">Status kunjungan</span>
+            <StatusBadge status={visit.status} />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {STATUS_OPTIONS.map((s) => {
+              const on = visit.status === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  disabled={statusPending || on}
+                  onClick={() => onSetStatus(s.value)}
+                  className={cn(
+                    "h-7 rounded-full px-2.5 text-[11px] transition-colors disabled:cursor-default disabled:opacity-60",
+                    on
+                      ? cn("font-semibold", statusMeta(s.value).cls)
+                      : "border border-border bg-card font-medium text-foreground/70 hover:border-primary/40",
+                  )}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* (C) DETAIL */}
+        <div>
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Detail kunjungan
+          </h3>
+          <div className="space-y-2 text-[13px]">
+            <DetailRow icon={Building2} label="Akun" value={company?.name ?? null} />
+            <DetailRow icon={User} label="Kontak" value={contact?.fullName ?? null} />
+            <DetailRow icon={MapPin} label="Alamat" value={visit.address} />
+            <DetailRow icon={CalendarClock} label="Jadwal" value={fmtTimeID(visit.scheduledAt)} />
+            <DetailRow icon={LogIn} label="Tiba (check-in)" value={fmtTimeID(visit.startedAt)} />
+            <DetailRow icon={LogOut} label="Selesai (check-out)" value={fmtTimeID(visit.endedAt)} />
+          </div>
+          {visit.notes && (
+            <p className="mt-2 rounded-lg border border-border bg-accent/60 p-2.5 text-[11px] leading-relaxed text-foreground/80">
+              <span className="font-semibold text-foreground">Catatan:</span> {visit.notes}
+            </p>
+          )}
+          {visit.outcome && (
+            <p className="mt-2 rounded-lg border border-border bg-success/[0.06] p-2.5 text-[11px] leading-relaxed text-foreground/80">
+              <span className="font-semibold text-foreground">Hasil:</span> {visit.outcome}
+            </p>
+          )}
+        </div>
+
+        {/* (D) RECORD CHECK-IN / OUT */}
+        <div className="rounded-lg border border-border p-3">
+          <div className="mb-2 flex items-center gap-1.5">
+            <Navigation className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[13px] font-semibold text-foreground">Catat check-in</span>
+          </div>
+          <textarea
+            rows={2}
+            value={checkInNote}
+            onChange={(e) => setCheckInNote(e.target.value)}
+            placeholder="Catatan (opsional) — mis. ketemu owner, stok menipis…"
+            className="mb-2 w-full resize-none rounded-lg border border-input bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!!recordingKind}
+              onClick={() => onCheckIn("check_in")}
+              className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              {recordingKind === "check_in" ? "Mencatat…" : "Check-in"}
+            </button>
+            <button
+              type="button"
+              disabled={!!recordingKind}
+              onClick={() => onCheckIn("check_out")}
+              className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12px] font-semibold text-foreground transition-colors hover:border-primary/40 disabled:opacity-60"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              {recordingKind === "check_out" ? "Mencatat…" : "Check-out"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[10px] text-muted-foreground">
+            Check-in stempel geo akan terisi otomatis di mobile. Di sini lokasi dicatat dari alamat
+            kunjungan.
+          </p>
+        </div>
+
+        {/* (E) CHECK-IN TIMELINE */}
+        <div>
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Riwayat check-in
+          </h3>
+          {checkInsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : checkInsError ? (
+            <ErrorState
+              className="border-0 py-6"
+              title="Gagal memuat check-in"
+              description="Tidak bisa mengambil riwayat check-in kunjungan ini."
+              onRetry={onRetryCheckIns}
+            />
+          ) : checkIns.length === 0 ? (
+            <p className="py-4 text-center text-[12px] text-muted-foreground">
+              Belum ada check-in. Catat check-in saat rep tiba di lokasi.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {checkIns.map((c) => (
+                <CheckInItem key={c.id} checkIn={c} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* footer */}
+      <div className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-5 py-3">
+        <Button variant="outline" size="sm" disabled>
+          <Pencil className="h-4 w-4" /> Edit
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto text-destructive hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-4 w-4" /> Hapus
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof MapPin;
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </span>
+      <span className="text-right font-medium text-foreground">{value || "—"}</span>
+    </div>
+  );
+}
+
+function CheckInItem({ checkIn }: { checkIn: CheckInRow }) {
+  const isIn = checkIn.kind === "check_in";
+  const coords = fmtCoords(checkIn.lat, checkIn.lng);
+  return (
+    <div className="flex gap-2.5 rounded-lg border border-border p-2.5 text-[12px]">
+      <span
+        className={cn(
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+          isIn ? "bg-primary/[0.12] text-primary" : "bg-success/12 text-success",
+        )}
+      >
+        {isIn ? <LogIn className="h-3.5 w-3.5" /> : <LogOut className="h-3.5 w-3.5" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-foreground">{isIn ? "Check-in" : "Check-out"}</p>
+          <span className="text-[10px] text-muted-foreground">{fmtTimeID(checkIn.recordedAt)}</span>
+        </div>
+        {(checkIn.address || coords) && (
+          <p className="truncate text-[11px] text-muted-foreground">
+            {checkIn.address || coords}
+            {checkIn.accuracy != null ? ` · ±${Math.round(checkIn.accuracy)}m` : ""}
+          </p>
+        )}
+        {checkIn.note && <p className="mt-0.5 text-[11px] text-foreground/70">{checkIn.note}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── create-visit drawer ───────────────────────────────────────────────────────
+
+function CreateVisitDrawer({
+  form,
+  setForm,
+  contacts,
+  companies,
+  pending,
+  onClose,
+  onSubmit,
+}: {
+  form: VisitForm;
+  setForm: React.Dispatch<React.SetStateAction<VisitForm>>;
+  contacts: ContactRow[];
+  companies: CompanyRow[];
+  pending: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <>
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Plus className="h-[18px] w-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold">Kunjungan baru</h2>
+            <p className="truncate text-[11px] text-muted-foreground">
+              Catat rencana kunjungan lapangan
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+        <Field label="Judul kunjungan">
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder="mis. Demo produk ke Toko Sinar Jaya"
+            className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+        </Field>
+
+        <Field label="Tujuan">
+          <SelectInput
+            value={form.purpose}
+            onChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
+            options={PURPOSE_OPTIONS}
+          />
+        </Field>
+
+        <Field label="Status awal">
+          <SelectInput
+            value={form.status}
+            onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+            options={STATUS_OPTIONS}
+          />
+        </Field>
+
+        <Field label="Alamat / lokasi">
+          <input
+            type="text"
+            value={form.address}
+            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+            placeholder="mis. Jl. Sudirman No. 10, Jakarta"
+            className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+        </Field>
+
+        <Field label="Jadwal" hint="Waktu rencana kunjungan (opsional).">
+          <input
+            type="datetime-local"
+            value={form.scheduledAt}
+            onChange={(e) => setForm((f) => ({ ...f, scheduledAt: e.target.value }))}
+            className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+        </Field>
+
+        <Field label="Akun (perusahaan)" hint={companies.length === 0 ? "Belum ada perusahaan di CRM." : undefined}>
+          <SelectInput
+            value={form.companyId}
+            onChange={(v) => setForm((f) => ({ ...f, companyId: v }))}
+            options={[
+              { value: "", label: "— tidak terkait —" },
+              ...companies.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
+        </Field>
+
+        <Field label="Kontak terkait" hint={contacts.length === 0 ? "Belum ada kontak di CRM." : undefined}>
+          <SelectInput
+            value={form.contactId}
+            onChange={(v) => setForm((f) => ({ ...f, contactId: v }))}
+            options={[
+              { value: "", label: "— tidak terkait —" },
+              ...contacts.map((c) => ({ value: c.id, label: c.fullName })),
+            ]}
+          />
+        </Field>
+
+        <Field label="Catatan" hint="Opsional.">
+          <textarea
+            rows={3}
+            value={form.notes}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            placeholder="Konteks kunjungan, hal yang perlu dibawa, dll…"
+            className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+        </Field>
+      </div>
+
+      <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-3">
+        <button
+          onClick={onClose}
+          className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          Batal
+        </button>
+        <button
+          onClick={onSubmit}
+          disabled={pending}
+          className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          <Check className="h-4 w-4" />
+          {pending ? "Menyimpan…" : "Buat kunjungan"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">{label}</label>
+      {children}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function SelectInput({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-muted-foreground" />
+    </div>
+  );
+}
+
+// ── confirm modal ──────────────────────────────────────────────────────────────
+
+function ConfirmModal({
+  open,
+  onClose,
+  icon,
+  tone,
+  title,
+  body,
+  confirmLabel,
+  confirmPending,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  icon: React.ReactNode;
+  tone: "destructive" | "tertiary";
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  confirmPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              tone === "destructive"
+                ? "bg-destructive/[0.12] text-destructive"
+                : "bg-tertiary/[0.12] text-tertiary",
+            )}
+          >
+            {icon}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold">{title}</h3>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={confirmPending}
+            className={cn(
+              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
+              tone === "destructive"
+                ? "bg-destructive text-white"
+                : "bg-tertiary text-tertiary-foreground",
+            )}
+          >
+            {confirmPending ? "Memproses…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableLoading() {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-4">
+          <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="ml-auto h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
     </div>
   );
 }

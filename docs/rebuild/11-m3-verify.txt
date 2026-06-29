@@ -1,0 +1,99 @@
+M3 (CRM / Contacts) BACKEND — Verification report
+Sainskerta Loop Phase 03 · Module 3 backend
+Date: 2026-06-29
+Branch: new-main
+
+=====================================================================
+RESULT: PASS
+=====================================================================
+
+Both verification gates are GREEN. No errors originate from the new
+M3 backend code (modules/crm/* and app/api/{contacts,companies,deals,
+pipeline,activities}/*).
+
+---------------------------------------------------------------------
+1. npx tsc --noEmit
+---------------------------------------------------------------------
+Exit code: 0
+Output: (none — clean, no type errors)
+
+---------------------------------------------------------------------
+2. npm run lint  (next lint)
+---------------------------------------------------------------------
+Exit code: 0
+Errors: 0
+Warnings: 11 (all @typescript-eslint/no-unused-vars — non-blocking;
+ESLint is intentionally lenient for this prototype, unused vars are
+warnings by design per CLAUDE.md).
+
+NONE of the warnings are in M3 BACKEND code. They are all in
+frontend / shared files, listed for completeness:
+
+  ./app/(app)/contacts/profiles/page.tsx   (M3 FRONTEND page, not backend)
+    8:19   'AlertTriangle' is defined but never used.
+    8:83   'MapPin' is defined but never used.
+    8:123  'UserCircle2' is defined but never used.
+    17:10  'Card' is defined but never used.
+    17:16  'CardContent' is defined but never used.
+    74:10  'staleInfo' is defined but never used.
+    147:10 'ContactRow' is defined but never used.
+    180:10 'Provenance' is defined but never used.
+    192:10 'classifyingId' is assigned a value but never used.
+
+  ./app/(app)/settings/diagnostics/page.tsx   (pre-existing, unrelated)
+    514:21 '_body' is defined but never used.
+
+  ./components/shared/table-pagination.tsx    (pre-existing, unrelated)
+    65:45  'pageSize' is assigned a value but never used.
+
+M3 BACKEND files with ZERO lint output:
+  modules/crm/schema.ts
+  modules/crm/repo.ts
+  modules/crm/service.ts
+  app/api/contacts/{route.ts, trashed/route.ts, [id]/route.ts,
+                    [id]/restore/route.ts, [id]/purge/route.ts, send/route.ts}
+  app/api/companies/{route.ts, trashed/route.ts, [id]/route.ts,
+                     [id]/restore/route.ts, [id]/purge/route.ts}
+  app/api/deals/{route.ts, trashed/route.ts, [id]/route.ts,
+                 [id]/restore/route.ts, [id]/purge/route.ts}
+  app/api/pipeline/{route.ts, trashed/route.ts, [id]/route.ts,
+                    [id]/restore/route.ts, [id]/purge/route.ts,
+                    stages/route.ts, stages/trashed/route.ts,
+                    stages/[id]/route.ts, stages/[id]/restore/route.ts,
+                    stages/[id]/purge/route.ts}
+  app/api/activities/{route.ts, trashed/route.ts, [id]/route.ts,
+                      [id]/restore/route.ts, [id]/purge/route.ts}
+
+---------------------------------------------------------------------
+3. Migration emitted (drizzle-kit generate — NOT pushed)
+---------------------------------------------------------------------
+drizzle/migrations/0030_wide_red_wolf.sql
+Tables created: activity, company_v2, contact, deal, pipeline_stage, pipeline
+Foreign keys: 0 (verified — no REFERENCES / FOREIGN KEY in the migration)
+Live Neon DB: untouched (generate only; no db:push/migrate).
+
+=====================================================================
+CONCLUSION: PASS — tsc clean, lint clean (0 errors), all 6 CRM tables
+generated FK-free. Build is GREEN.
+=====================================================================
+
+---------------------------------------------------------------------
+FIX PASS (re-verification) — 2026-06-29
+---------------------------------------------------------------------
+Re-ran both gates against the current tree to confirm the M3 backend
+still compiles and lints cleanly. NO fixes were required — the new M3
+code (modules/crm/{schema,repo,service}.ts + app/api/{contacts,
+companies,deals,pipeline,activities}/*) is already error-free.
+
+  npx tsc --noEmit  → exit 0 (no output; type-clean)
+  npm run lint      → exit 0 (0 errors; 11 pre-existing no-unused-vars
+                      warnings only — none in M3 backend code)
+
+Contact domain contract re-confirmed in modules/crm/schema.ts:
+  - segment           text not null default 'unknown'  (b2c|b2b|unknown)
+  - enrichment_status text not null default 'none'
+  - fit_score         real (nullable, 0..1)
+  - workspace_id      text (soft ref → workspace_v2.id; in-app scope)
+
+FINAL TSC STATUS: PASS (npx tsc --noEmit exit 0). Build is GREEN.
+=====================================================================

@@ -8,6 +8,11 @@ declare module "next-auth" {
       id: string;
       role: Role;
       tenantId: string;
+      /** Platform-staff flag from `app_user.is_superadmin` (new auth domain). */
+      isSuperadmin?: boolean;
+      /** Tenant activation status (`pending|active|suspended|expired`) carried so
+       *  the shell can gate without an extra round-trip. */
+      tenantStatus?: string;
       avatarColor?: string;
       demoRole?: string;
       scope?: string;
@@ -16,6 +21,8 @@ declare module "next-auth" {
   interface User {
     role: Role;
     tenantId: string;
+    isSuperadmin?: boolean;
+    tenantStatus?: string;
     avatarColor?: string;
     demoRole?: string;
     scope?: string;
@@ -26,6 +33,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     role: Role;
     tenantId: string;
+    isSuperadmin?: boolean;
+    tenantStatus?: string;
     avatarColor?: string;
     demoRole?: string;
     scope?: string;

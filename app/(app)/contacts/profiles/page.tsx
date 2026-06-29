@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, AlertTriangle, ArchiveRestore, Briefcase, Building2, Handshake, MapPin, Radar, Search, Sparkles, User2, UserCircle2, Users } from "lucide-react";
+import { Archive, ArchiveRestore, Briefcase, Building2, Handshake, Radar, Search, Sparkles, User2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ContactsTabs } from "@/components/contacts/contacts-tabs";
@@ -14,7 +14,6 @@ import { DataTable, type Column } from "@/components/profiles/data-table";
 import { ProfileDetailSheet } from "@/components/profiles/profile-detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -68,16 +67,6 @@ interface Member {
   role: string;
 }
 
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
-
-// captured_at null or older than a year → data may be stale, prompt a re-crawl.
-function staleInfo(capturedAt?: string | null): { stale: boolean; label: string } {
-  if (!capturedAt) return { stale: true, label: "Belum pernah di-crawl" };
-  const age = Date.now() - new Date(capturedAt).getTime();
-  if (age > YEAR_MS) return { stale: true, label: `Data ${Math.floor(age / YEAR_MS)} thn — perlu re-crawl` };
-  return { stale: false, label: "" };
-}
-
 // import vs crawl vs hunter — for the source badge.
 function sourceBucket(source?: string | null): { label: string; cls: string } | null {
   const s = (source ?? "").toLowerCase();
@@ -109,87 +98,8 @@ function LeadTypeBadge({ leadType }: { leadType?: string | null }) {
   );
 }
 
-const CONSENT: Record<string, { cls: string; label: string }> = {
-  opted_in: { cls: "bg-success/10 text-success", label: "Opt-in" },
-  opted_out: { cls: "bg-destructive/10 text-destructive", label: "Opt-out" },
-  legitimate_interest: { cls: "bg-info/10 text-info", label: "Legit. interest" },
-  unknown: { cls: "bg-muted text-muted-foreground", label: "Unknown" },
-};
-
-const CHANNEL_LABEL: Record<string, string> = {
-  email: "Email",
-  phone: "Telepon",
-  whatsapp: "WhatsApp",
-  linkedin: "LinkedIn",
-  instagram: "Instagram",
-  web: "Web",
-  other: "Lainnya",
-};
-
-// Normalize an Indonesian phone → wa.me digits (62…, no +/spaces).
-function toWaDigits(phone: string): string {
-  let d = phone.replace(/[^\d+]/g, "");
-  if (d.startsWith("+")) d = d.slice(1);
-  if (d.startsWith("0")) d = "62" + d.slice(1);
-  if (!d.startsWith("62")) d = "62" + d;
-  return d;
-}
-function linkForChannel(channel: string, value: string): string | null {
-  const c = channel.toLowerCase();
-  if (c === "email") return `mailto:${value}`;
-  if (c === "phone" || c === "tel") return `tel:${value}`;
-  if (c === "wa" || c === "whatsapp") return `https://wa.me/${toWaDigits(value)}`;
-  if (/^https?:\/\//i.test(value)) return value;
-  if (["website", "github", "twitter", "linkedin", "instagram", "tiktok"].includes(c)) return value.startsWith("http") ? value : `https://${value}`;
-  return null;
-}
-
-function ContactRow({ cp }: { cp: ContactPoint }) {
-  const consent = CONSENT[cp.consentStatus] ?? CONSENT.unknown;
-  const href = linkForChannel(cp.channel, cp.value);
-  const wa = cp.channel === "phone" ? `https://wa.me/${toWaDigits(cp.value)}` : null;
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-xs">
-      <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
-        {CHANNEL_LABEL[cp.channel] ?? cp.channel}
-      </span>
-      {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="font-mono text-primary hover:underline">
-          {cp.value}
-        </a>
-      ) : (
-        <span className="font-mono text-foreground">{cp.value}</span>
-      )}
-      {wa && (
-        <a
-          href={wa}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-200"
-        >
-          WhatsApp
-        </a>
-      )}
-      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", consent.cls)}>
-        {consent.label}
-      </span>
-    </div>
-  );
-}
-
-function Provenance({ source, mode }: { source?: string | null; mode?: string | null }) {
-  if (!source && !mode) return null;
-  return (
-    <p className="mt-2 text-[11px] text-muted-foreground/80">
-      Sumber: {source ?? "—"}
-      {mode ? ` · mode ${mode}` : ""}
-    </p>
-  );
-}
-
 export default function ProfilesPage() {
   const qc = useQueryClient();
-  const [classifyingId, setClassifyingId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState("all"); // all | Crawl | Impor | Hunter
   const [wsShowAll, setWsShowAll] = useState(false); // workspace mode: show all leads to add
   // Search + filter per tab.
@@ -248,7 +158,6 @@ export default function ProfilesPage() {
       qc.invalidateQueries({ queryKey: ["companies"] });
     },
     onError: () => toast.error("Enrich gagal (cek hak akses & DB)"),
-    onSettled: () => setClassifyingId(null),
   });
 
   // Classify-only (no websearch) — fast pass over still-unclassified leads (doc 40).
@@ -312,7 +221,6 @@ export default function ProfilesPage() {
 
   const [selected, setSelected] = useState<{ kind: "person" | "company"; id: string; data: PersonRow | CompanyRow } | null>(null);
   const openEnrich = (id: string) => {
-    setClassifyingId(id);
     if (selected?.kind === "company") enrich.mutate({ companyId: id });
     else enrich.mutate({ personId: id });
   };

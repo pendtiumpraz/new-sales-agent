@@ -1,0 +1,86 @@
+M5 (Enrichment / Discovery) FRONTEND — VERIFY REPORT
+Sainskerta Loop Phase 04 · Module 5 frontend
+Date: 2026-06-29
+Branch: new-main
+
+RESULT: PASS
+
+========================================================================
+COMMANDS RUN (cwd = D:/github/agentic-sales-ai)
+========================================================================
+1) npx tsc --noEmit   -> exit 0
+2) npm run lint  (next lint) -> exit 0
+
+========================================================================
+1) npx tsc --noEmit
+========================================================================
+Exit: 0 (clean). ZERO output lines. No type errors.
+
+The new enrichment page (app/(app)/enrichment/page.tsx) is type-clean
+under TS strict — including the React Query generics, the ApiResult<T>
+envelope helper (readJson), the soft-delete/restore/purge mutations,
+and the before/after enrich drawer.
+
+========================================================================
+2) npm run lint  (next lint)
+========================================================================
+Exit: 0 (clean). 0 errors, 2 warnings — both PRE-EXISTING and UNRELATED
+to the M5 frontend:
+
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+NO lint findings (errors OR warnings) in the new M5 frontend file:
+  - app/(app)/enrichment/page.tsx
+
+(Per CLAUDE.md, ESLint is intentionally lenient for the prototype: `any`,
+unused vars, prefer-const are warnings — not errors. Even so, the M5 FE
+page produced zero of these.)
+
+========================================================================
+M5 FRONTEND SURFACE VERIFIED
+========================================================================
+app/(app)/enrichment/page.tsx — lives in the (app) shell, wired to the
+NEW M5 backend (NO mock data). Confirms the brief:
+
+  - Two tabbed sections via JS switch (useState<SectionTab>):
+      (1) Discovery   — search leads (query/channel/location/posture),
+                        run POST /api/discovery/jobs, list
+                        GET /api/discovery/results, select rows →
+                        "Simpan ke workspace" (POST .../[id]/save).
+      (2) Enrichment  — queue from GET /api/enrichment; run enrich
+                        (POST /api/enrichment/[id]/run · before/after in
+                        drawer), AUTO classify B2C/B2B + fit score
+                        (POST /api/enrichment/[id]/classify · badge +
+                        score), "Push ke Contacts"
+                        (POST /api/enrichment/[id]/push).
+      (+ Riwayat       — GET /api/discovery/jobs run history.)
+  - Loading (Skeleton/TableLoading), empty (EmptyState), and error
+    (ErrorState + forbidden 403 handling) states on every band.
+  - Soft-delete / restore / purge (trash view) for BOTH discovery
+    results and enrichment records.
+  - All data via React Query; no DB mutations beyond existing endpoints.
+  - TS strict, interface over type, double quotes, semicolons.
+
+========================================================================
+VERDICT: PASS — build is GREEN. tsc exit 0 (no type errors),
+next lint exit 0 (0 errors; only 2 pre-existing, unrelated warnings).
+========================================================================
+
+========================================================================
+FIX PASS RE-VERIFICATION (Date: 2026-06-29)
+========================================================================
+Re-ran checks on current tree — NO fixes were required; build already GREEN.
+
+1) npx tsc --noEmit  -> exit 0. ZERO output. No type errors.
+2) npm run lint (next lint) -> exit 0. 0 errors, 2 warnings — both
+   PRE-EXISTING and UNRELATED to M5 frontend:
+     - app/(app)/settings/diagnostics/page.tsx:514:21  '_body' unused
+     - components/shared/table-pagination.tsx:65:45    'pageSize' unused
+   No findings in app/(app)/enrichment/page.tsx (the M5 FE file).
+
+FINAL STATUS: PASS — npx tsc --noEmit exit 0 (clean). Build GREEN.
+========================================================================

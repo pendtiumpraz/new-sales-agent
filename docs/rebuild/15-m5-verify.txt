@@ -1,0 +1,78 @@
+M5 (Enrichment / Discovery) BACKEND — VERIFY REPORT
+Sainskerta Loop Phase 03 · Module 5 backend
+Date: 2026-06-29
+Branch: new-main
+
+RESULT: PASS
+
+========================================================================
+COMMANDS RUN (cwd = D:/github/agentic-sales-ai)
+========================================================================
+1) npx tsc --noEmit
+2) npm run lint   (next lint)
+
+========================================================================
+1) npx tsc --noEmit
+========================================================================
+Exit: clean. ZERO output lines. No type errors.
+
+========================================================================
+2) npm run lint  (next lint)
+========================================================================
+Exit: clean. 0 errors, 2 warnings — both PRE-EXISTING and UNRELATED to M5:
+
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+NO lint findings (errors OR warnings) in any new M5 file:
+  - modules/enrichment/{schema,repo,service}.ts
+  - app/api/discovery/jobs/**     (route, trashed, [id], [id]/restore, [id]/purge)
+  - app/api/discovery/results/**  (route, trashed, [id], [id]/restore, [id]/purge, [id]/save)
+  - app/api/enrichment/**         (route, trashed, [id], [id]/restore, [id]/purge,
+                                   [id]/classify, [id]/run, [id]/push)
+
+(Per CLAUDE.md, ESLint is intentionally lenient for the prototype: `any`,
+unused vars, prefer-const are warnings — not errors. Even so, the M5 code
+produced zero of these.)
+
+========================================================================
+M5 SURFACE VERIFIED
+========================================================================
+modules/enrichment/schema.ts   — 3 tables, all TENANT-grained, soft-delete, NO FKs:
+  discovery_job, discovery_result, enrichment_record.
+  Table names do NOT collide with legacy (legacy uses crawl_job / ingest_batch);
+  clean singular names, no _v2 suffix needed.
+modules/enrichment/repo.ts     — present.
+modules/enrichment/service.ts  — present (classify heuristic + push-to-CRM via crmService).
+
+Migration generated (NOT pushed):
+  drizzle/migrations/0032_enrichment_discovery.sql
+  drizzle/migrations/meta/0032_snapshot.json
+
+Build remains GREEN. No errors attributable to new M5 code.
+
+========================================================================
+VERDICT: PASS
+========================================================================
+
+========================================================================
+FIX PASS RE-VERIFICATION (2026-06-29)
+========================================================================
+Independently re-ran both checks against the M5 surface:
+
+  npx tsc --noEmit  -> exit 0, ZERO output. No type errors.
+  npm run lint      -> exit 0, 0 errors, 2 warnings.
+
+The 2 lint warnings are PRE-EXISTING and UNRELATED to M5:
+  - app/(app)/settings/diagnostics/page.tsx:514:21  '_body' unused
+  - components/shared/table-pagination.tsx:65:45     'pageSize' unused
+
+No M5 file (modules/enrichment/{schema,repo,service}.ts; app/api/discovery/**;
+app/api/enrichment/**) produced any tsc or lint finding. Nothing to fix —
+build is GREEN.
+
+FINAL STATUS: tsc clean (exit 0, no errors). PASS.
+========================================================================

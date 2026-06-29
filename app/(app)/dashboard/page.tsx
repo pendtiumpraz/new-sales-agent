@@ -1,257 +1,267 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import dynamic from "next/dynamic";
+// Dashboard — Module 1 (Sainskerta Loop Phase 04). Wired to the REAL rebuild
+// backend: GET /api/db/people (RLS-scoped leads), GET /api/entitlements (vertical
+// + per-module quota overrides), GET /api/tenant/status (activation/plan). NO mock
+// data — every band has its own loading skeleton, empty state, and error+retry.
+// Faithful to mockups/dashboard-shell.html: KPI cards + funnel placeholder + tugas
+// list + recent-contacts mini-table (B2C/B2B badge). Coral Sunset via CSS tokens.
+
+import { useMemo } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   ArrowRight,
-  CheckCircle2,
-  MessageCircle,
   Briefcase,
+  CheckCircle2,
+  ListChecks,
+  MessageCircle,
   TrendingUp,
-  Workflow,
+  Users,
+  Zap,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ChannelDot } from "@/components/shared/channel-dot";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { KpiTile, KpiStrip } from "@/components/shared/kpi-tile";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import { useCountUp } from "@/components/dashboard/use-count-up";
-import {
-  useActivity,
-  useCadences,
-  useConversations,
-  useDeals,
-  useTasks,
-} from "@/lib/api-mock/hooks";
-import type { DealStage } from "@/lib/types";
-import { formatIDR, formatIDRCompact } from "@/lib/utils/format-idr";
 import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 
-const PipelineStageChart = dynamic(
-  () =>
-    import("@/components/dashboard/pipeline-stage-chart").then(
-      (m) => m.PipelineStageChart,
-    ),
-  { ssr: false, loading: () => <Skeleton className="h-[280px] w-full" /> },
-);
+// ── Real API shapes ───────────────────────────────────────────────────────
 
-const STAGE_ORDER: DealStage[] = [
-  "prospek",
-  "kualifikasi",
-  "penawaran",
-  "negosiasi",
-  "tutup",
-];
+/** Row from GET /api/db/people (subset we render). */
+interface PersonRow {
+  id: string;
+  fullName: string;
+  title: string | null;
+  companyName: string | null;
+  leadType: string | null; // b2c_customer | b2b_partner | unknown
+  leadScore: number | null; // 0..1 classifier confidence
+  status: string; // active | …
+  source: string | null; // discovery channel/source label
+  createdAt: string;
+  updatedAt: string;
+  contacts: { channel: string }[];
+}
 
-const STAGE_LABEL: Record<DealStage, string> = {
-  prospek: "Prospek",
-  kualifikasi: "Kualifikasi",
-  penawaran: "Penawaran",
-  negosiasi: "Negosiasi",
-  tutup: "Tutup",
-};
-// Coral → teal ramp (primary → tertiary)
-const FUNNEL_FILL = ["#FB5E3B", "#F6845C", "#D9A98E", "#86C7BE", "#14B8A6"];
+interface PeopleResponse {
+  data: PersonRow[];
+  source: "db" | "mock" | "error";
+}
 
-const PRIORITY: Record<string, "destructive" | "warning" | "muted"> = {
-  tinggi: "destructive",
-  sedang: "warning",
-  rendah: "muted",
-};
+/** GET /api/entitlements → onboardingService.resolveEntitlements. */
+interface EntitlementsResponse {
+  ok: boolean;
+  data?: {
+    vertical: { name: string } | null;
+    enabledModules: string[];
+    modules: { moduleKey: string; label: string; enabled: boolean }[];
+    quotaOverrides: Record<string, Record<string, number>>;
+  };
+  error?: string;
+}
 
-const CHANNEL_FILTERS = [
-  { key: "all", label: "Semua" },
-  { key: "whatsapp", label: "WhatsApp" },
-  { key: "email", label: "Email" },
-  { key: "linkedin", label: "LinkedIn" },
-  { key: "instagram", label: "Instagram" },
-  { key: "tokopedia", label: "Tokopedia" },
-  { key: "shopee", label: "Shopee" },
-  { key: "sms", label: "SMS" },
+interface TenantStatusResponse {
+  active: boolean;
+  status?: string;
+  activeUntil?: string | null;
+  reason?: string;
+}
+
+const WEEK_MS = 7 * 864e5;
+
+// Funnel placeholder stages — coral → teal ramp (primary → tertiary), matching
+// the approved mockup. Real people are bucketed by lead classification, so the
+// funnel reflects live data while keeping the mockup's shape.
+const FUNNEL_STAGES = [
+  { key: "all", label: "Lead masuk", fill: "#FB5E3B" },
+  { key: "scored", label: "Sudah di-skor", fill: "#F6845C" },
+  { key: "classified", label: "Terklasifikasi", fill: "#D9A98E" },
+  { key: "qualified", label: "Skor fit tinggi", fill: "#86C7BE" },
+  { key: "b2b", label: "Mitra B2B", fill: "#14B8A6" },
 ] as const;
 
-type ChannelKey = (typeof CHANNEL_FILTERS)[number]["key"];
+// ── Helpers ───────────────────────────────────────────────────────────────
 
-// Fixed "today" matches the data seed so KPIs stay deterministic.
-const NOW = new Date("2026-05-25T10:00:00+07:00").getTime();
-const WEEK_AHEAD = NOW + 7 * 864e5;
+function isB2B(leadType: string | null): boolean {
+  return (leadType ?? "").toLowerCase().includes("b2b");
+}
+
+function segmentLabel(leadType: string | null): "B2B" | "B2C" | "—" {
+  if (!leadType || leadType === "unknown") return "—";
+  return isB2B(leadType) ? "B2B" : "B2C";
+}
+
+/** A lead's primary channel for the dot (first contact point, else source). */
+function leadChannel(p: PersonRow): string {
+  return p.contacts[0]?.channel ?? p.source ?? "whatsapp";
+}
+
+/** leadScore is 0..1; render as a 0..100 "Skor Fit". */
+function fitScore(score: number | null): number | null {
+  if (score == null) return null;
+  return Math.round(score <= 1 ? score * 100 : score);
+}
+
+function scoreVariant(score: number): "success" | "warning" | "muted" {
+  if (score >= 75) return "success";
+  if (score >= 60) return "warning";
+  return "muted";
+}
 
 export default function DashboardPage() {
-  const { data: deals, isLoading: dealsLoading } = useDeals();
-  const { data: conversations } = useConversations();
-  const { data: cadences } = useCadences();
-  const { data: tasks } = useTasks();
-  const { data: activity } = useActivity();
-  const [done, setDone] = useState<Set<string>>(new Set());
-  // Tracks tasks just-completed so the row can briefly flash success-green.
-  const [flashing, setFlashing] = useState<Set<string>>(new Set());
-  const [channel, setChannel] = useState<ChannelKey>("all");
-  const activeWs = useWorkspaceStore((s) => s.active);
+  const peopleQ = useQuery<PeopleResponse>({
+    queryKey: ["dashboard", "people"],
+    queryFn: async () => {
+      const r = await fetch("/api/db/people");
+      if (!r.ok) throw new Error("gagal memuat kontak");
+      return (await r.json()) as PeopleResponse;
+    },
+    retry: false,
+  });
 
-  // ── Channel-filtered slices ────────────────────────────────────────────
-  // Every section below derives from these — flipping the channel re-renders
-  // the hero, KPI tiles, tasks, funnel, and activity feed.
-  const filtered = useMemo(() => {
-    const isAll = channel === "all";
-    const f = {
-      deals: (deals ?? []).filter(
-        (d) => isAll || d.sourceChannel === channel,
-      ),
-      conversations: (conversations ?? []).filter(
-        (c) => isAll || c.channel === channel,
-      ),
-      cadences: (cadences ?? []).filter(
-        (c) => isAll || c.channelMix.includes(channel as never),
-      ),
-      tasks: (tasks ?? []).filter((t) => isAll || t.channel === channel),
-      activity: (activity ?? []).filter((a) => isAll || a.channel === channel),
-    };
-    return f;
-  }, [deals, conversations, cadences, tasks, activity, channel]);
+  const entQ = useQuery<EntitlementsResponse | null>({
+    queryKey: ["dashboard", "entitlements"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const r = await fetch("/api/entitlements");
+      // 403 (non-admin) / 503 (no DB) → keep the band, just no quota override.
+      if (!r.ok) return null;
+      return (await r.json()) as EntitlementsResponse;
+    },
+    retry: false,
+  });
 
-  // ── KPIs derived from the filtered slices ──────────────────────────────
-  const kpi = useMemo(() => {
-    const openDeals = filtered.deals.filter((d) => d.stage !== "tutup");
-    const pipelineValue = openDeals.reduce((s, d) => s + d.value, 0);
-    // "Closing minggu ini" = due in the NEXT 7 days. The old filter had no lower
-    // bound, so every OVERDUE deal (expectedClose in the past) was counted as
-    // closing this week. Overdue is now tracked separately.
-    const closing = filtered.deals.filter((d) => {
-      if (!d.expectedClose || d.stage === "tutup") return false;
-      const t = +new Date(d.expectedClose); // guard: null/invalid date must not coerce to 1970
-      return !Number.isNaN(t) && t >= NOW && t <= WEEK_AHEAD;
-    });
-    const closingValue = closing.reduce((s, d) => s + d.value, 0);
-    const overdueCount = filtered.deals.filter((d) => {
-      if (!d.expectedClose || d.stage === "tutup") return false;
-      const t = +new Date(d.expectedClose);
-      return !Number.isNaN(t) && t < NOW;
-    }).length;
+  const statusQ = useQuery<TenantStatusResponse | null>({
+    queryKey: ["dashboard", "tenant-status"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const r = await fetch("/api/tenant/status");
+      if (!r.ok) return null;
+      return (await r.json()) as TenantStatusResponse;
+    },
+    retry: false,
+  });
 
-    const activeCadences = filtered.cadences.filter((c) => c.status === "active");
-    const enrolled = activeCadences.reduce((s, c) => s + c.enrolled, 0);
+  // Stable reference so the derived useMemo hooks below don't recompute every
+  // render (the `?? []` fallback would otherwise be a fresh array each time).
+  const people = useMemo<PersonRow[]>(
+    () => peopleQ.data?.data ?? [],
+    [peopleQ.data],
+  );
+  const peopleLoading = peopleQ.isLoading;
+  const peopleError = peopleQ.isError;
 
-    // Read-through, not reply rate: `unread` is a read-receipt (unread INBOUND
-    // messages), so this is the share of conversations with nothing left unread,
-    // and `unread` count = messages still needing attention. Labelled "Dibaca"
-    // accordingly — a true reply rate would need the message log this view
-    // doesn't load.
-    const totalConvos = filtered.conversations.length;
-    const replied = filtered.conversations.filter((c) => c.unread === 0).length;
-    const responseRate =
-      totalConvos > 0 ? Math.round((replied / totalConvos) * 100) : 0;
-    const unanswered = filtered.conversations.reduce(
-      (s, c) => s + c.unread,
-      0,
+  // ── Derived KPIs (all from real people rows) ─────────────────────────────
+  const stats = useMemo(() => {
+    const now = Date.now();
+    const newLeads = people.filter(
+      (p) => now - new Date(p.createdAt).getTime() <= WEEK_MS,
+    ).length;
+    const scored = people.filter((p) => p.leadScore != null);
+    const classified = people.filter(
+      (p) => p.leadType && p.leadType !== "unknown",
     );
-
-    const funnel = STAGE_ORDER.map((stage) => ({
-      stage,
-      count: filtered.deals.filter((d) => d.stage === stage).length,
-      value: filtered.deals
-        .filter((d) => d.stage === stage)
-        .reduce((s, d) => s + d.value, 0),
-    }));
-
+    const qualified = scored.filter((p) => (fitScore(p.leadScore) ?? 0) >= 75);
+    const b2b = people.filter((p) => isB2B(p.leadType));
+    const avgFit =
+      scored.length > 0
+        ? Math.round(
+            scored.reduce((s, p) => s + (fitScore(p.leadScore) ?? 0), 0) /
+              scored.length,
+          )
+        : 0;
     return {
-      pipelineValue,
-      pipelineChange: 12.4, // mocked trend — same regardless of slice
-      closingCount: closing.length,
-      closingValue,
-      overdueCount,
-      responseRate,
-      unanswered,
-      activeCadences: activeCadences.length,
-      enrolled,
-      funnel,
-      totalConvos,
+      total: people.length,
+      newLeads,
+      scoredCount: scored.length,
+      classifiedCount: classified.length,
+      qualifiedCount: qualified.length,
+      b2bCount: b2b.length,
+      avgFit,
     };
-  }, [filtered]);
+  }, [people]);
 
-  const taskHref = (ch: string) => {
-    const convo = (conversations ?? []).find((c) => c.channel === ch);
-    return convo ? `/inbox/${convo.id}` : "/inbox";
-  };
+  // Funnel rows — count per placeholder stage, widths relative to the top stage.
+  const funnel = useMemo(() => {
+    const counts: Record<(typeof FUNNEL_STAGES)[number]["key"], number> = {
+      all: stats.total,
+      scored: stats.scoredCount,
+      classified: stats.classifiedCount,
+      qualified: stats.qualifiedCount,
+      b2b: stats.b2bCount,
+    };
+    const top = Math.max(counts.all, 1);
+    return FUNNEL_STAGES.map((s) => ({
+      ...s,
+      count: counts[s.key],
+      width: Math.round((counts[s.key] / top) * 100),
+    }));
+  }, [stats]);
 
-  const funnelData =
-    kpi.funnel.map((f, i) => ({
-      label: STAGE_LABEL[f.stage],
-      value: f.count,
-      fill: FUNNEL_FILL[i],
-    })) ?? [];
+  // Tugas prioritas — derived from the highest-fit leads most recently touched.
+  // No "tasks" table in Module 1, so this is an honest "next-best-contact" list,
+  // not fabricated rows. Empty-states cleanly when there are no leads.
+  const tasks = useMemo(() => {
+    return [...people]
+      .sort((a, b) => {
+        const fa = fitScore(a.leadScore) ?? 0;
+        const fb = fitScore(b.leadScore) ?? 0;
+        if (fb !== fa) return fb - fa;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      })
+      .slice(0, 5);
+  }, [people]);
 
-  const totalDeals = kpi.funnel.reduce((s, f) => s + f.count, 0);
-  const activeLabel = CHANNEL_FILTERS.find((f) => f.key === channel)?.label;
-  const isAll = channel === "all";
+  // Recent contacts — newest-updated first.
+  const recent = useMemo(() => {
+    return [...people]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 6);
+  }, [people]);
 
-  // Per-channel labels keep the KPI tile copy honest. This tile measures
-  // read-through (no unread inbound left), not a reply rate — hence "Dibaca".
-  const responseLabel =
-    channel === "whatsapp"
-      ? "Dibaca WhatsApp"
-      : channel === "email"
-        ? "Dibaca Email"
-        : channel === "instagram"
-          ? "Dibaca Instagram"
-          : channel === "tokopedia"
-            ? "Pesanan Tokopedia"
-            : "Dibaca pelanggan";
-  const responseAccent =
-    channel === "whatsapp"
-      ? "#25D366"
-      : channel === "email"
-        ? "#6366F1"
-        : channel === "instagram"
-          ? "#E1306C"
-          : channel === "tokopedia"
-            ? "#03AC0E"
-            : "#14B8A6";
+  // ── AI token quota (from entitlements quotaOverrides, if configured) ──────
+  const quota = useMemo(() => {
+    const overrides = entQ.data?.data?.quotaOverrides ?? {};
+    for (const metrics of Object.values(overrides)) {
+      for (const [metric, limit] of Object.entries(metrics)) {
+        if (/token|ai/i.test(metric) && limit > 0) {
+          return { metric, limit };
+        }
+      }
+    }
+    return null;
+  }, [entQ.data]);
 
-  // Animated counters — drive every KPI number on the page.
-  const pipelineCount = useCountUp(kpi.pipelineValue, 900);
-  const closingValueCount = useCountUp(kpi.closingValue, 900);
-  const closingCountAnim = useCountUp(kpi.closingCount);
-  const responseRateAnim = useCountUp(kpi.responseRate);
-  const totalConvosAnim = useCountUp(kpi.totalConvos);
-  const unansweredAnim = useCountUp(kpi.unanswered);
-  const activeCadencesAnim = useCountUp(kpi.activeCadences);
-  const enrolledAnim = useCountUp(kpi.enrolled);
+  const ent = entQ.data?.data;
+  const planLabel = ent?.vertical?.name ?? null;
+  const activeUntil = statusQ.data?.activeUntil
+    ? formatRelativeID(statusQ.data.activeUntil).replace(" lalu", "")
+    : null;
+
+  const description =
+    [
+      "Ringkasan hari ini",
+      planLabel ? `Paket: ${planLabel}` : null,
+      activeUntil ? `Aktif s/d ${activeUntil}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        description={`Ringkasan hari ini${activeWs ? ` · Workspace: ${activeWs.name}` : ""}`}
-      >
-        <Select value={channel} onValueChange={(v) => setChannel(v as ChannelKey)}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {CHANNEL_FILTERS.map((f) => (
-              <SelectItem key={f.key} value={f.key}>
-                {f.key === "all" ? "Semua channel" : f.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <PageHeader title="Dashboard" description={description}>
         <Button asChild>
           <Link href="/workspaces">
             <Briefcase className="h-4 w-4" />
@@ -261,145 +271,223 @@ export default function DashboardPage() {
       </PageHeader>
 
       <div className="space-y-5 p-6">
-        {/* First-run setup checklist (auto-hides when complete or dismissed) */}
-        <OnboardingChecklist />
-
-        {/* KPI strip — pipeline · closing · read-through · cadence (maks 4) */}
+        {/* ============ KPI CARDS ============ */}
         <KpiStrip>
           <KpiTile
-            loading={dealsLoading}
-            icon={<TrendingUp className="h-5 w-5" />}
+            loading={peopleLoading}
+            icon={<Users className="h-5 w-5" />}
             accent="#FB5E3B"
-            label={isAll ? "Nilai pipeline" : `Pipeline · ${activeLabel}`}
-            value={formatIDRCompact(Math.round(pipelineCount))}
-            sub={`${totalDeals} deal di funnel`}
+            label="Lead baru"
+            count={peopleError ? undefined : stats.newLeads}
+            value={peopleError ? "—" : undefined}
+            sub="7 hari terakhir"
           />
           <KpiTile
-            loading={dealsLoading}
+            loading={peopleLoading}
+            icon={<MessageCircle className="h-5 w-5" />}
+            accent="#25D366"
+            label="Total kontak"
+            count={peopleError ? undefined : stats.total}
+            value={peopleError ? "—" : undefined}
+            sub="Lead aktif di tenant"
+          />
+          <KpiTile
+            loading={peopleLoading}
             icon={<CheckCircle2 className="h-5 w-5" />}
             accent="#14B8A6"
-            label={isAll ? "Closing minggu ini" : `Closing · ${activeLabel}`}
-            value={`${Math.round(closingCountAnim)}`}
-            sub={
-              kpi.overdueCount > 0
-                ? `${formatIDR(Math.round(closingValueCount))} · ${kpi.overdueCount} lewat tempo`
-                : formatIDR(Math.round(closingValueCount))
-            }
-          />
-          <KpiTile
-            loading={dealsLoading}
-            icon={<MessageCircle className="h-5 w-5" />}
-            accent={responseAccent}
-            label={responseLabel}
+            label="Skor fit rata-rata"
             value={
-              kpi.totalConvos > 0
-                ? channel === "tokopedia"
-                  ? `${Math.round(totalConvosAnim)}`
-                  : `${Math.round(responseRateAnim)}%`
-                : "—"
+              peopleError
+                ? "—"
+                : stats.scoredCount > 0
+                  ? `${stats.avgFit}`
+                  : "—"
             }
             sub={
-              kpi.totalConvos > 0
-                ? `${Math.round(unansweredAnim)} belum dibaca`
-                : "Tidak ada percakapan di channel ini"
+              stats.scoredCount > 0
+                ? `${stats.qualifiedCount} fit tinggi (≥75)`
+                : "Belum ada lead di-skor"
             }
           />
-          <KpiTile
-            loading={dealsLoading}
-            icon={<Workflow className="h-5 w-5" />}
-            accent="#F59E0B"
-            label={isAll ? "Cadence aktif" : `Cadence · ${activeLabel}`}
-            value={`${Math.round(activeCadencesAnim)}`}
-            sub={`${Math.round(enrolledAnim)} kontak terdaftar`}
-          />
+          {/* Kuota AI — real entitlement override, else honest empty-state. */}
+          <Card className="transition-shadow hover:shadow-md">
+            <CardContent className="flex h-full flex-col p-5">
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-xl"
+                style={{ backgroundColor: "#F59E0B1A", color: "#d97706" }}
+              >
+                <Zap className="h-5 w-5" />
+              </span>
+              <p className="mt-4 text-sm text-muted-foreground">Kuota token AI</p>
+              {entQ.isLoading ? (
+                <Skeleton className="mt-1.5 h-7 w-20" />
+              ) : quota ? (
+                <>
+                  <p className="tnum mt-1 text-2xl font-semibold tracking-tight">
+                    {quota.limit.toLocaleString("id-ID")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Batas {quota.metric}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-muted-foreground">
+                    —
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Belum diatur · kuota default
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </KpiStrip>
 
-        {/* Band 2: tasks + funnel */}
+        {/* ============ BAND 2: Funnel placeholder + Tugas prioritas ============ */}
         <div className="grid gap-4 lg:grid-cols-12">
-          <Card className="lg:col-span-7">
+          {/* Funnel pipeline (styled divs — placeholder, no chart lib) */}
+          <Card className="lg:col-span-5">
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>
-                Tugas prioritas hari ini{!isAll ? ` · ${activeLabel}` : ""}
-              </CardTitle>
+              <div>
+                <CardTitle>Funnel pipeline</CardTitle>
+                <p className="text-[11px] text-muted-foreground">
+                  {peopleError ? "—" : `Total ${stats.total} lead`} di funnel
+                </p>
+              </div>
+              <Link
+                href="/pipeline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                Pipeline <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {peopleLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-7 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : peopleError ? (
+                <ErrorState
+                  className="border-0 py-8"
+                  title="Gagal memuat funnel"
+                  description="Tidak bisa mengambil data lead."
+                  onRetry={() => peopleQ.refetch()}
+                />
+              ) : stats.total === 0 ? (
+                <EmptyState
+                  className="border-0 py-8"
+                  icon={TrendingUp}
+                  title="Funnel masih kosong"
+                  description="Tambah lead lewat Discovery di workspace untuk mengisi funnel."
+                />
+              ) : (
+                <div className="space-y-3">
+                  {funnel.map((row) => (
+                    <div key={row.key}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="font-medium">{row.label}</span>
+                        <span className="text-muted-foreground">
+                          <b className="text-foreground">{row.count}</b> lead
+                        </span>
+                      </div>
+                      <div className="h-7 overflow-hidden rounded-md bg-muted">
+                        <div
+                          className="h-full rounded-md transition-[width] duration-700 ease-out"
+                          style={{
+                            width: `${row.width}%`,
+                            backgroundColor: row.fill,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tugas prioritas hari ini */}
+          <Card className="lg:col-span-7 flex flex-col">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle>Tugas prioritas hari ini</CardTitle>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {(filtered.tasks.length ?? 0) - done.size} tersisa
-                </Badge>
-                <Link href="/inbox" className="text-xs font-medium text-primary hover:underline">
+                {!peopleError && (
+                  <Badge variant="secondary">{tasks.length} tugas</Badge>
+                )}
+                <Link
+                  href="/inbox"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
                   Lihat semua
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              {filtered.tasks.length === 0 ? (
-                <p className="px-6 py-8 text-center text-sm text-muted-foreground">
-                  Tidak ada tugas untuk channel ini.
-                </p>
+            <CardContent className="flex-1 p-0">
+              {peopleLoading ? (
+                <ul className="divide-y">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <li key={i} className="flex items-center gap-3 px-6 py-3">
+                      <Skeleton className="h-5 w-5 rounded-md" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-2/5" />
+                        <Skeleton className="h-3 w-1/4" />
+                      </div>
+                      <Skeleton className="h-7 w-12 rounded-md" />
+                    </li>
+                  ))}
+                </ul>
+              ) : peopleError ? (
+                <ErrorState
+                  className="border-0 py-8"
+                  title="Gagal memuat tugas"
+                  onRetry={() => peopleQ.refetch()}
+                />
+              ) : tasks.length === 0 ? (
+                <EmptyState
+                  className="border-0 py-10"
+                  icon={ListChecks}
+                  title="Belum ada tugas hari ini"
+                  description="Lead prioritas akan muncul di sini setelah kamu menambah & menilai lead."
+                />
               ) : (
                 <ul className="divide-y">
-                  {filtered.tasks.map((task) => {
-                    const isDone = done.has(task.id);
-                    const isFlashing = flashing.has(task.id);
+                  {tasks.map((p) => {
+                    const score = fitScore(p.leadScore);
                     return (
                       <li
-                        key={task.id}
-                        className={cn(
-                          "flex items-center gap-3 px-6 py-3 transition-colors duration-500",
-                          isFlashing
-                            ? "bg-success/15"
-                            : "hover:bg-muted/40",
-                        )}
+                        key={p.id}
+                        className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/40"
                       >
-                        <motion.div whileTap={{ scale: 0.86 }} className="flex">
-                          <Checkbox
-                            checked={isDone}
-                            onCheckedChange={() => {
-                              setDone((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(task.id)) {
-                                  next.delete(task.id);
-                                } else {
-                                  next.add(task.id);
-                                  // Trigger the success-green flash; clear it
-                                  // after the CSS fade-out completes.
-                                  setFlashing((fprev) => {
-                                    const fnext = new Set(fprev);
-                                    fnext.add(task.id);
-                                    return fnext;
-                                  });
-                                  window.setTimeout(() => {
-                                    setFlashing((fprev) => {
-                                      const fnext = new Set(fprev);
-                                      fnext.delete(task.id);
-                                      return fnext;
-                                    });
-                                  }, 600);
-                                }
-                                return next;
-                              });
-                            }}
-                          />
-                        </motion.div>
-                        <Link href={taskHref(task.channel)} className="flex min-w-0 flex-1 items-center gap-3">
-                          <ChannelDot channel={task.channel} size={8} />
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className={cn(
-                                "truncate text-sm font-medium transition-colors duration-300",
-                                isDone && "text-muted-foreground line-through",
-                              )}
-                            >
-                              {task.title}
-                            </p>
-                            <p className="truncate text-xs text-muted-foreground">{task.contactName}</p>
-                          </div>
+                        <ChannelDot channel={leadChannel(p)} size={8} />
+                        <Link
+                          href="/inbox"
+                          className="min-w-0 flex-1"
+                        >
+                          <p className="truncate text-sm font-medium">
+                            Tindak lanjut · {p.fullName}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {p.companyName ?? p.title ?? "Lead baru"}
+                          </p>
                         </Link>
-                        <Badge variant={PRIORITY[task.priority]}>{task.priority}</Badge>
-                        <span className="hidden w-16 text-right text-xs text-muted-foreground sm:block">
-                          {task.due}
+                        {score != null && (
+                          <Badge variant={scoreVariant(score)}>
+                            Skor {score}
+                          </Badge>
+                        )}
+                        <span className="hidden w-20 text-right text-[11px] text-muted-foreground sm:block">
+                          {formatRelativeID(p.updatedAt)}
                         </span>
-                        <Button asChild size="sm" variant="outline" className="h-7 shrink-0 px-2.5">
-                          <Link href={taskHref(task.channel)}>Buka</Link>
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="h-7 shrink-0 px-2.5"
+                        >
+                          <Link href="/inbox">Buka</Link>
                         </Button>
                       </li>
                     );
@@ -408,118 +496,162 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-
-          <Card className="lg:col-span-5">
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>
-                Funnel pipeline{!isAll ? ` · ${activeLabel}` : ""}
-              </CardTitle>
-              <Link href="/pipeline" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                Pipeline <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {dealsLoading ? (
-                <Skeleton className="h-[280px] w-full" />
-              ) : totalDeals === 0 ? (
-                <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-                  Tidak ada deal aktif di channel ini.
-                </div>
-              ) : (
-                // key forces a fresh entrance animation when the filter changes
-                <PipelineStageChart key={channel} data={funnelData} />
-              )}
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Band 3: activity */}
-        <Card>
+        {/* ============ BAND 3: Kontak terbaru (mini-table w/ B2C/B2B badges) ============ */}
+        <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle>
-              Aktivitas terbaru{!isAll ? ` · ${activeLabel}` : ""}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {!isAll && (
-                <Badge variant="secondary" className="gap-1.5">
-                  <ChannelDot channel={channel} size={8} />
-                  {activeLabel}
-                </Badge>
-              )}
-              <Link href="/reports" className="text-xs font-medium text-primary hover:underline">
-                Lihat semua
-              </Link>
+            <div>
+              <CardTitle>Kontak terbaru</CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                Lead terbaru — kelola penuh di modul Kontak
+              </p>
             </div>
+            <Link
+              href="/contacts"
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Lihat semua →
+            </Link>
           </CardHeader>
           <CardContent className="p-0">
-            {filtered.activity.length === 0 ? (
-              <p className="px-6 py-8 text-center text-sm text-muted-foreground">
-                Tidak ada aktivitas untuk channel ini.
-              </p>
+            {peopleLoading ? (
+              <div className="space-y-2 p-5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="ml-auto h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : peopleError ? (
+              <ErrorState
+                className="border-0 py-8"
+                title="Gagal memuat kontak"
+                description="Tidak bisa mengambil daftar lead terbaru."
+                onRetry={() => peopleQ.refetch()}
+                icon={AlertTriangle}
+              />
+            ) : recent.length === 0 ? (
+              <EmptyState
+                className="border-0 py-10"
+                icon={Users}
+                title="Belum ada kontak"
+                description="Tambah lead lewat Discovery di workspace untuk melihatnya di sini."
+                action={
+                  <Button asChild size="sm">
+                    <Link href="/workspaces">
+                      <Briefcase className="h-4 w-4" /> Buka Workspace
+                    </Link>
+                  </Button>
+                }
+              />
             ) : (
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.ul
-                  key={channel}
-                  className="divide-y"
-                  initial="hidden"
-                  animate="show"
-                  exit="hidden"
-                >
-                  {filtered.activity.map((a, i) => (
-                    <ActivityRow key={a.id} index={i}>
-                      <UserAvatar
-                        name={a.actor}
-                        className="h-8 w-8 ring-0 ring-primary/0 transition-shadow duration-300 hover:ring-2 hover:ring-primary/40 hover:animate-[pulse_2s_ease-in-out_infinite]"
-                      />
-                      <p className="flex-1 text-sm">
-                        <span className="font-medium">{a.actor}</span>{" "}
-                        <span className="text-muted-foreground">{a.action}</span>{" "}
-                        <span className="font-medium">{a.target}</span>
-                      </p>
-                      {a.channel && <ChannelDot channel={a.channel} size={8} />}
-                      <span className="w-24 text-right text-xs text-muted-foreground">
-                        {formatRelativeID(a.timestamp)}
-                      </span>
-                    </ActivityRow>
-                  ))}
-                </motion.ul>
-              </AnimatePresence>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-5 py-2.5 font-semibold">Nama</th>
+                      <th className="px-5 py-2.5 font-semibold">Segmen</th>
+                      <th className="px-5 py-2.5 font-semibold">Sumber</th>
+                      <th className="px-5 py-2.5 font-semibold">Status</th>
+                      <th className="px-5 py-2.5 text-right font-semibold">
+                        Skor Fit
+                      </th>
+                      <th className="px-5 py-2.5 text-right font-semibold">
+                        Update
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {recent.map((p) => {
+                      const seg = segmentLabel(p.leadType);
+                      const score = fitScore(p.leadScore);
+                      const channel = leadChannel(p);
+                      return (
+                        <tr
+                          key={p.id}
+                          className="cursor-pointer transition-colors hover:bg-muted/40"
+                        >
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <UserAvatar
+                                name={p.fullName}
+                                color={isB2B(p.leadType) ? "#0D9488" : "#FB5E3B"}
+                                className="h-7 w-7 text-[11px]"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate font-medium">
+                                  {p.fullName}
+                                </p>
+                                <p className="truncate text-[11px] text-muted-foreground">
+                                  {p.companyName ?? p.title ?? "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3">
+                            {seg === "—" ? (
+                              <span className="text-[11px] text-muted-foreground">
+                                —
+                              </span>
+                            ) : (
+                              <Badge
+                                variant="muted"
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                                  seg === "B2B"
+                                    ? "bg-tertiary/15 text-tertiary"
+                                    : "bg-primary/12 text-primary",
+                                )}
+                              >
+                                {seg}
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="px-5 py-3">
+                            <ChannelDot channel={channel} size={8} withLabel />
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className="text-xs capitalize text-muted-foreground">
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            {score != null ? (
+                              <Badge variant={scoreVariant(score)}>
+                                {score}
+                              </Badge>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-right text-xs text-muted-foreground">
+                            {formatRelativeID(p.updatedAt)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>
+
+        <p className="text-[11px] text-muted-foreground">
+          Shell ini dipakai semua halaman app (sidebar + topbar identik) — konten
+          di-swap per modul. White-label: logo &amp; warna primary tenant
+          ter-apply via CSS variable, editable di{" "}
+          <Link href="/branding" className="text-primary hover:underline">
+            Branding
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
 }
-
-// ── Pieces ──────────────────────────────────────────────────────────────
-
-/**
- * Activity feed row — fades + slides in from the right with a per-index
- * stagger. Skips animation for reduced-motion users.
- */
-function ActivityRow({
-  children,
-  index,
-}: {
-  children: React.ReactNode;
-  index: number;
-}) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.li
-      className="flex items-center gap-3 px-6 py-3"
-      initial={reduce ? false : { opacity: 0, x: 18 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{
-        duration: 0.32,
-        ease: "easeOut",
-        delay: reduce ? 0 : Math.min(index * 0.06, 0.6),
-      }}
-    >
-      {children}
-    </motion.li>
-  );
-}
-
-

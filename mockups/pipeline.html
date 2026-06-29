@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.fit-bar{transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.drawer-backdrop{transition:opacity .3s ease}
+.deal-card{transition:box-shadow .18s ease,transform .18s ease,opacity .18s ease,border-color .18s ease}
+.deal-card:active{cursor:grabbing}
+.deal-card.dragging{opacity:.45;transform:rotate(1.5deg) scale(.98);box-shadow:0 18px 36px -12px hsl(16 45% 30% / .35)}
+.col-body.drop-hot{background:hsl(var(--primary)/0.06);outline:2px dashed hsl(var(--primary)/0.45);outline-offset:-4px}
+.drop-line{height:0;border:0;border-top:2px dashed hsl(var(--primary)/0.5);margin:2px 0;border-radius:2px}
+.scroll-x::-webkit-scrollbar{height:10px}
+.scroll-x::-webkit-scrollbar-thumb{background:hsl(14 40% 80%);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+@media (prefers-reduced-motion:reduce){.fit-bar,.deal-card,.drawer{transition:none}}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-33px)]">
+
+  <!-- ===================== SIDEBAR (w-64) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+
+    <!-- BRAND TENANT (white-label slot: logo + nama brand) -->
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-soft">SA</div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Sapa<span class="text-primary">AI</span></div>
+        <div class="text-[10px] text-muted-foreground truncate">CV Maju Bersama</div>
+      </div>
+    </div>
+
+    <!-- MENU (entitlement-gated per vertical) -->
+    <nav class="flex-1 overflow-y-auto py-4 text-sm space-y-5">
+
+      <!-- GROUP: UTAMA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="dashboard-shell.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+          Workspace
+        </a>
+      </div>
+
+      <!-- GROUP: LEADS -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kontak
+        </a>
+        <a href="enrichment.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#8B5CF6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Pengayaan Data
+        </a>
+        <!-- ACTIVE: Pipeline -->
+        <a href="pipeline.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="12" width="3" height="6" rx="1"/></svg>
+          Pipeline
+        </a>
+      </div>
+
+      <!-- GROUP: EKSEKUSI -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eksekusi</p>
+        <a href="inbox.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#25D366" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Inbox
+          <span class="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">7</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#F59E0B" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/><path d="m9 12 2 2 4-4"/></svg>
+          Cadence
+        </a>
+      </div>
+
+      <!-- GROUP: LAINNYA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Lainnya</p>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EE4D2D" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          Ecommerce
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#14B8A6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-6 0v4"/><rect x="2" y="9" width="20" height="11" rx="2"/></svg>
+          Laporan
+        </a>
+      </div>
+
+      <!-- GROUP: PENGATURAN -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pengaturan</p>
+        <a href="branding.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EC4899" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg>
+          Branding
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6B7280" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Pengaturan
+        </a>
+      </div>
+    </nav>
+
+    <!-- Sidebar footer: akun user -->
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center font-semibold text-xs">RA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Rini Aprilia</div>
+        <div class="text-muted-foreground truncate">Sales Rep</div>
+      </div>
+      <a href="login.html" title="Keluar" class="text-muted-foreground hover:text-danger transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR (h-14, glass) -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-[33px] z-20">
+      <!-- left: search -->
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari deal / kontak…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <!-- right: workspace switcher + notif + avatar -->
+      <div class="flex items-center gap-3">
+        <button id="wsChip" class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Paket UMKM Pro</span>
+          <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="relative h-9 w-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-card"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">RA</div>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 overflow-auto">
+
+      <!-- ============ PAGE HEADER ============ -->
+      <div class="px-6 pt-6 pb-1 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Pipeline · Deal</h1>
+          <p class="text-sm text-muted-foreground mt-0.5 max-w-2xl">
+            Papan kanban CRM per tahap. Seret kartu antar kolom untuk pindah tahap, atau klik
+            kartu untuk buka detail &amp; buat penawaran di panel kanan. <span class="font-semibold text-foreground/80">1 workspace = 1 produk.</span>
+          </p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" class="h-9 px-3.5 rounded-lg bg-card border border-border text-sm font-medium flex items-center gap-2 hover:border-primary/40 transition-colors">
+            <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+            Atur Produk &amp; Harga
+          </button>
+          <button type="button" id="newDealBtn" class="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-2 shadow-soft hover:opacity-90 transition-opacity">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Deal baru
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- ============ WORKSPACE SCOPE BANNER ============ -->
+        <div class="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] px-3.5 py-2.5 text-sm">
+          <svg class="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/></svg>
+          <span class="text-foreground/80">Pipeline difilter ke <b class="text-foreground">workspace Paket UMKM Pro</b> — menampilkan deal workspace ini saja.</span>
+          <button type="button" id="wsAllToggle" class="ml-auto text-xs font-medium text-primary hover:underline shrink-0">Lihat semua workspace</button>
+        </div>
+
+        <!-- ============ KPI STRIP ============ -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:#FB5E3B18;color:#FB5E3B"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/></svg></span>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Prospek panas</p>
+            </div>
+            <p class="mt-2 text-2xl font-bold count" data-count="6">0</p>
+          </div>
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:hsl(173 80% 40% / .14);color:#14B8A6"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 7 13.5 15.5l-5-5L2 17"/><path d="M16 7h6v6"/></svg></span>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Deal aktif</p>
+            </div>
+            <p class="mt-2 text-2xl font-bold count" data-count="12">0</p>
+          </div>
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:hsl(12 96% 67% / .14);color:hsl(12 80% 55%)"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Nilai pipeline</p>
+            </div>
+            <p class="mt-2 text-2xl font-bold"><span class="text-base font-semibold text-muted-foreground">Rp</span> <span class="count" data-count="487" data-suffix=" jt">0</span></p>
+          </div>
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:#F59E0B18;color:#F59E0B"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Rata-rata di tahap</p>
+            </div>
+            <p class="mt-2 text-2xl font-bold"><span class="count" data-count="9">0</span> <span class="text-base font-semibold text-muted-foreground">hari</span></p>
+          </div>
+        </section>
+
+        <!-- ============ VIEW TOGGLE + FILTERS ============ -->
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- (1) VIEW: Kanban (aktif) / Daftar -->
+          <div class="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-muted">
+            <button type="button" class="px-3.5 h-8 rounded-md text-xs font-semibold bg-card text-foreground shadow-sm inline-flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg>
+              Kanban
+            </button>
+            <a href="enrichment.html" class="px-3.5 h-8 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+              Daftar
+            </a>
+          </div>
+
+          <span class="w-px h-5 bg-border hidden sm:block"></span>
+
+          <!-- (2) FILTER CEPAT SEGMEN -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] text-muted-foreground mr-0.5">Segmen:</span>
+            <button type="button" data-seg="all" class="seg-btn px-3 h-7 rounded-full text-xs font-semibold bg-foreground text-background">Semua</button>
+            <button type="button" data-seg="b2c" class="seg-btn px-3 h-7 rounded-full text-xs font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors">B2C</button>
+            <button type="button" data-seg="b2b" class="seg-btn px-3 h-7 rounded-full text-xs font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors">B2B</button>
+          </div>
+
+          <!-- (3) FILTER PEMILIK / SALES REP -->
+          <div class="relative">
+            <select id="ownerSel" class="appearance-none h-7 pl-3 pr-7 rounded-lg bg-card border border-border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+              <option value="all">Pemilik: Semua rep</option>
+              <option>Rini Aprilia (saya)</option>
+              <option>Doni Saputra</option>
+              <option>Maya Putri</option>
+            </select>
+            <svg class="w-3 h-3 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+
+          <span class="ml-auto text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 9 2 12l3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+            Seret kartu untuk pindah tahap · <b id="totalDeals" class="text-foreground">16</b> deal
+          </span>
+        </div>
+
+        <!-- ============ KANBAN BOARD ============ -->
+        <div class="overflow-x-auto scroll-x -mx-6 px-6 pb-3">
+          <div id="board" class="flex gap-4 min-w-[1240px] items-start">
+            <!-- columns injected by JS -->
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <p class="text-[11px] text-muted-foreground max-w-3xl">
+          Badge segmen:
+          <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span> (perorangan) ·
+          <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span> (perusahaan) — konsisten dengan halaman Kontak.
+          Kartu menampilkan nilai, segmen, kontak &amp; kanal akuisisi. Klik kartu → detail + aksi penawaran di panel kanan.
+        </p>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== RIGHT DRAWER 400px ===================== -->
+  <div id="drawerWrap" class="fixed inset-0 z-[60] pointer-events-none">
+    <!-- backdrop -->
+    <div id="drawerBackdrop" class="drawer-backdrop absolute inset-0 bg-foreground/40 opacity-0 pointer-events-none"></div>
+    <!-- panel -->
+    <aside id="drawer" class="drawer closed absolute top-0 right-0 h-full w-[400px] max-w-full bg-card border-l border-border shadow-soft flex flex-col pointer-events-auto">
+
+      <!-- Drawer header -->
+      <div class="h-14 flex items-center justify-between px-5 border-b border-border shrink-0">
+        <div class="min-w-0">
+          <h2 id="dTitle" class="text-sm font-bold text-foreground truncate">Lisensi Enterprise — PT Jaya</h2>
+          <p class="text-[11px] text-muted-foreground">Deal <span id="dId">#DL-1042</span> · workspace ini</p>
+        </div>
+        <button type="button" id="drawerClose" class="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Drawer body (scroll) -->
+      <div class="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+        <!-- (A) NILAI + SEGMEN -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-lg border border-border p-3 bg-muted/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Nilai deal</div>
+            <div class="text-lg font-bold text-foreground mt-1"><span class="text-sm text-muted-foreground">Rp</span> <span id="dValue">68 jt</span></div>
+          </div>
+          <div class="rounded-lg border border-border p-3 bg-muted/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Segmen</div>
+            <div class="flex items-center gap-1.5 mt-1.5" id="dSegCtl">
+              <button type="button" data-v="b2b" class="dseg px-2.5 h-7 rounded-full text-[11px] font-semibold" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</button>
+              <button type="button" data-v="b2c" class="dseg px-2.5 h-7 rounded-full text-[11px] font-medium bg-card border border-border text-foreground/70 hover:border-primary/40 transition-colors">B2C</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- (B) PINDAH TAHAP -->
+        <div>
+          <h3 class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">Tahap</h3>
+          <div class="relative">
+            <select id="dStageSel" class="appearance-none w-full h-9 pl-3 pr-9 rounded-lg bg-card border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+              <option value="lead">Lead / Prospek</option>
+              <option value="qualified">Kualifikasi</option>
+              <option value="value">Penawaran · Value</option>
+              <option value="nego" selected>Negosiasi</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+            </select>
+            <svg class="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <!-- stepper mini -->
+          <div id="dStepper" class="flex items-center gap-1 mt-2.5 text-[10px] text-muted-foreground flex-wrap"></div>
+        </div>
+
+        <!-- (C) KONTAK terkait -->
+        <div>
+          <h3 class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">Kontak</h3>
+          <div class="flex items-center gap-2.5 rounded-lg border border-border p-2.5">
+            <span id="dContactAv" class="h-9 w-9 rounded-full bg-primary/12 text-primary flex items-center justify-center font-semibold text-xs shrink-0">MP</span>
+            <div class="min-w-0 flex-1">
+              <div id="dContactName" class="text-[13px] font-medium text-foreground truncate">Maya Putri</div>
+              <div class="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <span id="dContactRole">Head of Procurement</span>
+                <span class="inline-flex items-center gap-1" id="dContactChan"><span class="w-1.5 h-1.5 rounded-full" style="background:#25D366"></span>WhatsApp</span>
+              </div>
+            </div>
+            <a href="contacts.html" class="text-[11px] font-medium text-primary hover:underline shrink-0 inline-flex items-center gap-0.5">Profil<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
+          </div>
+        </div>
+
+        <!-- (D) PRODUK + SKOR FIT -->
+        <div>
+          <h3 class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">Produk &amp; Skor Fit</h3>
+          <div class="rounded-lg border border-border p-3 space-y-2.5">
+            <div class="flex items-center justify-between text-[13px]">
+              <span class="text-muted-foreground">Produk</span>
+              <span class="font-medium text-foreground">Paket UMKM Pro</span>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[13px] text-muted-foreground">Skor fit</span>
+                <span id="dFitVal" class="text-[13px] font-bold text-success">88</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div id="dFitBar" class="fit-bar h-full rounded-full bg-success" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- (E) PENAWARAN (quote action) -->
+        <div class="rounded-lg border border-primary/30 bg-primary/[0.05] p-3">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[12px] font-semibold text-foreground flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h3"/></svg>
+              Penawaran
+            </h3>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-highlight/15 text-highlight-foreground border border-highlight/30 font-medium">Draf</span>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed">Buat &amp; kirim quote PDF dengan harga produk workspace ini. AI menyusun ringkasan value sesuai kebutuhan kontak.</p>
+          <button type="button" id="quoteBtn" class="mt-2.5 w-full h-9 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            Buat penawaran
+          </button>
+        </div>
+
+        <!-- (F) TABS sekunder -->
+        <div>
+          <div class="flex gap-1 border-b border-border text-xs" id="dTabs">
+            <button data-tab="act" class="dtab px-2.5 py-2 border-b-2 border-primary font-semibold text-foreground">Aktivitas</button>
+            <button data-tab="ai" class="dtab px-2.5 py-2 border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors">Analisis AI</button>
+            <button data-tab="note" class="dtab px-2.5 py-2 border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors">Catatan</button>
+          </div>
+          <div class="pt-3">
+            <div data-panel="act" class="dpanel space-y-2.5">
+              <div class="flex gap-2.5 text-[12px]">
+                <span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+                <div><p class="text-foreground">Pindah ke tahap <b>Negosiasi</b></p><p class="text-[10px] text-muted-foreground">2 jam lalu</p></div>
+              </div>
+              <div class="flex gap-2.5 text-[12px]">
+                <span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-tertiary shrink-0"></span>
+                <div><p class="text-foreground">Balasan WhatsApp — minta diskon volume</p><p class="text-[10px] text-muted-foreground">Kemarin · via WhatsApp</p></div>
+              </div>
+              <div class="flex gap-2.5 text-[12px]">
+                <span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-success shrink-0"></span>
+                <div><p class="text-foreground">Penawaran v1 dikirim — Rp 72 jt</p><p class="text-[10px] text-muted-foreground">3 hari lalu</p></div>
+              </div>
+            </div>
+            <div data-panel="ai" class="dpanel hidden">
+              <div class="rounded-lg bg-accent/60 border border-border p-2.5 text-[11px] leading-relaxed text-foreground/80">
+                <span class="font-semibold text-foreground">Rekomendasi AI:</span> Kontak sensitif harga tapi sinyal niat tinggi. Tawarkan diskon volume 8% terkunci kontrak 12 bulan + onboarding gratis. Probabilitas closing <b class="text-success">74%</b> minggu ini.
+              </div>
+            </div>
+            <div data-panel="note" class="dpanel hidden">
+              <textarea rows="3" placeholder="Tambah catatan internal…" class="w-full rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer footer (sticky) -->
+      <div class="border-t border-border px-5 py-3 flex items-center gap-2 shrink-0 bg-card">
+        <button type="button" class="h-9 px-3 rounded-lg bg-card border border-border text-sm font-medium text-muted-foreground hover:text-danger hover:border-danger/40 transition-colors">Arsipkan</button>
+        <a href="inbox.html" class="h-9 px-3 rounded-lg bg-card border border-border text-sm font-medium hover:border-primary/40 transition-colors inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" style="color:#25D366" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Chat
+        </a>
+        <button type="button" id="markWonBtn" class="ml-auto h-9 px-4 rounded-lg bg-success text-white text-sm font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition-opacity">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          Tandai Won
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ===================== QUOTE PROGRESS MODAL (UX: async = progress) ===================== -->
+  <div id="quoteModal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-foreground/40"></div>
+    <div class="relative w-full max-w-sm rounded-lg bg-card border border-border shadow-soft p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="w-9 h-9 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
+          <svg id="qSpinner" class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>
+          <svg id="qDone" class="w-5 h-5 hidden text-success" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+        </span>
+        <div>
+          <p id="qTitle" class="text-sm font-semibold text-foreground">Menyusun penawaran…</p>
+          <p id="qSub" class="text-[11px] text-muted-foreground">AI merangkai value, harga produk &amp; PDF</p>
+        </div>
+      </div>
+      <div class="h-2 w-full rounded-full bg-muted overflow-hidden mb-2">
+        <div id="qBar" class="h-full rounded-full bg-primary" style="width:0%;transition:width .3s ease"></div>
+      </div>
+      <p id="qStep" class="text-[11px] text-muted-foreground">Memulai…</p>
+      <button id="qClose" type="button" class="hidden mt-4 w-full h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-soft hover:opacity-90 transition-opacity">Lihat penawaran</button>
+    </div>
+  </div>
+
+  <!-- ===================== TOAST ===================== -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] hidden">
+    <div class="rounded-lg bg-foreground text-background text-sm font-medium px-4 py-2.5 shadow-soft flex items-center gap-2">
+      <svg class="w-4 h-4 text-success" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      <span id="toastMsg">Tersimpan</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  // ── Count-up KPI numbers ─────────────────────────────────────────────
+  document.querySelectorAll('.count').forEach(function(el){
+    var target=parseInt(el.dataset.count,10), suf=el.dataset.suffix||'';
+    if(reduce){ el.textContent=target.toLocaleString('id-ID')+suf; return; }
+    var t0=null;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/900,1); var e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e).toLocaleString('id-ID')+suf; if(p<1)requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function rp(jt){ return jt>=1000 ? (jt/1000).toLocaleString('id-ID',{maximumFractionDigits:1})+' M' : jt.toLocaleString('id-ID')+' jt'; }
+  function initials(name){ return name.split(/[ —]/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase(); }
+
+  var CHAN={
+    wa:{c:'#25D366',label:'WhatsApp'}, ig:{c:'#E1306C',label:'Instagram'},
+    email:{c:'#6366F1',label:'Email'}, shopee:{c:'#EE4D2D',label:'Shopee'}
+  };
+
+  // ── STAGE definitions (Lead → Qualified → Value → Negotiation → Won/Lost) ──
+  var STAGES=[
+    {id:'lead',     label:'Lead / Prospek', dot:'#94A3B8'},
+    {id:'qualified',label:'Kualifikasi',    dot:'#3B82F6'},
+    {id:'value',    label:'Penawaran · Value', dot:'#8B5CF6'},
+    {id:'nego',     label:'Negosiasi',      dot:'hsl(12 96% 67%)'},
+    {id:'won',      label:'Tutup · Won / Lost', dot:'#10B981'}
+  ];
+  var STEP_LABELS={lead:'Lead',qualified:'Kualifikasi',value:'Penawaran',nego:'Negosiasi',won:'Won',lost:'Lost'};
+
+  // ── DATA (API-shaped) ────────────────────────────────────────────────
+  // stage = kolom; for the Won/Lost column, `outcome` splits won|lost.
+  var DEALS=[
+    {id:'DL-1001',name:'Pengadaan ATK Kantor',value:18,seg:'b2b',contact:'Budi Santoso',role:'Procurement Lead',chan:'email',stage:'lead',fit:81,hot:false,days:2},
+    {id:'DL-1002',name:'Paket Hemat — Siti R.',value:3,seg:'b2c',contact:'Siti Rahma',role:'Pelanggan',chan:'wa',stage:'lead',fit:64,hot:false,days:1},
+    {id:'DL-1003',name:'Bundling Reseller — Toko Bu Eni',value:9,seg:'b2c',contact:'Eni Marlina',role:'Pemilik toko',chan:'ig',stage:'lead',fit:70,hot:true,days:3},
+    {id:'DL-1004',name:'Langganan Tahunan — CV Berkah',value:14,seg:'b2b',contact:'Hadi Pranoto',role:'Owner',chan:'wa',stage:'lead',fit:58,hot:false,days:5},
+
+    {id:'DL-1011',name:'Kontrak Tahunan — PT Maju',value:54,seg:'b2b',contact:'Dewi Lestari',role:'Head of Ops',chan:'email',stage:'qualified',fit:86,hot:true,days:4},
+    {id:'DL-1012',name:'Langganan Pro — Andi',value:6,seg:'b2c',contact:'Andi Wijaya',role:'Pelanggan',chan:'wa',stage:'qualified',fit:72,hot:false,days:6},
+    {id:'DL-1013',name:'Stok Grosir — Maju Jaya',value:28,seg:'b2b',contact:'Maemunah Hj.',role:'Pemilik',chan:'shopee',stage:'qualified',fit:79,hot:false,days:8},
+
+    {id:'DL-1021',name:'Implementasi — CV Sukses',value:42,seg:'b2b',contact:'Rizky Pratama',role:'Manajer IT',chan:'email',stage:'value',fit:90,hot:true,days:7},
+    {id:'DL-1022',name:'Upgrade Paket — Linda',value:8,seg:'b2c',contact:'Linda Sari',role:'Pelanggan',chan:'ig',stage:'value',fit:68,hot:false,days:3},
+
+    {id:'DL-1042',name:'Lisensi Enterprise — PT Jaya',value:68,seg:'b2b',contact:'Maya Putri',role:'Head of Procurement',chan:'wa',stage:'nego',fit:88,hot:true,days:9},
+    {id:'DL-1043',name:'Upgrade Plan — Linda K.',value:7,seg:'b2c',contact:'Linda Kusuma',role:'Pelanggan',chan:'wa',stage:'nego',fit:75,hot:false,days:5},
+
+    {id:'DL-1051',name:'Paket Bundling — Toko Aman',value:36,seg:'b2b',contact:'Hadi Gunawan',role:'Pemilik',chan:'shopee',stage:'won',outcome:'won',fit:84,days:0},
+    {id:'DL-1052',name:'Paket Starter — Nina',value:4,seg:'b2c',contact:'Nina Kartika',role:'Pelanggan',chan:'wa',stage:'won',outcome:'won',fit:66,days:0},
+    {id:'DL-1053',name:'Renewal — PT Sentosa',value:22,seg:'b2b',contact:'Bambang S.',role:'Finance',chan:'email',stage:'won',outcome:'lost',fit:55,days:0},
+    {id:'DL-1054',name:'Paket Plus — Dimas',value:5,seg:'b2c',contact:'Dimas Arya',role:'Pelanggan',chan:'ig',stage:'won',outcome:'lost',fit:48,days:0},
+    {id:'DL-1041',name:'Perpanjangan — UD Sumber',value:16,seg:'b2b',contact:'Sumarno',role:'Pemilik',chan:'wa',stage:'value',fit:77,hot:false,days:11}
+  ];
+
+  // ── Segment badge ─────────────────────────────────────────────────────
+  function segBadge(seg){
+    if(seg==='b2b') return '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span>';
+    return '<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span>';
+  }
+  function chanChip(chan){
+    var c=CHAN[chan]; if(!c) return '';
+    return '<span class="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground" title="Kanal akuisisi: '+c.label+'"><span class="w-1.5 h-1.5 rounded-full" style="background:'+c.c+'"></span>'+c.label+'</span>';
+  }
+  function avatar(name,sm){
+    var sz = sm? 'h-5 w-5 text-[9px]' : 'h-6 w-6 text-[10px]';
+    return '<span class="'+sz+' rounded-full bg-secondary text-secondary-foreground font-semibold flex items-center justify-center shrink-0">'+initials(name)+'</span>';
+  }
+
+  // ── Build a deal card ─────────────────────────────────────────────────
+  function cardHTML(d){
+    var outcomeBadge='';
+    if(d.outcome==='won') outcomeBadge='<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-success/15 text-success">WON</span>';
+    if(d.outcome==='lost') outcomeBadge='<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-danger/12 text-danger">LOST</span>';
+    var hot = d.hot ? '<span class="inline-flex items-center gap-0.5 text-[10px] font-medium" style="color:#FB5E3B" title="Prospek panas (AI)"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/></svg>panas</span>' : '';
+    var grip = d.outcome ? '' : '<svg class="w-3.5 h-3.5 text-muted-foreground/40 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>';
+    var cur = d.outcome ? 'cursor-pointer' : 'cursor-grab';
+    return '<article class="deal-card '+cur+' bg-card border border-border rounded-lg p-3 shadow-soft hover:border-primary/40 hover:-translate-y-px" '+
+        (d.outcome?'':'draggable="true" ')+'data-id="'+d.id+'" data-seg="'+d.seg+'">'+
+        '<div class="flex items-start justify-between gap-1.5">'+
+          '<h4 class="text-[13px] font-semibold text-foreground leading-snug">'+d.name+'</h4>'+
+          (outcomeBadge||grip)+
+        '</div>'+
+        '<div class="text-[13px] font-bold text-foreground mt-1.5"><span class="text-[11px] font-medium text-muted-foreground">Rp</span> '+rp(d.value)+'</div>'+
+        '<div class="flex items-center gap-2 mt-2 flex-wrap">'+segBadge(d.seg)+(hot||chanChip(d.chan))+'</div>'+
+        '<div class="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-border/70">'+
+          avatar(d.contact)+
+          '<span class="text-[11px] text-muted-foreground truncate flex-1">'+d.contact+'</span>'+
+          (d.hot? chanChip(d.chan) : '')+
+        '</div>'+
+      '</article>';
+  }
+
+  // ── Render board ──────────────────────────────────────────────────────
+  var board=document.getElementById('board');
+  var segFilter='all', ownerFilter='all';
+
+  function render(){
+    board.innerHTML = STAGES.map(function(st){
+      var inStage = DEALS.filter(function(d){ return d.stage===st.id && (segFilter==='all'||d.seg===segFilter); });
+      var total = inStage.reduce(function(s,d){return s+d.value;},0);
+      var body;
+      if(st.id==='won'){
+        // split Won / Lost sub-tabs in one column
+        var won = inStage.filter(function(d){return d.outcome==='won';});
+        var lost = inStage.filter(function(d){return d.outcome==='lost';});
+        body = '<div class="grid grid-cols-2 gap-1 mb-2 text-[11px]">'+
+            '<button type="button" data-sub="won" class="sub-tab text-center py-1.5 rounded-md bg-success/15 text-success font-semibold border border-success/20">✓ Won · '+won.length+'</button>'+
+            '<button type="button" data-sub="lost" class="sub-tab text-center py-1.5 rounded-md bg-card border border-border text-muted-foreground hover:text-foreground transition-colors">✕ Lost · '+lost.length+'</button>'+
+          '</div>'+
+          '<div class="col-cards space-y-2" data-sub-cards="won">'+ (won.map(cardHTML).join('')||emptyHint()) +'</div>'+
+          '<div class="col-cards space-y-2 hidden" data-sub-cards="lost">'+ (lost.map(cardHTML).join('')||emptyHint()) +'</div>';
+      } else {
+        body = (inStage.map(cardHTML).join('') || '') + '<div class="drop-placeholder rounded-lg border-2 border-dashed border-border/70 text-[11px] text-muted-foreground/70 text-center py-3">tarik kartu ke sini</div>';
+      }
+      var totalLabel = st.id==='won' ? '' : '<span class="text-[11px] text-muted-foreground mt-0.5 block">Rp '+rp(total)+'</span>';
+      return '<section class="col w-72 shrink-0" data-stage="'+st.id+'">'+
+          '<div class="flex items-start justify-between px-3 py-2.5 rounded-t-lg bg-card border border-border border-b-0">'+
+            '<div class="min-w-0">'+
+              '<div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full" style="background:'+st.dot+'"></span>'+
+              '<span class="text-[13px] font-semibold text-foreground">'+st.label+'</span></div>'+
+              totalLabel+
+            '</div>'+
+            '<span class="px-2 py-0.5 rounded-full bg-muted text-foreground/70 text-[11px] font-semibold shrink-0">'+inStage.length+'</span>'+
+          '</div>'+
+          '<div class="col-body bg-muted/40 border border-border rounded-b-lg p-2 space-y-2 min-h-[460px]" data-stage="'+st.id+'">'+body+'</div>'+
+        '</section>';
+    }).join('');
+    wireCards();
+    wireDnD();
+    wireSubTabs();
+    document.getElementById('totalDeals').textContent = DEALS.filter(function(d){return segFilter==='all'||d.seg===segFilter;}).length;
+  }
+  function emptyHint(){ return '<div class="text-[11px] text-muted-foreground/70 text-center py-4">Belum ada deal</div>'; }
+
+  // ── Sub-tabs (Won / Lost) ─────────────────────────────────────────────
+  function wireSubTabs(){
+    board.querySelectorAll('.col[data-stage="won"]').forEach(function(col){
+      var tabs=col.querySelectorAll('.sub-tab');
+      tabs.forEach(function(t){
+        t.addEventListener('click',function(){
+          tabs.forEach(function(x){
+            x.classList.remove('bg-success/15','text-success','border-success/20','bg-danger/12','text-danger','border-danger/20');
+            x.classList.add('bg-card','border-border','text-muted-foreground');
+          });
+          var sub=t.dataset.sub;
+          t.classList.remove('bg-card','border-border','text-muted-foreground');
+          if(sub==='won') t.classList.add('bg-success/15','text-success','border-success/20','font-semibold');
+          else t.classList.add('bg-danger/12','text-danger','border-danger/20','font-semibold');
+          col.querySelectorAll('[data-sub-cards]').forEach(function(c){ c.classList.toggle('hidden', c.dataset.subCards!==sub); });
+        });
+      });
+    });
+  }
+
+  // ── Card click → drawer ───────────────────────────────────────────────
+  function wireCards(){
+    board.querySelectorAll('.deal-card').forEach(function(c){
+      c.addEventListener('click',function(e){
+        if(c._dragged){ c._dragged=false; return; }
+        openDrawer(c.dataset.id);
+      });
+    });
+  }
+
+  // ── Drag & drop between columns ───────────────────────────────────────
+  var dragId=null;
+  function wireDnD(){
+    board.querySelectorAll('.deal-card[draggable="true"]').forEach(function(card){
+      card.addEventListener('dragstart',function(e){
+        dragId=card.dataset.id; card.classList.add('dragging'); card._dragged=true;
+        try{ e.dataTransfer.setData('text/plain',dragId); e.dataTransfer.effectAllowed='move'; }catch(_){}
+      });
+      card.addEventListener('dragend',function(){ card.classList.remove('dragging'); cleanupDropZones(); });
+    });
+    board.querySelectorAll('.col-body').forEach(function(zone){
+      zone.addEventListener('dragover',function(e){ e.preventDefault(); zone.classList.add('drop-hot'); });
+      zone.addEventListener('dragleave',function(e){ if(!zone.contains(e.relatedTarget)) zone.classList.remove('drop-hot'); });
+      zone.addEventListener('drop',function(e){
+        e.preventDefault(); zone.classList.remove('drop-hot');
+        if(!dragId) return;
+        var d=DEALS.find(function(x){return x.id===dragId;});
+        var newStage=zone.dataset.stage;
+        if(d && d.stage!==newStage){
+          d.stage=newStage;
+          if(newStage==='won' && !d.outcome) d.outcome='won';
+          if(newStage!=='won') delete d.outcome;
+          render();
+          toast('Deal dipindah ke "'+STAGES.find(function(s){return s.id===newStage;}).label+'"');
+        }
+        dragId=null;
+      });
+    });
+  }
+  function cleanupDropZones(){ board.querySelectorAll('.col-body').forEach(function(z){z.classList.remove('drop-hot');}); }
+
+  // ── Segment filter ────────────────────────────────────────────────────
+  document.querySelectorAll('.seg-btn').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.seg-btn').forEach(function(x){
+        x.classList.remove('bg-foreground','text-background','font-semibold');
+        x.classList.add('bg-card','border','border-border','text-foreground/70','font-medium');
+      });
+      b.classList.remove('bg-card','border','border-border','text-foreground/70','font-medium');
+      b.classList.add('bg-foreground','text-background','font-semibold');
+      segFilter=b.dataset.seg; render();
+    });
+  });
+
+  // ── Workspace scope toggle ────────────────────────────────────────────
+  var wsAll=false;
+  document.getElementById('wsAllToggle').addEventListener('click',function(){
+    wsAll=!wsAll; this.textContent = wsAll ? 'Kembali ke workspace ini' : 'Lihat semua workspace';
+    toast(wsAll? 'Menampilkan deal semua workspace' : 'Difilter ke workspace ini');
+  });
+
+  document.getElementById('newDealBtn').addEventListener('click',function(){ toast('Form "Deal baru" — buka drawer create'); });
+
+  // ════════════════════ DRAWER ════════════════════════════════════════
+  var drawer=document.getElementById('drawer');
+  var backdrop=document.getElementById('drawerBackdrop');
+  var current=null;
+
+  function openDrawer(id){
+    var d=DEALS.find(function(x){return x.id===id;}); if(!d) return; current=d;
+    document.getElementById('dTitle').textContent=d.name;
+    document.getElementById('dId').textContent='#'+d.id;
+    document.getElementById('dValue').textContent=rp(d.value);
+    // segment buttons
+    document.querySelectorAll('#dSegCtl .dseg').forEach(function(b){
+      var on=b.dataset.v===d.seg;
+      b.style.cssText=''; b.className='dseg px-2.5 h-7 rounded-full text-[11px] font-medium';
+      if(on){
+        b.classList.add('font-semibold');
+        if(d.seg==='b2b') b.style.cssText='background:hsl(173 80% 40% / .14);color:#0d9488';
+        else b.style.cssText='background:#E1306C18;color:#c01f5b';
+      } else {
+        b.classList.add('bg-card','border','border-border','text-foreground/70');
+      }
+    });
+    // stage select + stepper
+    var stageSel=document.getElementById('dStageSel');
+    stageSel.value = d.outcome || d.stage;
+    renderStepper(d.outcome || d.stage);
+    // contact
+    document.getElementById('dContactAv').textContent=initials(d.contact);
+    document.getElementById('dContactName').textContent=d.contact;
+    document.getElementById('dContactRole').textContent=d.role;
+    var ch=CHAN[d.chan];
+    document.getElementById('dContactChan').innerHTML='<span class="w-1.5 h-1.5 rounded-full" style="background:'+ch.c+'"></span>'+ch.label;
+    // fit
+    var fit=d.fit||0, fc = fit>=80?'#10B981':fit>=65?'#F59E0B':'#EF4444';
+    var fv=document.getElementById('dFitVal'); fv.textContent=fit; fv.style.color=fc;
+    var fb=document.getElementById('dFitBar'); fb.style.background=fc; fb.style.width='0%';
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ fb.style.width=fit+'%'; }); });
+    // open
+    drawer.classList.remove('closed');
+    backdrop.classList.remove('opacity-0','pointer-events-none');
+    backdrop.classList.add('opacity-100','pointer-events-auto');
+  }
+  function closeDrawer(){
+    drawer.classList.add('closed');
+    backdrop.classList.add('opacity-0','pointer-events-none');
+    backdrop.classList.remove('opacity-100','pointer-events-auto');
+  }
+  function renderStepper(active){
+    var order=['lead','qualified','value','nego','won'];
+    var lostMode = active==='lost';
+    var html = order.map(function(s,i){
+      var on = s===active || (lostMode && s==='won');
+      var lbl = (s==='won' && lostMode) ? 'Lost' : STEP_LABELS[s];
+      var cls = on
+        ? (lostMode && s==='won' ? 'bg-danger/12 text-danger font-semibold' : 'bg-primary/12 text-primary font-semibold')
+        : 'bg-muted text-muted-foreground';
+      return '<span class="px-1.5 py-0.5 rounded '+cls+'">'+lbl+'</span>'+(i<order.length-1?'<span class="text-muted-foreground/50">›</span>':'');
+    }).join('');
+    document.getElementById('dStepper').innerHTML=html;
+  }
+
+  document.getElementById('drawerClose').addEventListener('click',closeDrawer);
+  backdrop.addEventListener('click',closeDrawer);
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeDrawer(); });
+
+  // drawer: change stage from select
+  document.getElementById('dStageSel').addEventListener('change',function(){
+    if(!current) return;
+    var v=this.value;
+    if(v==='won'||v==='lost'){ current.stage='won'; current.outcome=v; }
+    else { current.stage=v; delete current.outcome; }
+    renderStepper(v); render();
+    toast('Tahap diperbarui → '+ (STEP_LABELS[v]||v));
+  });
+
+  // drawer: segment override
+  document.querySelectorAll('#dSegCtl .dseg').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(!current) return; current.seg=b.dataset.v; openDrawer(current.id); render();
+    });
+  });
+
+  // drawer tabs
+  document.querySelectorAll('#dTabs .dtab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('#dTabs .dtab').forEach(function(x){
+        x.classList.remove('border-primary','font-semibold','text-foreground');
+        x.classList.add('border-transparent','text-muted-foreground');
+      });
+      t.classList.remove('border-transparent','text-muted-foreground');
+      t.classList.add('border-primary','font-semibold','text-foreground');
+      document.querySelectorAll('.dpanel').forEach(function(p){ p.classList.toggle('hidden', p.dataset.panel!==t.dataset.tab); });
+    });
+  });
+
+  // drawer: mark won
+  document.getElementById('markWonBtn').addEventListener('click',function(){
+    if(!current) return; current.stage='won'; current.outcome='won';
+    render(); renderStepper('won'); document.getElementById('dStageSel').value='won';
+    toast('🎉 Deal ditandai Won — Rp '+rp(current.value));
+  });
+
+  // ── Quote progress modal ──────────────────────────────────────────────
+  var qModal=document.getElementById('quoteModal');
+  document.getElementById('quoteBtn').addEventListener('click',function(){ runQuote(); });
+  function runQuote(){
+    qModal.classList.remove('hidden'); qModal.classList.add('flex');
+    var bar=document.getElementById('qBar'), step=document.getElementById('qStep');
+    document.getElementById('qSpinner').classList.remove('hidden');
+    document.getElementById('qDone').classList.add('hidden');
+    document.getElementById('qClose').classList.add('hidden');
+    document.getElementById('qTitle').textContent='Menyusun penawaran…';
+    bar.style.width='0%';
+    var steps=[
+      [18,'Mengambil harga produk workspace…'],
+      [44,'AI merangkai ringkasan value…'],
+      [70,'Menyesuaikan ke profil kontak…'],
+      [90,'Render PDF penawaran…'],
+      [100,'Selesai']
+    ];
+    var i=0;
+    function tick(){
+      if(i>=steps.length){
+        document.getElementById('qSpinner').classList.add('hidden');
+        document.getElementById('qDone').classList.remove('hidden');
+        document.getElementById('qTitle').textContent='Penawaran siap';
+        document.getElementById('qClose').classList.remove('hidden');
+        return;
+      }
+      bar.style.width=steps[i][0]+'%'; step.textContent=steps[i][1]; i++;
+      setTimeout(tick, reduce?0:480);
+    }
+    tick();
+  }
+  document.getElementById('qClose').addEventListener('click',function(){
+    qModal.classList.add('hidden'); qModal.classList.remove('flex');
+    toast('Penawaran terkirim ke '+(current?current.contact:'kontak'));
+  });
+
+  // ── Toast ─────────────────────────────────────────────────────────────
+  var toastEl=document.getElementById('toast'), toastMsg=document.getElementById('toastMsg'), toastT;
+  function toast(msg){
+    toastMsg.textContent=msg; toastEl.classList.remove('hidden');
+    clearTimeout(toastT); toastT=setTimeout(function(){ toastEl.classList.add('hidden'); }, 2200);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────
+  render();
+})();
+</script>
+</body></html>

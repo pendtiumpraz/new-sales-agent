@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Superadmin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.usage-bar{transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.flash{animation:flash .8s ease}
+@keyframes flash{0%{background:hsl(160 84% 39% / .20)}100%{background:transparent}}
+.count{font-variant-numeric:tabular-nums}
+.row-pending{background:hsl(38 92% 50% / .07)}
+.row-pending:hover{background:hsl(38 92% 50% / .12)}
+.toast-in{animation:toastIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.usage-bar{transition:none}.drawer{transition:none}}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-33px)]">
+
+  <!-- ===================== SIDEBAR (w-64) — PLATFORM-LEVEL (brand-neutral, BUKAN tenant white-label) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+
+    <!-- BRAND: produk mark (platform), bukan logo tenant -->
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-soft shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Superadmin</div>
+        <div class="text-[10px] text-muted-foreground truncate">Konsol Platform</div>
+      </div>
+    </div>
+
+    <!-- MENU (lintas-tenant, platform-level) -->
+    <nav class="flex-1 overflow-y-auto py-4 text-sm space-y-5">
+
+      <!-- GROUP: UTAMA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="superadmin-users.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          Tenant
+        </a>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Ringkasan Platform
+        </a>
+      </div>
+
+      <!-- GROUP: PAKET & ENTITLEMENT -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Paket &amp; Modul</p>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#10B981" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
+          Paket &amp; Kuota
+        </a>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#8B5CF6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Vertical / Modul
+        </a>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#F59E0B" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m13 2-3 7h6l-3 7"/><path d="M5 13h2M17 13h2"/><circle cx="12" cy="20" r="1"/></svg>
+          Pemakaian Token AI
+        </a>
+      </div>
+
+      <!-- GROUP: PLATFORM -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Platform</p>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#14B8A6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+          Audit Log
+        </a>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EF4444" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/><path d="M12 2v10"/></svg>
+          Mode &amp; Kill-switch
+        </a>
+        <a href="#" data-nav class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6B7280" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Pengaturan
+        </a>
+      </div>
+    </nav>
+
+    <!-- Sidebar footer: akun superadmin -->
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-foreground/85 text-white flex items-center justify-center font-semibold text-xs">SA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Galih Prasetyo</div>
+        <div class="text-muted-foreground truncate">Superadmin</div>
+      </div>
+      <a href="login.html" title="Keluar" class="text-muted-foreground hover:text-danger transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR (h-14, glass) -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-[33px] z-20">
+      <!-- left: search -->
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="tenantSearch" type="text" placeholder="Cari tenant, email, atau vertical…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <!-- right: platform scope chip + notif + avatar -->
+      <div class="flex items-center gap-3">
+        <div class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Scope: Semua tenant</span>
+        </div>
+        <button class="relative h-9 w-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-highlight ring-2 ring-card"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-foreground/85 text-white flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">SA</div>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 overflow-auto">
+
+      <!-- Page header strip -->
+      <div class="px-6 pt-6 pb-1 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Manajemen Tenant</h1>
+          <p class="text-sm text-muted-foreground mt-0.5">Aktifkan, suspend, atur kuota &amp; durasi — lintas-tenant (platform-level).</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="refreshBtn" class="h-9 px-3 rounded-lg bg-card border border-border text-sm font-medium flex items-center gap-2 hover:border-primary/40 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>
+            Segarkan
+          </button>
+          <!-- PRIMARY ACTION: Buat akun -> buka drawer (mode buat) -->
+          <button id="createBtn" class="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-2 shadow-soft hover:opacity-90 transition-opacity">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Buat akun
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- ============ KPI STRIP (platform totals) ============ -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Total tenant</p>
+                <p class="mt-1 text-2xl font-bold count" data-count="5">0</p>
+              </div>
+              <span class="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              </span>
+            </div>
+            <p class="mt-2 text-[11px] text-muted-foreground">3 aktif · 1 suspend</p>
+          </div>
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Menunggu aktivasi</p>
+                <p class="mt-1 text-2xl font-bold count text-highlight-foreground" data-count="2">0</p>
+              </div>
+              <span class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background:hsl(38 92% 50% / .15);color:#d97706">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              </span>
+            </div>
+            <p class="mt-2 text-[11px]" style="color:#b45309">Butuh tindakan superadmin</p>
+          </div>
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Panggilan AI (30h)</p>
+                <p class="mt-1 text-2xl font-bold count" data-count="48210">0</p>
+              </div>
+              <span class="w-9 h-9 rounded-lg bg-tertiary/12 text-tertiary flex items-center justify-center shrink-0">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m13 2-3 7h6l-3 7"/><path d="M5 13h2M17 13h2"/><circle cx="12" cy="20" r="1"/></svg>
+              </span>
+            </div>
+            <p class="mt-2 text-[11px] text-muted-foreground">Biaya ~ <span class="font-medium text-foreground/80">$ 12,84</span></p>
+          </div>
+          <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Pesan terkirim (30h)</p>
+                <p class="mt-1 text-2xl font-bold count" data-count="9134">0</p>
+              </div>
+              <span class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background:#25D36618;color:#1faa52">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+              </span>
+            </div>
+            <p class="mt-2 text-[11px] text-muted-foreground">WhatsApp · Email · IG · Shopee</p>
+          </div>
+        </section>
+
+        <!-- ============ FILTER TABS + count ============ -->
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <button data-filter="all" class="filter-tab px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-medium">Semua <span class="opacity-80">(5)</span></button>
+          <button data-filter="pending" class="filter-tab px-3 py-1.5 rounded-full bg-card border border-border text-muted-foreground hover:border-primary/40 transition-colors">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-highlight mr-1 align-middle"></span>Pending <span class="opacity-70">(2)</span>
+          </button>
+          <button data-filter="active" class="filter-tab px-3 py-1.5 rounded-full bg-card border border-border text-muted-foreground hover:border-primary/40 transition-colors">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-success mr-1 align-middle"></span>Aktif <span class="opacity-70">(2)</span>
+          </button>
+          <button data-filter="suspended" class="filter-tab px-3 py-1.5 rounded-full bg-card border border-border text-muted-foreground hover:border-primary/40 transition-colors">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground mr-1 align-middle"></span>Suspended <span class="opacity-70">(1)</span>
+          </button>
+          <span id="resultCount" class="ml-auto text-muted-foreground">Menampilkan 5 dari 5 tenant</span>
+        </div>
+
+        <!-- ============ TABEL TENANT ============ -->
+        <section class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left min-w-[820px]">
+              <thead class="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th class="px-5 py-3 font-semibold">Nama Tenant</th>
+                  <th class="px-5 py-3 font-semibold">Vertical</th>
+                  <th class="px-5 py-3 font-semibold">Status</th>
+                  <th class="px-5 py-3 font-semibold">Kuota Token</th>
+                  <th class="px-5 py-3 font-semibold">Aktif s/d</th>
+                  <th class="px-5 py-3 font-semibold text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tenantBody" class="divide-y divide-border">
+
+                <!-- ROW PENDING #1 (di-highlight amber) -->
+                <tr class="tenant-row row-pending transition-colors" data-status="pending" data-name="PT Sinar Abadi" data-email="admin@sinarabadi.com" data-vertical="Sales">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded-lg bg-highlight/20 text-highlight-foreground text-[11px] font-bold flex items-center justify-center shrink-0">SA</span>
+                      <div class="min-w-0">
+                        <p class="font-semibold truncate">PT Sinar Abadi</p>
+                        <p class="text-[11px] text-muted-foreground truncate">admin@sinarabadi.com</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">Sales</span></td>
+                  <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-highlight/15" style="color:#b45309">
+                      <span class="w-1.5 h-1.5 rounded-full bg-highlight animate-pulse"></span>Pending
+                    </span>
+                  </td>
+                  <td class="px-5 py-3 text-muted-foreground italic text-[13px]">belum diset</td>
+                  <td class="px-5 py-3 text-muted-foreground italic text-[13px]">belum diset</td>
+                  <td class="px-5 py-3 text-right whitespace-nowrap">
+                    <button class="act-activate h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition-opacity">Aktifkan</button>
+                  </td>
+                </tr>
+
+                <!-- ROW PENDING #2 -->
+                <tr class="tenant-row row-pending transition-colors" data-status="pending" data-name="Maju Rekrut HR" data-email="ops@majurekrut.id" data-vertical="HR">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded-lg bg-highlight/20 text-highlight-foreground text-[11px] font-bold flex items-center justify-center shrink-0">MR</span>
+                      <div class="min-w-0">
+                        <p class="font-semibold truncate">Maju Rekrut HR</p>
+                        <p class="text-[11px] text-muted-foreground truncate">ops@majurekrut.id</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-tertiary/12 text-tertiary">HR</span></td>
+                  <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-highlight/15" style="color:#b45309">
+                      <span class="w-1.5 h-1.5 rounded-full bg-highlight animate-pulse"></span>Pending
+                    </span>
+                  </td>
+                  <td class="px-5 py-3 text-muted-foreground italic text-[13px]">belum diset</td>
+                  <td class="px-5 py-3 text-muted-foreground italic text-[13px]">belum diset</td>
+                  <td class="px-5 py-3 text-right whitespace-nowrap">
+                    <button class="act-activate h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition-opacity">Aktifkan</button>
+                  </td>
+                </tr>
+
+                <!-- ROW AKTIF #1 -->
+                <tr class="tenant-row hover:bg-muted/40 transition-colors" data-status="active" data-name="Toko Berkah Jaya" data-email="owner@berkahjaya.com" data-vertical="Sales">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded-lg bg-primary/12 text-primary text-[11px] font-bold flex items-center justify-center shrink-0">BJ</span>
+                      <div class="min-w-0">
+                        <p class="font-semibold truncate">Toko Berkah Jaya</p>
+                        <p class="text-[11px] text-muted-foreground truncate">owner@berkahjaya.com</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">Sales</span></td>
+                  <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-success/12 text-success">
+                      <span class="w-1.5 h-1.5 rounded-full bg-success"></span>Aktif
+                    </span>
+                  </td>
+                  <td class="px-5 py-3">
+                    <p class="text-[13px] font-medium">320rb <span class="text-muted-foreground font-normal">/ 500rb</span></p>
+                    <div class="h-1.5 w-28 rounded-full bg-muted overflow-hidden mt-1">
+                      <div class="h-full rounded-full bg-success usage-bar" data-usage="64" style="width:0%"></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3 text-[13px]">31 Des 2026</td>
+                  <td class="px-5 py-3 text-right whitespace-nowrap">
+                    <div class="inline-flex items-center gap-2">
+                      <button class="act-credit h-8 px-2.5 rounded-lg border border-border text-tertiary text-xs font-medium hover:bg-tertiary/5 transition-colors">+ Kredit</button>
+                      <button class="act-suspend h-8 px-3 rounded-lg border border-border text-foreground/70 text-xs font-medium hover:border-danger/50 hover:text-danger transition-colors">Suspend</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- ROW AKTIF #2 -->
+                <tr class="tenant-row hover:bg-muted/40 transition-colors" data-status="active" data-name="CV Talenta Nusantara" data-email="hr@talenta.co.id" data-vertical="HR">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded-lg bg-tertiary/12 text-tertiary text-[11px] font-bold flex items-center justify-center shrink-0">TN</span>
+                      <div class="min-w-0">
+                        <p class="font-semibold truncate">CV Talenta Nusantara</p>
+                        <p class="text-[11px] text-muted-foreground truncate">hr@talenta.co.id</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-tertiary/12 text-tertiary">HR</span></td>
+                  <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-success/12 text-success">
+                      <span class="w-1.5 h-1.5 rounded-full bg-success"></span>Aktif
+                    </span>
+                  </td>
+                  <td class="px-5 py-3">
+                    <p class="text-[13px] font-medium">90rb <span class="text-muted-foreground font-normal">/ 1jt</span></p>
+                    <div class="h-1.5 w-28 rounded-full bg-muted overflow-hidden mt-1">
+                      <div class="h-full rounded-full bg-success usage-bar" data-usage="9" style="width:0%"></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3 text-[13px]">15 Mar 2027</td>
+                  <td class="px-5 py-3 text-right whitespace-nowrap">
+                    <div class="inline-flex items-center gap-2">
+                      <button class="act-credit h-8 px-2.5 rounded-lg border border-border text-tertiary text-xs font-medium hover:bg-tertiary/5 transition-colors">+ Kredit</button>
+                      <button class="act-suspend h-8 px-3 rounded-lg border border-border text-foreground/70 text-xs font-medium hover:border-danger/50 hover:text-danger transition-colors">Suspend</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- ROW SUSPENDED -->
+                <tr class="tenant-row hover:bg-muted/30 transition-colors text-muted-foreground" data-status="suspended" data-name="PT Lama Tertunggak" data-email="finance@lama.com" data-vertical="Sales">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded-lg bg-muted text-muted-foreground text-[11px] font-bold flex items-center justify-center shrink-0">LT</span>
+                      <div class="min-w-0">
+                        <p class="font-semibold truncate text-foreground/55">PT Lama Tertunggak</p>
+                        <p class="text-[11px] text-muted-foreground truncate">finance@lama.com</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Sales</span></td>
+                  <td class="px-5 py-3">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                      <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground"></span>Suspended
+                    </span>
+                  </td>
+                  <td class="px-5 py-3 text-[13px]">0 <span class="text-muted-foreground">/ 500rb</span></td>
+                  <td class="px-5 py-3 text-[13px] text-danger">02 Jun 2026 <span class="text-[11px]">(lewat)</span></td>
+                  <td class="px-5 py-3 text-right whitespace-nowrap">
+                    <button class="act-activate h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition-opacity">Aktifkan</button>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty state for filter (hidden by default) -->
+          <div id="tableEmpty" class="hidden flex-col items-center justify-center py-12 text-center">
+            <div class="w-12 h-12 rounded-full bg-muted text-muted-foreground flex items-center justify-center mb-3">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <p class="text-sm font-medium">Tidak ada tenant pada filter ini</p>
+            <p class="text-xs text-muted-foreground mt-0.5">Coba ubah filter status atau kata kunci pencarian.</p>
+          </div>
+        </section>
+
+        <!-- Legend / catatan -->
+        <p class="text-[11px] text-muted-foreground">
+          Baris dengan latar <span class="px-1.5 py-0.5 rounded bg-highlight/15" style="color:#b45309">amber</span> = tenant <b>Pending</b> menunggu aktivasi.
+          <b>Aktifkan</b> set durasi + kuota lewat drawer kanan · <b>+ Kredit</b> tambah token AI · <b>Suspend</b> kunci akses tenant.
+          Form aktivasi &amp; "Buat akun" memakai drawer yang sama.
+        </p>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===================== BACKDROP + RIGHT DRAWER (w-[420px]) ===================== -->
+<div id="backdrop" class="fixed inset-0 bg-foreground/40 z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+<aside id="drawer" class="drawer closed fixed top-0 right-0 h-full w-full max-w-[420px] bg-card border-l border-border shadow-soft z-50 flex flex-col">
+  <!-- Drawer header -->
+  <div class="h-14 flex items-center justify-between px-5 border-b border-border shrink-0">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <span class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+      </span>
+      <div class="min-w-0">
+        <h2 id="drawerTitle" class="text-sm font-bold truncate">Buat akun tenant</h2>
+        <p id="drawerSub" class="text-[11px] text-muted-foreground truncate">Set vertical, durasi aktif, &amp; kuota token</p>
+      </div>
+    </div>
+    <button id="drawerClose" class="w-8 h-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground flex items-center justify-center transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  <!-- Drawer body (scroll) -->
+  <form id="drawerForm" class="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+
+    <!-- Nama tenant -->
+    <div>
+      <label class="block text-[13px] font-medium text-foreground/80 mb-1.5">Nama Tenant / Perusahaan</label>
+      <input id="fName" type="text" placeholder="mis. PT Sinar Abadi" class="w-full h-10 px-3 rounded-lg bg-card border border-input text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring/40">
+    </div>
+
+    <!-- Email admin -->
+    <div id="emailField">
+      <label class="block text-[13px] font-medium text-foreground/80 mb-1.5">Email Admin Tenant</label>
+      <input id="fEmail" type="email" placeholder="admin@perusahaan.com" class="w-full h-10 px-3 rounded-lg bg-card border border-input text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      <p class="text-[11px] text-muted-foreground mt-1">Undangan + tautan set-password dikirim ke email ini.</p>
+    </div>
+
+    <!-- Vertical select -->
+    <div>
+      <label class="block text-[13px] font-medium text-foreground/80 mb-1.5">Vertical / Usage</label>
+      <div class="relative">
+        <select id="fVertical" class="appearance-none w-full h-10 pl-3 pr-9 rounded-lg bg-card border border-input text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+          <option value="">Pilih vertical…</option>
+          <option value="Sales">Sales — outbound &amp; pipeline</option>
+          <option value="HR">HR — rekrutmen &amp; talent</option>
+          <option value="Marketing">Marketing — campaign &amp; lead-gen</option>
+          <option value="Lainnya">Lainnya / custom</option>
+        </select>
+        <svg class="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <p class="text-[11px] text-muted-foreground mt-1">Menentukan modul &amp; entitlement yang aktif untuk tenant ini.</p>
+    </div>
+
+    <!-- Durasi aktif (preset chips + tanggal turunan) -->
+    <div>
+      <label class="block text-[13px] font-medium text-foreground/80 mb-1.5">Durasi Aktif</label>
+      <div class="flex flex-wrap gap-2 mb-2">
+        <button type="button" data-months="1" class="dur-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors">1 bln</button>
+        <button type="button" data-months="3" class="dur-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors">3 bln</button>
+        <button type="button" data-months="6" class="dur-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors">6 bln</button>
+        <button type="button" data-months="12" class="dur-chip h-8 px-3 rounded-lg border-2 border-primary bg-primary/10 text-primary text-xs font-semibold transition-colors">12 bln</button>
+      </div>
+      <div class="relative">
+        <input id="fUntil" type="date" class="w-full h-10 px-3 rounded-lg bg-card border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <p class="text-[11px] text-muted-foreground mt-1">Mengisi kolom "Aktif s/d". Setelah tanggal ini, akses tenant otomatis terkunci.</p>
+    </div>
+
+    <!-- Kuota token (preset + input) -->
+    <div>
+      <label class="block text-[13px] font-medium text-foreground/80 mb-1.5">Kuota Token AI</label>
+      <div class="flex flex-wrap gap-2 mb-2">
+        <button type="button" data-quota="100000" class="quota-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors">100rb</button>
+        <button type="button" data-quota="500000" class="quota-chip h-8 px-3 rounded-lg border-2 border-primary bg-primary/10 text-primary text-xs font-semibold transition-colors">500rb</button>
+        <button type="button" data-quota="1000000" class="quota-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors">1 jt</button>
+        <button type="button" data-quota="5000000" class="quota-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors">5 jt</button>
+      </div>
+      <input id="fQuota" type="text" inputmode="numeric" value="500.000" class="w-full h-10 px-3 rounded-lg bg-card border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring/40">
+      <p class="text-[11px] text-muted-foreground mt-1">Batas pemakaian token AI per periode (grain = tenant). Bisa ditambah lewat "+ Kredit".</p>
+    </div>
+
+    <!-- Catatan opsional -->
+    <div>
+      <label class="block text-[13px] font-medium text-foreground/80 mb-1.5">Catatan internal <span class="text-muted-foreground font-normal">(opsional)</span></label>
+      <textarea id="fNote" rows="2" placeholder="Catatan superadmin — tidak terlihat oleh tenant…" class="w-full px-3 py-2 rounded-lg bg-card border border-input text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring/40 resize-none"></textarea>
+    </div>
+
+    <!-- Ringkasan entitlement (live) -->
+    <div class="rounded-lg border border-border bg-muted/40 p-3 text-[11px] space-y-1">
+      <p class="font-semibold text-foreground/80 mb-1.5 flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Ringkasan entitlement
+      </p>
+      <div class="flex justify-between"><span class="text-muted-foreground">Vertical</span><span id="sumVertical" class="font-medium">—</span></div>
+      <div class="flex justify-between"><span class="text-muted-foreground">Aktif s/d</span><span id="sumUntil" class="font-medium">—</span></div>
+      <div class="flex justify-between"><span class="text-muted-foreground">Kuota token</span><span id="sumQuota" class="font-medium">500.000</span></div>
+    </div>
+  </form>
+
+  <!-- Drawer footer (sticky) -->
+  <div class="border-t border-border px-5 py-3 flex items-center justify-end gap-2 shrink-0">
+    <button id="drawerCancel" type="button" class="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">Batal</button>
+    <button id="drawerSubmit" type="button" class="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-soft hover:opacity-90 transition-opacity flex items-center gap-2">
+      <span id="drawerSubmitLabel">Buat &amp; aktifkan</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ===================== CONFIRM (suspend) MINI-MODAL ===================== -->
+<div id="confirmBackdrop" class="fixed inset-0 bg-foreground/40 z-[60] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center p-4">
+  <div id="confirmCard" class="bg-card rounded-lg border border-border shadow-soft w-full max-w-sm p-5 scale-95 opacity-0 transition-all duration-200">
+    <div class="flex items-start gap-3">
+      <span class="w-10 h-10 rounded-lg bg-danger/12 text-danger flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+      </span>
+      <div class="min-w-0">
+        <h3 class="text-sm font-bold">Suspend tenant?</h3>
+        <p class="text-[13px] text-muted-foreground mt-0.5">Akses <span id="confirmName" class="font-medium text-foreground">tenant</span> akan dikunci. Data tetap aman dan bisa diaktifkan kembali.</p>
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 mt-5">
+      <button id="confirmCancel" class="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">Batal</button>
+      <button id="confirmOk" class="h-9 px-4 rounded-lg bg-danger text-white text-sm font-semibold hover:opacity-90 transition-opacity">Ya, suspend</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TOAST HOST ===================== -->
+<div id="toastHost" class="fixed bottom-5 right-5 z-[70] flex flex-col gap-2 items-end"></div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  // ── Count-up KPI numbers ──────────────────────────────────────────────
+  document.querySelectorAll('.count').forEach(function(el){
+    var target=parseInt(el.dataset.count,10);
+    if(reduce){ el.textContent=target.toLocaleString('id-ID'); return; }
+    var t0=null;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/900,1); var e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e).toLocaleString('id-ID'); if(p<1)requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  });
+
+  // ── Animate usage bars on load ────────────────────────────────────────
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    document.querySelectorAll('.usage-bar').forEach(function(b){ b.style.width=b.dataset.usage+'%'; });
+  });});
+
+  // ── Toast helper ──────────────────────────────────────────────────────
+  function toast(msg, kind){
+    kind = kind || 'success';
+    var host=document.getElementById('toastHost');
+    var color = kind==='danger' ? '#EF4444' : kind==='info' ? '#3B82F6' : '#10B981';
+    var icon = kind==='danger'
+      ? '<path d="M18 6 6 18M6 6l12 12"/>'
+      : '<path d="M20 6 9 17l-5-5"/>';
+    var el=document.createElement('div');
+    el.className='toast-in glass border border-border shadow-soft rounded-lg px-4 py-3 flex items-center gap-2.5 text-sm max-w-xs';
+    el.innerHTML='<span class="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style="background:'+color+'1a;color:'+color+'"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">'+icon+'</svg></span><span class="font-medium">'+msg+'</span>';
+    host.appendChild(el);
+    setTimeout(function(){ el.style.transition='opacity .3s, transform .3s'; el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(function(){el.remove();},300); }, 2600);
+  }
+
+  // ── Quota formatting ──────────────────────────────────────────────────
+  function fmtQuota(n){ return Number(n).toLocaleString('id-ID'); }
+  function shortQuota(n){
+    if(n>=1e6) return (n/1e6).toLocaleString('id-ID',{maximumFractionDigits:1})+' jt';
+    if(n>=1e3) return Math.round(n/1e3)+'rb';
+    return ''+n;
+  }
+  function fmtDateID(d){ return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+
+  // ============ DRAWER ============
+  var drawer=document.getElementById('drawer');
+  var backdrop=document.getElementById('backdrop');
+  var drawerTitle=document.getElementById('drawerTitle');
+  var drawerSub=document.getElementById('drawerSub');
+  var drawerSubmitLabel=document.getElementById('drawerSubmitLabel');
+  var emailField=document.getElementById('emailField');
+  var fName=document.getElementById('fName'), fEmail=document.getElementById('fEmail'),
+      fVertical=document.getElementById('fVertical'), fUntil=document.getElementById('fUntil'),
+      fQuota=document.getElementById('fQuota'), fNote=document.getElementById('fNote');
+  var sumVertical=document.getElementById('sumVertical'), sumUntil=document.getElementById('sumUntil'), sumQuota=document.getElementById('sumQuota');
+  var mode='create'; // 'create' | 'activate'
+  var activateRow=null;
+
+  function setUntilMonths(m){
+    var d=new Date(); d.setMonth(d.getMonth()+m);
+    fUntil.value=d.toISOString().slice(0,10);
+    syncSummary();
+  }
+  // default: 12 months
+  setUntilMonths(12);
+
+  function openDrawer(){
+    drawer.classList.remove('closed');
+    backdrop.classList.remove('opacity-0','pointer-events-none');
+    document.body.style.overflow='hidden';
+    syncSummary();
+    setTimeout(function(){ fName.focus(); }, 320);
+  }
+  function closeDrawer(){
+    drawer.classList.add('closed');
+    backdrop.classList.add('opacity-0','pointer-events-none');
+    document.body.style.overflow='';
+  }
+  function syncSummary(){
+    sumVertical.textContent = fVertical.value || '—';
+    if(fUntil.value){ sumUntil.textContent=fmtDateID(new Date(fUntil.value)); } else { sumUntil.textContent='Tanpa batas'; }
+    var q=parseInt((fQuota.value||'0').replace(/\D/g,''),10)||0;
+    sumQuota.textContent = q ? fmtQuota(q) : '—';
+  }
+
+  // Create mode
+  document.getElementById('createBtn').addEventListener('click', function(){
+    mode='create'; activateRow=null;
+    drawerTitle.textContent='Buat akun tenant';
+    drawerSub.textContent='Set vertical, durasi aktif, & kuota token';
+    drawerSubmitLabel.textContent='Buat & aktifkan';
+    emailField.style.display='';
+    fName.value=''; fEmail.value=''; fVertical.value=''; fNote.value=''; fQuota.value='500.000';
+    setQuotaChip(500000); setDurChip(12); setUntilMonths(12);
+    openDrawer();
+  });
+
+  // Activate mode (per row)
+  document.querySelectorAll('.act-activate').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var row=btn.closest('.tenant-row'); activateRow=row; mode='activate';
+      drawerTitle.textContent='Aktifkan tenant';
+      drawerSub.textContent=row.dataset.name;
+      drawerSubmitLabel.textContent='Aktifkan tenant';
+      emailField.style.display='none'; // email already exists for pending tenant
+      fName.value=row.dataset.name;
+      fVertical.value=row.dataset.vertical||'';
+      fNote.value='';
+      fQuota.value='500.000'; setQuotaChip(500000); setDurChip(12); setUntilMonths(12);
+      openDrawer();
+    });
+  });
+
+  document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+  document.getElementById('drawerCancel').addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !drawer.classList.contains('closed')) closeDrawer(); });
+
+  // Duration chips
+  function setDurChip(m){
+    document.querySelectorAll('.dur-chip').forEach(function(c){
+      var on=parseInt(c.dataset.months,10)===m;
+      c.className='dur-chip h-8 px-3 rounded-lg text-xs transition-colors '+(on?'border-2 border-primary bg-primary/10 text-primary font-semibold':'border border-border font-medium hover:border-primary/40');
+    });
+  }
+  document.querySelectorAll('.dur-chip').forEach(function(c){
+    c.addEventListener('click', function(){ var m=parseInt(c.dataset.months,10); setDurChip(m); setUntilMonths(m); });
+  });
+  fUntil.addEventListener('change', function(){
+    document.querySelectorAll('.dur-chip').forEach(function(c){ c.className='dur-chip h-8 px-3 rounded-lg border border-border text-xs font-medium hover:border-primary/40 transition-colors'; });
+    syncSummary();
+  });
+
+  // Quota chips
+  function setQuotaChip(q){
+    document.querySelectorAll('.quota-chip').forEach(function(c){
+      var on=parseInt(c.dataset.quota,10)===q;
+      c.className='quota-chip h-8 px-3 rounded-lg text-xs transition-colors '+(on?'border-2 border-primary bg-primary/10 text-primary font-semibold':'border border-border font-medium hover:border-primary/40');
+    });
+  }
+  document.querySelectorAll('.quota-chip').forEach(function(c){
+    c.addEventListener('click', function(){ var q=parseInt(c.dataset.quota,10); setQuotaChip(q); fQuota.value=fmtQuota(q); syncSummary(); });
+  });
+  fQuota.addEventListener('input', function(){
+    var n=parseInt(fQuota.value.replace(/\D/g,''),10);
+    fQuota.value = n ? fmtQuota(n) : '';
+    document.querySelectorAll('.quota-chip').forEach(function(c){
+      var on=parseInt(c.dataset.quota,10)===n;
+      c.className='quota-chip h-8 px-3 rounded-lg text-xs transition-colors '+(on?'border-2 border-primary bg-primary/10 text-primary font-semibold':'border border-border font-medium hover:border-primary/40');
+    });
+    syncSummary();
+  });
+  fVertical.addEventListener('change', syncSummary);
+
+  // Submit
+  document.getElementById('drawerSubmit').addEventListener('click', function(){
+    if(!fName.value.trim()){ toast('Nama tenant wajib diisi','danger'); fName.focus(); return; }
+    if(mode==='create' && !fEmail.value.trim()){ toast('Email admin wajib diisi','danger'); fEmail.focus(); return; }
+    if(!fVertical.value){ toast('Pilih vertical dulu','danger'); fVertical.focus(); return; }
+
+    var quotaN=parseInt(fQuota.value.replace(/\D/g,''),10)||0;
+    var untilLabel = fUntil.value ? fmtDateID(new Date(fUntil.value)) : 'Tanpa batas';
+
+    if(mode==='activate' && activateRow){
+      // Mutate the pending/suspended row → active
+      var row=activateRow;
+      row.dataset.status='active';
+      row.classList.remove('row-pending','text-muted-foreground');
+      row.classList.add('hover:bg-muted/40');
+      // status cell (3rd td)
+      var tds=row.querySelectorAll('td');
+      tds[1].innerHTML='<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">'+fVertical.value+'</span>';
+      tds[2].innerHTML='<span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-success/12 text-success"><span class="w-1.5 h-1.5 rounded-full bg-success"></span>Aktif</span>';
+      tds[3].innerHTML='<p class="text-[13px] font-medium">0 <span class="text-muted-foreground font-normal">/ '+shortQuota(quotaN)+'</span></p><div class="h-1.5 w-28 rounded-full bg-muted overflow-hidden mt-1"><div class="h-full rounded-full bg-success usage-bar" style="width:2%"></div></div>';
+      tds[4].innerHTML='<span class="text-[13px]">'+untilLabel+'</span>';
+      tds[5].innerHTML='<div class="inline-flex items-center gap-2"><button class="act-credit h-8 px-2.5 rounded-lg border border-border text-tertiary text-xs font-medium hover:bg-tertiary/5 transition-colors">+ Kredit</button><button class="act-suspend h-8 px-3 rounded-lg border border-border text-foreground/70 text-xs font-medium hover:border-danger/50 hover:text-danger transition-colors">Suspend</button></div>';
+      // restore name color if was suspended
+      var nameP=tds[0].querySelector('p.font-semibold'); if(nameP) nameP.classList.remove('text-foreground/55');
+      bindRowActions(row);
+      row.classList.add('flash'); setTimeout(function(){row.classList.remove('flash');},800);
+      toast('“'+row.dataset.name+'” diaktifkan s/d '+untilLabel, 'success');
+      recountFilters();
+    } else {
+      // Create: prepend a new active row
+      var name=fName.value.trim(), email=fEmail.value.trim();
+      var initials=name.replace(/^(PT|CV|Toko|UD)\.?\s+/i,'').split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'TN';
+      var tr=document.createElement('tr');
+      tr.className='tenant-row hover:bg-muted/40 transition-colors'; tr.dataset.status='active';
+      tr.dataset.name=name; tr.dataset.email=email; tr.dataset.vertical=fVertical.value;
+      tr.innerHTML=''
+        +'<td class="px-5 py-3"><div class="flex items-center gap-2.5"><span class="w-8 h-8 rounded-lg bg-primary/12 text-primary text-[11px] font-bold flex items-center justify-center shrink-0">'+initials+'</span><div class="min-w-0"><p class="font-semibold truncate">'+name+'</p><p class="text-[11px] text-muted-foreground truncate">'+email+'</p></div></div></td>'
+        +'<td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">'+fVertical.value+'</span></td>'
+        +'<td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-success/12 text-success"><span class="w-1.5 h-1.5 rounded-full bg-success"></span>Aktif</span></td>'
+        +'<td class="px-5 py-3"><p class="text-[13px] font-medium">0 <span class="text-muted-foreground font-normal">/ '+shortQuota(quotaN)+'</span></p><div class="h-1.5 w-28 rounded-full bg-muted overflow-hidden mt-1"><div class="h-full rounded-full bg-success usage-bar" style="width:1%"></div></div></td>'
+        +'<td class="px-5 py-3 text-[13px]">'+untilLabel+'</td>'
+        +'<td class="px-5 py-3 text-right whitespace-nowrap"><div class="inline-flex items-center gap-2"><button class="act-credit h-8 px-2.5 rounded-lg border border-border text-tertiary text-xs font-medium hover:bg-tertiary/5 transition-colors">+ Kredit</button><button class="act-suspend h-8 px-3 rounded-lg border border-border text-foreground/70 text-xs font-medium hover:border-danger/50 hover:text-danger transition-colors">Suspend</button></div></td>';
+      document.getElementById('tenantBody').prepend(tr);
+      bindRowActions(tr);
+      tr.classList.add('flash'); setTimeout(function(){tr.classList.remove('flash');},800);
+      toast('Tenant “'+name+'” dibuat & diaktifkan', 'success');
+      recountFilters();
+    }
+    closeDrawer();
+  });
+
+  // ============ SUSPEND CONFIRM ============
+  var cBackdrop=document.getElementById('confirmBackdrop');
+  var cCard=document.getElementById('confirmCard');
+  var cName=document.getElementById('confirmName');
+  var pendingSuspendRow=null;
+  function openConfirm(row){
+    pendingSuspendRow=row; cName.textContent=row.dataset.name;
+    cBackdrop.classList.remove('opacity-0','pointer-events-none');
+    cCard.classList.remove('scale-95','opacity-0');
+  }
+  function closeConfirm(){
+    cBackdrop.classList.add('opacity-0','pointer-events-none');
+    cCard.classList.add('scale-95','opacity-0'); pendingSuspendRow=null;
+  }
+  document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
+  cBackdrop.addEventListener('click', function(e){ if(e.target===cBackdrop) closeConfirm(); });
+  document.getElementById('confirmOk').addEventListener('click', function(){
+    if(!pendingSuspendRow) return;
+    var row=pendingSuspendRow;
+    row.dataset.status='suspended';
+    row.classList.add('text-muted-foreground');
+    var tds=row.querySelectorAll('td');
+    tds[2].innerHTML='<span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full bg-muted text-muted-foreground"><span class="w-1.5 h-1.5 rounded-full bg-muted-foreground"></span>Suspended</span>';
+    tds[5].innerHTML='<button class="act-activate h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition-opacity">Aktifkan</button>';
+    var nameP=tds[0].querySelector('p.font-semibold'); if(nameP) nameP.classList.add('text-foreground/55');
+    bindRowActions(row);
+    toast('“'+row.dataset.name+'” di-suspend', 'danger');
+    recountFilters();
+    closeConfirm();
+  });
+
+  // ============ ROW ACTIONS (re)binder ============
+  function bindRowActions(row){
+    var act=row.querySelector('.act-activate');
+    if(act && !act.dataset.bound){ act.dataset.bound='1';
+      act.addEventListener('click', function(){
+        activateRow=row; mode='activate';
+        drawerTitle.textContent='Aktifkan tenant'; drawerSub.textContent=row.dataset.name;
+        drawerSubmitLabel.textContent='Aktifkan tenant'; emailField.style.display='none';
+        fName.value=row.dataset.name; fVertical.value=row.dataset.vertical||''; fNote.value='';
+        fQuota.value='500.000'; setQuotaChip(500000); setDurChip(12); setUntilMonths(12);
+        openDrawer();
+      });
+    }
+    var sus=row.querySelector('.act-suspend');
+    if(sus && !sus.dataset.bound){ sus.dataset.bound='1';
+      sus.addEventListener('click', function(){ openConfirm(row); });
+    }
+    var cr=row.querySelector('.act-credit');
+    if(cr && !cr.dataset.bound){ cr.dataset.bound='1';
+      cr.addEventListener('click', function(){
+        toast('+ 1 jt token ditambahkan ke “'+row.dataset.name+'”', 'info');
+        row.classList.add('flash'); setTimeout(function(){row.classList.remove('flash');},800);
+      });
+    }
+  }
+  // bind existing rows
+  document.querySelectorAll('.tenant-row').forEach(bindRowActions);
+
+  // ============ FILTERS + SEARCH ============
+  var activeFilter='all';
+  var searchInput=document.getElementById('tenantSearch');
+  var resultCount=document.getElementById('resultCount');
+  var tableEmpty=document.getElementById('tableEmpty');
+
+  function applyView(){
+    var q=(searchInput.value||'').trim().toLowerCase();
+    var rows=document.querySelectorAll('#tenantBody .tenant-row');
+    var shown=0, total=rows.length;
+    rows.forEach(function(r){
+      var okStatus = activeFilter==='all' || r.dataset.status===activeFilter;
+      var hay=(r.dataset.name+' '+r.dataset.email+' '+r.dataset.vertical).toLowerCase();
+      var okSearch = !q || hay.indexOf(q)>-1;
+      var vis=okStatus && okSearch;
+      r.style.display = vis ? '' : 'none';
+      if(vis) shown++;
+    });
+    resultCount.textContent='Menampilkan '+shown+' dari '+total+' tenant';
+    if(shown===0){ tableEmpty.classList.remove('hidden'); tableEmpty.classList.add('flex'); }
+    else { tableEmpty.classList.add('hidden'); tableEmpty.classList.remove('flex'); }
+  }
+  function recountFilters(){
+    var rows=document.querySelectorAll('#tenantBody .tenant-row');
+    var c={all:rows.length,pending:0,active:0,suspended:0};
+    rows.forEach(function(r){ if(c[r.dataset.status]!=null) c[r.dataset.status]++; });
+    document.querySelectorAll('.filter-tab').forEach(function(t){
+      var f=t.dataset.filter; var span=t.querySelector('span:last-child'); if(span) span.textContent='('+c[f]+')';
+    });
+    applyView();
+  }
+  document.querySelectorAll('.filter-tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      activeFilter=t.dataset.filter;
+      document.querySelectorAll('.filter-tab').forEach(function(x){
+        var on=x===t;
+        if(on){ x.classList.add('bg-primary','text-primary-foreground','font-medium'); x.classList.remove('bg-card','border','border-border','text-muted-foreground'); }
+        else { x.classList.remove('bg-primary','text-primary-foreground','font-medium'); x.classList.add('bg-card','border','border-border','text-muted-foreground'); }
+      });
+      applyView();
+    });
+  });
+  searchInput.addEventListener('input', applyView);
+
+  // Refresh button (mock re-fetch)
+  document.getElementById('refreshBtn').addEventListener('click', function(){
+    var ic=this.querySelector('svg'); ic.style.transition='transform .6s'; ic.style.transform='rotate(360deg)';
+    setTimeout(function(){ ic.style.transition='none'; ic.style.transform=''; },650);
+    toast('Data tenant disegarkan','info');
+  });
+
+  // Prevent placeholder nav links from jumping
+  document.querySelectorAll('a[data-nav]').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); toast('Modul ini di-mock — fokus halaman Tenant','info'); });
+  });
+
+  recountFilters();
+})();
+</script>
+
+</body></html>

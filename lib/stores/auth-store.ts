@@ -8,7 +8,8 @@ import {
 
 interface AuthState {
   currentUser: DemoAccount;
-  // Whether the user explicitly logged in this session (vs. defaulted to Superadmin).
+  // Whether the user explicitly logged in this session (vs. defaulted to the
+  // non-privileged demo Admin).
   authenticated: boolean;
   login: (email: string, password: string) => DemoAccount | null;
   logout: () => void;
@@ -16,7 +17,8 @@ interface AuthState {
 }
 
 // In-memory only (build.md hard rule: no localStorage in the prototype).
-// Defaults to Superadmin so /dashboard works on cold-load without a login.
+// Defaults to a non-privileged demo Admin so /dashboard works on cold-load
+// without a login (the hardcoded Superadmin account was removed — audit #1).
 export const useAuthStore = create<AuthState>((set) => ({
   currentUser: DEFAULT_DEMO_ACCOUNT,
   authenticated: false,

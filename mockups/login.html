@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers — faithful to app/login/page.tsx */
+
+/* Page fade-out before the (mock) route change */
+.leaving{opacity:0 !important}
+
+/* Animated mesh gradient blobs (coral / teal / coral-mid / amber) */
+.mesh{pointer-events:none;position:absolute;inset:0;z-index:-10;overflow:hidden}
+.blob{position:absolute;border-radius:9999px;filter:blur(64px)}
+.blob-1{height:600px;width:600px;top:-10%;left:-10%;
+  background:radial-gradient(circle at center,hsl(11 96% 61% / 0.18) 0%,transparent 65%);
+  animation:drift1 16s ease-in-out infinite}
+.blob-2{height:640px;width:640px;top:30%;left:55%;
+  background:radial-gradient(circle at center,hsl(173 80% 40% / 0.15) 0%,transparent 65%);
+  animation:drift2 18s ease-in-out 1.5s infinite}
+.blob-3{height:560px;width:560px;top:55%;left:-15%;
+  background:radial-gradient(circle at center,hsl(11 96% 61% / 0.14) 0%,transparent 65%);
+  animation:drift3 14s ease-in-out 3s infinite}
+.blob-4{height:520px;width:520px;top:-5%;left:60%;
+  background:radial-gradient(circle at center,hsl(38 92% 50% / 0.10) 0%,transparent 65%);
+  animation:drift4 17s ease-in-out 2s infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,30px) scale(1.08)}66%{transform:translate(-20px,-10px) scale(.96)}}
+@keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-50px,20px) scale(.95)}66%{transform:translate(30px,40px) scale(1.05)}}
+@keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-30px) scale(1.06)}66%{transform:translate(60px,10px) scale(1)}}
+@keyframes drift4{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-30px,40px) scale(1.04)}66%{transform:translate(10px,20px) scale(.98)}}
+
+/* Floating particles */
+.particles{pointer-events:none;position:absolute;inset:0;z-index:-10;overflow:hidden}
+.particle{position:absolute;bottom:-10px;border-radius:9999px;background:hsl(var(--primary)/0.4);filter:blur(.5px);
+  animation:floatUp linear infinite}
+@keyframes floatUp{0%{transform:translateY(0);opacity:0}10%{opacity:.6}90%{opacity:.6}100%{transform:translateY(-110vh);opacity:0}}
+
+/* Brand mount + radar scan-once */
+.brand-mount{opacity:0;animation:brandIn .6s ease-out forwards}
+@keyframes brandIn{to{opacity:1;transform:scale(1)}}
+.brand-mark{transition:transform .25s ease}
+.brand-link:hover .brand-mark{transform:scale(1.04)}
+.scan-once{animation:scan 1.2s ease-out 1;transform-origin:50% 50%}
+@keyframes scan{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+/* Card spring-rise + shadow growth */
+.card-rise{opacity:0;transform:translateY(24px);animation:cardRise .7s cubic-bezier(.2,.8,.2,1) .2s forwards}
+@keyframes cardRise{to{opacity:1;transform:none}}
+.login-card{
+  box-shadow:0 1px 2px 0 hsl(11 96% 61% / 0.05);
+  animation:shadowGrow .9s ease-out .2s both}
+@keyframes shadowGrow{
+  0%{box-shadow:0 1px 2px 0 hsl(11 96% 61% / 0.04)}
+  100%{box-shadow:0 18px 40px -18px hsl(11 96% 61% / 0.22),0 4px 12px -4px hsl(173 80% 40% / 0.08)}}
+
+/* Heading word stagger */
+.word{display:inline-block;opacity:0;transform:translateY(6px);animation:wordIn .32s ease-out forwards}
+@keyframes wordIn{to{opacity:1;transform:none}}
+
+/* Inputs — coral focus ring */
+.login-input{transition:border-color .2s ease,box-shadow .25s ease}
+.login-input:focus-visible,.login-input:focus{outline:none;border-color:hsl(var(--primary));
+  box-shadow:0 0 0 3px hsl(var(--primary)/0.18),0 1px 2px 0 hsl(var(--primary)/0.08)}
+
+/* Label turns coral when its field is focused */
+.field:focus-within .field-label{color:hsl(var(--primary))}
+
+/* Error shake */
+.err-shake{animation:shake .42s ease-in-out}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+/* Submit button hover/press */
+.submit-btn{transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s ease,background-color .2s ease}
+.submit-btn:not(:disabled):hover{transform:scale(1.02);box-shadow:0 10px 24px -10px hsl(11 96% 61% / 0.45)}
+.submit-btn:not(:disabled):active{transform:scale(.98)}
+
+/* Fade-in helpers */
+.fade-in{opacity:0;animation:fadeIn .4s ease-out forwards}
+@keyframes fadeIn{to{opacity:1}}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Toast */
+.toast{transition:opacity .25s ease,transform .25s ease}
+.toast.hide{opacity:0;transform:translateY(8px)}
+
+@media (prefers-reduced-motion:reduce){
+  .blob,.particle,.scan-once,.brand-mount,.card-rise,.login-card,.word,.submit-btn{animation:none !important}
+  .brand-mount,.card-rise,.word{opacity:1 !important;transform:none !important}
+  .submit-btn:hover,.submit-btn:active{transform:none}
+}
+</style>
+</head>
+<body class="bg-background text-foreground antialiased">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<!-- Pre-auth page: centered card, NO sidebar, brand-neutral (product mark, not per-tenant white-label) -->
+<main id="page" class="relative flex flex-col items-center justify-center overflow-hidden px-4 transition-opacity duration-300" style="min-height:calc(100vh - 33px)">
+
+  <!-- Animated mesh gradient backdrop -->
+  <div class="mesh" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+  </div>
+  <!-- Floating particle layer -->
+  <div class="particles" id="particles" aria-hidden="true"></div>
+
+  <!-- Brand logo (product mark — Radar) with scan-once sweep -->
+  <div class="brand-mount mb-8" style="transform:scale(.9)">
+    <a href="index.html" aria-label="Beranda" class="brand-link inline-flex items-center gap-2">
+      <span class="brand-mark flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+        <svg class="scan-once" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/>
+          <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/>
+          <path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/>
+          <circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/>
+        </svg>
+      </span>
+      <span class="text-[15px] font-semibold tracking-tight text-foreground">
+        Maira<span class="text-muted-foreground"> Sales</span>
+      </span>
+    </a>
+  </div>
+
+  <!-- Login card -->
+  <div class="card-rise w-full max-w-sm">
+    <div class="login-card w-full rounded-lg border border-border bg-card">
+      <div class="p-6">
+
+        <h1 class="text-xl font-semibold tracking-tight" aria-label="Masuk ke akun Anda">
+          <span aria-hidden="true">
+            <span class="word" style="animation-delay:.45s">Masuk</span>
+            <span class="word" style="animation-delay:.52s">ke</span>
+            <span class="word" style="animation-delay:.59s">akun</span>
+            <span class="word" style="animation-delay:.66s">Anda</span>
+          </span>
+        </h1>
+        <p class="fade-in mt-1 text-sm text-muted-foreground" style="animation-delay:.75s">
+          Gunakan email dan kata sandi terdaftar.
+        </p>
+
+        <form id="loginForm" class="mt-6 grid gap-4" novalidate>
+
+          <!-- Email -->
+          <div class="field grid gap-1.5">
+            <label for="email" class="field-label text-sm font-medium leading-none transition-colors duration-200">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" required
+              placeholder="nama@perusahaan.co.id"
+              class="login-input h-9 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground/70" />
+          </div>
+
+          <!-- Password -->
+          <div class="field grid gap-1.5">
+            <div class="flex items-center justify-between">
+              <label for="password" class="field-label text-sm font-medium leading-none transition-colors duration-200">Kata sandi</label>
+              <button type="button" id="forgotBtn" class="text-xs text-primary hover:underline">Lupa sandi?</button>
+            </div>
+            <div class="relative">
+              <input id="password" name="password" type="password" autocomplete="current-password" required
+                placeholder="••••••••"
+                class="login-input h-9 w-full rounded-md border border-input bg-card pl-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground/70" />
+              <button type="button" id="togglePw" aria-label="Tampilkan kata sandi"
+                class="absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors">
+                <!-- eye -->
+                <svg id="eyeOpen" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2.06 12.34a1 1 0 0 1 0-.68 10.94 10.94 0 0 1 19.88 0 1 1 0 0 1 0 .68 10.94 10.94 0 0 1-19.88 0Z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                <!-- eye-off -->
+                <svg id="eyeOff" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c4.86 0 9.27 3.16 10.94 7a10.6 10.6 0 0 1-2.17 3.34"/><path d="M6.61 6.61A13.5 13.5 0 0 0 1.06 12a10.94 10.94 0 0 0 16.33 4.39"/><path d="m2 2 20 20"/><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Remember me -->
+          <label class="flex select-none items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" id="remember"
+              class="h-4 w-4 rounded-sm border border-input accent-primary" />
+            Ingat saya di perangkat ini
+          </label>
+
+          <!-- Inline error slot -->
+          <div id="errorBox" class="hidden rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+            Email atau kata sandi salah.
+          </div>
+
+          <!-- PRIMARY ACTION -->
+          <button type="submit" id="submitBtn"
+            class="submit-btn relative mt-2 inline-flex h-9 w-full items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-80">
+            <!-- idle -->
+            <span id="stateIdle" class="inline-flex items-center gap-2">
+              Masuk
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </span>
+            <!-- loading -->
+            <span id="stateLoading" class="hidden inline-flex items-center gap-2">
+              <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Memuat...
+            </span>
+            <!-- success -->
+            <span id="stateSuccess" class="hidden inline-flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              Berhasil
+            </span>
+          </button>
+
+          <!-- Demo hint (mockup only) -->
+          <p class="text-center text-[11px] text-muted-foreground/70">
+            Demo: isi email apa saja + sandi <span class="font-medium text-foreground/70">demo123</span> untuk lanjut.
+            Sandi lain → memicu error.
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secondary: link ke Register -->
+  <p class="fade-in mt-6 text-sm text-muted-foreground" style="animation-delay:.55s">
+    Belum punya akun?
+    <a href="register.html" class="group inline-flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80">
+      Daftar
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200 group-hover:translate-x-0.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+  </p>
+
+  <!-- Flow note (mockup-only annotation) -->
+  <p class="mt-3 text-center text-[11px] text-muted-foreground/60 max-w-sm">
+    Setelah masuk → cek status tenant: <span class="font-medium">pending</span> jika belum aktif,
+    lalu <span class="font-medium">onboarding</span> / <span class="font-medium">dashboard</span>.
+  </p>
+
+</main>
+
+<!-- Toast (lupa sandi / sukses) -->
+<div id="toast" class="toast hide fixed bottom-5 left-1/2 z-[120] -translate-x-1/2 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-soft">
+  <span id="toastIcon" class="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-primary">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+  </span>
+  <span id="toastMsg">Pesan</span>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- Floating particles (skip when reduced motion) ---- */
+  if(!reduce){
+    var lefts=[12,28,44,62,78,90], sizes=[3,4,3,4,3,4], host=document.getElementById('particles');
+    for(var i=0;i<6;i++){
+      var s=document.createElement('span');
+      s.className='particle';
+      s.style.left=lefts[i]+'%';
+      s.style.width=sizes[i]+'px';
+      s.style.height=sizes[i]+'px';
+      s.style.animationDuration=(22+(i%3)*4)+'s';
+      s.style.animationDelay=(i*4.2)+'s';
+      host.appendChild(s);
+    }
+  }
+
+  /* ---- Password show / hide ---- */
+  var pw=document.getElementById('password'),
+      tgl=document.getElementById('togglePw'),
+      eyeOpen=document.getElementById('eyeOpen'),
+      eyeOff=document.getElementById('eyeOff');
+  tgl.addEventListener('click',function(){
+    var show = pw.type==='password';
+    pw.type = show ? 'text' : 'password';
+    eyeOpen.classList.toggle('hidden', show);
+    eyeOff.classList.toggle('hidden', !show);
+    tgl.setAttribute('aria-label', show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+    pw.focus();
+  });
+
+  /* ---- Toast helper ---- */
+  var toast=document.getElementById('toast'),
+      toastMsg=document.getElementById('toastMsg'),
+      toastT=null;
+  function showToast(msg){
+    toastMsg.textContent=msg;
+    toast.classList.remove('hide');
+    clearTimeout(toastT);
+    toastT=setTimeout(function(){toast.classList.add('hide');},3200);
+  }
+
+  /* ---- Lupa sandi (matches real toast.info copy) ---- */
+  document.getElementById('forgotBtn').addEventListener('click',function(){
+    showToast('Reset sandi: hubungi superadmin / admin tenant kamu.');
+  });
+
+  /* ---- Submit flow: loading → error (shake) | success → fade-out ---- */
+  var form=document.getElementById('loginForm'),
+      email=document.getElementById('email'),
+      errorBox=document.getElementById('errorBox'),
+      btn=document.getElementById('submitBtn'),
+      sIdle=document.getElementById('stateIdle'),
+      sLoad=document.getElementById('stateLoading'),
+      sOk=document.getElementById('stateSuccess'),
+      page=document.getElementById('page');
+
+  function setState(state){
+    sIdle.classList.toggle('hidden', state!=='idle');
+    sLoad.classList.toggle('hidden', state!=='loading');
+    sOk.classList.toggle('hidden', state!=='success');
+    btn.disabled = (state==='loading' || state==='success');
+  }
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    errorBox.classList.add('hidden');
+
+    // Minimal client validation (real page uses required + browser native)
+    if(!email.value.trim() || !pw.value){
+      errorBox.textContent='Email atau kata sandi salah.';
+      errorBox.classList.remove('hidden');
+      errorBox.classList.remove('err-shake'); void errorBox.offsetWidth; errorBox.classList.add('err-shake');
+      return;
+    }
+
+    setState('loading');
+
+    // Simulate the signIn() round-trip
+    setTimeout(function(){
+      var ok = pw.value === 'demo123';
+      if(!ok){
+        setState('idle');
+        errorBox.textContent='Email atau kata sandi salah.';
+        errorBox.classList.remove('hidden');
+        errorBox.classList.remove('err-shake'); void errorBox.offsetWidth; errorBox.classList.add('err-shake');
+        return;
+      }
+      // success: checkmark moment → fade page → (mock) navigate
+      setState('success');
+      showToast('Berhasil masuk');
+      var checkMs = reduce ? 0 : 420, fadeMs = reduce ? 0 : 320;
+      setTimeout(function(){
+        page.classList.add('leaving');
+        setTimeout(function(){
+          // In the real app: router.push('/workspaces').
+          window.location.href='dashboard-shell.html';
+        }, fadeMs);
+      }, checkMs);
+    }, 850);
+  });
+})();
+</script>
+</body>
+</html>

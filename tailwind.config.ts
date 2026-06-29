@@ -69,7 +69,7 @@ const config: Config = {
           shopee: "#EE4D2D",
           tiktok: "#000000",
         },
-        success: "#10B981",
+        success: "#047857", // darkened from #10B981 so WHITE text clears WCAG AA (5.48:1); same emerald hue
         warning: "#F59E0B",
         danger: "#EF4444",
         info: "#3B82F6",

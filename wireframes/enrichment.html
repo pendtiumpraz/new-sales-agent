@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAME — Enrichment / Discovery (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-2.5 sticky top-0 z-50"><span class="font-bold">WIREFRAMES:</span><a class="underline" href="index.html">Index</a><a class="underline" href="login.html">Login</a><a class="underline" href="register.html">Register</a><a class="underline" href="pending.html">Pending</a><a class="underline" href="superadmin-users.html">Superadmin</a><a class="underline" href="onboarding.html">Onboarding</a><a class="underline" href="dashboard-shell.html">Dashboard</a><a class="underline" href="workspace.html">Workspace</a><a class="underline" href="contacts.html">Contacts</a><a class="underline" href="enrichment.html">Enrichment</a><a class="underline" href="inbox.html">Inbox</a><a class="underline" href="pipeline.html">Pipeline</a><a class="underline" href="branding.html">Branding</a></nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Enrichment / Discovery — low-fi: review the FLOW, not the styling</div>
+
+<div class="flex min-h-[calc(100vh-64px)]">
+  <!-- SHARED SIDEBAR (app pages only) — grayscale; icon "1 warna solid" cuma placeholder kotak di low-fi -->
+  <aside class="w-60 bg-gray-200 border-r border-gray-300 p-3 shrink-0 text-sm">
+    <div class="ph h-9 rounded mb-4 flex items-center px-2 text-xs text-gray-500">Logo + Brand</div>
+    <div class="text-[10px] uppercase text-gray-400 px-2 mb-1">Utama</div>
+    <a href="dashboard-shell.html" class="block px-2 py-1.5 rounded hover:bg-gray-300">▢ Dashboard</a>
+    <a href="workspace.html" class="block px-2 py-1.5 rounded hover:bg-gray-300">▢ Workspace</a>
+    <div class="text-[10px] uppercase text-gray-400 px-2 mt-3 mb-1">Leads</div>
+    <a href="contacts.html" class="block px-2 py-1.5 rounded hover:bg-gray-300">▢ Contacts</a>
+    <a href="enrichment.html" class="block px-2 py-1.5 rounded bg-gray-300 font-semibold">▢ Enrichment / Discovery</a>
+    <div class="text-[10px] uppercase text-gray-400 px-2 mt-3 mb-1">Eksekusi</div>
+    <a href="inbox.html" class="block px-2 py-1.5 rounded hover:bg-gray-300">▢ Inbox</a>
+    <a href="pipeline.html" class="block px-2 py-1.5 rounded hover:bg-gray-300">▢ Pipeline</a>
+    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-300 text-gray-500">▢ Cadences</a>
+    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-300 text-gray-500">▢ Autopilot</a>
+    <div class="text-[10px] uppercase text-gray-400 px-2 mt-3 mb-1">Lainnya</div>
+    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-300 text-gray-500">▢ Ecommerce · Retention · Content · Field · Reports</a>
+    <div class="text-[10px] uppercase text-gray-400 px-2 mt-3 mb-1">Pengaturan</div>
+    <a href="branding.html" class="block px-2 py-1.5 rounded hover:bg-gray-300">▢ Branding (akun kamu)</a>
+    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-300 text-gray-500">▢ Tim · Billing · AI</a>
+  </aside>
+
+  <div class="flex-1 flex flex-col">
+    <!-- TOPBAR -->
+    <header class="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-4 shrink-0">
+      <div class="ph h-8 w-64 rounded flex items-center px-3 text-xs text-gray-500">Cari lead / perusahaan…</div>
+      <div class="flex items-center gap-3">
+        <div class="ph h-8 w-28 rounded flex items-center px-2 text-xs text-gray-500">Workspace ▾</div>
+        <div class="ph h-8 w-8 rounded-full"></div>
+      </div>
+    </header>
+    <main class="flex-1 p-6">
+      <!-- CONTENT -->
+
+      <!-- ============ PAGE HEADER ============ -->
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h1 class="text-lg font-bold text-gray-800">Enrichment &amp; Discovery</h1>
+          <p class="text-[12px] text-gray-400 max-w-2xl">
+            Satu tempat untuk <b>nyari lead baru</b> lalu <b>melengkapi datanya</b>. Alur:
+            <b>(1) Discovery</b> → cari lead per channel/SERP → <b>Simpan ke workspace</b> ·
+            <b>(2) Enrichment</b> → lengkapi profil/perusahaan/kontak → <b>klasifikasi B2C/B2B + skor fit</b> otomatis →
+            <b>Push ke Contacts</b>.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a href="#extension" class="h-9 px-3 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100 inline-flex items-center gap-1">⌁ Extension</a>
+          <!-- konteks workspace aktif: 1 workspace = 1 produk -->
+          <span class="h-9 px-3 rounded bg-gray-200 border border-gray-300 text-gray-600 text-[12px] inline-flex items-center gap-1">Workspace: <span class="ph inline-block h-3 w-16 rounded align-middle"></span></span>
+        </div>
+      </div>
+
+      <!-- ============ TWO-STEP RAIL — bikin flow Discovery → Enrichment kebaca sebagai 1 alur ============ -->
+      <div class="flex items-stretch gap-0 mb-5">
+        <a href="#discovery" class="flex-1 bg-white border border-gray-300 rounded-l-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
+          <span class="h-7 w-7 rounded-full bg-gray-700 text-gray-100 text-xs flex items-center justify-center font-semibold">1</span>
+          <div><div class="text-sm font-medium text-gray-800">Discovery — cari lead</div><div class="text-[11px] text-gray-400">Per channel / SERP → daftar hasil → Simpan ke workspace</div></div>
+        </a>
+        <div class="flex items-center px-1 bg-white border-y border-gray-300 text-gray-400">›</div>
+        <a href="#enrichment" class="flex-1 bg-white border border-gray-300 rounded-r-lg px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
+          <span class="h-7 w-7 rounded-full bg-gray-400 text-gray-100 text-xs flex items-center justify-center font-semibold">2</span>
+          <div><div class="text-sm font-medium text-gray-800">Enrichment — lengkapi &amp; klasifikasi</div><div class="text-[11px] text-gray-400">Enrich profil/PT/kontak → B2C/B2B + skor fit → Push ke Contacts</div></div>
+        </a>
+      </div>
+
+      <!-- ============ SECTION TABS ============ -->
+      <!-- Default = Discovery aktif. Di high-fi ini tab beneran; di low-fi dua-duanya dirender beruntun supaya flow kelihatan. -->
+      <div class="flex items-center gap-1 border-b border-gray-300 mb-5 text-sm">
+        <span class="px-4 py-2 border-b-2 border-gray-700 font-semibold text-gray-800">Discovery</span>
+        <span class="px-4 py-2 text-gray-500">Antrian Enrichment <span class="ml-1 px-1.5 py-0.5 rounded-full bg-gray-200 text-[10px]"><span class="ph inline-block h-3 w-4 rounded align-middle"></span></span></span>
+        <span class="px-4 py-2 text-gray-500">Riwayat</span>
+      </div>
+
+
+      <!-- ===================================================================== -->
+      <!-- ===================  BAGIAN 1 — DISCOVERY  ========================== -->
+      <!-- ===================================================================== -->
+      <section id="discovery" class="mb-10">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="h-6 w-6 rounded-full bg-gray-700 text-gray-100 text-[11px] flex items-center justify-center font-semibold">1</span>
+          <h2 class="text-base font-bold text-gray-800">Discovery — cari lead</h2>
+          <span class="text-[11px] text-gray-400">RPA + AI websearch menyusun rencana &amp; ngambil kontak nyata; AI gak ngarang orang.</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+
+          <!-- ---- KIRI: form pencarian (per channel / query) ---- -->
+          <div class="bg-white border border-gray-300 rounded-lg p-4 space-y-4 self-start">
+            <!-- Pilih CHANNEL/sumber discovery -->
+            <div>
+              <label class="block text-[11px] uppercase tracking-wide text-gray-400 mb-1.5">Channel / sumber</label>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" class="px-2.5 py-1 rounded-full bg-gray-700 text-gray-100 text-[11px] font-medium">AI Orang (SERP)</button>
+                <button type="button" class="px-2.5 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-[11px] hover:bg-gray-100">URL website PT</button>
+                <button type="button" class="px-2.5 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-[11px] hover:bg-gray-100">Daftar nama PT</button>
+                <button type="button" class="px-2.5 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-[11px] hover:bg-gray-100">Bidang/Industri</button>
+                <button type="button" class="px-2.5 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-[11px] hover:bg-gray-100">Auto (ICP)</button>
+              </div>
+              <p class="text-[10px] text-gray-400 mt-1.5">LinkedIn / Instagram / Shopee / Tokopedia / TikTok via <a href="#extension" class="underline">Extension</a> (data diambil di browser kamu).</p>
+            </div>
+
+            <hr class="border-gray-200">
+
+            <!-- Query / parameter pencarian (kontekstual ke channel terpilih) -->
+            <div class="space-y-3">
+              <div>
+                <label class="block text-[12px] text-gray-500 mb-1">Bidang / pekerjaan (query)</label>
+                <div class="ph h-9 w-full rounded flex items-center px-3 text-xs text-gray-400">mis. logistik, dokter gigi, HRD manufaktur…</div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[12px] text-gray-500 mb-1">Lokasi target</label>
+                  <div class="ph h-9 w-full rounded flex items-center px-3 text-xs text-gray-400">Indonesia ▾</div>
+                </div>
+                <div>
+                  <label class="block text-[12px] text-gray-500 mb-1">Seniority</label>
+                  <div class="ph h-9 w-full rounded flex items-center justify-between px-3 text-xs text-gray-400"><span>Semua</span><span>▾</span></div>
+                </div>
+              </div>
+              <!-- posture + analyze-saat-crawl (opsi existing) -->
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex-1">
+                  <label class="block text-[12px] text-gray-500 mb-1">Posture</label>
+                  <div class="ph h-9 w-full rounded flex items-center justify-between px-3 text-xs text-gray-400"><span>compliant</span><span>▾</span></div>
+                </div>
+              </div>
+              <label class="flex items-start gap-2 text-[11px] text-gray-500">
+                <span class="ph h-3.5 w-3.5 rounded mt-0.5 shrink-0"></span>
+                <span>Analisis AI saat crawl — klasifikasi + positioning, langsung disimpan <span class="text-gray-400">(pakai kredit AI)</span></span>
+              </label>
+            </div>
+
+            <!-- PRIMARY: jalankan discovery -->
+            <button type="button" class="w-full h-10 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">✨ Buat rencana &amp; cari lead</button>
+            <p class="text-[10px] text-gray-400 text-center">Hasil pencarian muncul di kanan → centang → <b>Simpan ke workspace</b>.</p>
+          </div>
+
+          <!-- ---- KANAN: rencana AI + hasil daftar (results) ---- -->
+          <div class="space-y-4">
+
+            <!-- (a) RENCANA AI (roles / industri / query LinkedIn / dork) — actionable plan -->
+            <div class="bg-white border border-gray-300 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-[13px] font-semibold text-gray-700">Rencana discovery (AI)</h3>
+                <span class="text-[10px] text-gray-400">titel jabatan · industri · query siap-pakai</span>
+              </div>
+              <div class="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <p class="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Query LinkedIn (Tahap-1 extension)</p>
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2 rounded border border-gray-200 px-2 py-1.5"><span class="ph h-3.5 flex-1 rounded"></span><span class="text-[10px] text-gray-400 shrink-0">Buka ↗</span><span class="text-gray-400 shrink-0">⧉</span></div>
+                    <div class="flex items-center gap-2 rounded border border-gray-200 px-2 py-1.5"><span class="ph h-3.5 flex-1 rounded"></span><span class="text-[10px] text-gray-400 shrink-0">Buka ↗</span><span class="text-gray-400 shrink-0">⧉</span></div>
+                    <div class="flex items-center gap-2 rounded border border-gray-200 px-2 py-1.5"><span class="ph h-3.5 flex-1 rounded"></span><span class="text-[10px] text-gray-400 shrink-0">Buka ↗</span><span class="text-gray-400 shrink-0">⧉</span></div>
+                  </div>
+                </div>
+                <div class="space-y-3">
+                  <div>
+                    <p class="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Titel jabatan</p>
+                    <div class="flex flex-wrap gap-1.5"><span class="ph h-5 w-16 rounded-full"></span><span class="ph h-5 w-20 rounded-full"></span><span class="ph h-5 w-14 rounded-full"></span></div>
+                  </div>
+                  <div>
+                    <p class="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Industri</p>
+                    <div class="flex flex-wrap gap-1.5"><span class="ph h-5 w-20 rounded-full"></span><span class="ph h-5 w-16 rounded-full"></span></div>
+                  </div>
+                  <div>
+                    <p class="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Google dork</p>
+                    <div class="ph h-7 w-full rounded font-mono"></div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[10px] italic text-gray-400 mt-2">Catatan: orang asli diambil lewat extension / crawl (diverifikasi) — bukan dikarang AI.</p>
+            </div>
+
+            <!-- (b) HASIL — daftar lead/perusahaan + checkbox + Simpan ke workspace -->
+            <div class="bg-white border border-gray-300 rounded-lg">
+              <div class="px-4 py-3 border-b border-gray-200 flex flex-wrap items-center gap-3">
+                <h3 class="text-[13px] font-semibold text-gray-700">Hasil pencarian</h3>
+                <span class="text-[11px] text-gray-400"><span class="ph inline-block h-3 w-6 rounded align-middle"></span> kandidat ditemukan</span>
+                <!-- BULK SAVE: simpan terpilih ke workspace -->
+                <div class="ml-auto flex items-center gap-2">
+                  <span class="text-[11px] text-gray-500"><span class="ph inline-block h-3 w-4 rounded align-middle"></span> dipilih</span>
+                  <button type="button" class="h-8 px-3 rounded border border-gray-400 text-gray-600 text-xs hover:bg-gray-100">Crawl PT</button>
+                  <!-- PRIMARY discovery action -->
+                  <button type="button" class="h-8 px-3 rounded bg-gray-700 text-gray-100 text-xs font-medium hover:opacity-90">↓ Simpan ke workspace</button>
+                </div>
+              </div>
+              <table class="w-full text-sm text-left">
+                <thead class="bg-gray-100 text-[11px] uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th class="px-3 py-2.5 w-9"><span class="ph inline-block h-4 w-4 rounded"></span></th>
+                    <th class="px-3 py-2.5 font-medium">Nama / Perusahaan</th>
+                    <th class="px-3 py-2.5 font-medium">Channel</th>
+                    <th class="px-3 py-2.5 font-medium">Sinyal kontak</th>
+                    <th class="px-3 py-2.5 font-medium text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 text-gray-600">
+                  <!-- ROW (terpilih sbg contoh) -->
+                  <tr class="bg-gray-100/70">
+                    <td class="px-3 py-2.5"><span class="inline-block h-4 w-4 rounded bg-gray-600"></span></td>
+                    <td class="px-3 py-2.5"><div class="font-medium text-gray-800">PT Logistik Nusantara</div><div class="text-[11px] text-gray-400">nusantara-logistik.co.id</div></td>
+                    <td class="px-3 py-2.5"><span class="px-2 py-0.5 rounded bg-gray-200 text-[11px] text-gray-600">SERP</span></td>
+                    <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px] mr-1">✉ email</span><span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px]">☎ telp</span></td>
+                    <td class="px-3 py-2.5 text-right"><button type="button" class="h-7 px-2.5 rounded border border-gray-400 text-gray-600 text-[11px] hover:bg-gray-100">Crawl ›</button></td>
+                  </tr>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2.5"><span class="ph inline-block h-4 w-4 rounded"></span></td>
+                    <td class="px-3 py-2.5"><div class="font-medium text-gray-800">Andi Wijaya</div><div class="text-[11px] text-gray-400">Owner · UD Makmur</div></td>
+                    <td class="px-3 py-2.5"><span class="px-2 py-0.5 rounded bg-gray-200 text-[11px] text-gray-600">LinkedIn</span></td>
+                    <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px]">in/profil</span></td>
+                    <td class="px-3 py-2.5 text-right"><button type="button" class="h-7 px-2.5 rounded border border-gray-400 text-gray-600 text-[11px] hover:bg-gray-100">Buka ↗</button></td>
+                  </tr>
+                  <!-- LOADING ROWS (Rule 7: data dari API; placeholder = loading/empty) -->
+                  <tr><td class="px-3 py-2.5"><span class="ph inline-block h-4 w-4 rounded"></span></td><td class="px-3 py-2.5"><div class="ph h-4 w-40 rounded"></div></td><td class="px-3 py-2.5"><div class="ph h-4 w-16 rounded"></div></td><td class="px-3 py-2.5"><div class="ph h-4 w-24 rounded"></div></td><td class="px-3 py-2.5 text-right"><div class="ph h-4 w-12 rounded inline-block"></div></td></tr>
+                  <tr><td class="px-3 py-2.5"><span class="ph inline-block h-4 w-4 rounded"></span></td><td class="px-3 py-2.5"><div class="ph h-4 w-32 rounded"></div></td><td class="px-3 py-2.5"><div class="ph h-4 w-16 rounded"></div></td><td class="px-3 py-2.5"><div class="ph h-4 w-20 rounded"></div></td><td class="px-3 py-2.5 text-right"><div class="ph h-4 w-12 rounded inline-block"></div></td></tr>
+                </tbody>
+              </table>
+              <div class="px-4 py-2.5 border-t border-gray-200 text-[11px] text-gray-400">
+                Lead yang disimpan masuk antrian <a href="#enrichment" class="underline">Enrichment</a> dengan status <i>“belum di-enrich”</i> & ditandai ke workspace ini.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extension card — discovery engine utama (anchor target) -->
+        <div id="extension" class="bg-white border border-gray-300 rounded-lg p-4 mt-4 flex flex-wrap items-center gap-3">
+          <span class="h-9 w-9 rounded bg-gray-300 flex items-center justify-center text-gray-600">⌁</span>
+          <div class="min-w-0">
+            <div class="text-[13px] font-semibold text-gray-700 flex items-center gap-2">Crawl via Extension (utama) <span class="px-2 py-0.5 rounded-full bg-gray-200 text-[10px] text-gray-500">Belum terhubung</span></div>
+            <p class="text-[11px] text-gray-400">Data diambil di browser kamu (RPA scrape + AI websearch) → buffer → kirim ke platform. Serverless gak bisa crawl sosmed sendiri.</p>
+          </div>
+          <a href="#" class="ml-auto h-9 px-3 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100 inline-flex items-center">Pasang &amp; hubungkan ›</a>
+        </div>
+      </section>
+
+
+      <!-- ===================================================================== -->
+      <!-- ===================  BAGIAN 2 — ENRICHMENT  ======================== -->
+      <!-- ===================================================================== -->
+      <section id="enrichment">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="h-6 w-6 rounded-full bg-gray-700 text-gray-100 text-[11px] flex items-center justify-center font-semibold">2</span>
+          <h2 class="text-base font-bold text-gray-800">Enrichment — lengkapi &amp; klasifikasi</h2>
+          <span class="text-[11px] text-gray-400">Ambil kontak mentah → isi profil/perusahaan/kontak → klasifikasi otomatis B2C/B2B + skor fit.</span>
+        </div>
+
+        <!-- STAT STRIP enrichment -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div class="bg-white border border-gray-300 rounded-lg p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400">Antri enrich</div>
+            <div class="ph h-6 w-12 rounded mt-2"></div>
+          </div>
+          <div class="bg-white border border-gray-300 rounded-lg p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400">Diklasifikasi B2C</div>
+            <div class="flex items-center gap-2 mt-2"><span class="px-2 py-0.5 rounded-full bg-gray-300 text-gray-700 text-[11px] font-medium">B2C</span><div class="ph h-5 w-10 rounded"></div></div>
+          </div>
+          <div class="bg-white border border-gray-300 rounded-lg p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400">Diklasifikasi B2B</div>
+            <div class="flex items-center gap-2 mt-2"><span class="px-2 py-0.5 rounded-full bg-gray-600 text-gray-100 text-[11px] font-medium">B2B</span><div class="ph h-5 w-10 rounded"></div></div>
+          </div>
+          <div class="bg-white border border-gray-300 rounded-lg p-3">
+            <div class="text-[10px] uppercase tracking-wide text-gray-400">Siap push ke Contacts</div>
+            <div class="flex items-center gap-2 mt-2"><span class="px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 text-[11px]">✓ enriched</span><div class="ph h-5 w-10 rounded"></div></div>
+          </div>
+        </div>
+
+        <!-- TOOLBAR antrian: filter + bulk run + push -->
+        <div class="bg-white border border-gray-300 rounded-t-lg px-4 py-3 flex flex-wrap items-center gap-3 border-b-0">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] text-gray-400 mr-1">Status:</span>
+            <button type="button" class="px-3 py-1 rounded-full bg-gray-700 text-gray-100 text-xs font-medium">Semua</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-dashed border-gray-400 text-gray-500 text-xs hover:bg-gray-100">Belum di-enrich</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-xs hover:bg-gray-100">Sedang jalan</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-xs hover:bg-gray-100">✓ Selesai</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-xs hover:bg-gray-100">Gagal</button>
+          </div>
+          <span class="w-px h-5 bg-gray-200"></span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] text-gray-400 mr-1">Segmen:</span>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-xs hover:bg-gray-100">B2C</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-xs hover:bg-gray-100">B2B</button>
+          </div>
+          <span class="ml-auto text-[11px] text-gray-400"><span class="ph inline-block h-3 w-8 rounded align-middle"></span> di antrian</span>
+        </div>
+
+        <!-- BULK BAR (state terpilih, statis sbg contoh) -->
+        <div class="bg-gray-200 border-x border-gray-300 px-4 py-2 flex flex-wrap items-center gap-3 text-xs">
+          <span class="font-medium text-gray-700"><span class="ph inline-block h-3 w-5 rounded align-middle"></span> dipilih</span>
+          <!-- BULK ENRICH: sequential queue → munculin progress modal (lihat bawah) -->
+          <button type="button" class="h-8 px-3 rounded bg-gray-700 text-gray-100 font-medium hover:opacity-90">✨ Enrich terpilih</button>
+          <button type="button" class="h-8 px-3 rounded border border-gray-400 text-gray-600 hover:bg-gray-100">Klasifikasi ulang B2C/B2B</button>
+          <!-- PUSH: yang sudah enriched → masuk Contacts/Workspace -->
+          <button type="button" class="h-8 px-3 rounded border border-gray-400 text-gray-600 hover:bg-gray-100">↑ Push ke Contacts</button>
+          <a href="#" class="ml-auto text-gray-500 underline">Batal pilih</a>
+        </div>
+
+        <!-- TABEL ANTRIAN ENRICH -->
+        <div class="bg-white border border-gray-300 rounded-b-lg overflow-x-auto">
+          <table class="w-full text-sm text-left min-w-[960px]">
+            <thead class="bg-gray-100 text-[11px] uppercase tracking-wide text-gray-500">
+              <tr>
+                <th class="px-3 py-3 w-9"><span class="ph inline-block h-4 w-4 rounded"></span></th>
+                <th class="px-3 py-3 font-medium">Lead (mentah)</th>
+                <th class="px-3 py-3 font-medium">Kelengkapan data</th>
+                <th class="px-3 py-3 font-medium">Klasifikasi</th>
+                <th class="px-3 py-3 font-medium">Skor Fit</th>
+                <th class="px-3 py-3 font-medium">Status enrich</th>
+                <th class="px-3 py-3 font-medium text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 text-gray-600">
+
+              <!-- ROW 1 — selesai, B2B, siap push (klik = drawer before/after) -->
+              <tr class="bg-gray-100/80 cursor-pointer hover:bg-gray-100">
+                <td class="px-3 py-3"><span class="inline-block h-4 w-4 rounded bg-gray-600"></span></td>
+                <td class="px-3 py-3"><div class="font-medium text-gray-800">PT Logistik Nusantara</div><div class="text-[11px] text-gray-400">dari Discovery · SERP</div></td>
+                <td class="px-3 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-gray-200 overflow-hidden"><div class="h-full w-5/6 bg-gray-600"></div></div><span class="text-[10px] text-gray-400">5/6</span></div></td>
+                <td class="px-3 py-3"><span class="px-2 py-0.5 rounded-full bg-gray-600 text-gray-100 text-[11px] font-medium">B2B</span></td>
+                <td class="px-3 py-3"><div class="ph h-4 w-10 rounded"></div></td>
+                <td class="px-3 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-300 text-gray-700 text-[11px] font-medium">✓ Selesai</span></td>
+                <td class="px-3 py-3 text-right"><button type="button" class="h-7 px-2.5 rounded bg-gray-700 text-gray-100 text-[11px] font-medium hover:opacity-90">↑ Push</button></td>
+              </tr>
+
+              <!-- ROW 2 — sedang jalan (progress) -->
+              <tr class="cursor-pointer hover:bg-gray-50">
+                <td class="px-3 py-3"><span class="ph inline-block h-4 w-4 rounded"></span></td>
+                <td class="px-3 py-3"><div class="font-medium text-gray-800">Andi Wijaya</div><div class="text-[11px] text-gray-400">dari Discovery · LinkedIn</div></td>
+                <td class="px-3 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-gray-200 overflow-hidden"><div class="h-full w-1/3 bg-gray-500 animate-pulse"></div></div><span class="text-[10px] text-gray-400">enriching…</span></div></td>
+                <td class="px-3 py-3"><span class="px-2 py-0.5 rounded-full border border-dashed border-gray-400 text-gray-500 text-[11px]">…</span></td>
+                <td class="px-3 py-3 text-gray-400">—</td>
+                <td class="px-3 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 text-[11px]">⟳ Jalan</span></td>
+                <td class="px-3 py-3 text-right"><button type="button" class="h-7 px-2.5 rounded border border-gray-400 text-gray-400 text-[11px]" disabled>Push</button></td>
+              </tr>
+
+              <!-- ROW 3 — belum di-enrich, B2C -->
+              <tr class="cursor-pointer hover:bg-gray-50">
+                <td class="px-3 py-3"><span class="ph inline-block h-4 w-4 rounded"></span></td>
+                <td class="px-3 py-3"><div class="font-medium text-gray-800">Siti Rahma</div><div class="text-[11px] text-gray-400">Impor CSV</div></td>
+                <td class="px-3 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-gray-200 overflow-hidden"><div class="h-full w-1/6 bg-gray-400"></div></div><span class="text-[10px] text-gray-400">1/6</span></div></td>
+                <td class="px-3 py-3"><span class="px-2 py-0.5 rounded-full bg-gray-300 text-gray-700 text-[11px] font-medium">B2C</span><span class="block text-[9px] text-gray-400">tebakan awal</span></td>
+                <td class="px-3 py-3 text-gray-400">—</td>
+                <td class="px-3 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-gray-400 text-gray-500 text-[11px]">Belum</span></td>
+                <td class="px-3 py-3 text-right"><button type="button" class="h-7 px-2.5 rounded bg-gray-700 text-gray-100 text-[11px] font-medium hover:opacity-90">✨ Enrich</button></td>
+              </tr>
+
+              <!-- ROW 4 — gagal (retry) -->
+              <tr class="cursor-pointer hover:bg-gray-50">
+                <td class="px-3 py-3"><span class="ph inline-block h-4 w-4 rounded"></span></td>
+                <td class="px-3 py-3"><div class="font-medium text-gray-800">Rizky Pratama</div><div class="text-[11px] text-gray-400">dari Discovery · SERP</div></td>
+                <td class="px-3 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-gray-200 overflow-hidden"><div class="h-full w-1/12 bg-gray-400"></div></div><span class="text-[10px] text-gray-400">0/6</span></div></td>
+                <td class="px-3 py-3"><span class="px-2 py-0.5 rounded-full border border-dashed border-gray-400 text-gray-500 text-[11px]">belum</span></td>
+                <td class="px-3 py-3 text-gray-400">—</td>
+                <td class="px-3 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 text-[11px]">✕ Gagal</span></td>
+                <td class="px-3 py-3 text-right"><button type="button" class="h-7 px-2.5 rounded border border-gray-400 text-gray-600 text-[11px] hover:bg-gray-100">↻ Coba lagi</button></td>
+              </tr>
+
+              <!-- LOADING ROWS -->
+              <tr><td class="px-3 py-3"><span class="ph inline-block h-4 w-4 rounded"></span></td><td class="px-3 py-3"><div class="ph h-4 w-36 rounded"></div></td><td class="px-3 py-3"><div class="ph h-4 w-28 rounded"></div></td><td class="px-3 py-3"><div class="ph h-4 w-12 rounded-full"></div></td><td class="px-3 py-3"><div class="ph h-4 w-10 rounded"></div></td><td class="px-3 py-3"><div class="ph h-4 w-16 rounded-full"></div></td><td class="px-3 py-3 text-right"><div class="ph h-4 w-12 rounded inline-block"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-[11px] text-gray-400 mt-3">
+          Klik baris → panel kanan <b>Before / After enrich</b> (lihat contoh terbuka). Enrich mengisi: profil, perusahaan/PT, kontak (email/telp/sosmed),
+          lalu <b>klasifikasi B2C/B2B + skor fit</b> otomatis. Tombol <b>Push ke Contacts</b> mindahin lead ke <a href="contacts.html" class="underline">Contacts</a>.
+        </p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===================== RIGHT DRAWER 420px — BEFORE / AFTER ENRICH (OPEN as static example) ===================== -->
+  <!-- Klik baris antrian → drawer ini. high-fi: overlay rgba(0,0,0,.5) + slide-in 300ms. -->
+  <div class="fixed inset-0 z-40 pointer-events-none">
+    <div class="absolute inset-0 bg-gray-900/40"></div>
+    <aside class="absolute top-0 right-0 h-full w-[420px] bg-white border-l border-gray-300 shadow-xl flex flex-col pointer-events-auto">
+
+      <!-- Drawer header -->
+      <div class="h-14 flex items-center justify-between px-5 border-b border-gray-300 shrink-0">
+        <div class="min-w-0">
+          <h2 class="text-sm font-bold text-gray-800 truncate">PT Logistik Nusantara</h2>
+          <p class="text-[11px] text-gray-400">Detail enrich · <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-300 text-gray-700 text-[10px]">✓ Selesai</span></p>
+        </div>
+        <button type="button" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+      </div>
+
+      <!-- Drawer body (scroll) -->
+      <div class="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+        <!-- (A) HASIL KLASIFIKASI + skor fit (output enrich) -->
+        <div class="rounded-lg border border-gray-300 p-3 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[13px] font-medium text-gray-600">Klasifikasi otomatis</span>
+            <span class="text-[10px] text-gray-400">AI · bisa override</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" class="px-3 py-1 rounded-full bg-gray-600 text-gray-100 text-xs font-medium">B2B</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-600 text-xs hover:bg-gray-100">B2C</button>
+            <button type="button" class="px-3 py-1 rounded-full bg-white border border-dashed border-gray-400 text-gray-500 text-xs hover:bg-gray-100">Belum</button>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[12px] text-gray-500">Skor fit produk</span>
+            <div class="ph h-5 w-12 rounded"></div>
+            <div class="h-2 flex-1 rounded-full bg-gray-200 overflow-hidden"><div class="h-full w-3/4 bg-gray-600"></div></div>
+          </div>
+          <!-- produk fit (1 workspace = 1 produk, tapi band ukuran ditandai) -->
+          <div class="flex items-center gap-2 text-[11px] text-gray-500"><span>Cocok untuk:</span><span class="ph h-4 w-20 rounded"></span><span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px]">ukuran 51-200</span></div>
+        </div>
+
+        <!-- (B) BEFORE / AFTER ENRICH — dua kolom -->
+        <div>
+          <h3 class="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Before / After enrich</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <!-- BEFORE (mentah) -->
+            <div class="rounded-lg border border-dashed border-gray-300 p-2.5">
+              <p class="text-[10px] uppercase tracking-wide text-gray-400 mb-1.5">Before (mentah)</p>
+              <div class="space-y-1.5 text-[11px]">
+                <div><span class="text-gray-400">Nama</span><div class="ph h-3.5 w-24 rounded mt-0.5"></div></div>
+                <div><span class="text-gray-400">Perusahaan</span><div class="text-gray-300 italic mt-0.5">—</div></div>
+                <div><span class="text-gray-400">Email</span><div class="text-gray-300 italic mt-0.5">—</div></div>
+                <div><span class="text-gray-400">Telp / WA</span><div class="text-gray-300 italic mt-0.5">—</div></div>
+                <div><span class="text-gray-400">Sosmed</span><div class="text-gray-300 italic mt-0.5">—</div></div>
+              </div>
+            </div>
+            <!-- AFTER (terisi) -->
+            <div class="rounded-lg border border-gray-300 bg-gray-50 p-2.5">
+              <p class="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">After ✦</p>
+              <div class="space-y-1.5 text-[11px]">
+                <div><span class="text-gray-400">Nama</span><div class="ph h-3.5 w-24 rounded mt-0.5"></div></div>
+                <div><span class="text-gray-400">Perusahaan</span><div class="ph h-3.5 w-28 rounded mt-0.5"></div></div>
+                <div><span class="text-gray-400">Email</span><div class="ph h-3.5 w-28 rounded mt-0.5"></div></div>
+                <div><span class="text-gray-400">Telp / WA</span><div class="ph h-3.5 w-24 rounded mt-0.5"></div></div>
+                <div><span class="text-gray-400">Sosmed</span><div class="flex gap-1 mt-0.5"><span class="ph h-3.5 w-8 rounded"></span><span class="ph h-3.5 w-8 rounded"></span></div></div>
+              </div>
+            </div>
+          </div>
+          <p class="text-[10px] text-gray-400 mt-1.5">Field baru ditandai <b>✦</b>; tiap field punya <b>sumber</b> (Crawl/Hunter/Web) + waktu capture.</p>
+        </div>
+
+        <!-- (C) RINGKASAN AI + sumber -->
+        <div>
+          <h3 class="text-[11px] uppercase tracking-wide text-gray-400 mb-1.5">Ringkasan (AI) + sumber</h3>
+          <div class="ph h-12 w-full rounded px-2 py-1.5 text-[11px] text-gray-500">Ringkasan 1 kalimat hasil enrichment…</div>
+          <div class="flex flex-wrap gap-1.5 mt-1.5">
+            <span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px] text-gray-600">sumber: situs PT</span>
+            <span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px] text-gray-600">/contact</span>
+            <span class="px-1.5 py-0.5 rounded bg-gray-200 text-[10px] text-gray-600">SERP</span>
+          </div>
+        </div>
+
+        <!-- (D) LOG enrich (langkah-langkah) -->
+        <div>
+          <h3 class="text-[11px] uppercase tracking-wide text-gray-400 mb-1.5">Log enrich</h3>
+          <ul class="text-[11px] text-gray-500 space-y-1">
+            <li class="flex gap-2"><span class="text-gray-400">✓</span> Cari di SERP &amp; baca hasil teratas</li>
+            <li class="flex gap-2"><span class="text-gray-400">✓</span> Ekstrak email/telp/sosmed (regex, bukan AI)</li>
+            <li class="flex gap-2"><span class="text-gray-400">✓</span> Klasifikasi B2C/B2B + skor fit</li>
+            <li class="flex gap-2"><span class="text-gray-400">✓</span> Ringkasan AI (untrusted-wrapped)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Drawer footer (sticky) — re-enrich + PUSH -->
+      <div class="border-t border-gray-300 px-5 py-3 flex items-center gap-2 shrink-0">
+        <button type="button" class="h-9 px-3 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100">↻ Enrich ulang</button>
+        <button type="button" class="h-9 px-3 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100">Edit</button>
+        <!-- PRIMARY ACTION — push lead enriched ini ke Contacts/Workspace -->
+        <button type="button" class="ml-auto h-9 px-4 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">↑ Push ke Contacts</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ===================== PROGRESS MODAL — bulk enrich queue (UX coherence: async = modal progress) ===================== -->
+  <!-- Muncul saat "Enrich terpilih" jalan. Ditampilkan statis di tengah sbg contoh. -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+    <div class="absolute inset-0 bg-gray-900/40"></div>
+    <div class="relative w-[420px] bg-white border border-gray-300 rounded-xl shadow-2xl p-5 pointer-events-auto">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-gray-800">Menjalankan enrichment…</h3>
+        <button type="button" class="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+      <div class="space-y-2 mb-3">
+        <div class="flex items-center justify-between text-[12px] text-gray-500"><span>Progress antrian</span><span><span class="ph inline-block h-3 w-4 rounded align-middle"></span> / <span class="ph inline-block h-3 w-4 rounded align-middle"></span></span></div>
+        <div class="h-2 w-full rounded-full bg-gray-200 overflow-hidden"><div class="h-full w-2/5 bg-gray-600"></div></div>
+      </div>
+      <ul class="text-[12px] space-y-1.5 mb-4">
+        <li class="flex items-center gap-2 text-gray-600"><span class="text-gray-400">✓</span> PT Logistik Nusantara — 5 kontak, klasifikasi B2B</li>
+        <li class="flex items-center gap-2 text-gray-700"><span class="animate-pulse text-gray-400">⟳</span> Andi Wijaya — sedang enrich…</li>
+        <li class="flex items-center gap-2 text-gray-400">○ Siti Rahma — menunggu</li>
+        <li class="flex items-center gap-2 text-gray-400">○ Rizky Pratama — menunggu</li>
+      </ul>
+      <div class="flex items-center gap-2">
+        <button type="button" class="h-9 px-3 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100">Jalankan di background</button>
+        <button type="button" class="ml-auto h-9 px-3 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100">Batalkan sisa</button>
+      </div>
+      <p class="text-[10px] text-gray-400 mt-2 text-center">Antrian sekuensial. Selesai → otomatis terklasifikasi & siap di-Push ke Contacts.</p>
+    </div>
+  </div>
+
+</div>
+</body></html>

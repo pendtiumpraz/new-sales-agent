@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAME — Onboarding (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-3 sticky top-0 z-50">
+  <span class="font-bold">WIREFRAMES M1:</span>
+  <a class="underline" href="index.html">Index</a>
+  <a class="underline" href="login.html">Login</a>
+  <a class="underline" href="register.html">Register</a>
+  <a class="underline" href="pending.html">Pending</a>
+  <a class="underline" href="superadmin-users.html">Superadmin</a>
+  <a class="underline" href="onboarding.html">Onboarding</a>
+  <a class="underline" href="dashboard-shell.html">Dashboard</a>
+</nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Onboarding — low-fi: review the FLOW, not the styling</div>
+<!-- CONTENT -->
+
+<!--
+  Onboarding = WIZARD FULL-SCREEN (no dashboard sidebar — ini gate setelah tenant aktif,
+  SEBELUM masuk dashboard-shell.html). Flow: pending.html → (superadmin activate) → login →
+  onboarding (wizard 3 langkah) → dashboard-shell.html.
+  3 STEP: 1) pilih vertical/usage (set modul aktif)  2) white-label (brand/logo/warna + live preview)
+          3) undang seat (email list). Tombol: "Lanjut" (step 1-2) / "Selesai" (step 3).
+  Catatan: wireframe ini menampilkan KETIGA step bertumpuk (stacked) supaya satu file = review full flow.
+  Di mockup/high-fi nanti hanya 1 step terlihat sekaligus (sisanya hidden).
+-->
+<main class="min-h-[calc(100vh-64px)] px-4 py-8">
+  <div class="w-full max-w-3xl mx-auto">
+
+    <!-- ============ HEADER WIZARD ============ -->
+    <div class="text-center mb-6">
+      <div class="ph w-12 h-12 rounded mx-auto mb-3 flex items-center justify-center text-[10px] text-gray-500">logo</div>
+      <h1 class="text-xl font-bold text-gray-800">Selamat datang — atur workspace kamu</h1>
+      <p class="text-xs text-gray-500 mt-1">3 langkah cepat sebelum mulai. Bisa diubah lagi nanti di Pengaturan.</p>
+    </div>
+
+    <!-- ============ STEPPER (.ph) — 3 langkah ============ -->
+    <div class="ph rounded-lg p-4 mb-8">
+      <div class="flex items-center justify-between">
+
+        <!-- Step 1 (current) -->
+        <div class="flex items-center gap-2">
+          <div class="ph w-8 h-8 rounded-full bg-gray-300 border-gray-500 flex items-center justify-center text-xs font-bold text-gray-700">1</div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-gray-700">Usage / Vertical</div>
+            <div class="text-[10px] text-gray-500">Langkah aktif</div>
+          </div>
+        </div>
+
+        <div class="ph h-0.5 flex-1 mx-3 rounded"></div>
+
+        <!-- Step 2 -->
+        <div class="flex items-center gap-2 opacity-60">
+          <div class="ph w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">2</div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-gray-600">White-label</div>
+            <div class="text-[10px] text-gray-400">Berikutnya</div>
+          </div>
+        </div>
+
+        <div class="ph h-0.5 flex-1 mx-3 rounded"></div>
+
+        <!-- Step 3 -->
+        <div class="flex items-center gap-2 opacity-60">
+          <div class="ph w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">3</div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-gray-600">Undang Seat</div>
+            <div class="text-[10px] text-gray-400">Terakhir</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- STEP 1 — PILIH VERTICAL / USAGE (set modul aktif)                  -->
+    <!-- ================================================================= -->
+    <section class="bg-white border border-gray-300 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex items-baseline gap-2 mb-1">
+        <span class="ph rounded px-2 py-0.5 text-[10px] font-semibold text-gray-600">STEP 1</span>
+        <h2 class="text-base font-bold text-gray-800">Pilih usage / vertical</h2>
+      </div>
+      <p class="text-xs text-gray-500 mb-5">Pilihan ini menentukan <span class="font-medium text-gray-700">modul &amp; entitlement</span> yang aktif untuk tenant kamu. (grain = tenant)</p>
+
+      <!-- Kartu pilihan vertical: HR / Sales / Lainnya -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+
+        <!-- Kartu HR -->
+        <label class="ph rounded-lg p-4 cursor-pointer block">
+          <div class="flex items-start justify-between mb-3">
+            <div class="ph w-9 h-9 rounded bg-gray-300 flex items-center justify-center text-[9px] text-gray-500">ikon</div>
+            <div class="ph w-4 h-4 rounded-full"></div> <!-- radio -->
+          </div>
+          <div class="text-sm font-bold text-gray-700 mb-1">HR</div>
+          <p class="text-[11px] text-gray-500 mb-3">Rekrutmen &amp; outreach kandidat.</p>
+          <div class="text-[10px] text-gray-500">Modul aktif:</div>
+          <div class="flex flex-wrap gap-1 mt-1">
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">CRM</span>
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">Inbox</span>
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">Kandidat</span>
+          </div>
+        </label>
+
+        <!-- Kartu Sales (SELECTED — contoh state terpilih) -->
+        <label class="ph rounded-lg p-4 cursor-pointer block ring-2 ring-gray-500 bg-gray-100">
+          <div class="flex items-start justify-between mb-3">
+            <div class="ph w-9 h-9 rounded bg-gray-300 flex items-center justify-center text-[9px] text-gray-500">ikon</div>
+            <div class="ph w-4 h-4 rounded-full bg-gray-500 border-gray-600"></div> <!-- radio: dipilih -->
+          </div>
+          <div class="text-sm font-bold text-gray-700 mb-1">Sales <span class="text-[10px] font-normal">(dipilih)</span></div>
+          <p class="text-[11px] text-gray-500 mb-3">Pipeline, deals &amp; closing WA-first.</p>
+          <div class="text-[10px] text-gray-500">Modul aktif:</div>
+          <div class="flex flex-wrap gap-1 mt-1">
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">CRM</span>
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">Inbox/WA</span>
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">Produk</span>
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">Enrichment</span>
+          </div>
+        </label>
+
+        <!-- Kartu Lainnya -->
+        <label class="ph rounded-lg p-4 cursor-pointer block">
+          <div class="flex items-start justify-between mb-3">
+            <div class="ph w-9 h-9 rounded bg-gray-300 flex items-center justify-center text-[9px] text-gray-500">ikon</div>
+            <div class="ph w-4 h-4 rounded-full"></div> <!-- radio -->
+          </div>
+          <div class="text-sm font-bold text-gray-700 mb-1">Lainnya</div>
+          <p class="text-[11px] text-gray-500 mb-3">Custom — pilih modul manual.</p>
+          <div class="text-[10px] text-gray-500">Modul aktif:</div>
+          <div class="flex flex-wrap gap-1 mt-1">
+            <span class="ph rounded px-1.5 py-0.5 text-[10px] text-gray-500">pilih sendiri…</span>
+          </div>
+        </label>
+
+      </div>
+
+      <!-- Ringkasan entitlement (read-only, ngikut kartu yang dipilih) -->
+      <div class="ph rounded p-3 text-[11px] text-gray-500 leading-relaxed">
+        Ringkasan: vertical <span class="font-medium text-gray-700">Sales</span> mengaktifkan modul
+        CRM, Inbox/WA, Produk, Enrichment. Kuota &amp; masa aktif mengikuti aktivasi superadmin.
+      </div>
+
+      <!-- Aksi step 1 -->
+      <div class="flex items-center justify-between mt-6">
+        <span class="text-[11px] text-gray-400">Langkah 1 dari 3</span>
+        <button type="button" class="h-10 px-6 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">Lanjut →</button>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- STEP 2 — WHITE-LABEL (brand, logo, primary color, live preview)    -->
+    <!-- ================================================================= -->
+    <section class="bg-white border border-gray-300 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex items-baseline gap-2 mb-1">
+        <span class="ph rounded px-2 py-0.5 text-[10px] font-semibold text-gray-600">STEP 2</span>
+        <h2 class="text-base font-bold text-gray-800">White-label workspace</h2>
+      </div>
+      <p class="text-xs text-gray-500 mb-5">Atur identitas brand tenant. Disimpan per-tenant &amp; di-apply ke seluruh UI (sidebar, tombol, aksen).</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- KIRI: form white-label -->
+        <div class="space-y-4">
+
+          <!-- Nama brand -->
+          <div>
+            <label class="block text-[13px] font-medium text-gray-600 mb-1">Nama Brand</label>
+            <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">Maira Sales</div>
+          </div>
+
+          <!-- Upload logo (.ph) -->
+          <div>
+            <label class="block text-[13px] font-medium text-gray-600 mb-1">Logo</label>
+            <div class="ph h-24 w-full rounded flex flex-col items-center justify-center text-[11px] text-gray-500">
+              <div class="ph w-9 h-9 rounded mb-1 flex items-center justify-center text-[9px] text-gray-500">img</div>
+              Tarik &amp; lepas atau <span class="underline">pilih file</span> (PNG/SVG)
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">Rekomendasi rasio 1:1, maks 1MB.</p>
+          </div>
+
+          <!-- Primary color = baris swatch warna (.ph) -->
+          <div>
+            <label class="block text-[13px] font-medium text-gray-600 mb-1">Primary Color</label>
+            <div class="flex items-center gap-2 flex-wrap">
+              <!-- swatch terpilih -->
+              <div class="ph w-8 h-8 rounded-full ring-2 ring-gray-500 flex items-center justify-center text-[8px] text-gray-500">✓</div>
+              <div class="ph w-8 h-8 rounded-full"></div>
+              <div class="ph w-8 h-8 rounded-full"></div>
+              <div class="ph w-8 h-8 rounded-full"></div>
+              <div class="ph w-8 h-8 rounded-full"></div>
+              <div class="ph w-8 h-8 rounded-full"></div>
+              <!-- custom hex -->
+              <div class="ph w-8 h-8 rounded-full flex items-center justify-center text-[10px] text-gray-500">+</div>
+            </div>
+            <div class="ph h-9 w-32 rounded mt-2 flex items-center px-3 text-[11px] text-gray-500">#______ (hex)</div>
+          </div>
+
+        </div>
+
+        <!-- KANAN: live preview (.ph) -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Live Preview</label>
+          <div class="ph rounded-lg p-3">
+            <!-- mini app shell preview: sidebar + topbar + tombol pakai brand color -->
+            <div class="bg-white border border-gray-300 rounded overflow-hidden flex h-44">
+              <!-- mini sidebar (brand color slot) -->
+              <div class="ph w-16 p-2 space-y-2">
+                <div class="ph w-8 h-8 rounded mx-auto flex items-center justify-center text-[8px] text-gray-500">logo</div>
+                <div class="ph h-2 rounded"></div>
+                <div class="ph h-2 rounded"></div>
+                <div class="ph h-2 rounded"></div>
+              </div>
+              <!-- mini content -->
+              <div class="flex-1 p-2 space-y-2">
+                <div class="ph h-4 w-24 rounded flex items-center px-1 text-[8px] text-gray-500">brand name</div>
+                <div class="ph h-12 rounded"></div>
+                <div class="flex gap-2">
+                  <!-- tombol primary (pakai primary color) -->
+                  <div class="ph h-6 w-20 rounded flex items-center justify-center text-[9px] text-gray-600">Tombol utama</div>
+                  <div class="ph h-6 w-14 rounded"></div>
+                </div>
+              </div>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-2 text-center">Preview update real-time saat warna/logo/nama diubah.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Aksi step 2 -->
+      <div class="flex items-center justify-between mt-6">
+        <button type="button" class="h-10 px-5 rounded border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50">← Kembali</button>
+        <div class="flex items-center gap-3">
+          <span class="text-[11px] text-gray-400">Langkah 2 dari 3</span>
+          <button type="button" class="h-10 px-6 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">Lanjut →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- STEP 3 — UNDANG SEAT (email list)                                  -->
+    <!-- ================================================================= -->
+    <section class="bg-white border border-gray-300 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex items-baseline gap-2 mb-1">
+        <span class="ph rounded px-2 py-0.5 text-[10px] font-semibold text-gray-600">STEP 3</span>
+        <h2 class="text-base font-bold text-gray-800">Undang anggota tim (seat)</h2>
+      </div>
+      <p class="text-xs text-gray-500 mb-5">Undang sales rep ke workspace. Jumlah seat dibatasi kuota tenant (dari aktivasi superadmin). Bisa di-skip &amp; undang nanti.</p>
+
+      <!-- Counter kuota seat -->
+      <div class="ph rounded p-2 text-[11px] text-gray-500 mb-4 flex items-center justify-between">
+        <span>Seat terpakai</span>
+        <span class="font-medium text-gray-700">2 / 5 (kuota tenant)</span>
+      </div>
+
+      <!-- Email list (.ph) — baris-baris input email + role -->
+      <label class="block text-[13px] font-medium text-gray-600 mb-1">Daftar Email Undangan</label>
+      <div class="space-y-2">
+
+        <!-- baris 1 -->
+        <div class="flex items-center gap-2">
+          <div class="ph h-10 flex-1 rounded flex items-center px-3 text-xs text-gray-500">rep1@perusahaan.com</div>
+          <div class="ph h-10 w-28 rounded flex items-center justify-between px-3 text-xs text-gray-500"><span>Sales Rep</span><span>▾</span></div>
+          <button type="button" class="ph h-10 w-10 rounded flex items-center justify-center text-gray-500">✕</button>
+        </div>
+
+        <!-- baris 2 -->
+        <div class="flex items-center gap-2">
+          <div class="ph h-10 flex-1 rounded flex items-center px-3 text-xs text-gray-500">rep2@perusahaan.com</div>
+          <div class="ph h-10 w-28 rounded flex items-center justify-between px-3 text-xs text-gray-500"><span>Sales Rep</span><span>▾</span></div>
+          <button type="button" class="ph h-10 w-10 rounded flex items-center justify-center text-gray-500">✕</button>
+        </div>
+
+        <!-- baris kosong (tambah baru) -->
+        <div class="flex items-center gap-2">
+          <div class="ph h-10 flex-1 rounded flex items-center px-3 text-xs text-gray-400">email anggota…</div>
+          <div class="ph h-10 w-28 rounded flex items-center justify-between px-3 text-xs text-gray-500"><span>Sales Rep</span><span>▾</span></div>
+          <button type="button" class="ph h-10 w-10 rounded flex items-center justify-center text-gray-500">✕</button>
+        </div>
+
+      </div>
+
+      <!-- Tambah baris -->
+      <button type="button" class="mt-3 text-xs text-gray-600 underline">+ Tambah email</button>
+
+      <!-- Aksi step 3 -->
+      <div class="flex items-center justify-between mt-6">
+        <button type="button" class="h-10 px-5 rounded border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50">← Kembali</button>
+        <div class="flex items-center gap-3">
+          <a href="dashboard-shell.html" class="text-xs text-gray-500 underline">Lewati untuk sekarang</a>
+          <span class="text-[11px] text-gray-400">Langkah 3 dari 3</span>
+          <!-- PRIMARY: Selesai → dashboard -->
+          <a href="dashboard-shell.html">
+            <div class="h-10 px-6 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90 flex items-center">Selesai ✓</div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Flow note -->
+    <p class="text-center text-[11px] text-gray-400 mt-2 mb-8">
+      Flow: <span class="underline">login.html</span> (tenant aktif) → onboarding (3 langkah) →
+      <span class="underline">dashboard-shell.html</span>.
+      Step 1 nge-set modul aktif · Step 2 nge-set theme white-label tenant.
+    </p>
+
+  </div>
+</main>
+
+</body></html>

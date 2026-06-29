@@ -56,7 +56,7 @@ export function SettingsNav() {
       {/* Desktop: left rail */}
       <aside className="hidden w-56 shrink-0 border-r bg-card md:block">
         <div className="sticky top-14 p-3">
-          <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Pengaturan
           </p>
           <nav className="space-y-0.5">

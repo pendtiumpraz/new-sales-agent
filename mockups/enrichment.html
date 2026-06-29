@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Enrichment / Discovery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.bar{transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.flash{animation:flash .7s ease}
+@keyframes flash{0%{background:hsl(160 84% 39% / .18)}100%{background:transparent}}
+.fade-in{animation:fadeIn .35s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.count{font-variant-numeric:tabular-nums}
+.scan{position:relative;overflow:hidden}
+.scan::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,hsl(12 96% 67% / .12),transparent);transform:translateX(-100%);animation:scan 1.4s linear infinite}
+@keyframes scan{to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.bar{transition:none}.scan::after{animation:none}.fade-in{animation:none}}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-33px)]">
+
+  <!-- ===================== SIDEBAR (w-64) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+
+    <!-- BRAND TENANT (white-label slot: logo + nama brand) -->
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-soft">SA</div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Sapa<span class="text-primary">AI</span></div>
+        <div class="text-[10px] text-muted-foreground truncate">CV Maju Bersama</div>
+      </div>
+    </div>
+
+    <!-- MENU (entitlement-gated per vertical) -->
+    <nav class="flex-1 overflow-y-auto py-4 text-sm space-y-5">
+
+      <!-- GROUP: UTAMA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="dashboard-shell.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+          Workspace
+        </a>
+      </div>
+
+      <!-- GROUP: LEADS -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6366F1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kontak
+        </a>
+        <a href="enrichment.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Pengayaan Data
+        </a>
+        <a href="pipeline.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="12" width="3" height="6" rx="1"/></svg>
+          Pipeline
+        </a>
+      </div>
+
+      <!-- GROUP: EKSEKUSI -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eksekusi</p>
+        <a href="inbox.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#25D366" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Inbox
+          <span class="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">7</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#F59E0B" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/><path d="m9 12 2 2 4-4"/></svg>
+          Cadence
+        </a>
+      </div>
+
+      <!-- GROUP: PENGATURAN -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pengaturan</p>
+        <a href="branding.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EC4899" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg>
+          Branding
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6B7280" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Pengaturan
+        </a>
+      </div>
+    </nav>
+
+    <!-- Sidebar footer: akun user -->
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center font-semibold text-xs">RA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Rini Aprilia</div>
+        <div class="text-muted-foreground truncate">Sales Rep</div>
+      </div>
+      <a href="login.html" title="Keluar" class="text-muted-foreground hover:text-danger transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR (h-14, glass) -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-[33px] z-20">
+      <!-- left: search -->
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari lead, perusahaan, kontak…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <!-- right: workspace switcher + notif + avatar -->
+      <div class="flex items-center gap-3">
+        <button class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Paket UMKM Pro</span>
+          <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="relative h-9 w-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-card"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">RA</div>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 overflow-auto">
+
+      <!-- Page header strip -->
+      <div class="px-6 pt-6 pb-1 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Pengayaan Data &amp; Discovery</h1>
+          <p class="text-sm text-muted-foreground mt-0.5">Cari lead baru lalu lengkapi datanya · Workspace: <span class="font-medium text-foreground/80">Paket UMKM Pro</span> <span class="text-muted-foreground/60">(1 produk)</span></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="#" class="h-9 px-3 rounded-lg bg-card border border-border text-sm font-medium flex items-center gap-2 hover:border-primary/40 transition-colors">
+            <span class="w-2 h-2 rounded-full bg-warning"></span>
+            Extension: <span class="font-semibold text-foreground/80">Belum terhubung</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- ============ TWO-STEP RAIL — flow Discovery → Enrichment as 1 alur ============ -->
+        <div class="flex flex-col sm:flex-row items-stretch gap-0 rounded-lg overflow-hidden border border-border shadow-soft">
+          <button data-tab="discovery" class="rail-step flex-1 bg-card px-5 py-4 flex items-center gap-3.5 text-left hover:bg-muted/40 transition-colors">
+            <span class="rail-num h-9 w-9 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center font-bold shrink-0 shadow-soft">1</span>
+            <div class="min-w-0">
+              <div class="text-sm font-semibold">Discovery — cari lead</div>
+              <div class="text-[11px] text-muted-foreground">Per channel / SERP → daftar hasil → Simpan ke workspace</div>
+            </div>
+          </button>
+          <div class="hidden sm:flex items-center px-1 bg-card text-muted-foreground/50">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <button data-tab="enrichment" class="rail-step flex-1 bg-card px-5 py-4 flex items-center gap-3.5 text-left hover:bg-muted/40 transition-colors border-t sm:border-t-0 sm:border-l border-border">
+            <span class="rail-num h-9 w-9 rounded-full bg-secondary text-secondary-foreground text-sm flex items-center justify-center font-bold shrink-0">2</span>
+            <div class="min-w-0">
+              <div class="text-sm font-semibold">Enrichment — lengkapi &amp; klasifikasi</div>
+              <div class="text-[11px] text-muted-foreground">Enrich profil/PT/kontak → B2C/B2B + skor fit → Push ke Contacts</div>
+            </div>
+          </button>
+        </div>
+
+        <!-- ============ SECTION TABS ============ -->
+        <div class="flex items-center gap-1 border-b border-border text-sm">
+          <button data-tab="discovery" class="tab-btn relative px-4 py-2.5 font-semibold text-primary">
+            Discovery
+            <span class="tab-underline absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-primary"></span>
+          </button>
+          <button data-tab="enrichment" class="tab-btn relative px-4 py-2.5 font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Antrian Enrichment
+            <span class="ml-1.5 px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[10px] font-semibold align-middle">14</span>
+            <span class="tab-underline absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-primary opacity-0"></span>
+          </button>
+          <button data-tab="history" class="tab-btn relative px-4 py-2.5 font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Riwayat
+            <span class="tab-underline absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-primary opacity-0"></span>
+          </button>
+        </div>
+
+
+        <!-- ===================================================================== -->
+        <!-- ===================  PANEL 1 — DISCOVERY  =========================== -->
+        <!-- ===================================================================== -->
+        <section id="panel-discovery" class="tab-panel fade-in space-y-5">
+
+          <div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-5 items-start">
+
+            <!-- ---- KIRI: form pencarian (per channel / query) ---- -->
+            <div class="bg-card rounded-lg border border-border shadow-soft p-5 space-y-4">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <h2 class="text-sm font-semibold">Cari lead baru</h2>
+                  <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-tertiary/12 text-tertiary">RPA + AI</span>
+                </div>
+                <p class="text-[11px] text-muted-foreground">AI menyusun rencana &amp; query; orang aslinya diambil via crawl/extension — bukan dikarang AI.</p>
+              </div>
+
+              <!-- Pilih CHANNEL/sumber discovery -->
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Channel / sumber</label>
+                <div id="channelChips" class="flex flex-wrap gap-1.5">
+                  <button type="button" data-on="1" class="ch-chip px-2.5 py-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold transition-colors">AI Orang (SERP)</button>
+                  <button type="button" class="ch-chip px-2.5 py-1.5 rounded-full bg-card border border-border text-foreground/70 text-[11px] font-medium hover:border-primary/40 transition-colors">URL website PT</button>
+                  <button type="button" class="ch-chip px-2.5 py-1.5 rounded-full bg-card border border-border text-foreground/70 text-[11px] font-medium hover:border-primary/40 transition-colors">Daftar nama PT</button>
+                  <button type="button" class="ch-chip px-2.5 py-1.5 rounded-full bg-card border border-border text-foreground/70 text-[11px] font-medium hover:border-primary/40 transition-colors">Bidang/Industri</button>
+                  <button type="button" class="ch-chip px-2.5 py-1.5 rounded-full bg-card border border-border text-foreground/70 text-[11px] font-medium hover:border-primary/40 transition-colors">Auto (ICP)</button>
+                </div>
+                <p class="text-[10px] text-muted-foreground mt-1.5">LinkedIn · Instagram · Shopee · Tokopedia · TikTok via <a href="#" class="text-primary font-medium hover:underline">Extension</a> (data diambil di browser kamu).</p>
+              </div>
+
+              <hr class="border-border">
+
+              <!-- Query / parameter pencarian -->
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-[12px] font-medium text-foreground/70 mb-1">Bidang / pekerjaan (query)</label>
+                  <input type="text" value="logistik &amp; supply chain" class="w-full h-9 px-3 rounded-lg bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring/40" placeholder="mis. logistik, dokter gigi, HRD manufaktur…">
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="block text-[12px] font-medium text-foreground/70 mb-1">Lokasi target</label>
+                    <div class="relative">
+                      <select class="appearance-none w-full h-9 pl-3 pr-8 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+                        <option>Indonesia</option><option>Jakarta</option><option>Surabaya</option><option>Bandung</option>
+                      </select>
+                      <svg class="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[12px] font-medium text-foreground/70 mb-1">Seniority</label>
+                    <div class="relative">
+                      <select class="appearance-none w-full h-9 pl-3 pr-8 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+                        <option>Semua</option><option>Junior</option><option>Mid</option><option>Senior</option>
+                      </select>
+                      <svg class="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[12px] font-medium text-foreground/70 mb-1">Posture</label>
+                  <div class="relative">
+                    <select class="appearance-none w-full h-9 pl-3 pr-8 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+                      <option>compliant</option><option>balanced</option><option>aggressive</option>
+                    </select>
+                    <svg class="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
+                <label class="flex items-start gap-2 text-[11px] text-muted-foreground cursor-pointer">
+                  <input type="checkbox" class="mt-0.5 h-3.5 w-3.5 rounded border-input accent-primary shrink-0">
+                  <span>Analisis AI saat crawl — klasifikasi + positioning langsung disimpan <span class="text-muted-foreground/70">(pakai kredit AI)</span></span>
+                </label>
+              </div>
+
+              <!-- PRIMARY: jalankan discovery -->
+              <button id="runDiscovery" type="button" class="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 shadow-soft hover:opacity-90 transition-opacity">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                Buat rencana &amp; cari lead
+              </button>
+              <p class="text-[10px] text-muted-foreground text-center">Hasil muncul di kanan → centang → <b class="text-foreground/70">Simpan ke workspace</b>.</p>
+            </div>
+
+            <!-- ---- KANAN: rencana AI + hasil daftar (results) ---- -->
+            <div class="space-y-4">
+
+              <!-- (a) RENCANA AI (roles / industri / query LinkedIn / dork) -->
+              <div class="bg-card rounded-lg border border-border shadow-soft p-5">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-semibold flex items-center gap-2">
+                    <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                    Rencana discovery (AI)
+                  </h3>
+                  <span class="text-[10px] text-muted-foreground">titel jabatan · industri · query siap-pakai</span>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Query LinkedIn (Tahap-1 extension)</p>
+                    <div class="space-y-1.5">
+                      <div class="flex items-center gap-2 rounded-md border border-border px-2.5 py-2 text-xs hover:border-primary/40 transition-colors">
+                        <span class="min-w-0 flex-1 truncate">"logistics manager" OR "kepala gudang"</span>
+                        <a href="#" class="text-primary font-medium shrink-0 inline-flex items-center gap-0.5">Buka<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>
+                        <button class="copy-btn text-muted-foreground hover:text-foreground shrink-0" title="Salin"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                      </div>
+                      <div class="flex items-center gap-2 rounded-md border border-border px-2.5 py-2 text-xs hover:border-primary/40 transition-colors">
+                        <span class="min-w-0 flex-1 truncate">"supply chain" "manufaktur" Indonesia</span>
+                        <a href="#" class="text-primary font-medium shrink-0 inline-flex items-center gap-0.5">Buka<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>
+                        <button class="copy-btn text-muted-foreground hover:text-foreground shrink-0" title="Salin"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                      </div>
+                      <div class="flex items-center gap-2 rounded-md border border-border px-2.5 py-2 text-xs hover:border-primary/40 transition-colors">
+                        <span class="min-w-0 flex-1 truncate">"head of operations" 3PL ekspedisi</span>
+                        <a href="#" class="text-primary font-medium shrink-0 inline-flex items-center gap-0.5">Buka<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>
+                        <button class="copy-btn text-muted-foreground hover:text-foreground shrink-0" title="Salin"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="space-y-3.5">
+                    <div>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Titel jabatan</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span class="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-medium cursor-pointer hover:bg-secondary/70">Logistics Mgr</span>
+                        <span class="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-medium cursor-pointer hover:bg-secondary/70">Kepala Gudang</span>
+                        <span class="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-medium cursor-pointer hover:bg-secondary/70">Head of Ops</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Industri</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span class="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-medium">Manufaktur</span>
+                        <span class="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-medium">3PL / Ekspedisi</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Google dork</p>
+                      <div class="flex items-center gap-2 rounded-md bg-muted px-2.5 py-1.5 font-mono text-[10px] text-foreground/80">
+                        <span class="min-w-0 flex-1 truncate">site:linkedin.com/in "logistik" Jakarta</span>
+                        <button class="copy-btn text-muted-foreground hover:text-foreground shrink-0" title="Salin"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-[10px] italic text-muted-foreground mt-3">Catatan: orang asli diambil lewat extension / crawl (diverifikasi) — bukan dikarang AI.</p>
+              </div>
+
+              <!-- (b) HASIL — daftar lead/perusahaan + checkbox + Simpan ke workspace -->
+              <div class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+                <div class="px-5 py-3.5 border-b border-border flex flex-wrap items-center gap-3">
+                  <h3 class="text-sm font-semibold">Hasil pencarian</h3>
+                  <span class="text-[11px] text-muted-foreground"><b id="resCount" class="text-foreground/80">6</b> kandidat ditemukan</span>
+                  <div class="ml-auto flex items-center gap-2">
+                    <span class="text-[11px] text-muted-foreground"><b id="selCount" class="text-foreground/80">0</b> dipilih</span>
+                    <button id="bulkSave" type="button" disabled class="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                      Simpan ke workspace
+                    </button>
+                  </div>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm text-left min-w-[640px]">
+                    <thead class="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th class="px-4 py-2.5 w-9"><input type="checkbox" id="resAll" class="h-4 w-4 rounded border-input accent-primary"></th>
+                        <th class="px-4 py-2.5 font-semibold">Nama / Perusahaan</th>
+                        <th class="px-4 py-2.5 font-semibold">Channel</th>
+                        <th class="px-4 py-2.5 font-semibold">Sinyal kontak</th>
+                        <th class="px-4 py-2.5 font-semibold text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="resBody" class="divide-y divide-border">
+                      <tr class="res-row hover:bg-muted/40 transition-colors">
+                        <td class="px-4 py-3"><input type="checkbox" class="res-cb h-4 w-4 rounded border-input accent-primary"></td>
+                        <td class="px-4 py-3"><div class="font-medium">PT Logistik Nusantara</div><div class="text-[11px] text-muted-foreground">nusantara-logistik.co.id</div></td>
+                        <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full bg-info"></span>SERP</span></td>
+                        <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-channel-email/12 text-[10px] font-medium mr-1" style="color:#4f46e5">✉ email</span><span class="px-1.5 py-0.5 rounded bg-success/12 text-success text-[10px] font-medium">☎ telp</span></td>
+                        <td class="px-4 py-3 text-right"><button class="h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Crawl ›</button></td>
+                      </tr>
+                      <tr class="res-row hover:bg-muted/40 transition-colors">
+                        <td class="px-4 py-3"><input type="checkbox" class="res-cb h-4 w-4 rounded border-input accent-primary"></td>
+                        <td class="px-4 py-3"><div class="font-medium">Andi Wijaya</div><div class="text-[11px] text-muted-foreground">Owner · UD Makmur Sejahtera</div></td>
+                        <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#0A66C2"></span>LinkedIn</span></td>
+                        <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">in/andi-wijaya</span></td>
+                        <td class="px-4 py-3 text-right"><a href="#" class="inline-flex items-center gap-0.5 h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Buka<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a></td>
+                      </tr>
+                      <tr class="res-row hover:bg-muted/40 transition-colors">
+                        <td class="px-4 py-3"><input type="checkbox" class="res-cb h-4 w-4 rounded border-input accent-primary"></td>
+                        <td class="px-4 py-3"><div class="font-medium">CV Trans Jaya Logistik</div><div class="text-[11px] text-muted-foreground">transjaya.id</div></td>
+                        <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full bg-info"></span>SERP</span></td>
+                        <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-channel-wa/15 text-[10px] font-medium" style="color:#1faa52">☎ WA</span></td>
+                        <td class="px-4 py-3 text-right"><button class="h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Crawl ›</button></td>
+                      </tr>
+                      <tr class="res-row hover:bg-muted/40 transition-colors">
+                        <td class="px-4 py-3"><input type="checkbox" class="res-cb h-4 w-4 rounded border-input accent-primary"></td>
+                        <td class="px-4 py-3"><div class="font-medium">Siti Rahmawati</div><div class="text-[11px] text-muted-foreground">Logistics Manager · PT Sinar Kargo</div></td>
+                        <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#0A66C2"></span>LinkedIn</span></td>
+                        <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">in/siti-rahmawati</span></td>
+                        <td class="px-4 py-3 text-right"><a href="#" class="inline-flex items-center gap-0.5 h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Buka<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a></td>
+                      </tr>
+                      <tr class="res-row hover:bg-muted/40 transition-colors">
+                        <td class="px-4 py-3"><input type="checkbox" class="res-cb h-4 w-4 rounded border-input accent-primary"></td>
+                        <td class="px-4 py-3"><div class="font-medium">PT Cahaya Ekspedisi</div><div class="text-[11px] text-muted-foreground">cahayaekspedisi.com</div></td>
+                        <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full bg-info"></span>SERP</span></td>
+                        <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-channel-email/12 text-[10px] font-medium" style="color:#4f46e5">✉ email</span></td>
+                        <td class="px-4 py-3 text-right"><button class="h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Crawl ›</button></td>
+                      </tr>
+                      <tr class="res-row hover:bg-muted/40 transition-colors">
+                        <td class="px-4 py-3"><input type="checkbox" class="res-cb h-4 w-4 rounded border-input accent-primary"></td>
+                        <td class="px-4 py-3"><div class="font-medium">Rizky Pratama</div><div class="text-[11px] text-muted-foreground">Head of Ops · Gudang Pintar</div></td>
+                        <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#0A66C2"></span>LinkedIn</span></td>
+                        <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">in/rizky-pratama</span></td>
+                        <td class="px-4 py-3 text-right"><a href="#" class="inline-flex items-center gap-0.5 h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Buka<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="px-5 py-2.5 border-t border-border text-[11px] text-muted-foreground bg-muted/30">
+                  Lead yang disimpan masuk antrian <button data-tab="enrichment" class="goto-enrich text-primary font-medium hover:underline">Enrichment</button> dengan status <i>"belum di-enrich"</i> &amp; ditandai ke workspace ini.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Extension card — discovery engine utama -->
+          <div class="bg-card rounded-lg border border-primary/30 shadow-soft p-4 flex flex-wrap items-center gap-3.5">
+            <span class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-semibold flex items-center gap-2">Crawl via Extension (utama)
+                <span class="px-2 py-0.5 rounded-full bg-warning/15 text-warning text-[10px] font-semibold">Belum terhubung</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground">Data diambil di browser kamu (RPA scrape + AI websearch) → buffer → kirim ke platform. Serverless tidak bisa crawl sosmed sendiri.</p>
+            </div>
+            <a href="#" class="h-9 px-3.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center gap-1.5 shadow-soft hover:opacity-90 transition-opacity shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+              Pasang &amp; hubungkan
+            </a>
+          </div>
+        </section>
+
+
+        <!-- ===================================================================== -->
+        <!-- ===================  PANEL 2 — ENRICHMENT  ========================== -->
+        <!-- ===================================================================== -->
+        <section id="panel-enrichment" class="tab-panel hidden space-y-5">
+
+          <!-- STAT STRIP enrichment -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+              <p class="text-[11px] font-medium text-muted-foreground">Antri enrich</p>
+              <p class="mt-1.5 text-2xl font-bold count" data-count="14">0</p>
+            </div>
+            <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+              <p class="text-[11px] font-medium text-muted-foreground">Diklasifikasi B2C</p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span>
+                <span class="text-2xl font-bold count" data-count="5">0</span>
+              </div>
+            </div>
+            <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+              <p class="text-[11px] font-medium text-muted-foreground">Diklasifikasi B2B</p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span>
+                <span class="text-2xl font-bold count" data-count="6">0</span>
+              </div>
+            </div>
+            <div class="bg-card rounded-lg border border-border shadow-soft p-4">
+              <p class="text-[11px] font-medium text-muted-foreground">Siap push ke Contacts</p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> enriched
+                </span>
+                <span class="text-2xl font-bold count" data-count="4">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE CARD: toolbar + bulk bar + table -->
+          <div class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+
+            <!-- TOOLBAR antrian: filter status + segmen -->
+            <div class="px-5 py-3.5 border-b border-border flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-medium text-muted-foreground mr-1">Status:</span>
+                <button class="filt-status px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold transition-colors">Semua</button>
+                <button class="filt-status px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">Belum</button>
+                <button class="filt-status px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">Jalan</button>
+                <button class="filt-status px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">Selesai</button>
+                <button class="filt-status px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">Gagal</button>
+              </div>
+              <span class="w-px h-5 bg-border"></span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-medium text-muted-foreground mr-1">Segmen:</span>
+                <button class="px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">B2C</button>
+                <button class="px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">B2B</button>
+              </div>
+              <span class="ml-auto text-[11px] text-muted-foreground"><b class="text-foreground/80">5</b> di antrian</span>
+            </div>
+
+            <!-- BULK BAR (muncul saat ada baris terpilih) -->
+            <div id="enrichBulk" class="hidden bg-primary/8 border-b border-primary/20 px-5 py-2.5 flex flex-wrap items-center gap-3 text-xs">
+              <span class="font-semibold text-foreground"><b id="enrichSel">0</b> dipilih</span>
+              <button id="bulkEnrich" class="h-8 px-3 rounded-lg bg-primary text-primary-foreground font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition-opacity">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                Enrich terpilih
+              </button>
+              <button class="h-8 px-3 rounded-lg bg-card border border-border text-foreground/70 font-medium hover:bg-muted transition-colors">Klasifikasi ulang</button>
+              <button class="h-8 px-3 rounded-lg bg-card border border-border text-foreground/70 font-medium hover:bg-muted transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                Push ke Contacts
+              </button>
+              <button id="enrichClear" class="ml-auto text-muted-foreground hover:text-foreground font-medium">Batal pilih</button>
+            </div>
+
+            <!-- TABEL ANTRIAN ENRICH -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left min-w-[980px]">
+                <thead class="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th class="px-4 py-3 w-9"><input type="checkbox" id="enrAll" class="h-4 w-4 rounded border-input accent-primary"></th>
+                    <th class="px-4 py-3 font-semibold">Lead (mentah)</th>
+                    <th class="px-4 py-3 font-semibold">Kelengkapan data</th>
+                    <th class="px-4 py-3 font-semibold">Klasifikasi</th>
+                    <th class="px-4 py-3 font-semibold">Skor Fit</th>
+                    <th class="px-4 py-3 font-semibold">Status enrich</th>
+                    <th class="px-4 py-3 font-semibold text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="enrBody" class="divide-y divide-border">
+
+                  <!-- ROW 1 — selesai, B2B, siap push (klik = drawer) -->
+                  <tr class="enr-row cursor-pointer hover:bg-muted/40 transition-colors" data-name="PT Logistik Nusantara" data-status="done">
+                    <td class="px-4 py-3" onclick="event.stopPropagation()"><input type="checkbox" class="enr-cb h-4 w-4 rounded border-input accent-primary"></td>
+                    <td class="px-4 py-3"><div class="font-medium">PT Logistik Nusantara</div><div class="text-[11px] text-muted-foreground">dari Discovery · SERP</div></td>
+                    <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-muted overflow-hidden"><div class="h-full rounded-full bg-success" style="width:83%"></div></div><span class="text-[10px] text-muted-foreground">5/6</span></div></td>
+                    <td class="px-4 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span></td>
+                    <td class="px-4 py-3"><span class="inline-block text-[11px] font-bold px-2 py-0.5 rounded-md bg-success/15 text-success">88</span></td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/15 text-success text-[11px] font-semibold"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Selesai</span></td>
+                    <td class="px-4 py-3 text-right" onclick="event.stopPropagation()"><button class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center gap-1 shadow-soft hover:opacity-90 transition-opacity"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>Push</button></td>
+                  </tr>
+
+                  <!-- ROW 2 — sedang jalan (progress) -->
+                  <tr class="enr-row cursor-pointer hover:bg-muted/40 transition-colors scan" data-name="Andi Wijaya" data-status="running">
+                    <td class="px-4 py-3" onclick="event.stopPropagation()"><input type="checkbox" class="enr-cb h-4 w-4 rounded border-input accent-primary"></td>
+                    <td class="px-4 py-3"><div class="font-medium">Andi Wijaya</div><div class="text-[11px] text-muted-foreground">dari Discovery · LinkedIn</div></td>
+                    <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-muted overflow-hidden"><div class="h-full rounded-full bg-primary animate-pulse" style="width:35%"></div></div><span class="text-[10px] text-muted-foreground">enriching…</span></div></td>
+                    <td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground">…</span></td>
+                    <td class="px-4 py-3 text-muted-foreground">—</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-info/12 text-info text-[11px] font-semibold"><svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>Jalan</span></td>
+                    <td class="px-4 py-3 text-right" onclick="event.stopPropagation()"><button class="h-7 px-3 rounded-md border border-border text-muted-foreground/50 text-[11px] font-medium cursor-not-allowed" disabled>Push</button></td>
+                  </tr>
+
+                  <!-- ROW 3 — belum di-enrich, B2C (tebakan awal) -->
+                  <tr class="enr-row cursor-pointer hover:bg-muted/40 transition-colors" data-name="Siti Rahma" data-status="idle">
+                    <td class="px-4 py-3" onclick="event.stopPropagation()"><input type="checkbox" class="enr-cb h-4 w-4 rounded border-input accent-primary"></td>
+                    <td class="px-4 py-3"><div class="font-medium">Siti Rahma</div><div class="text-[11px] text-muted-foreground">Impor CSV</div></td>
+                    <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-muted overflow-hidden"><div class="h-full rounded-full bg-warning" style="width:17%"></div></div><span class="text-[10px] text-muted-foreground">1/6</span></div></td>
+                    <td class="px-4 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span><span class="block text-[9px] text-muted-foreground mt-0.5">tebakan awal</span></td>
+                    <td class="px-4 py-3 text-muted-foreground">—</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground text-[11px] font-medium">Belum</span></td>
+                    <td class="px-4 py-3 text-right" onclick="event.stopPropagation()"><button class="row-enrich h-7 px-3 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center gap-1 shadow-soft hover:opacity-90 transition-opacity"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>Enrich</button></td>
+                  </tr>
+
+                  <!-- ROW 4 — belum di-enrich, B2C -->
+                  <tr class="enr-row cursor-pointer hover:bg-muted/40 transition-colors" data-name="Dewi Lestari" data-status="idle">
+                    <td class="px-4 py-3" onclick="event.stopPropagation()"><input type="checkbox" class="enr-cb h-4 w-4 rounded border-input accent-primary"></td>
+                    <td class="px-4 py-3"><div class="font-medium">Dewi Lestari</div><div class="text-[11px] text-muted-foreground">dari Discovery · Instagram</div></td>
+                    <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-muted overflow-hidden"><div class="h-full rounded-full bg-warning" style="width:33%"></div></div><span class="text-[10px] text-muted-foreground">2/6</span></div></td>
+                    <td class="px-4 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span><span class="block text-[9px] text-muted-foreground mt-0.5">tebakan awal</span></td>
+                    <td class="px-4 py-3 text-muted-foreground">—</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground text-[11px] font-medium">Belum</span></td>
+                    <td class="px-4 py-3 text-right" onclick="event.stopPropagation()"><button class="row-enrich h-7 px-3 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold inline-flex items-center gap-1 shadow-soft hover:opacity-90 transition-opacity"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>Enrich</button></td>
+                  </tr>
+
+                  <!-- ROW 5 — gagal (retry) -->
+                  <tr class="enr-row cursor-pointer hover:bg-muted/40 transition-colors" data-name="Rizky Pratama" data-status="error">
+                    <td class="px-4 py-3" onclick="event.stopPropagation()"><input type="checkbox" class="enr-cb h-4 w-4 rounded border-input accent-primary"></td>
+                    <td class="px-4 py-3"><div class="font-medium">Rizky Pratama</div><div class="text-[11px] text-muted-foreground">dari Discovery · SERP</div></td>
+                    <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="h-1.5 w-24 rounded-full bg-muted overflow-hidden"><div class="h-full rounded-full bg-danger" style="width:8%"></div></div><span class="text-[10px] text-muted-foreground">0/6</span></div></td>
+                    <td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground">belum</span></td>
+                    <td class="px-4 py-3 text-muted-foreground">—</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-danger/12 text-danger text-[11px] font-semibold"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>Gagal</span></td>
+                    <td class="px-4 py-3 text-right" onclick="event.stopPropagation()"><button class="h-7 px-3 rounded-md border border-border text-foreground/70 text-[11px] font-medium inline-flex items-center gap-1 hover:bg-muted transition-colors"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>Coba lagi</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p class="text-[11px] text-muted-foreground">
+            Klik baris → panel kanan <b class="text-foreground/70">Before / After enrich</b>. Enrich mengisi profil, perusahaan/PT, kontak (email/telp/sosmed), lalu <b class="text-foreground/70">klasifikasi B2C/B2B + skor fit</b> otomatis. Tombol <b class="text-foreground/70">Push ke Contacts</b> memindahkan lead ke <a href="contacts.html" class="text-primary hover:underline">Contacts</a>.
+          </p>
+        </section>
+
+
+        <!-- ===================================================================== -->
+        <!-- ===================  PANEL 3 — RIWAYAT  ============================= -->
+        <!-- ===================================================================== -->
+        <section id="panel-history" class="tab-panel hidden">
+          <div class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-border">
+              <h2 class="text-sm font-semibold">Riwayat crawl &amp; enrich</h2>
+              <p class="text-[11px] text-muted-foreground">Tiap job jalan langsung (tanpa antrian/cron). Klik untuk detail.</p>
+            </div>
+            <ul class="divide-y divide-border text-sm">
+              <li class="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors cursor-pointer">
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">discovery</span>
+                <span class="min-w-0 flex-1 truncate"><b>logistik &amp; supply chain</b> <span class="text-muted-foreground">· 6 kandidat · 12 mnt lalu</span></span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success">done</span>
+              </li>
+              <li class="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors cursor-pointer">
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">enrich</span>
+                <span class="min-w-0 flex-1 truncate"><b>PT Logistik Nusantara</b> <span class="text-muted-foreground">· 5 kontak · klasifikasi B2B · 9 mnt lalu</span></span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success">done</span>
+              </li>
+              <li class="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors cursor-pointer">
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">crawl url</span>
+                <span class="min-w-0 flex-1 truncate"><b>cahayaekspedisi.com</b> <span class="text-muted-foreground">· 3 kontak · 1 jam lalu</span></span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success">done</span>
+              </li>
+              <li class="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors cursor-pointer">
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">enrich</span>
+                <span class="min-w-0 flex-1 truncate"><b>Rizky Pratama</b> <span class="text-muted-foreground">· timeout situs full-JS · 2 jam lalu</span></span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-danger/12 text-danger">error</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ===================== RIGHT DRAWER 420px — BEFORE / AFTER ENRICH ===================== -->
+<div id="drawerWrap" class="fixed inset-0 z-40 hidden">
+  <div id="drawerOverlay" class="absolute inset-0 bg-foreground/40 opacity-0 transition-opacity duration-300"></div>
+  <aside id="drawer" class="drawer closed absolute top-0 right-0 h-full w-[420px] max-w-[92vw] bg-card border-l border-border shadow-2xl flex flex-col">
+
+    <!-- Drawer header -->
+    <div class="h-14 flex items-center justify-between px-5 border-b border-border shrink-0">
+      <div class="min-w-0">
+        <h2 id="drawerTitle" class="text-sm font-bold truncate">PT Logistik Nusantara</h2>
+        <p class="text-[11px] text-muted-foreground flex items-center gap-1.5">Detail enrich · <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success/15 text-success text-[10px] font-semibold"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Selesai</span></p>
+      </div>
+      <button data-close-drawer class="text-muted-foreground hover:text-foreground w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Drawer body (scroll) -->
+    <div class="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+      <!-- (A) HASIL KLASIFIKASI + skor fit -->
+      <div class="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-[13px] font-semibold">Klasifikasi otomatis</span>
+          <span class="text-[10px] text-muted-foreground">AI · bisa override</span>
+        </div>
+        <div id="segToggle" class="flex items-center gap-2">
+          <button data-seg class="px-3 py-1 rounded-full text-xs font-semibold transition-colors" style="background:hsl(173 80% 40% / .14);color:#0d9488;outline:2px solid #0d9488">B2B</button>
+          <button data-seg class="px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors">B2C</button>
+          <button data-seg class="px-3 py-1 rounded-full bg-card border border-dashed border-border text-muted-foreground text-xs font-medium hover:border-primary/40 transition-colors">Belum</button>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-[12px] font-medium text-foreground/70 shrink-0">Skor fit produk</span>
+          <span class="text-[13px] font-bold text-success shrink-0">88</span>
+          <div class="h-2 flex-1 rounded-full bg-muted overflow-hidden"><div class="h-full rounded-full bg-success bar" style="width:0%" data-w="88"></div></div>
+        </div>
+        <div class="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span>Cocok untuk:</span>
+          <span class="font-medium text-foreground/70">Paket UMKM Pro</span>
+          <span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">ukuran 51-200</span>
+        </div>
+      </div>
+
+      <!-- (B) BEFORE / AFTER ENRICH — dua kolom -->
+      <div>
+        <h3 class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Before / After enrich</h3>
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- BEFORE (mentah) -->
+          <div class="rounded-lg border border-dashed border-border p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Before (mentah)</p>
+            <div class="space-y-2 text-[11px]">
+              <div><span class="text-muted-foreground">Nama</span><div class="font-medium mt-0.5">PT Logistik Nusantara</div></div>
+              <div><span class="text-muted-foreground">Perusahaan</span><div class="text-muted-foreground/50 italic mt-0.5">—</div></div>
+              <div><span class="text-muted-foreground">Email</span><div class="text-muted-foreground/50 italic mt-0.5">—</div></div>
+              <div><span class="text-muted-foreground">Telp / WA</span><div class="text-muted-foreground/50 italic mt-0.5">—</div></div>
+              <div><span class="text-muted-foreground">Sosmed</span><div class="text-muted-foreground/50 italic mt-0.5">—</div></div>
+            </div>
+          </div>
+          <!-- AFTER (terisi) -->
+          <div class="rounded-lg border border-success/40 bg-success/5 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-success mb-2 flex items-center gap-1">After <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg></p>
+            <div class="space-y-2 text-[11px]">
+              <div><span class="text-muted-foreground">Nama</span><div class="font-medium mt-0.5">PT Logistik Nusantara</div></div>
+              <div><span class="text-muted-foreground">Perusahaan</span><div class="font-medium mt-0.5">Logistik Nusantara <span class="text-success">✦</span></div></div>
+              <div><span class="text-muted-foreground">Email</span><div class="font-medium mt-0.5 truncate">info@nusantara-logistik.co.id <span class="text-success">✦</span></div></div>
+              <div><span class="text-muted-foreground">Telp / WA</span><div class="font-medium mt-0.5">+62 21 5566 7788 <span class="text-success">✦</span></div></div>
+              <div><span class="text-muted-foreground">Sosmed</span><div class="flex gap-1 mt-0.5"><span class="px-1.5 py-0.5 rounded bg-card border border-border text-[9px]">IG ✦</span><span class="px-1.5 py-0.5 rounded bg-card border border-border text-[9px]">LinkedIn ✦</span></div></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-[10px] text-muted-foreground mt-2">Field baru ditandai <b class="text-success">✦</b>; tiap field punya <b>sumber</b> (Crawl/Hunter/Web) + waktu capture.</p>
+      </div>
+
+      <!-- (C) RINGKASAN AI + sumber -->
+      <div>
+        <h3 class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Ringkasan (AI) + sumber</h3>
+        <div class="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-[12px] text-foreground/80 leading-relaxed">
+          Penyedia jasa logistik &amp; ekspedisi B2B skala menengah di Jabodetabek; armada sendiri, fokus distribusi FMCG — cocok untuk paket optimasi rute.
+        </div>
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          <span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">sumber: situs PT</span>
+          <span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">/contact</span>
+          <span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">SERP</span>
+        </div>
+      </div>
+
+      <!-- (D) LOG enrich -->
+      <div>
+        <h3 class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Log enrich</h3>
+        <ul class="text-[11px] text-foreground/70 space-y-1.5">
+          <li class="flex gap-2"><span class="text-success shrink-0">✓</span> Cari di SERP &amp; baca hasil teratas</li>
+          <li class="flex gap-2"><span class="text-success shrink-0">✓</span> Ekstrak email/telp/sosmed (regex, bukan AI)</li>
+          <li class="flex gap-2"><span class="text-success shrink-0">✓</span> Klasifikasi B2C/B2B + skor fit</li>
+          <li class="flex gap-2"><span class="text-success shrink-0">✓</span> Ringkasan AI (untrusted-wrapped)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Drawer footer (sticky) — re-enrich + PUSH -->
+    <div class="border-t border-border px-5 py-3 flex items-center gap-2 shrink-0">
+      <button class="h-9 px-3 rounded-lg border border-border text-foreground/70 text-sm font-medium inline-flex items-center gap-1.5 hover:bg-muted transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>Enrich ulang
+      </button>
+      <button class="h-9 px-3 rounded-lg border border-border text-foreground/70 text-sm font-medium hover:bg-muted transition-colors">Edit</button>
+      <button class="ml-auto h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center gap-1.5 shadow-soft hover:opacity-90 transition-opacity">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>Push ke Contacts
+      </button>
+    </div>
+  </aside>
+</div>
+
+
+<!-- ===================== PROGRESS MODAL — bulk enrich queue ===================== -->
+<div id="progressWrap" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-foreground/40"></div>
+  <div class="relative w-[420px] max-w-[92vw] bg-card border border-border rounded-lg shadow-2xl p-5 fade-in">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-bold flex items-center gap-2">
+        <svg class="w-4 h-4 text-primary animate-spin" id="progSpin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>
+        <span id="progHead">Menjalankan enrichment…</span>
+      </h3>
+      <button data-close-progress class="text-muted-foreground hover:text-foreground w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="space-y-2 mb-4">
+      <div class="flex items-center justify-between text-[12px] text-muted-foreground"><span>Progress antrian</span><span><b id="progDone" class="text-foreground/80">0</b> / <span id="progTotal">4</span></span></div>
+      <div class="h-2 w-full rounded-full bg-muted overflow-hidden"><div id="progBar" class="h-full rounded-full bg-primary bar" style="width:0%"></div></div>
+    </div>
+    <ul id="progList" class="text-[12px] space-y-2 mb-4"></ul>
+    <div class="flex items-center gap-2">
+      <button data-close-progress class="h-9 px-3 rounded-lg border border-border text-foreground/70 text-sm font-medium hover:bg-muted transition-colors">Jalankan di background</button>
+      <button data-close-progress class="ml-auto h-9 px-3 rounded-lg border border-border text-foreground/70 text-sm font-medium hover:bg-muted transition-colors">Batalkan sisa</button>
+    </div>
+    <p class="text-[10px] text-muted-foreground mt-2.5 text-center">Antrian sekuensial. Selesai → terklasifikasi &amp; siap di-Push ke Contacts.</p>
+  </div>
+</div>
+
+
+<!-- ===================== TOAST ===================== -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] hidden">
+  <div class="flex items-center gap-2 bg-foreground text-background text-sm font-medium px-4 py-2.5 rounded-lg shadow-2xl">
+    <svg class="w-4 h-4 text-success" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+    <span id="toastMsg">Tersimpan</span>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  // ── Toast helper ──────────────────────────────────────────────────────
+  var toast=document.getElementById('toast'), toastMsg=document.getElementById('toastMsg'), toastT;
+  function showToast(msg){
+    toastMsg.textContent=msg; toast.classList.remove('hidden');
+    clearTimeout(toastT); toastT=setTimeout(function(){toast.classList.add('hidden');},2200);
+  }
+
+  // ── Count-up KPI numbers ──────────────────────────────────────────────
+  function animateCount(el,target,dur){
+    if(reduce){ el.textContent=target.toLocaleString('id-ID'); return; }
+    var t0=null;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1); var e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e).toLocaleString('id-ID'); if(p<1)requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  }
+  var countsAnimated=false;
+  function runCounts(scope){
+    (scope||document).querySelectorAll('.count').forEach(function(el){
+      if(el.dataset.done) return; el.dataset.done='1';
+      animateCount(el,parseInt(el.dataset.count,10),900);
+    });
+  }
+
+  // ── Bars (animate to data-w) ──────────────────────────────────────────
+  function runBars(scope){
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      (scope||document).querySelectorAll('.bar[data-w]').forEach(function(b){ b.style.width=b.dataset.w+'%'; });
+    });});
+  }
+
+  // ── TABS (rail + tab buttons share data-tab) ──────────────────────────
+  var panels={discovery:document.getElementById('panel-discovery'),
+              enrichment:document.getElementById('panel-enrichment'),
+              history:document.getElementById('panel-history')};
+  var tabBtns=document.querySelectorAll('.tab-btn');
+  var railSteps=document.querySelectorAll('.rail-step');
+
+  function setTab(name){
+    Object.keys(panels).forEach(function(k){ panels[k].classList.toggle('hidden', k!==name); });
+    // re-trigger entrance + lazy animations for the visible panel
+    var vis=panels[name];
+    vis.classList.remove('fade-in'); void vis.offsetWidth; vis.classList.add('fade-in');
+    if(name==='enrichment'){ runCounts(vis); }
+    // tab button styles
+    tabBtns.forEach(function(b){
+      var on=b.dataset.tab===name;
+      b.classList.toggle('text-primary',on); b.classList.toggle('font-semibold',on);
+      b.classList.toggle('text-muted-foreground',!on); b.classList.toggle('font-medium',!on);
+      var ul=b.querySelector('.tab-underline'); if(ul) ul.classList.toggle('opacity-0',!on);
+    });
+    // rail step number styling (active=primary, others=secondary)
+    railSteps.forEach(function(s){
+      var num=s.querySelector('.rail-num'); if(!num) return;
+      var on=(name==='discovery'&&s.dataset.tab==='discovery')||(name!=='discovery'&&s.dataset.tab==='enrichment');
+      num.className='rail-num h-9 w-9 rounded-full text-sm flex items-center justify-center font-bold shrink-0 '+
+        (on?'bg-primary text-primary-foreground shadow-soft':'bg-secondary text-secondary-foreground');
+    });
+  }
+  document.querySelectorAll('[data-tab]').forEach(function(el){
+    el.addEventListener('click',function(){ setTab(el.dataset.tab); });
+  });
+
+  // initial load
+  runCounts(panels.discovery); runBars(document);
+
+  // ── DISCOVERY: result selection ───────────────────────────────────────
+  var resBody=document.getElementById('resBody');
+  var resAll=document.getElementById('resAll');
+  var selCount=document.getElementById('selCount');
+  var bulkSave=document.getElementById('bulkSave');
+  function refreshResSel(){
+    var n=resBody.querySelectorAll('.res-cb:checked').length;
+    selCount.textContent=n; bulkSave.disabled=n===0;
+    var all=resBody.querySelectorAll('.res-cb').length;
+    resAll.checked=n>0&&n===all; resAll.indeterminate=n>0&&n<all;
+  }
+  resBody.querySelectorAll('.res-cb').forEach(function(cb){ cb.addEventListener('change',refreshResSel); });
+  resAll.addEventListener('change',function(){ resBody.querySelectorAll('.res-cb').forEach(function(cb){cb.checked=resAll.checked;}); refreshResSel(); });
+  bulkSave.addEventListener('click',function(){
+    var n=resBody.querySelectorAll('.res-cb:checked').length;
+    showToast(n+' lead disimpan ke workspace → masuk antrian Enrichment');
+    resBody.querySelectorAll('.res-cb:checked').forEach(function(cb){cb.checked=false;}); refreshResSel();
+  });
+
+  // ── DISCOVERY: run plan (fake loading on button) ──────────────────────
+  var runBtn=document.getElementById('runDiscovery');
+  runBtn.addEventListener('click',function(){
+    if(runBtn.dataset.busy) return; runBtn.dataset.busy='1';
+    var orig=runBtn.innerHTML;
+    runBtn.innerHTML='<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Menyusun rencana…';
+    setTimeout(function(){
+      runBtn.innerHTML=orig; delete runBtn.dataset.busy;
+      showToast('Rencana diperbarui · 6 kandidat ditemukan');
+    }, reduce?200:1300);
+  });
+
+  // ── DISCOVERY: channel chips ──────────────────────────────────────────
+  document.querySelectorAll('#channelChips .ch-chip').forEach(function(chip){
+    chip.addEventListener('click',function(){
+      document.querySelectorAll('#channelChips .ch-chip').forEach(function(c){
+        c.className='ch-chip px-2.5 py-1.5 rounded-full bg-card border border-border text-foreground/70 text-[11px] font-medium hover:border-primary/40 transition-colors';
+      });
+      chip.className='ch-chip px-2.5 py-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold transition-colors';
+    });
+  });
+
+  // ── Copy buttons (plan) ───────────────────────────────────────────────
+  document.querySelectorAll('.copy-btn').forEach(function(b){
+    b.addEventListener('click',function(e){ e.preventDefault();
+      var txt=b.parentElement.querySelector('span'); if(txt&&navigator.clipboard) navigator.clipboard.writeText(txt.textContent.trim());
+      showToast('Disalin');
+    });
+  });
+
+  // ── ENRICHMENT: status filter chips ───────────────────────────────────
+  document.querySelectorAll('.filt-status').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.filt-status').forEach(function(b){
+        b.className='filt-status px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors';
+      });
+      btn.className='filt-status px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold transition-colors';
+      var label=btn.textContent.trim().toLowerCase();
+      var map={'semua':null,'belum':'idle','jalan':'running','selesai':'done','gagal':'error'};
+      var want=map[label];
+      document.querySelectorAll('#enrBody .enr-row').forEach(function(r){
+        r.classList.toggle('hidden', want!==null && r.dataset.status!==want);
+      });
+    });
+  });
+
+  // ── ENRICHMENT: selection + bulk bar ──────────────────────────────────
+  var enrBody=document.getElementById('enrBody');
+  var enrAll=document.getElementById('enrAll');
+  var enrichBulk=document.getElementById('enrichBulk');
+  var enrichSel=document.getElementById('enrichSel');
+  function refreshEnrSel(){
+    var n=enrBody.querySelectorAll('.enr-cb:checked').length;
+    enrichSel.textContent=n; enrichBulk.classList.toggle('hidden',n===0);
+    var all=enrBody.querySelectorAll('.enr-cb').length;
+    enrAll.checked=n>0&&n===all; enrAll.indeterminate=n>0&&n<all;
+  }
+  enrBody.querySelectorAll('.enr-cb').forEach(function(cb){ cb.addEventListener('change',refreshEnrSel); });
+  enrAll.addEventListener('change',function(){ enrBody.querySelectorAll('.enr-cb').forEach(function(cb){cb.checked=enrAll.checked;}); refreshEnrSel(); });
+  document.getElementById('enrichClear').addEventListener('click',function(){
+    enrBody.querySelectorAll('.enr-cb').forEach(function(cb){cb.checked=false;}); refreshEnrSel();
+  });
+
+  // ── DRAWER (before/after) ─────────────────────────────────────────────
+  var drawerWrap=document.getElementById('drawerWrap');
+  var drawer=document.getElementById('drawer');
+  var drawerOverlay=document.getElementById('drawerOverlay');
+  var drawerTitle=document.getElementById('drawerTitle');
+  function openDrawer(name){
+    drawerTitle.textContent=name;
+    drawerWrap.classList.remove('hidden');
+    requestAnimationFrame(function(){
+      drawerOverlay.classList.remove('opacity-0');
+      drawer.classList.remove('closed');
+      runBars(drawer);
+    });
+  }
+  function closeDrawer(){
+    drawerOverlay.classList.add('opacity-0'); drawer.classList.add('closed');
+    setTimeout(function(){ drawerWrap.classList.add('hidden');
+      drawer.querySelectorAll('.bar[data-w]').forEach(function(b){b.style.width='0%';});
+    },300);
+  }
+  enrBody.querySelectorAll('.enr-row').forEach(function(r){
+    r.addEventListener('click',function(){ openDrawer(r.dataset.name); });
+  });
+  document.querySelectorAll('[data-close-drawer]').forEach(function(b){ b.addEventListener('click',closeDrawer); });
+  drawerOverlay.addEventListener('click',closeDrawer);
+
+  // drawer segment override
+  drawer.querySelectorAll('#segToggle [data-seg]').forEach(function(b){
+    b.addEventListener('click',function(){
+      drawer.querySelectorAll('#segToggle [data-seg]').forEach(function(x){
+        x.style.outline=''; x.className='px-3 py-1 rounded-full bg-card border border-border text-foreground/70 text-xs font-medium hover:border-primary/40 transition-colors';
+      });
+      var t=b.textContent.trim();
+      if(t==='B2B'){ b.style.background='hsl(173 80% 40% / .14)'; b.style.color='#0d9488'; b.style.outline='2px solid #0d9488'; b.className='px-3 py-1 rounded-full text-xs font-semibold transition-colors'; }
+      else if(t==='B2C'){ b.style.background='#E1306C18'; b.style.color='#c01f5b'; b.style.outline='2px solid #c01f5b'; b.className='px-3 py-1 rounded-full text-xs font-semibold transition-colors'; }
+      showToast('Klasifikasi diubah ke '+t);
+    });
+  });
+
+  // ── PROGRESS MODAL (bulk enrich) ──────────────────────────────────────
+  var progressWrap=document.getElementById('progressWrap');
+  var progList=document.getElementById('progList');
+  var progBar=document.getElementById('progBar');
+  var progDone=document.getElementById('progDone');
+  var progTotal=document.getElementById('progTotal');
+  var progHead=document.getElementById('progHead');
+  var progSpin=document.getElementById('progSpin');
+  var progTimer;
+
+  function rowIcon(state){
+    if(state==='done') return '<svg class="w-3.5 h-3.5 text-success shrink-0" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+    if(state==='run')  return '<svg class="w-3.5 h-3.5 text-primary animate-spin shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>';
+    return '<span class="w-3.5 h-3.5 rounded-full border border-border shrink-0"></span>';
+  }
+  function runProgress(items){
+    clearTimeout(progTimer);
+    progressWrap.classList.remove('hidden'); progressWrap.classList.add('flex');
+    progHead.textContent='Menjalankan enrichment…'; progSpin.classList.add('animate-spin'); progSpin.classList.remove('text-success');
+    progTotal.textContent=items.length; progDone.textContent='0'; progBar.style.width='0%';
+    var states=items.map(function(){return 'wait';});
+    function render(){
+      progList.innerHTML=items.map(function(it,i){
+        var cls=states[i]==='done'?'text-foreground/80':states[i]==='run'?'text-foreground':'text-muted-foreground';
+        var note=states[i]==='done'?' — '+it.note:states[i]==='run'?' — sedang enrich…':' — menunggu';
+        return '<li class="flex items-center gap-2 '+cls+'">'+rowIcon(states[i])+'<span class="min-w-0 flex-1 truncate">'+it.name+note+'</span></li>';
+      }).join('');
+    }
+    render();
+    var i=0;
+    function tick(){
+      if(i>=items.length){
+        progHead.textContent='Enrichment selesai'; progSpin.classList.remove('animate-spin'); progSpin.classList.add('text-success');
+        progSpin.outerHTML='<svg class="w-4 h-4 text-success" id="progSpin" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+        showToast('Enrichment selesai · '+items.length+' lead terklasifikasi'); return;
+      }
+      states[i]='run'; render();
+      progTimer=setTimeout(function(){
+        states[i]='done'; i++;
+        progDone.textContent=i; progBar.style.width=Math.round(i/items.length*100)+'%';
+        render(); tick();
+      }, reduce?150:900);
+    }
+    tick();
+  }
+  function closeProgress(){ clearTimeout(progTimer); progressWrap.classList.add('hidden'); progressWrap.classList.remove('flex'); }
+  document.querySelectorAll('[data-close-progress]').forEach(function(b){ b.addEventListener('click',closeProgress); });
+
+  // bulk enrich → modal
+  document.getElementById('bulkEnrich').addEventListener('click',function(){
+    var picked=[];
+    enrBody.querySelectorAll('.enr-cb:checked').forEach(function(cb){
+      var row=cb.closest('.enr-row'); picked.push(row.dataset.name);
+    });
+    if(!picked.length) picked=['PT Logistik Nusantara','Andi Wijaya','Siti Rahma','Rizky Pratama'];
+    var notes={'PT Logistik Nusantara':'5 kontak, B2B','Andi Wijaya':'3 kontak, B2B','Siti Rahma':'1 kontak, B2C','Dewi Lestari':'2 kontak, B2C','Rizky Pratama':'gagal, retry'};
+    runProgress(picked.map(function(n){return {name:n,note:notes[n]||'terklasifikasi'};}));
+  });
+  // single-row enrich → modal with one item
+  enrBody.querySelectorAll('.row-enrich').forEach(function(b){
+    b.addEventListener('click',function(){
+      var name=b.closest('.enr-row').dataset.name;
+      runProgress([{name:name,note:'terklasifikasi + skor fit'}]);
+    });
+  });
+
+  // ── ESC closes overlays ───────────────────────────────────────────────
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Escape') return;
+    if(!progressWrap.classList.contains('hidden')) closeProgress();
+    else if(!drawerWrap.classList.contains('hidden')) closeDrawer();
+  });
+})();
+</script>
+
+</body></html>

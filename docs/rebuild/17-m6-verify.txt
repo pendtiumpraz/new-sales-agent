@@ -1,0 +1,73 @@
+M6 (Closing-Flow AI) Backend — Verification Report
+Sainskerta Loop Phase 03
+Date: 2026-06-29
+
+====================================================================
+RESULT: PASS
+====================================================================
+
+Files verified (new M6 code):
+  modules/sales/schema.ts
+  modules/sales/repo.ts
+  modules/sales/service.ts
+  modules/sales/logic.ts
+  modules/sales/kb-techniques.ts
+  app/api/sales/stage/route.ts
+  app/api/sales/stage/[conversationId]/route.ts
+  app/api/sales/stage/[conversationId]/restore/route.ts
+  app/api/sales/readiness/route.ts
+  app/api/sales/readiness/[conversationId]/route.ts
+  app/api/sales/readiness/[conversationId]/restore/route.ts
+  app/api/sales/techniques/route.ts
+  app/api/sales/techniques/[id]/route.ts
+  app/api/sales/techniques/[id]/restore/route.ts
+  app/api/sales/techniques/seed/route.ts
+  app/api/sales/techniques/recommend/route.ts
+  app/api/sales/calibration/route.ts
+  app/api/sales/outcome/route.ts
+
+--------------------------------------------------------------------
+GATE 1 — npx tsc --noEmit
+--------------------------------------------------------------------
+Exit: clean (no output, no errors).
+
+--------------------------------------------------------------------
+GATE 2 — npm run lint  (next lint)
+--------------------------------------------------------------------
+Clean for all M6 code. No errors.
+
+Two pre-existing WARNINGS remain in unrelated legacy files (NOT M6):
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.
+            @typescript-eslint/no-unused-vars
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.
+            @typescript-eslint/no-unused-vars
+
+Grep of the lint output for sales/modules/sales/api/sales: NO MATCHES.
+No M6 file produced any lint error or warning.
+
+====================================================================
+CONCLUSION: Build is GREEN. M6 backend code is type-clean and
+lint-clean. The only lint warnings are pre-existing, in legacy
+files outside Module 6.
+====================================================================
+
+====================================================================
+RE-VERIFICATION (fix pass) — Date: 2026-06-29
+====================================================================
+All 18 M6 files confirmed present on disk.
+
+GATE 1 — npx tsc --noEmit
+  Exit code 0. Clean, no output, no errors.
+
+GATE 2 — npm run lint
+  No errors or warnings in any M6 file (modules/sales/*,
+  app/api/sales/*). Only the two pre-existing legacy warnings
+  remain:
+    - app/(app)/settings/diagnostics/page.tsx:514:21  '_body' unused
+    - components/shared/table-pagination.tsx:65:45     'pageSize' unused
+
+No tsc/lint errors found in M6 code; no fixes were required.
+Build remains GREEN.
+====================================================================

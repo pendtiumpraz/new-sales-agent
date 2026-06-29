@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAME — Login (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-3 sticky top-0 z-50">
+  <span class="font-bold">WIREFRAMES M1:</span>
+  <a class="underline" href="index.html">Index</a>
+  <a class="underline" href="login.html">Login</a>
+  <a class="underline" href="register.html">Register</a>
+  <a class="underline" href="pending.html">Pending</a>
+  <a class="underline" href="superadmin-users.html">Superadmin</a>
+  <a class="underline" href="onboarding.html">Onboarding</a>
+  <a class="underline" href="dashboard-shell.html">Dashboard</a>
+</nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Login — low-fi: review the FLOW, not the styling</div>
+<!-- CONTENT -->
+<!-- Pre-auth page: centered card, NO sidebar, brand-neutral (no per-tenant theme yet — tenant not known until after login) -->
+<main class="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
+
+  <div class="w-full max-w-sm">
+
+    <!-- Brand-neutral logo/wordmark placeholder (generic product mark, NOT tenant white-label) -->
+    <div class="flex flex-col items-center mb-6">
+      <div class="ph w-12 h-12 rounded-md mb-3 flex items-center justify-center text-[10px] text-gray-500">logo</div>
+      <div class="ph h-4 w-32 rounded"></div> <!-- product name (neutral) -->
+    </div>
+
+    <!-- Login card -->
+    <div class="bg-white border border-gray-300 rounded-lg shadow-sm p-6">
+
+      <h1 class="text-lg font-semibold text-gray-800 mb-1">Masuk</h1>
+      <p class="text-xs text-gray-500 mb-5">Masuk ke akun Anda untuk melanjutkan.</p>
+
+      <form class="space-y-4">
+
+        <!-- Email -->
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+          <div class="ph h-10 rounded w-full flex items-center px-3 text-xs text-gray-500">email@perusahaan.com</div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-medium text-gray-600">Kata Sandi</label>
+            <a href="#" class="text-[11px] text-gray-500 underline">Lupa sandi?</a>
+          </div>
+          <div class="ph h-10 rounded w-full flex items-center px-3 text-xs text-gray-500">••••••••</div>
+        </div>
+
+        <!-- Remember me -->
+        <label class="flex items-center gap-2 text-xs text-gray-600">
+          <span class="ph w-4 h-4 rounded-sm"></span> Ingat saya
+        </label>
+
+        <!-- PRIMARY ACTION -->
+        <button type="button"
+          class="w-full h-10 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">
+          Masuk
+        </button>
+
+        <!-- Inline error slot (note for high-fi) -->
+        <p class="text-[11px] text-gray-400 text-center">[ slot pesan error: "Email atau sandi salah" ]</p>
+
+      </form>
+    </div>
+
+    <!-- Secondary: link ke Register -->
+    <p class="text-center text-xs text-gray-600 mt-5">
+      Belum punya akun?
+      <a href="register.html" class="font-medium text-gray-800 underline">Daftar</a>
+    </p>
+
+    <!-- Flow note -->
+    <p class="text-center text-[11px] text-gray-400 mt-3">
+      Setelah masuk → cek status tenant: <span class="underline">pending.html</span> jika belum aktif,
+      lalu <span class="underline">onboarding.html</span> / <span class="underline">dashboard-shell.html</span>.
+    </p>
+
+  </div>
+</main>
+</body></html>

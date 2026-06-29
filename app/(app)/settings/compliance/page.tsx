@@ -1,100 +1,291 @@
 "use client";
 
-import { useMemo, useState } from "react";
+// Kepatuhan UU PDP — Module 8 FRONTEND (Settings cluster · Sainskerta Loop Phase
+// 04). Wired to the NEW M8 settings backend (no mock data):
+//   - GET   /api/settings/compliance → the tenant's compliance flags/values,
+//     stored in `tenant_settings` under the `compliance.` namespace (key/value).
+//     data.read.
+//   - PATCH /api/settings/compliance → bulk-set { settings: { key: value } } (or a
+//     single { key, value }). tenant.settings.manage.
+//
+// The compliance SCORE is NOT stored server-side and is NOT fabricated: it is
+// derived deterministically from the saved settings (each control carries a weight;
+// boolean controls score when on, value controls score when filled). So the gauge
+// always reflects the real `tenant_settings` state for this tenant.
+//
+// Matches the established design system (Coral Sunset, the (app) shell, PageHeader +
+// cards + shared Error states) and renders inside the shared Settings sub-nav
+// (app/(app)/settings/layout.tsx). Every band has loading + empty + error states.
+// Page-level guard mirrors the nav (DPO roles); the write controls are additionally
+// gated to tenant.settings.manage.
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   AlertTriangle,
-  ArrowRight,
   CheckCircle2,
+  Database,
   Download,
-  FileCheck2,
   FileText,
+  Loader2,
   Lock,
-  Plus,
+  RotateCcw,
+  Save,
   Server,
   ShieldCheck,
   UserCog,
+  type LucideIcon,
 } from "lucide-react";
 
 import { RequireRole } from "@/components/auth/require-role";
 import { PageHeader } from "@/components/layout/page-header";
-import { ChannelDot } from "@/components/shared/channel-dot";
-import { ConsentBadge } from "@/components/shared/consent-badge";
-import { Badge } from "@/components/ui/badge";
+import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useCompliance } from "@/lib/api-mock/hooks";
-import { channelMeta } from "@/lib/utils/channel-config";
-import {
-  formatDateID,
-  formatDateTimeID,
-  formatRelativeID,
-} from "@/lib/utils/format-date-id";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import type { RiskLevel } from "@/lib/types";
+import { can, mapDemoRole, type Role } from "@/lib/rbac/permissions";
 
-const SCORE = 94;
+// ── NEW M8 envelope ({ ok, data }) ──────────────────────────────────────────
+interface ApiOk<T> {
+  ok: true;
+  data: T;
+}
+interface ApiErr {
+  ok: false;
+  error: string;
+  code?: string;
+}
+type ApiResult<T> = ApiOk<T> | ApiErr;
 
-const SOURCE_LABEL: Record<string, string> = {
-  event: "Event",
-  form: "Form website",
-  "wa-optin": "WA opt-in",
-};
+/** The compliance settings come back as a flat key→value map (the `compliance.`
+ *  prefix already stripped by the service). Values are JSON blobs — for our
+ *  controls they're booleans or short strings. */
+type ComplianceSettings = Record<string, unknown>;
 
-const RISK: Record<RiskLevel, { label: string; variant: "success" | "warning" | "destructive"; bar: string }> = {
-  rendah: { label: "Rendah", variant: "success", bar: "bg-success" },
-  sedang: { label: "Sedang", variant: "warning", bar: "bg-warning" },
-  tinggi: { label: "Tinggi", variant: "destructive", bar: "bg-danger" },
-};
+/** Read the NEW M8 envelope. 403 → "forbidden" sentinel for the access state. */
+async function readJson<T>(r: Response): Promise<T> {
+  const j = (await r.json().catch(() => null)) as ApiResult<T> | null;
+  if (!r.ok || !j || j.ok === false) {
+    if (r.status === 403) throw new Error("forbidden");
+    throw new Error((j && "error" in j && j.error) || "Permintaan gagal");
+  }
+  return j.data;
+}
 
-const DPIA_STATUS: Record<string, { label: string; variant: "success" | "warning" | "secondary" }> = {
-  selesai: { label: "Selesai", variant: "success" },
-  berjalan: { label: "Berjalan", variant: "secondary" },
-  "perlu-tinjauan": { label: "Perlu tinjauan", variant: "warning" },
-};
+// ── control catalog — each maps to ONE key in `tenant_settings` (compliance.*) ──
+// `weight` feeds the derived score; the sum of all weights is normalised to 100.
+interface ToggleControl {
+  kind: "toggle";
+  key: string;
+  label: string;
+  desc: string;
+  weight: number;
+}
+interface SelectControl {
+  kind: "select";
+  key: string;
+  label: string;
+  desc: string;
+  weight: number;
+  options: { value: string; label: string }[];
+  /** A select "scores" when its value is non-empty (a deliberate choice made). */
+}
+interface TextControl {
+  kind: "text";
+  key: string;
+  label: string;
+  desc: string;
+  weight: number;
+  placeholder: string;
+}
+type Control = ToggleControl | SelectControl | TextControl;
 
-const AUDIT = [
-  { actor: "Andi Hidayat (DPO)", action: "membuat Laporan Audit PDPA Q2", when: 0.2 },
-  { actor: "Sistem", action: "mencatat opt-in WhatsApp baru (immutable)", when: 0.6 },
-  { actor: "Rina Permata", action: "menghapus data 1 kontak (hak hapus)", when: 1.5 },
-  { actor: "Sistem", action: "menyelesaikan DPIA: Skoring lead AI", when: 2.4 },
-  { actor: "Maya Kusuma (DPO)", action: "meninjau risiko vendor SendGrid", when: 3.1 },
-  { actor: "Sistem", action: "memperbarui versi kebijakan ke v2.1", when: 4.0 },
+interface ControlGroup {
+  id: string;
+  title: string;
+  desc: string;
+  icon: LucideIcon;
+  tone: "primary" | "tertiary" | "info";
+  controls: Control[];
+}
+
+const GROUPS: ControlGroup[] = [
+  {
+    id: "consent",
+    title: "Persetujuan & legalitas pemrosesan",
+    desc: "Dasar hukum pemrosesan data pribadi (UU PDP No. 27/2022 Pasal 20).",
+    icon: ShieldCheck,
+    tone: "primary",
+    controls: [
+      {
+        kind: "toggle",
+        key: "consent_required",
+        label: "Wajib persetujuan eksplisit",
+        desc: "Kontak baru tidak bisa di-outreach sebelum ada persetujuan tercatat.",
+        weight: 14,
+      },
+      {
+        kind: "toggle",
+        key: "double_optin",
+        label: "Double opt-in",
+        desc: "Konfirmasi ganda (mis. tautan verifikasi) sebelum persetujuan dianggap sah.",
+        weight: 8,
+      },
+      {
+        kind: "toggle",
+        key: "consent_log_immutable",
+        label: "Jejak persetujuan immutable",
+        desc: "Setiap opt-in mencatat timestamp + sumber dan tidak bisa diubah.",
+        weight: 10,
+      },
+    ],
+  },
+  {
+    id: "rights",
+    title: "Hak subjek data",
+    desc: "Hak akses, koreksi, dan penghapusan (right-to-be-forgotten).",
+    icon: UserCog,
+    tone: "tertiary",
+    controls: [
+      {
+        kind: "toggle",
+        key: "dsar_enabled",
+        label: "Layani permintaan subjek data (DSAR)",
+        desc: "Aktifkan alur ekspor & hapus data atas permintaan subjek.",
+        weight: 12,
+      },
+      {
+        kind: "toggle",
+        key: "dsar_auto_ack",
+        label: "Auto-acknowledge DSAR",
+        desc: "Kirim tanda terima otomatis saat permintaan masuk (SLA 3×24 jam).",
+        weight: 6,
+      },
+      {
+        kind: "select",
+        key: "retention_window",
+        label: "Periode retensi data",
+        desc: "Data pribadi non-aktif dihapus otomatis setelah periode ini.",
+        weight: 10,
+        options: [
+          { value: "", label: "Belum ditentukan" },
+          { value: "12m", label: "12 bulan" },
+          { value: "24m", label: "24 bulan" },
+          { value: "36m", label: "36 bulan" },
+          { value: "forever", label: "Tanpa batas (tidak disarankan)" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "security",
+    title: "Keamanan & residensi data",
+    desc: "Kontrol teknis & organisasi yang melindungi data pribadi.",
+    icon: Lock,
+    tone: "info",
+    controls: [
+      {
+        kind: "toggle",
+        key: "encryption_at_rest",
+        label: "Enkripsi at-rest (AES-256)",
+        desc: "Data pelanggan terenkripsi saat disimpan. Konfirmasikan kontrol aktif.",
+        weight: 12,
+      },
+      {
+        kind: "toggle",
+        key: "breach_notification",
+        label: "Prosedur notifikasi pelanggaran",
+        desc: "Ada SOP lapor 3×24 jam ke Lembaga PDP + subjek bila terjadi kebocoran.",
+        weight: 8,
+      },
+      {
+        kind: "select",
+        key: "data_residency",
+        label: "Residensi data",
+        desc: "Lokasi penyimpanan utama data pelanggan.",
+        weight: 8,
+        options: [
+          { value: "", label: "Belum ditentukan" },
+          { value: "id-jakarta", label: "Indonesia — AWS Jakarta (ap-southeast-3)" },
+          { value: "sg", label: "Singapura (ap-southeast-1)" },
+          { value: "other", label: "Lainnya / multi-region" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "governance",
+    title: "Tata kelola",
+    desc: "Akuntabilitas pengendali data (data controller).",
+    icon: FileText,
+    tone: "primary",
+    controls: [
+      {
+        kind: "text",
+        key: "dpo_name",
+        label: "Petugas Pelindungan Data (DPO)",
+        desc: "Nama/kontak DPO yang ditunjuk — wajib bila memproses data skala besar.",
+        weight: 4,
+        placeholder: "mis. Andi Hidayat — dpo@perusahaan.id",
+      },
+      {
+        kind: "text",
+        key: "policy_version",
+        label: "Versi kebijakan privasi",
+        desc: "Versi kebijakan yang berlaku saat ini (ditautkan ke jejak persetujuan).",
+        weight: 4,
+        placeholder: "mis. v2.1",
+      },
+    ],
+  },
 ];
 
-const GENERATED_REPORTS = [
-  { name: "Laporan Audit PDPA — Q1 2026", date: "31 Mar 2026", size: "1,8 MB" },
-  { name: "Log DPIA — Maret 2026", date: "28 Mar 2026", size: "640 KB" },
-  { name: "Penilaian Risiko Vendor — 2026", date: "15 Mar 2026", size: "920 KB" },
-];
+const ALL_CONTROLS: Control[] = GROUPS.flatMap((g) => g.controls);
+const TOTAL_WEIGHT = ALL_CONTROLS.reduce((s, c) => s + c.weight, 0);
 
+// ── draft model (string-friendly so toggles, selects & text share one store) ──
+type Draft = Record<string, boolean | string>;
+
+/** Seed a draft from the server map, coercing each control to its kind. */
+function settingsToDraft(s: ComplianceSettings): Draft {
+  const d: Draft = {};
+  for (const c of ALL_CONTROLS) {
+    const raw = s[c.key];
+    if (c.kind === "toggle") d[c.key] = raw === true || raw === "true";
+    else d[c.key] = typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+  }
+  return d;
+}
+
+/** Whether a single control "counts" toward the score. */
+function controlMet(c: Control, d: Draft): boolean {
+  if (c.kind === "toggle") return d[c.key] === true;
+  const v = d[c.key];
+  // a select/text scores when a real, non-empty choice is made (and not "forever")
+  return typeof v === "string" && v.trim() !== "" && v !== "forever";
+}
+
+/** Derived compliance score 0..100 — sum of met-control weights, normalised. */
+function scoreOf(d: Draft): number {
+  const got = ALL_CONTROLS.reduce((s, c) => s + (controlMet(c, d) ? c.weight : 0), 0);
+  return TOTAL_WEIGHT === 0 ? 0 : Math.round((got / TOTAL_WEIGHT) * 100);
+}
+
+function scoreTone(score: number): { label: string; text: string; stroke: string } {
+  if (score >= 85) return { label: "Sangat baik", text: "text-success", stroke: "#10B981" };
+  if (score >= 60) return { label: "Cukup", text: "text-warning", stroke: "#F59E0B" };
+  return { label: "Perlu perbaikan", text: "text-danger", stroke: "#EF4444" };
+}
+
+// ── page (guard wrapper) ─────────────────────────────────────────────────────
 export default function CompliancePage() {
+  // Compliance is a per-controller obligation → open to the DPO roles
+  // (Owner / Admin / Manager), mirroring the Settings sub-nav gate.
   return (
-    // Compliance is a per-controller obligation → open to the DPO roles
-    // (Owner/Admin/Manager), not just the platform Superadmin.
     <RequireRole
       allow={["Superadmin", "Admin", "Sales Manager"]}
       message="Halaman kepatuhan untuk DPO (Owner / Admin / Manajer)."
@@ -105,685 +296,445 @@ export default function CompliancePage() {
 }
 
 function CompliancePageInner() {
-  const comp = useCompliance();
-  const isLoading = comp.isLoading;
-  const dpiaLoading = comp.isLoading;
-  const vendorsLoading = comp.isLoading;
-  const consentLog = comp.data?.consentLog;
-  const dpia = comp.data?.dpia;
-  const vendors = comp.data?.vendors;
-  const deletionQueue = comp.data?.deletionQueue ?? [];
+  const qc = useQueryClient();
+  const { data: session } = useSession();
 
-  // Consent breakdown computed from the REAL log, not hardcoded (the headline
-  // used to claim 78/18/4% while the audit log itself told a different story).
-  const consentPct = useMemo(() => {
-    const log = consentLog ?? [];
-    const n = log.length;
-    const pct = (s: string) => (n > 0 ? Math.round((log.filter((c) => c.status === s).length / n) * 100) : 0);
-    return { consented: pct("consented"), pending: pct("pending"), none: pct("none") };
-  }, [consentLog]);
+  // Session role may be the canonical RBAC role (real auth) or a demo display role;
+  // map either onto a canonical Role before gating the write controls.
+  const role: Role = useMemo(() => {
+    const raw = session?.user?.role;
+    if (!raw) return "member";
+    if ((["superadmin", "tenant_owner", "tenant_admin", "member"] as const).includes(raw as Role)) {
+      return raw as Role;
+    }
+    return mapDemoRole(raw);
+  }, [session?.user?.role]);
+  const canManage = can(role, "tenant.settings.manage");
+
+  const settingsQ = useQuery({
+    queryKey: ["settings", "compliance"],
+    queryFn: async () => readJson<ComplianceSettings>(await fetch("/api/settings/compliance")),
+    retry: false,
+  });
+
+  const forbidden =
+    settingsQ.error instanceof Error && settingsQ.error.message === "forbidden";
+
+  // Local editable draft, seeded once the server map arrives.
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [dirty, setDirty] = useState(false);
+
+  // Re-seed whenever a fresh server snapshot lands (initial load + post-save), but
+  // never clobber an in-progress edit.
+  useEffect(() => {
+    if (settingsQ.data && (!draft || !dirty)) {
+      setDraft(settingsToDraft(settingsQ.data));
+      setDirty(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsQ.data]);
+
+  function set(key: string, value: boolean | string) {
+    setDraft((d) => (d ? { ...d, [key]: value } : d));
+    setDirty(true);
+  }
+
+  // Bulk-save the whole draft (idempotent upsert per key, server-side).
+  const save = useMutation({
+    mutationFn: async (d: Draft) =>
+      readJson<ComplianceSettings>(
+        await fetch("/api/settings/compliance", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ settings: d }),
+        }),
+      ),
+    onSuccess: (data) => {
+      qc.setQueryData(["settings", "compliance"], data);
+      setDraft(settingsToDraft(data));
+      setDirty(false);
+      toast.success("Pengaturan kepatuhan tersimpan");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan pengaturan"),
+  });
+
+  // Reset = discard local edits back to the last saved server snapshot.
+  function discard() {
+    if (settingsQ.data) {
+      setDraft(settingsToDraft(settingsQ.data));
+      setDirty(false);
+      toast.success("Perubahan dibatalkan");
+    }
+  }
+
+  const score = useMemo(() => (draft ? scoreOf(draft) : 0), [draft]);
+  const savedScore = useMemo(
+    () => (settingsQ.data ? scoreOf(settingsToDraft(settingsQ.data)) : 0),
+    [settingsQ.data],
+  );
+  const metCount = useMemo(
+    () => (draft ? ALL_CONTROLS.filter((c) => controlMet(c, draft)).length : 0),
+    [draft],
+  );
 
   return (
     <div>
       <PageHeader
         title="Kepatuhan UU PDP"
-        description="GRC untuk DPO — persetujuan, DPIA, risiko vendor, dan laporan siap-regulator."
+        description="Atur kontrol kepatuhan UU PDP No. 27/2022 — persetujuan, hak subjek data, keamanan, & tata kelola. Pengaturan tersimpan per-tenant; skor dihitung dari kontrol yang aktif."
       >
-        <Button asChild>
+        <Button asChild variant="outline" size="sm">
           <Link href="/settings/compliance/dsar">
-            <Download className="h-4 w-4" />
-            Export data (DSAR)
+            <Download className="h-4 w-4" /> Export data (DSAR)
           </Link>
         </Button>
       </PageHeader>
 
-      {/* Hero strip — success-green gradient for a GRC page */}
-      <div className="relative overflow-hidden border-b bg-gradient-to-r from-success/15 via-tertiary/10 to-primary/8 px-6 py-4">
-        <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-success/25 blur-3xl" />
-        <div className="absolute -left-6 -bottom-12 h-32 w-32 rounded-full bg-primary/15 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.55)]">
-            <ShieldCheck className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">
-              UU PDP No. 27/2022 · skor kepatuhan {SCORE}/100
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Audit-ready. Compliance-as-a-Service untuk DPO modern.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="success" className="gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              AES-256 at rest
-            </Badge>
-            <Badge variant="default" className="gap-1 bg-tertiary/15 text-tertiary">
-              <Server className="h-3 w-3" />
-              ap-southeast-3
-            </Badge>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6">
-        <Tabs defaultValue="ringkasan">
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="ringkasan">Ringkasan</TabsTrigger>
-            <TabsTrigger value="persetujuan">Jejak Persetujuan</TabsTrigger>
-            <TabsTrigger value="dpia">DPIA</TabsTrigger>
-            <TabsTrigger value="vendor">Risiko Vendor</TabsTrigger>
-            <TabsTrigger value="laporan">Laporan</TabsTrigger>
-          </TabsList>
-
-          {/* ── Ringkasan ─────────────────────────────────────────────── */}
-          <TabsContent value="ringkasan" className="mt-5 space-y-6">
-            <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center p-6">
-                  <ScoreGauge score={SCORE} />
-                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-success">
-                    <ShieldCheck className="h-4 w-4" />
-                    Sangat baik
-                  </p>
-                  <p className="mt-1 text-center text-xs text-muted-foreground">
-                    Skor kepatuhan UU PDP No. 27/2022
-                  </p>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <MiniStat label="Kontak disetujui" value={`${consentPct.consented}%`} tone="success" />
-                <MiniStat label="Menunggu persetujuan" value={`${consentPct.pending}%`} tone="warning" />
-                <MiniStat label="Tanpa izin" value={`${consentPct.none}%`} tone="danger" />
-                <MiniStat label="Permintaan hapus" value={`${deletionQueue.length}`} tone="default" />
-                <MiniStat label="DPIA aktif" value={`${dpia?.length ?? 0}`} tone="default" />
-                <MiniStat label="Vendor dinilai" value={`${vendors?.length ?? 0}`} tone="default" />
-              </div>
-            </div>
-
-            {/* Trust / Compliance-as-a-Service */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <TrustCard
-                icon={Lock}
-                title="Enkripsi AES-256"
-                desc="Consent database terenkripsi at-rest & in-transit. Setiap entri immutable."
-                tone="primary"
-              />
-              <TrustCard
-                icon={Server}
-                title="Residensi data: AWS Jakarta"
-                desc="Data pelanggan disimpan di region ap-southeast-3 (Indonesia)."
-                tone="tertiary"
-              />
-              <TrustCard
-                icon={UserCog}
-                title="DPO terkelola"
-                desc="Compliance-as-a-Service: konsultasi DPO & alur hak hapus terkelola."
-                tone="info"
-              />
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-              {/* Right-to-delete queue */}
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle>Antrean hak hapus data</CardTitle>
-                  <Badge variant="warning">{deletionQueue.length} menunggu</Badge>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {deletionQueue.length === 0 ? (
-                    <p className="px-6 py-8 text-center text-sm text-muted-foreground">
-                      Tidak ada permintaan hapus tertunda.
-                    </p>
-                  ) : (
-                  <ul className="divide-y">
-                    {deletionQueue.map((r, i) => (
-                      <li key={`${r.label}-${i}`} className="flex items-center gap-3 px-6 py-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{r.label}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {r.detail} · {formatRelativeID(r.at)}
-                          </p>
-                        </div>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span tabIndex={0}>
-                                <Button size="sm" variant="outline" disabled>
-                                  Tolak
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Mode demo — alur penolakan belum terhubung backend
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <Button size="sm" asChild>
-                          <Link href="/settings/compliance/dsar">Proses di DSAR</Link>
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Audit trail */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Jejak audit</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ul className="divide-y">
-                    {AUDIT.map((a, i) => (
-                      <li key={i} className="flex items-start gap-3 px-6 py-3">
-                        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="text-sm">
-                            <span className="font-medium">{a.actor}</span> {a.action}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatRelativeID(
-                              new Date(Date.now() - a.when * 864e5).toISOString(),
-                            )}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* ── Jejak Persetujuan ─────────────────────────────────────── */}
-          <TabsContent value="persetujuan" className="mt-5 space-y-4">
-            <div className="flex items-center gap-2 rounded-xl border border-tertiary/30 bg-tertiary/5 px-4 py-3 text-sm">
-              <Lock className="h-4 w-4 shrink-0 text-tertiary" />
-              <span className="text-muted-foreground">
-                Consent database terenkripsi <strong className="text-foreground">AES-256</strong>.
-                Setiap opt-in mencatat timestamp, IP, versi kebijakan, dan sumber —
-                membentuk audit log yang <strong className="text-foreground">immutable</strong> per kontak.
-              </span>
-            </div>
-            <Card>
-              <CardContent className="p-0">
-                <div className="scrollbar-thin max-h-[560px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead>Kontak</TableHead>
-                        <TableHead>Sumber</TableHead>
-                        <TableHead>Channel</TableHead>
-                        <TableHead>IP</TableHead>
-                        <TableHead>Waktu (WIB)</TableHead>
-                        <TableHead>Versi</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading
-                        ? Array.from({ length: 10 }).map((_, i) => (
-                            <TableRow key={i}>
-                              <TableCell colSpan={7}>
-                                <Skeleton className="h-6 w-full" />
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        : (consentLog ?? []).map((c) => (
-                            <TableRow key={c.id} className="even:bg-tertiary/[0.04] hover:bg-primary/[0.04]">
-                              <TableCell className="font-medium">{c.contactName}</TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {SOURCE_LABEL[c.source]}
-                              </TableCell>
-                              <TableCell>
-                                <span className="flex items-center gap-1.5">
-                                  <ChannelDot channel={c.channel} size={8} />
-                                  <span className="text-xs text-muted-foreground">
-                                    {channelMeta(c.channel).label}
-                                  </span>
-                                </span>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs text-muted-foreground">
-                                {c.ip}
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {formatDateTimeID(c.date)}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">{c.version}</TableCell>
-                              <TableCell>
-                                <ConsentBadge status={c.status} />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                    </TableBody>
-                  </Table>
+      <div className="space-y-5 p-6">
+        {settingsQ.isError ? (
+          <ErrorState
+            title={forbidden ? "Tidak punya akses" : "Gagal memuat kepatuhan"}
+            description={
+              forbidden
+                ? "Akun kamu tidak punya izin baca data (data.read). Hubungi admin tenant."
+                : "Tidak bisa mengambil pengaturan kepatuhan. Pastikan kamu login & database tersedia."
+            }
+            onRetry={() => settingsQ.refetch()}
+          />
+        ) : settingsQ.isLoading || !draft ? (
+          <ComplianceSkeleton />
+        ) : (
+          <div className="grid items-start gap-5 lg:grid-cols-3">
+            {/* ============ CONTROL GROUPS (2/3) ============ */}
+            <div className="space-y-5 lg:col-span-2">
+              {!canManage && (
+                <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/[0.08] px-4 py-3 text-[13px]">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <span className="text-muted-foreground">
+                    Akun kamu hanya bisa <b className="text-foreground">melihat</b> kontrol kepatuhan.
+                    Untuk mengubah, butuh izin <b>tenant.settings.manage</b> (Owner / Admin).
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
 
-          {/* ── DPIA ──────────────────────────────────────────────────── */}
-          <TabsContent value="dpia" className="mt-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Data Protection Impact Assessment per proses bisnis yang mengolah data pribadi.
+              {GROUPS.map((group) => (
+                <ControlGroupCard
+                  key={group.id}
+                  group={group}
+                  draft={draft}
+                  disabled={!canManage}
+                  onSet={set}
+                />
+              ))}
+
+              <p className="text-[11px] text-muted-foreground">
+                Setiap kontrol tersimpan sebagai satu baris di{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-[10px]">tenant_settings</code>{" "}
+                (namespace <code className="rounded bg-muted px-1 py-0.5 text-[10px]">compliance.*</code>),
+                grain = tenant. Skor di panel kanan dihitung langsung dari kontrol yang aktif —
+                bukan angka statis.
               </p>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0}>
-                      <Button variant="outline" disabled>
-                        <Plus className="h-4 w-4" />
-                        Buat DPIA
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Mode demo — pembuatan DPIA belum terhubung backend
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead>Proses bisnis</TableHead>
-                      <TableHead>Kategori data</TableHead>
-                      <TableHead>Risiko</TableHead>
-                      <TableHead>Mitigasi</TableHead>
-                      <TableHead>DPO</TableHead>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dpiaLoading
-                      ? Array.from({ length: 5 }).map((_, i) => (
-                          <TableRow key={i}>
-                            <TableCell colSpan={7}>
-                              <Skeleton className="h-6 w-full" />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      : (dpia ?? []).map((d) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="font-medium">{d.process}</TableCell>
-                        <TableCell className="text-muted-foreground">{d.dataCategory}</TableCell>
-                        <TableCell>
-                          <Badge variant={RISK[d.riskLevel].variant}>
-                            {RISK[d.riskLevel].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{d.mitigations} kontrol</TableCell>
-                        <TableCell className="text-muted-foreground">{d.owner}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatDateID(d.date)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={DPIA_STATUS[d.status].variant}>
-                            {DPIA_STATUS[d.status].label}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* ── Risiko Vendor ─────────────────────────────────────────── */}
-          <TabsContent value="vendor" className="mt-5 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Penilaian risiko pihak ketiga yang memproses data, termasuk status DPA dan residensi data.
-            </p>
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead>Vendor</TableHead>
-                      <TableHead>Kategori</TableHead>
-                      <TableHead className="w-48">Skor risiko</TableHead>
-                      <TableHead>DPA</TableHead>
-                      <TableHead>Residensi</TableHead>
-                      <TableHead>Tinjauan</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {vendorsLoading
-                      ? Array.from({ length: 5 }).map((_, i) => (
-                          <TableRow key={i}>
-                            <TableCell colSpan={6}>
-                              <Skeleton className="h-6 w-full" />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      : (vendors ?? []).map((v) => (
-                      <TableRow key={v.id}>
-                        <TableCell className="font-medium">{v.vendor}</TableCell>
-                        <TableCell className="text-muted-foreground">{v.category}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={cn("h-full rounded-full", RISK[v.riskLevel].bar)}
-                                style={{ width: `${v.riskScore}%` }}
-                              />
-                            </div>
-                            <span className="tnum text-xs text-muted-foreground">{v.riskScore}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {v.dpaSigned ? (
-                            <span className="flex items-center gap-1 text-xs text-success">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Ada
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-warning">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              Belum
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{v.residency}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatRelativeID(v.lastReview)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ── Laporan ───────────────────────────────────────────────── */}
-          <TabsContent value="laporan" className="mt-5">
-            <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-              <ReportGenerator
-                consentCount={consentLog?.length ?? 0}
-                dpiaCount={dpia?.length ?? 0}
-                vendorCount={vendors?.length ?? 0}
+            {/* ============ SCORE + ACTIONS (1/3, sticky) ============ */}
+            <div className="space-y-5 lg:sticky lg:top-[88px]">
+              <ScoreCard
+                score={score}
+                savedScore={savedScore}
+                metCount={metCount}
+                totalCount={ALL_CONTROLS.length}
+                dirty={dirty}
               />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Laporan terbaru</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ul className="divide-y">
-                    {GENERATED_REPORTS.map((r) => (
-                      <li key={r.name} className="flex items-center gap-3 px-6 py-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
-                          <FileCheck2 className="h-4 w-4 text-primary" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{r.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {r.date} · {r.size}
-                          </p>
-                        </div>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span tabIndex={0}>
-                                <Button size="icon" variant="ghost" disabled>
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Mode demo — berkas contoh, unduhan belum tersedia
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+
+              {/* Trust facts — static platform context, clearly labelled */}
+              <section className="space-y-2.5 rounded-lg border border-border bg-card p-4 shadow-soft">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                  Konteks platform
+                </p>
+                <TrustRow icon={Lock} label="Enkripsi" value="AES-256 at-rest & in-transit" />
+                <TrustRow icon={Server} label="Region default" value="ap-southeast-3 (Jakarta)" />
+                <TrustRow icon={Database} label="Immutable log" value="Jejak persetujuan & audit" />
+              </section>
+
+              {/* Save / discard */}
+              {canManage && (
+                <section className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-soft">
+                  {dirty && (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-warning">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Ada perubahan belum disimpan.
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={!dirty || save.isPending}
+                    onClick={() => draft && save.mutate(draft)}
+                  >
+                    {save.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" /> Simpan perubahan
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={!dirty || save.isPending}
+                    onClick={discard}
+                  >
+                    <RotateCcw className="h-4 w-4" /> Batalkan perubahan
+                  </Button>
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Perubahan berlaku se-tenant. Setiap simpan tercatat di jejak audit.
+                  </p>
+                </section>
+              )}
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ReportGenerator({
-  consentCount,
-  dpiaCount,
-  vendorCount,
+// ───────────────────────── sub-components ─────────────────────────
+
+function ControlGroupCard({
+  group,
+  draft,
+  disabled,
+  onSet,
 }: {
-  consentCount: number;
-  dpiaCount: number;
-  vendorCount: number;
+  group: ControlGroup;
+  draft: Draft;
+  disabled: boolean;
+  onSet: (key: string, value: boolean | string) => void;
 }) {
-  const [type, setType] = useState("pdpa-audit");
-  const [period, setPeriod] = useState("q2-2026");
-
-  const TYPES: Record<string, { label: string; includes: string[] }> = {
-    "pdpa-audit": {
-      label: "Laporan Audit PDPA",
-      includes: [
-        `${consentCount} entri persetujuan (timestamp + IP + versi)`,
-        "Ringkasan hak akses & hak hapus",
-        "Jejak audit operasi data",
-        "Pernyataan residensi data (AWS Jakarta)",
-      ],
-    },
-    "dpia-log": {
-      label: "Log DPIA",
-      includes: [`${dpiaCount} DPIA per proses bisnis`, "Tingkat risiko + kontrol mitigasi"],
-    },
-    "vendor-risk": {
-      label: "Penilaian Risiko Vendor",
-      includes: [`${vendorCount} vendor pihak ketiga`, "Status DPA + residensi data"],
-    },
-    "consent-report": {
-      label: "Laporan Persetujuan",
-      includes: [`${consentCount} entri consent immutable`, "Rincian per sumber & channel"],
-    },
-  };
-
-  const t = TYPES[type];
+  const Icon = group.icon;
+  const tonePalette =
+    group.tone === "primary"
+      ? "bg-primary/[0.12] text-primary"
+      : group.tone === "tertiary"
+        ? "bg-tertiary/[0.12] text-tertiary"
+        : "bg-info/[0.12] text-info";
+  const met = group.controls.filter((c) => controlMet(c, draft)).length;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Buat laporan audit</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Jenis laporan</label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(TYPES).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>
-                    {v.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Periode</label>
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="q2-2026">Q2 2026</SelectItem>
-                <SelectItem value="q1-2026">Q1 2026</SelectItem>
-                <SelectItem value="2025">Tahun 2025</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+      <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", tonePalette)}>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold">{group.title}</h2>
+          <p className="text-[11px] text-muted-foreground">{group.desc}</p>
         </div>
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+          {met}/{group.controls.length}
+        </span>
+      </div>
 
-        <div className="rounded-xl border bg-muted/30 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Termasuk dalam laporan
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {t.includes.map((inc) => (
-              <li key={inc} className="flex items-start gap-2 text-sm">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tertiary" />
-                <span className="text-muted-foreground">{inc}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-success" />
-          Format siap-regulator — dapat diserahkan langsung ke KOMDIGI / Lembaga PDP.
-        </div>
-
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <FileText className="h-3.5 w-3.5 shrink-0" />
-          Mode demo — penyusun PDF templat belum terhubung. Export data subjek
-          (JSON, live) tersedia di DSAR.
-        </p>
-
-        <Button className="w-full" asChild>
-          <Link href="/settings/compliance/dsar">
-            <Download className="h-4 w-4" />
-            Export data di DSAR
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
+      <div className="divide-y divide-border">
+        {group.controls.map((c) => (
+          <ControlRow key={c.key} control={c} draft={draft} disabled={disabled} onSet={onSet} />
+        ))}
+      </div>
+    </section>
   );
 }
 
-function ScoreGauge({ score }: { score: number }) {
+function ControlRow({
+  control,
+  draft,
+  disabled,
+  onSet,
+}: {
+  control: Control;
+  draft: Draft;
+  disabled: boolean;
+  onSet: (key: string, value: boolean | string) => void;
+}) {
+  const met = controlMet(control, draft);
+  return (
+    <div className="flex items-start gap-3 px-5 py-3.5">
+      <span
+        className={cn(
+          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors",
+          met ? "text-success" : "text-muted-foreground/40",
+        )}
+        aria-hidden
+      >
+        <CheckCircle2 className="h-4 w-4" />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-foreground">{control.label}</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{control.desc}</p>
+
+        {control.kind === "select" && (
+          <div className="relative mt-2 w-full max-w-xs">
+            <select
+              value={String(draft[control.key] ?? "")}
+              disabled={disabled}
+              onChange={(e) => onSet(control.key, e.target.value)}
+              className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {control.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+        )}
+
+        {control.kind === "text" && (
+          <input
+            type="text"
+            value={String(draft[control.key] ?? "")}
+            disabled={disabled}
+            onChange={(e) => onSet(control.key, e.target.value)}
+            placeholder={control.placeholder}
+            className="mt-2 h-9 w-full max-w-sm rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        )}
+      </div>
+
+      {control.kind === "toggle" && (
+        <Switch
+          checked={draft[control.key] === true}
+          disabled={disabled}
+          onCheckedChange={(v) => onSet(control.key, v)}
+          aria-label={control.label}
+          className="mt-0.5 shrink-0"
+        />
+      )}
+    </div>
+  );
+}
+
+function ScoreCard({
+  score,
+  savedScore,
+  metCount,
+  totalCount,
+  dirty,
+}: {
+  score: number;
+  savedScore: number;
+  metCount: number;
+  totalCount: number;
+  dirty: boolean;
+}) {
+  const tone = scoreTone(score);
+  return (
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+      <div className="border-b border-border bg-gradient-to-r from-success/12 via-tertiary/8 to-primary/8 px-5 py-3.5">
+        <p className="text-sm font-semibold">Skor kepatuhan</p>
+        <p className="text-[11px] text-muted-foreground">UU PDP No. 27/2022</p>
+      </div>
+      <div className="flex flex-col items-center px-5 py-6">
+        <ScoreGauge score={score} stroke={tone.stroke} />
+        <p className={cn("mt-3 flex items-center gap-1.5 text-sm font-medium", tone.text)}>
+          <ShieldCheck className="h-4 w-4" />
+          {tone.label}
+        </p>
+        <p className="mt-1 text-center text-[11px] text-muted-foreground">
+          <b className="text-foreground">{metCount}</b> dari {totalCount} kontrol aktif
+        </p>
+        {dirty && score !== savedScore && (
+          <p className="mt-2 rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Tersimpan: {savedScore} · belum disimpan
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ScoreGauge({ score, stroke }: { score: number; stroke: string }) {
   const r = 52;
   const c = 2 * Math.PI * r;
-  const offset = c - (score / 100) * c;
+  const offset = c - (Math.max(0, Math.min(100, score)) / 100) * c;
   return (
-    <div className="relative h-40 w-40">
-      {/* Soft halo behind the gauge for extra pop */}
-      <div className="absolute inset-2 rounded-full bg-gradient-to-br from-success/20 via-tertiary/10 to-primary/15 blur-xl" />
+    <div className="relative h-36 w-36">
+      <div className="absolute inset-2 rounded-full bg-gradient-to-br from-success/15 via-tertiary/8 to-primary/10 blur-xl" />
       <svg viewBox="0 0 120 120" className="relative h-full w-full -rotate-90">
-        <defs>
-          <linearGradient id="score-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#10B981" />
-            <stop offset="55%" stopColor="#14B8A6" />
-            <stop offset="100%" stopColor="#FB5E3B" />
-          </linearGradient>
-        </defs>
         <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(20 80% 95%)" strokeWidth="10" />
         <circle
           cx="60"
           cy="60"
           r={r}
           fill="none"
-          stroke="url(#score-stroke)"
+          stroke={stroke}
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
+          className="transition-[stroke-dashoffset] duration-700"
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="bg-gradient-to-br from-emerald-600 via-tertiary to-primary bg-clip-text text-4xl font-bold tnum text-transparent">
+        <span className="text-4xl font-bold tabular-nums" style={{ color: stroke }}>
           {score}
         </span>
-        <span className="text-xs text-muted-foreground">/ 100</span>
+        <span className="text-[11px] text-muted-foreground">/ 100</span>
       </div>
     </div>
   );
 }
 
-function TrustCard({
-  icon: Icon,
-  title,
-  desc,
-  tone = "tertiary",
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  desc: string;
-  tone?: "primary" | "tertiary" | "info";
-}) {
-  const palette =
-    tone === "primary"
-      ? { iconBg: "bg-primary text-primary-foreground", border: "border-l-primary" }
-      : tone === "info"
-        ? { iconBg: "bg-info text-white", border: "border-l-info" }
-        : { iconBg: "bg-tertiary text-tertiary-foreground", border: "border-l-tertiary" };
+function TrustRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <Card className={cn("overflow-hidden border-l-4 transition-shadow hover:shadow-md", palette.border)}>
-      <CardContent className="flex gap-3 p-5">
-        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm", palette.iconBg)}>
-          <Icon className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{desc}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">{label}</p>
+        <p className="truncate text-[12px] font-medium text-foreground/80">{value}</p>
+      </div>
+    </div>
   );
 }
 
-function MiniStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "success" | "warning" | "danger" | "default";
-}) {
-  const palette =
-    tone === "success"
-      ? {
-          text: "text-success",
-          bar: "bg-gradient-to-r from-success/70 to-tertiary/70",
-          border: "border-success/25",
-          tint: "from-success/10 to-transparent",
-        }
-      : tone === "warning"
-        ? {
-            text: "text-warning",
-            bar: "bg-gradient-to-r from-amber-400 to-amber-500",
-            border: "border-warning/25",
-            tint: "from-warning/10 to-transparent",
-          }
-        : tone === "danger"
-          ? {
-              text: "text-danger",
-              bar: "bg-gradient-to-r from-rose-400 to-rose-500",
-              border: "border-destructive/25",
-              tint: "from-destructive/10 to-transparent",
-            }
-          : {
-              text: "text-foreground",
-              bar: "bg-gradient-to-r from-tertiary/70 to-primary/70",
-              border: "border-tertiary/20",
-              tint: "from-tertiary/8 to-transparent",
-            };
+function ComplianceSkeleton() {
   return (
-    <Card className={cn("relative overflow-hidden border", palette.border)}>
-      <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br", palette.tint)} />
-      <CardContent className="relative p-4">
-        <p className={`text-2xl font-semibold tnum ${palette.text}`}>{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-        <div className={cn("mt-2 h-1 w-10 rounded-full", palette.bar)} />
-      </CardContent>
-    </Card>
+    <div className="grid items-start gap-5 lg:grid-cols-3">
+      <div className="space-y-5 lg:col-span-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-56 w-full rounded-lg" />
+        ))}
+      </div>
+      <div className="space-y-5">
+        <Skeleton className="h-72 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+/** Inline chevron (avoids pulling another icon import for one caret). */
+function ChevronDown({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }

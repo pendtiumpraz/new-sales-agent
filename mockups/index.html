@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.map-card{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease}
+.map-card:hover{transform:translateY(-3px)}
+.map-card:hover .arrow{transform:translateX(3px)}
+.arrow{transition:transform .18s ease}
+.hero-orb{background:radial-gradient(closest-side, hsl(var(--primary)/0.18), transparent)}
+.step-dot{box-shadow:0 0 0 4px hsl(var(--primary)/0.10)}
+.flow-pill{transition:background .18s ease, color .18s ease, border-color .18s ease}
+.swatch{transition:transform .15s ease, box-shadow .15s ease}
+.swatch:hover{transform:scale(1.06)}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 3px hsl(var(--card)),0 0 0 5px hsl(var(--primary))}
+.inv-row{transition:opacity .2s ease, filter .2s ease}
+.inv-row.dimmed{opacity:.32;filter:grayscale(.4)}
+.reveal{opacity:0;transform:translateY(10px);animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.map-card,.arrow,.swatch{transition:none}.reveal{animation:none;opacity:1;transform:none}}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<!-- high-fi banner -->
+<div class="chrome border-b text-center text-[11px] py-1.5" style="color:hsl(var(--muted-foreground))">
+  MOCKUP HIGH-FI — untuk <b class="text-foreground">approval final</b> · full color, white-label live, interaktif · tema <b class="text-foreground">Coral Sunset</b>
+</div>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+
+  <!-- ===================== HERO HEADER ===================== -->
+  <header class="relative mb-8 reveal">
+    <div class="hero-orb absolute -top-16 -left-20 w-72 h-72 rounded-full pointer-events-none" aria-hidden="true"></div>
+    <div class="hero-orb absolute -top-10 right-0 w-56 h-56 rounded-full pointer-events-none opacity-70" aria-hidden="true"></div>
+    <div class="relative">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="inline-flex items-center justify-center w-9 h-9 rounded-md text-primary-foreground font-bold shadow-soft" style="background:linear-gradient(135deg,hsl(var(--primary)),hsl(12 92% 60%))">A</span>
+        <span class="text-[11px] uppercase tracking-[0.12em] font-semibold" style="color:hsl(var(--muted-foreground))">Agentic Sales AI · Rebuild · Peta seluruh produk</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-3 text-balance">Peta Produk</h1>
+      <p class="text-sm sm:text-[15px] leading-relaxed max-w-3xl" style="color:hsl(var(--muted-foreground))">
+        Satu peta untuk <span class="font-semibold text-foreground">seluruh aplikasi</span> — bukan cuma Module 1.
+        Dua track: <span class="font-semibold text-foreground">(A) Akses/Setup</span> &amp; <span class="font-semibold text-foreground">(B) Produk inti</span>,
+        plus <span class="font-semibold text-foreground">Pengaturan</span>. Klik tiap kartu untuk buka mockup high-fi-nya.
+        Di bawah ada <span class="font-semibold text-foreground">inventaris SEMUA fitur app lama</span> supaya tidak ada yang hilang di rebuild.
+      </p>
+      <div class="mt-5 flex flex-wrap gap-2">
+        <a href="dashboard-shell.html" class="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold px-4 py-2 shadow-soft hover:opacity-95 transition">
+          Mulai dari Dashboard
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="branding.html" class="inline-flex items-center gap-1.5 rounded-md bg-card border border-border text-sm font-semibold px-4 py-2 hover:border-primary/50 transition" style="color:hsl(var(--tertiary))">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 0-20 8 8 0 0 1 0 16h-1.5a1.5 1.5 0 0 0 0 4z"/></svg>
+          Ganti tema di /branding
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== LIVE THEME DEMO (white-label proof) ===================== -->
+  <div class="reveal rounded-lg border border-border bg-card shadow-soft p-4 sm:p-5 mb-8 flex flex-col sm:flex-row sm:items-center gap-4" style="animation-delay:.05s">
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-semibold flex items-center gap-2">
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-primary-foreground" style="background:hsl(var(--tertiary))">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v2m0 14v2M5 12H3m18 0h-2M6 6l-1.5-1.5M18 18l1.5 1.5M6 18l-1.5 1.5M18 6l1.5-1.5" stroke-linecap="round"/></svg>
+        </span>
+        White-label hidup — coba ganti tema
+      </p>
+      <p class="text-xs mt-1" style="color:hsl(var(--muted-foreground))">
+        Seluruh mockup pakai CSS variables, jadi tema = grain <b class="text-foreground">USER</b>. Default <b class="text-foreground">Coral Sunset</b>. Klik swatch untuk lihat semua kartu di halaman ini berubah seketika (demo dari yang nanti diatur di <span class="font-mono">/branding</span>).
+      </p>
+    </div>
+    <div class="flex items-center gap-2 shrink-0" id="themeSwatches" role="group" aria-label="Pilih tema demo">
+      <button class="swatch w-8 h-8 rounded-full border border-border" aria-pressed="true" data-p="12 96% 67%" data-t="173 80% 40%" data-h="38 92% 50%" style="background:hsl(12 96% 67%)" title="Coral Sunset (default)"></button>
+      <button class="swatch w-8 h-8 rounded-full border border-border" aria-pressed="false" data-p="221 83% 53%" data-t="199 89% 48%" data-h="38 92% 50%" style="background:hsl(221 83% 53%)" title="Ocean Blue"></button>
+      <button class="swatch w-8 h-8 rounded-full border border-border" aria-pressed="false" data-p="262 83% 58%" data-t="291 64% 52%" data-h="38 92% 50%" style="background:hsl(262 83% 58%)" title="Violet"></button>
+      <button class="swatch w-8 h-8 rounded-full border border-border" aria-pressed="false" data-p="160 84% 39%" data-t="173 80% 40%" data-h="38 92% 50%" style="background:hsl(160 84% 39%)" title="Emerald"></button>
+      <button id="resetTheme" class="text-[11px] font-medium px-2.5 py-1.5 rounded-md border border-border hover:border-primary/50 transition" style="color:hsl(var(--muted-foreground))">Reset</button>
+    </div>
+  </div>
+
+  <!-- ===================== ARSITEKTUR GRAIN (1-baris) ===================== -->
+  <div class="reveal rounded-lg chrome border p-3.5 mb-10 text-[12px] leading-relaxed flex flex-wrap gap-x-6 gap-y-1.5" style="color:hsl(var(--foreground));animation-delay:.08s">
+    <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span><b>Multi-tenant</b> · entitlements/kuota/modul = grain <b>TENANT</b></span>
+    <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:hsl(var(--tertiary))"></span><b>Branding/theme</b> = grain <b>USER</b> (default Coral Sunset, edit di /branding)</span>
+    <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:hsl(var(--highlight))"></span><b>1 workspace = 1 produk</b></span>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TRACK A — AKSES / SETUP                                                -->
+  <!-- ===================================================================== -->
+  <section class="mb-14 reveal" style="animation-delay:.1s">
+    <div class="flex items-center gap-2.5 mb-1">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-md text-primary-foreground text-xs font-bold shadow-soft" style="background:linear-gradient(135deg,hsl(var(--primary)),hsl(12 92% 60%))">A</span>
+      <h2 class="text-sm font-bold uppercase tracking-[0.10em]">Track A — Akses / Setup</h2>
+    </div>
+    <p class="text-xs mb-5 ml-[2.4rem]" style="color:hsl(var(--muted-foreground))">Dari pendaftaran sampai bisa masuk app. Sekali jalan per tenant/user.</p>
+
+    <ol class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+
+      <!-- A1 Register -->
+      <li>
+        <a href="register.html" class="map-card h-full flex items-start gap-3.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="step-dot shrink-0 w-9 h-9 rounded-full bg-accent text-primary flex items-center justify-center text-sm font-bold">1</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5">Register <svg class="arrow w-4 h-4" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">register.html</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">Daftar tenant publik — data tenant + pilih vertical/usage, lalu submit.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A2 Pending -->
+      <li>
+        <a href="pending.html" class="map-card h-full flex items-start gap-3.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="step-dot shrink-0 w-9 h-9 rounded-full bg-accent text-primary flex items-center justify-center text-sm font-bold">2</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5">Pending <svg class="arrow w-4 h-4" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">pending.html</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">Tenant berstatus <b class="text-foreground">pending</b> — menunggu superadmin mengaktifkan.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A3 Superadmin -->
+      <li>
+        <a href="superadmin-users.html" class="map-card h-full flex items-start gap-3.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="step-dot shrink-0 w-9 h-9 rounded-full bg-accent text-primary flex items-center justify-center text-sm font-bold">3</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5">Superadmin activate <svg class="arrow w-4 h-4" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">superadmin-users.html</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">Console superadmin — aktifkan (masa aktif + kuota) / suspend / buat akun.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A4 Onboarding -->
+      <li>
+        <a href="onboarding.html" class="map-card h-full flex items-start gap-3.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="step-dot shrink-0 w-9 h-9 rounded-full bg-accent text-primary flex items-center justify-center text-sm font-bold">4</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5">Onboarding <svg class="arrow w-4 h-4" style="color:hsl(var(--muted-foreground))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">onboarding.html</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">Konfirmasi vertical → set modul + entitlements aktif; buat workspace produk pertama.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A5 Login (entry terpisah) -->
+      <li class="md:col-span-2">
+        <a href="login.html" class="map-card flex items-start gap-3.5 bg-card border border-dashed border-border rounded-lg p-4 shadow-soft hover:border-primary/50">
+          <span class="shrink-0 w-9 h-9 rounded-full bg-muted flex items-center justify-center" style="color:hsl(var(--tertiary))">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5">Login <span class="text-[10px] font-normal" style="color:hsl(var(--muted-foreground))">· entry terpisah, user existing</span></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">login.html</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">Masuk untuk user lama → diarahkan sesuai status (Pending / Onboarding / Dashboard).</span>
+          </span>
+        </a>
+      </li>
+    </ol>
+
+    <!-- flow strip A -->
+    <div class="mt-4 rounded-lg chrome border p-3 text-center text-[12px] leading-relaxed flex flex-wrap items-center justify-center gap-2" style="color:hsl(var(--foreground))">
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Register</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Pending</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Superadmin activate</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Onboarding</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-primary text-primary-foreground font-semibold">masuk Track B</span>
+      <span class="basis-full text-[11px] mt-1" style="color:hsl(var(--muted-foreground))">(Login = pintu masuk terpisah untuk user existing)</span>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- TRACK B — PRODUK (CORE)                                                -->
+  <!-- ===================================================================== -->
+  <section class="mb-14 reveal" style="animation-delay:.14s">
+    <div class="flex items-center gap-2.5 mb-1">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-md text-primary-foreground text-xs font-bold shadow-soft" style="background:hsl(var(--tertiary))">B</span>
+      <h2 class="text-sm font-bold uppercase tracking-[0.10em]">Track B — Produk (core)</h2>
+    </div>
+    <p class="text-xs mb-5 ml-[2.4rem]" style="color:hsl(var(--muted-foreground))">Alur kerja harian di dalam app shell (sidebar + topbar white-label). 1 workspace = 1 produk.</p>
+
+    <ol class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+
+      <!-- B1 Dashboard -->
+      <li>
+        <a href="dashboard-shell.html" class="map-card h-full flex flex-col gap-1.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-md flex items-center justify-center text-white" style="background:#3B82F6">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+              </span>
+              <span class="text-[15px] font-semibold">Dashboard</span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">1</span>
+          </span>
+          <span class="block text-xs mt-1 leading-relaxed" style="color:hsl(var(--muted-foreground))">App shell + KPI ringkas (lead, obrolan, deal, kuota AI). Entry point modul aktif.</span>
+        </a>
+      </li>
+
+      <!-- B2 Workspace -->
+      <li>
+        <a href="workspace.html" class="map-card h-full flex flex-col gap-1.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-md flex items-center justify-center text-white" style="background:hsl(var(--tertiary))">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 14h2" stroke-linecap="round"/></svg>
+              </span>
+              <span class="text-[15px] font-semibold">Workspace</span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">2</span>
+          </span>
+          <span class="block text-xs mt-1 leading-relaxed" style="color:hsl(var(--muted-foreground))">Hub 1 produk: funnel, <b class="text-foreground">kontak ter-akuisisi (badge B2C/B2B)</b>, sales script, eksekusi obrolan.</span>
+        </a>
+      </li>
+
+      <!-- B3 Enrichment / Discovery -->
+      <li>
+        <a href="enrichment.html" class="map-card h-full flex flex-col gap-1.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-md flex items-center justify-center text-white" style="background:#8B5CF6">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/><path d="M11 8v6M8 11h6" stroke-linecap="round"/></svg>
+              </span>
+              <span class="text-[15px] font-semibold leading-tight">Enrichment / Discovery</span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted shrink-0" style="color:hsl(var(--muted-foreground))">3</span>
+          </span>
+          <span class="block text-xs mt-1 leading-relaxed" style="color:hsl(var(--muted-foreground))">Cari lead (discovery) → enrich profil → <b class="text-foreground">klasifikasi B2C/B2B</b>. Surface mandiri + tombol di Workspace/Contacts.</span>
+        </a>
+      </li>
+
+      <!-- B4 Contacts -->
+      <li>
+        <a href="contacts.html" class="map-card h-full flex flex-col gap-1.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-md flex items-center justify-center text-white" style="background:#10B981">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0" stroke-linecap="round"/><path d="M16 8.5a3 3 0 0 1 0 0M16.5 5a3 3 0 0 1 0 6M21 19a5 5 0 0 0-4-4.9" stroke-linecap="round"/></svg>
+              </span>
+              <span class="text-[15px] font-semibold">Contacts <span class="text-xs font-normal" style="color:hsl(var(--muted-foreground))">(CRM)</span></span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">4</span>
+          </span>
+          <span class="block text-xs mt-1 leading-relaxed" style="color:hsl(var(--muted-foreground))">Daftar kontak/lead <b class="text-foreground">tersegmentasi B2C/B2B</b> (tab + filter) + drawer detail/edit. CRM first-class.</span>
+        </a>
+      </li>
+
+      <!-- B5 Inbox -->
+      <li>
+        <a href="inbox.html" class="map-card h-full flex flex-col gap-1.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-md flex items-center justify-center text-white" style="background:#25D366">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.2A8.5 8.5 0 1 1 21 11.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="text-[15px] font-semibold">Inbox <span class="text-xs font-normal" style="color:hsl(var(--muted-foreground))">(WA)</span></span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">5</span>
+          </span>
+          <span class="block text-xs mt-1 leading-relaxed" style="color:hsl(var(--muted-foreground))">Percakapan WhatsApp — list chat + thread + panel konteks lead + AI assist obrolan konsultatif.</span>
+        </a>
+      </li>
+
+      <!-- B6 Pipeline -->
+      <li>
+        <a href="pipeline.html" class="map-card h-full flex flex-col gap-1.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-md flex items-center justify-center text-white" style="background:hsl(var(--highlight))">
+                <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>
+              </span>
+              <span class="text-[15px] font-semibold">Pipeline</span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">6</span>
+          </span>
+          <span class="block text-xs mt-1 leading-relaxed" style="color:hsl(var(--muted-foreground))">Board kanban deal per tahap + drawer deal. Atribusi per akun sales rep.</span>
+        </a>
+      </li>
+    </ol>
+
+    <!-- flow strip B -->
+    <div class="mt-4 rounded-lg chrome border p-3 text-center text-[12px] leading-relaxed flex flex-wrap items-center justify-center gap-2" style="color:hsl(var(--foreground))">
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Dashboard</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Workspace</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Enrichment</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Contacts (B2C/B2B)</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-card border border-border">Inbox (WA)</span>
+      <span style="color:hsl(var(--primary))">→</span>
+      <span class="flow-pill px-2.5 py-1 rounded-md bg-primary text-primary-foreground font-semibold">Pipeline</span>
+      <span class="basis-full text-[11px] mt-1" style="color:hsl(var(--muted-foreground))">(loop harian: cari &amp; enrich lead → simpan kontak → obrol di WA → gerakkan deal)</span>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- PENGATURAN                                                             -->
+  <!-- ===================================================================== -->
+  <section class="mb-14 reveal" style="animation-delay:.18s">
+    <div class="flex items-center gap-2.5 mb-1">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-md text-white" style="background:#6B7280">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.6H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9.4A1.6 1.6 0 0 0 10.5 3V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9.4a1.6 1.6 0 0 0 1.5 1.1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+      </span>
+      <h2 class="text-sm font-bold uppercase tracking-[0.10em]">Pengaturan</h2>
+    </div>
+    <p class="text-xs mb-5 ml-[2.4rem]" style="color:hsl(var(--muted-foreground))">Konfigurasi. Branding = grain USER; pengaturan lain (AI, tim, billing, dst) = grain TENANT.</p>
+
+    <ol class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      <li>
+        <a href="branding.html" class="map-card h-full flex items-start gap-3.5 bg-card border border-border rounded-lg p-4 shadow-soft hover:border-primary/40">
+          <span class="shrink-0 w-9 h-9 rounded-md flex items-center justify-center text-primary-foreground" style="background:linear-gradient(135deg,hsl(var(--primary)),hsl(var(--tertiary)))">
+            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 0-20 8 8 0 0 1 0 16h-1.5a1.5 1.5 0 0 0 0 4z"/></svg>
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5">Branding <span class="text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-accent" style="color:hsl(var(--tertiary))">per-user</span></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">branding.html</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">Ubah seluruh token warna + logo + favicon + Custom CSS. Default Coral Sunset; reset + live preview. Hanya untuk user itu.</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <div class="h-full flex items-start gap-3.5 bg-card border border-dashed border-border rounded-lg p-4 opacity-95">
+          <span class="shrink-0 w-9 h-9 rounded-md flex items-center justify-center bg-muted text-sm font-bold" style="color:hsl(var(--muted-foreground))">…</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-semibold flex items-center gap-1.5" style="color:hsl(var(--muted-foreground))">Pengaturan lain <span class="text-[10px] font-normal">· belum di-mockup</span></span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted" style="color:hsl(var(--muted-foreground))">—</span>
+            </span>
+            <span class="block text-xs mt-1.5 leading-relaxed" style="color:hsl(var(--muted-foreground))">AI/provider · Tim &amp; peran · Billing/kuota · Mailboxes · WA gateway · Extension · Knowledge base · Handoff · Compliance · Diagnostics. (Lihat inventaris di bawah.)</span>
+          </span>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- INVENTARIS FITUR APP LAMA (jangan ada yang hilang)                     -->
+  <!-- ===================================================================== -->
+  <section class="mb-12 reveal" style="animation-delay:.22s">
+    <div class="flex items-center gap-2.5 mb-1">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-md text-white" style="background:#10B981">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <h2 class="text-sm font-bold uppercase tracking-[0.10em]">Inventaris fitur app lama — pemetaan rebuild</h2>
+    </div>
+    <p class="text-xs mb-4 ml-[2.4rem] max-w-3xl leading-relaxed" style="color:hsl(var(--muted-foreground))">
+      Semua surface fitur app sekarang (folder <span class="font-mono">app/(app)/*</span> + <span class="font-mono">app/admin</span>), dipetakan ke rebuild supaya <b class="text-foreground">tidak ada yang hilang</b>.
+    </p>
+
+    <!-- legend / filter -->
+    <div class="ml-[2.4rem] mb-5 flex flex-wrap items-center gap-2 text-[11px]" id="invFilter" role="group" aria-label="Filter inventaris">
+      <span class="font-medium" style="color:hsl(var(--muted-foreground))">Filter:</span>
+      <button data-f="all" aria-pressed="true" class="inv-btn px-2.5 py-1 rounded-full bg-primary text-primary-foreground font-semibold">Semua</button>
+      <button data-f="wf" aria-pressed="false" class="inv-btn px-2.5 py-1 rounded-full bg-card border border-border font-medium inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:hsl(var(--tertiary))"></span>WF · punya mockup</button>
+      <button data-f="in" aria-pressed="false" class="inv-btn px-2.5 py-1 rounded-full bg-card border border-border font-medium inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:hsl(var(--highlight))"></span>⊂ di dalam mockup lain</button>
+      <button data-f="plan" aria-pressed="false" class="inv-btn px-2.5 py-1 rounded-full bg-card border border-border font-medium inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-muted-foreground/60" style="background:hsl(var(--muted-foreground))"></span>○ planned (gated)</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- Kolom 1: sudah/akan punya mockup -->
+      <div class="bg-card border border-border rounded-lg p-5 shadow-soft">
+        <h3 class="text-xs font-bold uppercase tracking-[0.08em] mb-3 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:hsl(var(--tertiary))"></span>Inti — punya mockup</h3>
+        <ul class="space-y-2 text-[13px]" style="color:hsl(var(--foreground))">
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b><a href="dashboard-shell.html" class="underline decoration-primary/40 hover:decoration-primary">dashboard</a></b> → Dashboard</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b><a href="workspace.html" class="underline decoration-primary/40 hover:decoration-primary">workspace</a></b> / workspaces → Workspace (1 produk; switcher di topbar)</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b><a href="contacts.html" class="underline decoration-primary/40 hover:decoration-primary">contacts</a></b> → Contacts/CRM (B2C/B2B)</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b>prospecting</b> + ekstraksi RPA → <a href="enrichment.html" class="underline decoration-primary/40 hover:decoration-primary">Enrichment/Discovery</a></span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b><a href="inbox.html" class="underline decoration-primary/40 hover:decoration-primary">inbox</a></b> → Inbox (WA)</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b><a href="pipeline.html" class="underline decoration-primary/40 hover:decoration-primary">pipeline</a></b> → Pipeline</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="wf"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 text-primary-foreground" style="background:hsl(var(--tertiary))">WF</span><span><b>settings/extension+mailboxes</b> → branding (<a href="branding.html" class="underline decoration-primary/40 hover:decoration-primary">/branding</a>) + Pengaturan</span></li>
+        </ul>
+
+        <h3 class="text-xs font-bold uppercase tracking-[0.08em] mt-6 mb-3 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:hsl(var(--highlight))"></span>Masuk di dalam mockup lain</h3>
+        <ul class="space-y-2 text-[13px]" style="color:hsl(var(--foreground))">
+          <li class="inv-row flex gap-2.5 items-start" data-t="in"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border" style="border-color:hsl(var(--highlight));color:hsl(38 80% 38%)">⊂</span><span><b>ai-assistant</b> → panel AI assist di Inbox &amp; Workspace</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="in"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border" style="border-color:hsl(var(--highlight));color:hsl(38 80% 38%)">⊂</span><span><b>cadences</b> → urutan follow-up di Workspace/Inbox</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="in"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border" style="border-color:hsl(var(--highlight));color:hsl(38 80% 38%)">⊂</span><span><b>use-case</b> → vertical picker di Onboarding</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="in"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border" style="border-color:hsl(var(--highlight));color:hsl(38 80% 38%)">⊂</span><span><b>penawaran</b> (quote) → aksi di drawer Deal/Pipeline</span></li>
+        </ul>
+      </div>
+
+      <!-- Kolom 2: belum di-mockup (planned) -->
+      <div class="bg-card border border-border rounded-lg p-5 shadow-soft">
+        <h3 class="text-xs font-bold uppercase tracking-[0.08em] mb-3 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:hsl(var(--muted-foreground))"></span>Belum di-mockup — planned (gated entitlements)</h3>
+        <ul class="space-y-2 text-[13px]" style="color:hsl(var(--foreground))">
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>autopilot</b> — orkestrasi obrolan AI otomatis</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>escalations</b> — antrian eskalasi ke manusia</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>field</b> / visits — kunjungan lapangan</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>content</b> — pustaka konten/template pesan</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>retention</b> — retensi / win-back pelanggan</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>ecommerce</b> — integrasi katalog/toko</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>marketplace</b> — sumber lead / integrasi</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>reports</b> — laporan &amp; analitik</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>team</b> — anggota tim &amp; peran</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>documentation</b> — bantuan / docs in-app</span></li>
+          <li class="inv-row flex gap-2.5 items-start" data-t="plan"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 border border-dashed" style="border-color:hsl(var(--muted-foreground));color:hsl(var(--muted-foreground))">○</span><span><b>settings/*</b> — ai · billing · compliance · diagnostics · handoff · knowledge-base · mailboxes · team</span></li>
+        </ul>
+        <p class="text-[11px] mt-4 leading-relaxed pt-3 border-t border-border" style="color:hsl(var(--muted-foreground))">
+          Item ○ tetap muncul di sidebar app (entitlement-gated per vertical), mockup-nya menyusul setelah inti di-approve.
+          Konfirmasi: ada fitur lama yang harusnya <b class="text-foreground">dibuang</b> atau <b class="text-foreground">digabung</b>? Tulis di feedback.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOT NOTE ===================== -->
+  <div class="reveal rounded-lg chrome border p-4 text-center text-[12px] leading-relaxed" style="color:hsl(var(--foreground));animation-delay:.26s">
+    Approve <b>FLOW &amp; kelengkapan</b> di <span class="font-mono px-1.5 py-0.5 rounded bg-card border border-border">user_requirement.md</span> (APPROVAL_SECTION) →
+    lalu lanjut ke implementasi frontend (full color, white-label live, interaktif).
+  </div>
+
+  <footer class="mt-8 text-center text-[11px]" style="color:hsl(var(--muted-foreground))">
+    Agentic Sales AI · Sainskerta Loop · Fase 02 — mockup high-fi · tema default <b class="text-foreground">Coral Sunset</b> (editable per-user di /branding)
+  </footer>
+
+</main>
+
+<script>
+/* ===== Live theme demo — proves white-label via CSS vars (grain USER). ===== */
+(function(){
+  var root=document.documentElement.style;
+  var def={p:'12 96% 67%',t:'173 80% 40%',h:'38 92% 50%'};
+  var swatches=document.querySelectorAll('#themeSwatches .swatch');
+  function apply(p,t,h){
+    root.setProperty('--primary',p);
+    root.setProperty('--ring',p);
+    root.setProperty('--tertiary',t);
+    root.setProperty('--highlight',h);
+  }
+  function press(btn){
+    swatches.forEach(function(s){s.setAttribute('aria-pressed', s===btn ? 'true':'false');});
+  }
+  swatches.forEach(function(s){
+    s.addEventListener('click',function(){
+      apply(s.dataset.p,s.dataset.t,s.dataset.h); press(s);
+    });
+  });
+  var reset=document.getElementById('resetTheme');
+  if(reset) reset.addEventListener('click',function(){
+    apply(def.p,def.t,def.h);
+    press(swatches[0]);
+  });
+})();
+
+/* ===== Inventory filter ===== */
+(function(){
+  var btns=document.querySelectorAll('#invFilter .inv-btn');
+  var rows=document.querySelectorAll('.inv-row');
+  function setActive(active){
+    btns.forEach(function(b){
+      var on=b===active;
+      b.setAttribute('aria-pressed', on?'true':'false');
+      b.classList.toggle('bg-primary',on);
+      b.classList.toggle('text-primary-foreground',on);
+      b.classList.toggle('font-semibold',on);
+      b.classList.toggle('bg-card',!on);
+      b.classList.toggle('border',!on);
+      b.classList.toggle('border-border',!on);
+    });
+  }
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){
+      var f=b.dataset.f; setActive(b);
+      rows.forEach(function(r){
+        r.classList.toggle('dimmed', f!=='all' && r.dataset.t!==f);
+      });
+    });
+  });
+})();
+</script>
+
+</body></html>

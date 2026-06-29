@@ -12,23 +12,23 @@
     --card-foreground: 24 6% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 24 6% 10%;
-    --primary: 12 96% 67%; /* coral #FD7A5C — slightly lighter pastel-leaning */
+    --primary: 12 83% 46%; /* coral — darkened from 67% so WHITE text clears WCAG AA (4.64:1); hue preserved */
     --primary-foreground: 0 0% 100%;
     --secondary: 24 16% 94%; /* warm neutral surface */
     --secondary-foreground: 24 10% 24%;
     --muted: 24 30% 96%; /* light warm grey */
-    --muted-foreground: 20 6% 45%; /* warm grey text */
+    --muted-foreground: 20 6% 40%; /* warm grey text — darkened a step (was 45%) to clear AA on the warm canvas (5.51:1 on #FFF8F5) */
     --accent: 18 80% 96%; /* warm hover surface */
     --accent-foreground: 24 6% 10%;
-    --destructive: 0 84% 60%; /* red #EF4444 (distinct from coral) */
+    --destructive: 0 84% 48%; /* red — darkened from 60% so WHITE text clears WCAG AA (4.87:1); distinct from coral */
     --destructive-foreground: 0 0% 100%;
     --border: 24 24% 91%; /* warm light border */
     --input: 24 24% 91%;
-    --ring: 12 96% 67%; /* coral focus ring */
-    --tertiary: 173 80% 40%; /* teal accent #14B8A6 */
+    --ring: 12 83% 46%; /* coral focus ring — matches darkened primary (4.42:1 on warm bg) */
+    --tertiary: 173 80% 28%; /* teal accent — darkened from 40% so WHITE text clears WCAG AA (4.77:1); hue preserved */
     --tertiary-foreground: 0 0% 100%;
-    --highlight: 38 92% 50%; /* amber #F59E0B */
-    --highlight-foreground: 24 6% 10%; /* dark text on amber (AA-safe) */
+    --highlight: 38 92% 50%; /* amber #F59E0B — keep light fill; never put WHITE text on it (only 2.14:1) */
+    --highlight-foreground: 24 6% 10%; /* dark text on amber — AA-safe at 8.21:1; use this on every amber button */
     --radius: 1rem;
   }
 }
@@ -103,6 +103,33 @@
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
+  }
+  /* alias used by the inbox (mockups/inbox.html) */
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .thin-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .thin-scroll::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  /* WhatsApp chat wallpaper — subtle warm dot grid, like the real app thread */
+  .wa-bg {
+    background-color: hsl(20 45% 97%);
+    background-image: radial-gradient(hsl(16 40% 86% / 0.55) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  /* Chat bubbles (inbox thread): incoming = white card, outgoing = WA green */
+  .bubble-in {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+  }
+  .bubble-out {
+    background: #dcf8c6;
   }
 }
 

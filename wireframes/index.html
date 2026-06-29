@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAMES — Peta Produk (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-2.5 sticky top-0 z-50"><span class="font-bold">WIREFRAMES:</span><a class="underline" href="index.html">Index</a><a class="underline" href="login.html">Login</a><a class="underline" href="register.html">Register</a><a class="underline" href="pending.html">Pending</a><a class="underline" href="superadmin-users.html">Superadmin</a><a class="underline" href="onboarding.html">Onboarding</a><a class="underline" href="dashboard-shell.html">Dashboard</a><a class="underline" href="workspace.html">Workspace</a><a class="underline" href="contacts.html">Contacts</a><a class="underline" href="enrichment.html">Enrichment</a><a class="underline" href="inbox.html">Inbox</a><a class="underline" href="pipeline.html">Pipeline</a><a class="underline" href="branding.html">Branding</a></nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Peta Produk — low-fi: review FLOW &amp; struktur, bukan warna/polish</div>
+<!-- CONTENT -->
+
+<main class="max-w-5xl mx-auto px-4 py-10">
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="mb-6">
+    <p class="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Agentic Sales AI · Rebuild · Peta seluruh produk</p>
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">Peta Produk — wireframe low-fi</h1>
+    <p class="text-sm text-gray-500 leading-relaxed max-w-3xl">
+      Satu peta untuk <span class="font-medium text-gray-700">seluruh aplikasi</span> (bukan cuma Module 1).
+      Dua track: <span class="font-medium text-gray-700">(A) Akses/Setup</span> &amp; <span class="font-medium text-gray-700">(B) Produk inti</span>,
+      plus <span class="font-medium text-gray-700">Pengaturan</span>. Klik tiap kartu untuk buka wireframe-nya.
+      Di bagian bawah ada <span class="font-medium text-gray-700">inventaris SEMUA fitur app lama</span> supaya tidak ada yang hilang di rebuild.
+    </p>
+  </header>
+
+  <!-- ===================== FLOW UP FOR REVIEW ===================== -->
+  <div class="bg-white border border-gray-300 border-l-4 border-l-gray-500 rounded-md p-4 mb-8 flex gap-3">
+    <div class="ph w-8 h-8 rounded shrink-0 flex items-center justify-center text-[10px] text-gray-500">?</div>
+    <div>
+      <p class="text-sm font-semibold text-gray-700 mb-1">Flow ini masih untuk di-review</p>
+      <p class="text-xs text-gray-500 leading-relaxed">
+        Urutan track &amp; pengelompokan IA di bawah adalah <span class="font-medium text-gray-700">usulan</span>, bukan keputusan final.
+        Fokus approve <span class="font-medium text-gray-700">alur + kelengkapan fitur</span> dulu (warna/font nanti di mockup high-fi).
+        Catatan revisi yang dipenuhi versi ini: Workspace menampilkan kontak ter-akuisisi + segmentasi <b>B2C vs B2B</b>,
+        dan Enrichment punya surface sendiri yang mudah dijangkau.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== ARSITEKTUR GRAIN (1-baris) ===================== -->
+  <div class="ph rounded-md p-3 mb-10 text-[11px] text-gray-600 leading-relaxed flex flex-wrap gap-x-6 gap-y-1">
+    <span><b>Multi-tenant</b> · entitlements/kuota/modul = grain <b>TENANT</b></span>
+    <span><b>Branding/theme</b> = grain <b>USER</b> (default Coral Sunset, edit di /branding)</span>
+    <span><b>1 workspace = 1 produk</b></span>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TRACK A — AKSES / SETUP                                                -->
+  <!-- ===================================================================== -->
+  <section class="mb-12">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="ph w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-gray-600">A</span>
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Track A — Akses / Setup</h2>
+    </div>
+    <p class="text-xs text-gray-500 mb-4 ml-8">Dari pendaftaran sampai bisa masuk app. Sekali jalan per tenant/user.</p>
+
+    <ol class="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+      <!-- A1 Register -->
+      <li>
+        <a href="register.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex items-start gap-3">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-gray-600">1</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-800">Register</span>
+              <span class="text-[10px] text-gray-400 font-mono">register.html</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">Daftar tenant publik — data tenant + pilih vertical/usage, lalu submit.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A2 Pending -->
+      <li>
+        <a href="pending.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex items-start gap-3">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-gray-600">2</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-800">Pending</span>
+              <span class="text-[10px] text-gray-400 font-mono">pending.html</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">Tenant berstatus <b>pending</b> — menunggu superadmin mengaktifkan.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A3 Superadmin -->
+      <li>
+        <a href="superadmin-users.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex items-start gap-3">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-gray-600">3</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-800">Superadmin activate</span>
+              <span class="text-[10px] text-gray-400 font-mono">superadmin-users.html</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">Console superadmin — aktifkan (masa aktif + kuota) / suspend / buat akun.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A4 Onboarding -->
+      <li>
+        <a href="onboarding.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex items-start gap-3">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-gray-600">4</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-800">Onboarding</span>
+              <span class="text-[10px] text-gray-400 font-mono">onboarding.html</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">Konfirmasi vertical → set modul + entitlements aktif; buat workspace produk pertama.</span>
+          </span>
+        </a>
+      </li>
+
+      <!-- A5 Login (entry terpisah) -->
+      <li class="md:col-span-2">
+        <a href="login.html" class="block bg-white border border-gray-300 border-dashed rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex items-start gap-3">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-gray-600">↪</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-800">Login <span class="text-[10px] font-normal text-gray-400">· entry terpisah, user existing</span></span>
+              <span class="text-[10px] text-gray-400 font-mono">login.html</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">Masuk untuk user lama → diarahkan sesuai status (Pending / Onboarding / Dashboard).</span>
+          </span>
+        </a>
+      </li>
+    </ol>
+
+    <div class="ph rounded-md p-3 mt-4 text-center text-[11px] text-gray-500 leading-relaxed">
+      Register <span class="text-gray-400">→</span> Pending <span class="text-gray-400">→</span> Superadmin activate
+      <span class="text-gray-400">→</span> Onboarding <span class="text-gray-400">→</span> <b>masuk Track B</b>
+      <span class="block mt-0.5 text-gray-400">(Login = pintu masuk terpisah untuk user existing)</span>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- TRACK B — PRODUK (CORE)                                                -->
+  <!-- ===================================================================== -->
+  <section class="mb-12">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="ph w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-gray-600">B</span>
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Track B — Produk (core)</h2>
+    </div>
+    <p class="text-xs text-gray-500 mb-4 ml-8">Alur kerja harian di dalam app shell (sidebar + topbar white-label). 1 workspace = 1 produk.</p>
+
+    <ol class="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+      <!-- B1 Dashboard -->
+      <li>
+        <a href="dashboard-shell.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex flex-col gap-1">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2"><span class="ph w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">1</span><span class="text-sm font-semibold text-gray-800">Dashboard</span></span>
+            <span class="text-[10px] text-gray-400 font-mono">dashboard-shell.html</span>
+          </span>
+          <span class="block text-xs text-gray-500 mt-1">App shell + KPI ringkas (lead, obrolan, deal, kuota AI). Entry point modul aktif.</span>
+        </a>
+      </li>
+
+      <!-- B2 Workspace -->
+      <li>
+        <a href="workspace.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex flex-col gap-1">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2"><span class="ph w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">2</span><span class="text-sm font-semibold text-gray-800">Workspace</span></span>
+            <span class="text-[10px] text-gray-400 font-mono">workspace.html</span>
+          </span>
+          <span class="block text-xs text-gray-500 mt-1">Hub 1 produk: funnel, <b>kontak ter-akuisisi (badge B2C/B2B)</b>, sales script, eksekusi obrolan.</span>
+        </a>
+      </li>
+
+      <!-- B3 Enrichment / Discovery -->
+      <li>
+        <a href="enrichment.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex flex-col gap-1">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2"><span class="ph w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">3</span><span class="text-sm font-semibold text-gray-800">Enrichment / Discovery</span></span>
+            <span class="text-[10px] text-gray-400 font-mono">enrichment.html</span>
+          </span>
+          <span class="block text-xs text-gray-500 mt-1">Cari lead (discovery) → enrich profil → <b>klasifikasi B2C/B2B</b>. Surface mandiri + tombol di Workspace/Contacts.</span>
+        </a>
+      </li>
+
+      <!-- B4 Contacts -->
+      <li>
+        <a href="contacts.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex flex-col gap-1">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2"><span class="ph w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">4</span><span class="text-sm font-semibold text-gray-800">Contacts (CRM)</span></span>
+            <span class="text-[10px] text-gray-400 font-mono">contacts.html</span>
+          </span>
+          <span class="block text-xs text-gray-500 mt-1">Daftar kontak/lead <b>tersegmentasi B2C/B2B</b> (tab + filter) + drawer detail/edit. CRM first-class.</span>
+        </a>
+      </li>
+
+      <!-- B5 Inbox -->
+      <li>
+        <a href="inbox.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex flex-col gap-1">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2"><span class="ph w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">5</span><span class="text-sm font-semibold text-gray-800">Inbox (WA)</span></span>
+            <span class="text-[10px] text-gray-400 font-mono">inbox.html</span>
+          </span>
+          <span class="block text-xs text-gray-500 mt-1">Percakapan WhatsApp — list chat + thread + panel konteks lead + AI assist obrolan konsultatif.</span>
+        </a>
+      </li>
+
+      <!-- B6 Pipeline -->
+      <li>
+        <a href="pipeline.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex flex-col gap-1">
+          <span class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-2"><span class="ph w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">6</span><span class="text-sm font-semibold text-gray-800">Pipeline</span></span>
+            <span class="text-[10px] text-gray-400 font-mono">pipeline.html</span>
+          </span>
+          <span class="block text-xs text-gray-500 mt-1">Board kanban deal per tahap + drawer deal. Atribusi per akun sales rep.</span>
+        </a>
+      </li>
+    </ol>
+
+    <div class="ph rounded-md p-3 mt-4 text-center text-[11px] text-gray-500 leading-relaxed">
+      Dashboard <span class="text-gray-400">→</span> Workspace <span class="text-gray-400">→</span> Enrichment/Discovery
+      <span class="text-gray-400">→</span> Contacts (B2C/B2B) <span class="text-gray-400">→</span> Inbox (WA) <span class="text-gray-400">→</span> Pipeline
+      <span class="block mt-0.5 text-gray-400">(loop harian: cari &amp; enrich lead → simpan kontak → obrol di WA → gerakkan deal)</span>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- PENGATURAN                                                             -->
+  <!-- ===================================================================== -->
+  <section class="mb-12">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="ph w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-gray-600">⚙</span>
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Pengaturan</h2>
+    </div>
+    <p class="text-xs text-gray-500 mb-4 ml-8">Konfigurasi. Branding = grain USER; pengaturan lain (AI, tim, billing, dst) = grain TENANT.</p>
+
+    <ol class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <li>
+        <a href="branding.html" class="h-full block bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-500 hover:shadow-sm transition flex items-start gap-3">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-gray-600">B</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-800">Branding <span class="text-[10px] font-normal text-gray-400">· per-user</span></span>
+              <span class="text-[10px] text-gray-400 font-mono">branding.html</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">Ubah seluruh token warna + logo + favicon + Custom CSS. Default Coral Sunset; reset + live preview. Hanya untuk user itu.</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <div class="h-full block bg-white border border-gray-300 border-dashed rounded-lg p-4 flex items-start gap-3 opacity-90">
+          <span class="ph w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-gray-600">…</span>
+          <span class="flex-1 min-w-0">
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-700">Pengaturan lain <span class="text-[10px] font-normal text-gray-400">· belum di-wireframe</span></span>
+              <span class="text-[10px] text-gray-400 font-mono">—</span>
+            </span>
+            <span class="block text-xs text-gray-500 mt-1">AI/provider · Tim &amp; peran · Billing/kuota · Mailboxes · WA gateway · Extension · Knowledge base · Handoff · Compliance · Diagnostics. (Lihat inventaris di bawah.)</span>
+          </span>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- INVENTARIS FITUR APP LAMA (jangan ada yang hilang)                     -->
+  <!-- ===================================================================== -->
+  <section class="mb-10">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="ph w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-gray-600">✓</span>
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Inventaris fitur app lama — pemetaan rebuild</h2>
+    </div>
+    <p class="text-xs text-gray-500 mb-4 ml-8 max-w-3xl">
+      Semua surface fitur app sekarang (folder <span class="font-mono">app/(app)/*</span> + <span class="font-mono">app/admin</span>), dipetakan ke rebuild
+      supaya <b>tidak ada yang hilang</b>. Legend:
+      <span class="inline-block ml-1 px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700">WF</span> = sudah ada wireframe ·
+      <span class="inline-block px-1.5 py-0.5 rounded border border-gray-400 text-[10px] text-gray-600">⊂</span> = masuk di dalam wireframe lain ·
+      <span class="inline-block px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500">○</span> = belum di-wireframe (planned, gated entitlements).
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- Kolom 1: sudah/akan punya wireframe -->
+      <div class="bg-white border border-gray-300 rounded-lg p-4">
+        <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Inti — punya wireframe</h3>
+        <ul class="space-y-2 text-xs text-gray-600">
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b><a href="dashboard-shell.html" class="underline">dashboard</a></b> → Dashboard</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b><a href="workspace.html" class="underline">workspace</a></b> / workspaces → Workspace (1 produk; switcher di topbar)</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b><a href="contacts.html" class="underline">contacts</a></b> → Contacts/CRM (B2C/B2B)</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b>prospecting</b> + ekstraksi RPA → <a href="enrichment.html" class="underline">Enrichment/Discovery</a></span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b><a href="inbox.html" class="underline">inbox</a></b> → Inbox (WA)</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b><a href="pipeline.html" class="underline">pipeline</a></b> → Pipeline</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-gray-300 text-[10px] text-gray-700 shrink-0">WF</span><span><b>settings/extension+mailboxes</b> → branding (<a href="branding.html" class="underline">/branding</a>) + Pengaturan</span></li>
+        </ul>
+
+        <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mt-5 mb-3">Masuk di dalam wireframe lain</h3>
+        <ul class="space-y-2 text-xs text-gray-600">
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-gray-400 text-[10px] text-gray-600 shrink-0">⊂</span><span><b>ai-assistant</b> → panel AI assist di Inbox &amp; Workspace</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-gray-400 text-[10px] text-gray-600 shrink-0">⊂</span><span><b>cadences</b> → urutan follow-up di Workspace/Inbox</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-gray-400 text-[10px] text-gray-600 shrink-0">⊂</span><span><b>use-case</b> → vertical picker di Onboarding</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-gray-400 text-[10px] text-gray-600 shrink-0">⊂</span><span><b>penawaran</b> (quote) → aksi di drawer Deal/Pipeline</span></li>
+        </ul>
+      </div>
+
+      <!-- Kolom 2: belum di-wireframe (planned) -->
+      <div class="bg-white border border-gray-300 rounded-lg p-4">
+        <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Belum di-wireframe — planned (gated entitlements)</h3>
+        <ul class="space-y-2 text-xs text-gray-600">
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>autopilot</b> — orkestrasi obrolan AI otomatis</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>escalations</b> — antrian eskalasi ke manusia</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>field</b> / visits — kunjungan lapangan</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>content</b> — pustaka konten/template pesan</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>retention</b> — retensi / win-back pelanggan</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>ecommerce</b> — integrasi katalog/toko</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>marketplace</b> — sumber lead / integrasi</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>reports</b> — laporan &amp; analitik</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>team</b> — anggota tim &amp; peran</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>documentation</b> — bantuan / docs in-app</span></li>
+          <li class="flex gap-2"><span class="px-1.5 py-0.5 rounded border border-dashed border-gray-400 text-[10px] text-gray-500 shrink-0">○</span><span><b>settings/*</b> — ai · billing · compliance · diagnostics · handoff · knowledge-base · mailboxes · team</span></li>
+        </ul>
+        <p class="text-[10px] text-gray-400 mt-3 leading-relaxed">
+          Item ○ tetap muncul di sidebar app (entitlement-gated per vertical), wireframe-nya menyusul setelah inti di-approve.
+          Konfirmasi: ada fitur lama yang harusnya <b>dibuang</b> atau <b>digabung</b>? Tulis di feedback.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOT NOTE ===================== -->
+  <div class="ph rounded-md p-4 text-center text-[11px] text-gray-500 leading-relaxed">
+    Approve <b>FLOW &amp; kelengkapan</b> di <span class="font-mono text-gray-700">user_requirement.md</span> (APPROVAL_SECTION) →
+    lalu upgrade ke mockup high-fi (full color, white-label live, interaktif).
+  </div>
+
+</main>
+
+</body></html>

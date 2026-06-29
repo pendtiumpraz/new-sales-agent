@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAME — Dashboard (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-2.5 sticky top-0 z-50"><span class="font-bold">WIREFRAMES:</span><a class="underline" href="index.html">Index</a><a class="underline" href="login.html">Login</a><a class="underline" href="register.html">Register</a><a class="underline" href="pending.html">Pending</a><a class="underline" href="superadmin-users.html">Superadmin</a><a class="underline" href="onboarding.html">Onboarding</a><a class="underline" href="dashboard-shell.html">Dashboard</a><a class="underline" href="workspace.html">Workspace</a><a class="underline" href="contacts.html">Contacts</a><a class="underline" href="enrichment.html">Enrichment</a><a class="underline" href="inbox.html">Inbox</a><a class="underline" href="pipeline.html">Pipeline</a><a class="underline" href="branding.html">Branding</a></nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Dashboard — low-fi: review the FLOW, not the styling</div>
+<!-- CONTENT -->
+
+<!--
+  ============================================================================
+  APP SHELL TENANT (dipakai SEMUA halaman app: Dashboard, CRM, Workspace, dst).
+  Yang ditandai di shell ini = WHITE-LABEL ter-apply per-tenant:
+    (A) topbar/sidebar: AREA LOGO BRAND  -> "primary color tenant"
+    (B) PRIMARY COLOR tenant dipakai di: brand mark, menu aktif, tombol primary,
+        aksen. Di low-fi semua grayscale; lokasi warna ditandai dgn komentar.
+  Sidebar = 1 warna solid per icon (mono) -> ditandai komentar tiap menu.
+  ============================================================================
+-->
+<div class="flex min-h-[calc(100vh-64px)]">
+
+  <!-- ===================== SIDEBAR 240px ===================== -->
+  <!-- high-fi: bg sidebar = NETRAL gelap; tiap menu icon SVG inline 1 warna solid (mono).
+       Active = bar + warna lebih terang; hover opacity .8. -->
+  <aside class="w-[240px] shrink-0 bg-gray-800 text-gray-300 flex flex-col">
+
+    <!-- (A) BRAND TENANT (white-label) — logo + nama brand dari tenant -->
+    <div class="h-14 flex items-center gap-2 px-4 border-b border-gray-700">
+      <!-- WHITE-LABEL: kotak ini = LOGO tenant (di high-fi diisi logo upload).
+           background di high-fi = PRIMARY COLOR TENANT -->
+      <div class="ph w-8 h-8 rounded flex items-center justify-center text-[9px] text-gray-500">logo<br>tenant</div>
+      <span class="text-sm font-semibold text-gray-100">[Nama Brand Tenant]</span>
+    </div>
+
+    <!-- MENU TENANT (entitlement-gated: hanya modul aktif sesuai vertical onboarding) -->
+    <nav class="flex-1 py-3 text-sm">
+
+      <!-- DASHBOARD (active) — icon 1 warna solid (mono).
+           Active state di high-fi pakai PRIMARY COLOR TENANT (bar kiri + bg tipis) -->
+      <a href="dashboard-shell.html"
+         class="flex items-center gap-3 px-4 py-2 bg-gray-700 text-gray-100 border-l-2 border-gray-300">
+        <span class="ph w-4 h-4 rounded-sm"></span> Dashboard
+      </a>
+
+      <!-- CRM — icon 1 warna solid (mono) -->
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> CRM
+      </a>
+
+      <!-- WORKSPACE — icon 1 warna solid (mono) -->
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Workspace
+      </a>
+
+      <!-- INBOX — icon 1 warna solid (mono) -->
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Inbox
+        <span class="ml-auto ph text-[10px] text-gray-500 px-1.5 rounded-full">3</span>
+      </a>
+
+      <!-- PENGATURAN — icon 1 warna solid (mono) -->
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Pengaturan
+      </a>
+    </nav>
+
+    <!-- Sidebar footer: akun user + workspace aktif (1 workspace = 1 produk) -->
+    <div class="border-t border-gray-700 px-4 py-3 flex items-center gap-2">
+      <div class="ph w-7 h-7 rounded-full"></div>
+      <div class="text-xs leading-tight min-w-0">
+        <div class="text-gray-200 truncate">[Nama Sales Rep]</div>
+        <a href="login.html" class="text-gray-400 underline">Keluar</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- TOPBAR -->
+    <header class="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-6 shrink-0">
+      <div>
+        <h1 class="text-base font-bold text-gray-800">Dashboard</h1>
+        <p class="text-[11px] text-gray-400">Ringkasan performa workspace kamu</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Workspace switcher (1 workspace = 1 produk) -->
+        <div class="ph h-9 w-44 rounded flex items-center justify-between px-3 text-xs text-gray-500">
+          <span>Workspace: Produk A</span><span class="text-gray-400">▾</span>
+        </div>
+        <!-- Notif -->
+        <div class="ph h-9 w-9 rounded flex items-center justify-center text-xs text-gray-500">🔔</div>
+        <!-- (B) PRIMARY ACTION — di high-fi tombol ini = PRIMARY COLOR TENANT -->
+        <button type="button" class="h-9 px-4 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">
+          + Mulai obrolan
+        </button>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 p-6 overflow-auto space-y-6">
+
+      <!-- ============ GRID KPI CARDS (.ph) ============ -->
+      <!-- 4 kartu KPI ringkas; angka & spark = placeholder (data dari API beneran) -->
+      <section>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+          <!-- KPI 1 -->
+          <div class="bg-white border border-gray-300 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-wide text-gray-400">Lead Baru</span>
+              <span class="ph w-6 h-6 rounded"></span>
+            </div>
+            <div class="ph h-8 w-20 rounded mt-3"></div>           <!-- angka KPI -->
+            <div class="ph h-3 w-28 rounded mt-2"></div>           <!-- delta vs minggu lalu -->
+          </div>
+
+          <!-- KPI 2 -->
+          <div class="bg-white border border-gray-300 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-wide text-gray-400">Obrolan Aktif</span>
+              <span class="ph w-6 h-6 rounded"></span>
+            </div>
+            <div class="ph h-8 w-20 rounded mt-3"></div>
+            <div class="ph h-3 w-28 rounded mt-2"></div>
+          </div>
+
+          <!-- KPI 3 -->
+          <div class="bg-white border border-gray-300 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-wide text-gray-400">Deal Closing</span>
+              <span class="ph w-6 h-6 rounded"></span>
+            </div>
+            <div class="ph h-8 w-20 rounded mt-3"></div>
+            <div class="ph h-3 w-28 rounded mt-2"></div>
+          </div>
+
+          <!-- KPI 4 — kuota AI (entitlement tenant) -->
+          <div class="bg-white border border-gray-300 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-wide text-gray-400">Kuota Token AI</span>
+              <span class="ph w-6 h-6 rounded"></span>
+            </div>
+            <div class="ph h-8 w-20 rounded mt-3"></div>
+            <!-- usage bar: di high-fi fill = PRIMARY COLOR TENANT -->
+            <div class="ph h-2 w-full rounded-full mt-3"></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============ TABEL RINGKAS (.ph) — pipeline / lead terbaru ============ -->
+      <section class="bg-white border border-gray-300 rounded-lg overflow-hidden">
+
+        <!-- Header tabel + link ke modul penuh -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div>
+            <h2 class="text-sm font-bold text-gray-800">Lead Terbaru</h2>
+            <p class="text-[11px] text-gray-400">Ringkasan singkat — kelola penuh di modul CRM</p>
+          </div>
+          <!-- link di high-fi = PRIMARY COLOR TENANT -->
+          <a href="#" class="text-xs underline text-gray-500">Lihat semua →</a>
+        </div>
+
+        <table class="w-full text-sm text-left">
+          <thead class="bg-gray-100 text-[11px] uppercase tracking-wide text-gray-500">
+            <tr>
+              <th class="px-4 py-3 font-medium">Nama Lead</th>
+              <th class="px-4 py-3 font-medium">Sumber</th>
+              <th class="px-4 py-3 font-medium">Tahap</th>
+              <th class="px-4 py-3 font-medium">Skor Fit</th>
+              <th class="px-4 py-3 font-medium">Update</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 text-gray-600">
+            <!-- 5 baris placeholder; SEMUA sel = .ph (data dari API beneran, no dummy) -->
+            <tr><td class="px-4 py-3"><div class="ph h-4 w-32 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-20 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-24 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-12 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-16 rounded"></div></td></tr>
+            <tr><td class="px-4 py-3"><div class="ph h-4 w-28 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-24 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-20 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-12 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-16 rounded"></div></td></tr>
+            <tr><td class="px-4 py-3"><div class="ph h-4 w-36 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-16 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-24 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-12 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-16 rounded"></div></td></tr>
+            <tr><td class="px-4 py-3"><div class="ph h-4 w-24 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-20 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-28 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-12 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-16 rounded"></div></td></tr>
+            <tr><td class="px-4 py-3"><div class="ph h-4 w-32 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-24 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-20 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-12 rounded"></div></td><td class="px-4 py-3"><div class="ph h-4 w-16 rounded"></div></td></tr>
+          </tbody>
+        </table>
+
+        <!-- footer tabel: empty/loading note (Rule 7: data dari API, ada loading & empty state) -->
+        <div class="px-4 py-2 border-t border-gray-200 text-[11px] text-gray-400">
+          Placeholder = loading/empty state. Data nyata di-load dari API CRM (no dummy data).
+        </div>
+      </section>
+
+      <!-- Catatan shell: drawer kanan TIDAK ditampilkan di sini.
+           Dashboard read-only (tanpa form create/edit). Pola right-drawer 400px
+           untuk create/edit dipakai di modul CRM/Workspace/Pengaturan
+           (lihat contoh drawer OPEN di superadmin-users.html). -->
+      <p class="text-[11px] text-gray-400">
+        Shell ini dipakai semua halaman app (sidebar + topbar identik). Konten di-swap per modul.
+        White-label: <b>logo &amp; primary color tenant</b> ter-apply di brand mark, menu aktif, tombol primary, &amp; aksen.
+      </p>
+
+    </main>
+  </div>
+
+</div>
+
+</body></html>

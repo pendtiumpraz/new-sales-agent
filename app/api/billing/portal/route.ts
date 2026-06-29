@@ -12,7 +12,8 @@ export const runtime = "nodejs";
 // POST /api/billing/portal → Stripe billing portal url (doc 30) so a tenant can
 // manage / cancel their subscription + see invoices. tenant.billing-guarded.
 export async function POST() {
-  const guard = await requirePermission("tenant.billing");
+  // Recovery surface — reachable while the tenant is non-active (audit #6).
+  const guard = await requirePermission("tenant.billing", { allowInactiveTenant: true });
   if ("error" in guard) return guard.error;
   const { ctx } = guard;
 

@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAME — Superadmin (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-3 sticky top-0 z-50">
+  <span class="font-bold">WIREFRAMES M1:</span>
+  <a class="underline" href="index.html">Index</a>
+  <a class="underline" href="login.html">Login</a>
+  <a class="underline" href="register.html">Register</a>
+  <a class="underline" href="pending.html">Pending</a>
+  <a class="underline" href="superadmin-users.html">Superadmin</a>
+  <a class="underline" href="onboarding.html">Onboarding</a>
+  <a class="underline" href="dashboard-shell.html">Dashboard</a>
+</nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Superadmin — low-fi: review the FLOW, not the styling</div>
+<!-- CONTENT -->
+
+<!-- App page: 240px left sidebar + topbar. NOTE: ini console SUPERADMIN (platform-level), bukan tenant dashboard -> tanpa white-label tenant; brand-neutral. -->
+<div class="flex min-h-[calc(100vh-64px)]">
+
+  <!-- ===================== SIDEBAR 240px ===================== -->
+  <!-- NOTE high-fi: tiap menu = icon SVG inline, 1 warna solid per icon (mono). Active = lebih terang, hover opacity .8 -->
+  <aside class="w-[240px] shrink-0 bg-gray-800 text-gray-300 flex flex-col">
+    <!-- Brand (neutral product mark — bukan tenant) -->
+    <div class="h-14 flex items-center gap-2 px-4 border-b border-gray-700">
+      <div class="ph w-7 h-7 rounded flex items-center justify-center text-[9px] text-gray-500">logo</div>
+      <span class="text-sm font-semibold text-gray-100">Superadmin</span>
+    </div>
+
+    <!-- Menu (platform-level) -->
+    <nav class="flex-1 py-3 text-sm">
+      <!-- icon 1 warna solid (mono) -->
+      <a href="#" class="flex items-center gap-3 px-4 py-2 bg-gray-700 text-gray-100">
+        <span class="ph w-4 h-4 rounded-sm"></span> Tenant
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Paket &amp; Kuota
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Vertical / Modul
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Audit Log
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-700/60">
+        <span class="ph w-4 h-4 rounded-sm"></span> Pengaturan
+      </a>
+    </nav>
+
+    <!-- Sidebar footer: akun superadmin -->
+    <div class="border-t border-gray-700 px-4 py-3 flex items-center gap-2">
+      <div class="ph w-7 h-7 rounded-full"></div>
+      <div class="text-xs leading-tight">
+        <div class="text-gray-200">Superadmin</div>
+        <a href="login.html" class="text-gray-400 underline">Keluar</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- TOPBAR -->
+    <header class="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-6 shrink-0">
+      <div>
+        <h1 class="text-base font-bold text-gray-800">Manajemen Tenant</h1>
+        <p class="text-[11px] text-gray-400">Aktifkan, suspend, atau buat akun tenant baru</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Search -->
+        <div class="ph h-9 w-56 rounded flex items-center px-3 text-xs text-gray-500">Cari tenant…</div>
+        <!-- PRIMARY ACTION: Buat akun (kanan atas) -> buka drawer -->
+        <button type="button" class="h-9 px-4 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">
+          + Buat akun
+        </button>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 p-6 overflow-auto">
+
+      <!-- Filter tabs (status) -->
+      <div class="flex items-center gap-2 mb-4 text-xs">
+        <span class="px-3 py-1 rounded-full bg-gray-700 text-gray-100">Semua</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-500">Pending</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-500">Aktif</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-gray-300 text-gray-500">Suspended</span>
+        <span class="ml-auto text-gray-400">Menampilkan 5 dari 5 tenant</span>
+      </div>
+
+      <!-- ============ TABEL TENANT ============ -->
+      <div class="bg-white border border-gray-300 rounded-lg overflow-hidden">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-gray-100 text-[11px] uppercase tracking-wide text-gray-500">
+            <tr>
+              <th class="px-4 py-3 font-medium">Nama Tenant</th>
+              <th class="px-4 py-3 font-medium">Vertical</th>
+              <th class="px-4 py-3 font-medium">Status</th>
+              <th class="px-4 py-3 font-medium">Kuota Token</th>
+              <th class="px-4 py-3 font-medium">Aktif s/d</th>
+              <th class="px-4 py-3 font-medium text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 text-gray-600">
+
+            <!-- ROW PENDING (di-highlight) — note: baris pending dibedakan: bg lebih gelap + badge -->
+            <tr class="bg-gray-200/70">
+              <td class="px-4 py-3">
+                <div class="font-medium text-gray-800">PT Sinar Abadi</div>
+                <div class="text-[11px] text-gray-400">admin@sinarabadi.com</div>
+              </td>
+              <td class="px-4 py-3">Sales</td>
+              <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded text-[11px] bg-gray-600 text-gray-100 font-medium">PENDING</span>
+              </td>
+              <td class="px-4 py-3 text-gray-400">— (belum diset)</td>
+              <td class="px-4 py-3 text-gray-400">— (belum diset)</td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <!-- Aktifkan -> buka drawer (form aktivasi: durasi + kuota) -->
+                <button type="button" class="h-8 px-3 rounded bg-gray-700 text-gray-100 text-xs font-medium hover:opacity-90">Aktifkan</button>
+              </td>
+            </tr>
+
+            <!-- ROW PENDING ke-2 -->
+            <tr class="bg-gray-200/70">
+              <td class="px-4 py-3">
+                <div class="font-medium text-gray-800">Maju Rekrut HR</div>
+                <div class="text-[11px] text-gray-400">ops@majurekrut.id</div>
+              </td>
+              <td class="px-4 py-3">HR</td>
+              <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded text-[11px] bg-gray-600 text-gray-100 font-medium">PENDING</span>
+              </td>
+              <td class="px-4 py-3 text-gray-400">—</td>
+              <td class="px-4 py-3 text-gray-400">—</td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button type="button" class="h-8 px-3 rounded bg-gray-700 text-gray-100 text-xs font-medium hover:opacity-90">Aktifkan</button>
+              </td>
+            </tr>
+
+            <!-- ROW AKTIF -->
+            <tr>
+              <td class="px-4 py-3">
+                <div class="font-medium text-gray-800">Toko Berkah Jaya</div>
+                <div class="text-[11px] text-gray-400">owner@berkahjaya.com</div>
+              </td>
+              <td class="px-4 py-3">Sales</td>
+              <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded text-[11px] bg-gray-300 text-gray-700 font-medium">AKTIF</span>
+              </td>
+              <td class="px-4 py-3">
+                <div class="text-gray-700">320rb / 500rb</div>
+                <!-- usage bar placeholder -->
+                <div class="ph h-1.5 w-24 rounded-full mt-1"></div>
+              </td>
+              <td class="px-4 py-3">31 Des 2026</td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button type="button" class="h-8 px-3 rounded border border-gray-400 text-gray-600 text-xs font-medium hover:bg-gray-100">Suspend</button>
+              </td>
+            </tr>
+
+            <!-- ROW AKTIF ke-2 -->
+            <tr>
+              <td class="px-4 py-3">
+                <div class="font-medium text-gray-800">CV Talenta Nusantara</div>
+                <div class="text-[11px] text-gray-400">hr@talenta.co.id</div>
+              </td>
+              <td class="px-4 py-3">HR</td>
+              <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded text-[11px] bg-gray-300 text-gray-700 font-medium">AKTIF</span>
+              </td>
+              <td class="px-4 py-3">
+                <div class="text-gray-700">90rb / 1jt</div>
+                <div class="ph h-1.5 w-24 rounded-full mt-1"></div>
+              </td>
+              <td class="px-4 py-3">15 Mar 2027</td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button type="button" class="h-8 px-3 rounded border border-gray-400 text-gray-600 text-xs font-medium hover:bg-gray-100">Suspend</button>
+              </td>
+            </tr>
+
+            <!-- ROW SUSPENDED -->
+            <tr class="text-gray-400">
+              <td class="px-4 py-3">
+                <div class="font-medium text-gray-500 line-through">PT Lama Tertunggak</div>
+                <div class="text-[11px] text-gray-400">finance@lama.com</div>
+              </td>
+              <td class="px-4 py-3">Sales</td>
+              <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded text-[11px] bg-gray-200 text-gray-500 font-medium border border-gray-300">SUSPENDED</span>
+              </td>
+              <td class="px-4 py-3">0 / 500rb</td>
+              <td class="px-4 py-3">02 Jun 2026 (lewat)</td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button type="button" class="h-8 px-3 rounded bg-gray-700 text-gray-100 text-xs font-medium hover:opacity-90">Aktifkan</button>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Legend / catatan highlight -->
+      <p class="text-[11px] text-gray-400 mt-3">
+        Baris <span class="px-1.5 py-0.5 rounded bg-gray-200/70">abu (highlight)</span> = tenant PENDING menunggu aktivasi.
+        Aksi: <b>Aktifkan</b> (set durasi + kuota via drawer) · <b>Suspend</b> (nonaktifkan akses).
+      </p>
+
+      <!-- Pagination placeholder -->
+      <div class="flex items-center justify-end gap-1 mt-4 text-xs text-gray-500">
+        <span class="ph h-7 w-7 rounded flex items-center justify-center">‹</span>
+        <span class="h-7 w-7 rounded bg-gray-700 text-gray-100 flex items-center justify-center">1</span>
+        <span class="ph h-7 w-7 rounded flex items-center justify-center">2</span>
+        <span class="ph h-7 w-7 rounded flex items-center justify-center">›</span>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ===================== RIGHT DRAWER 400px (OPEN as static example) ===================== -->
+  <!-- Backdrop note: di high-fi ini overlay rgba(0,0,0,.5) + slide-in 300ms. Di wireframe ditampilkan statis OPEN. -->
+  <div class="fixed inset-0 z-40 pointer-events-none">
+    <!-- backdrop -->
+    <div class="absolute inset-0 bg-gray-900/40"></div>
+    <!-- drawer panel 400px -->
+    <aside class="absolute top-0 right-0 h-full w-[400px] bg-white border-l border-gray-300 shadow-xl flex flex-col pointer-events-auto">
+
+      <!-- Drawer header -->
+      <div class="h-14 flex items-center justify-between px-5 border-b border-gray-300 shrink-0">
+        <div>
+          <h2 class="text-sm font-bold text-gray-800">Aktifkan / Buat Tenant</h2>
+          <p class="text-[11px] text-gray-400">Form yang sama dipakai untuk Aktifkan &amp; Buat akun</p>
+        </div>
+        <button type="button" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+      </div>
+
+      <!-- Drawer body (scroll) -->
+      <div class="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+
+        <!-- Nama tenant -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Nama Tenant / Perusahaan</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">PT Sinar Abadi</div>
+        </div>
+
+        <!-- Email admin (saat Buat akun) -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Email Admin</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">admin@sinarabadi.com</div>
+        </div>
+
+        <!-- Vertical / usage -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Vertical / Usage</label>
+          <div class="ph h-10 w-full rounded flex items-center justify-between px-3 text-xs text-gray-500">
+            <span>Pilih: HR / Sales / Lainnya</span><span class="text-gray-400">▾</span>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-1">Menentukan modul &amp; entitlement aktif untuk tenant ini.</p>
+        </div>
+
+        <!-- Durasi aktif -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Durasi Aktif</label>
+          <div class="flex gap-2">
+            <div class="ph h-10 flex-1 rounded flex items-center justify-between px-3 text-xs text-gray-500">
+              <span>1 / 3 / 6 / 12 bulan</span><span class="text-gray-400">▾</span>
+            </div>
+            <div class="ph h-10 w-32 rounded flex items-center px-3 text-xs text-gray-500">s/d 31 Des 2026</div>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-1">Mengisi kolom "Aktif s/d" di tabel.</p>
+        </div>
+
+        <!-- Kuota token -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Kuota Token</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">500.000</div>
+          <p class="text-[11px] text-gray-400 mt-1">Batas pemakaian token AI per periode (grain = tenant).</p>
+        </div>
+
+        <!-- Catatan opsional -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Catatan (opsional)</label>
+          <div class="ph h-16 w-full rounded px-3 py-2 text-xs text-gray-500">Catatan internal superadmin…</div>
+        </div>
+
+      </div>
+
+      <!-- Drawer footer (sticky) -->
+      <div class="border-t border-gray-300 px-5 py-3 flex items-center justify-end gap-2 shrink-0">
+        <button type="button" class="h-9 px-4 rounded border border-gray-400 text-gray-600 text-sm hover:bg-gray-100">Batal</button>
+        <!-- PRIMARY ACTION -->
+        <button type="button" class="h-9 px-4 rounded bg-gray-700 text-gray-100 text-sm font-medium hover:opacity-90">Aktifkan tenant</button>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+</body></html>

@@ -1,7 +1,13 @@
-// Demo credentials for the prototype. Roles are display-only for now — no
-// feature gating beyond the profile badge — but the structure is ready for
-// per-role access checks later.
-
+// Demo credentials for the prototype. The hardcoded LOGIN set
+// (`DEMO_ACCOUNTS`) is ONLY ever reachable behind the demo/non-prod gate
+// (`isDemoMode()` in lib/auth/auth.ts) and deliberately contains NO
+// "Superadmin" account, so a hardcoded record can never mint platform access
+// (audit #1). A real platform operator must be a scrypt-hashed `app_user` row
+// with `is_superadmin = true` (seed via `db:seed`).
+//
+// `DemoRole` still includes "Superadmin" because it doubles as the sidebar
+// DISPLAY label for a genuine superadmin session resolved from the DB (see
+// components/auth/auth-sync.tsx) — that is a label, not a credential.
 export type DemoRole = "Superadmin" | "Admin" | "Sales Manager" | "Sales Rep";
 
 export interface DemoAccount {
@@ -16,16 +22,6 @@ export interface DemoAccount {
 }
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    id: "u_superadmin",
-    name: "Almira Rana",
-    email: "superadmin@mairasales.com",
-    password: "super1234",
-    role: "Superadmin",
-    avatarColor: "#FB5E3B",
-    scope:
-      "Akses penuh — semua modul, semua tim, pengaturan workspace, dan kepatuhan UU PDP.",
-  },
   {
     id: "u_admin",
     name: "Andi Hidayat",
@@ -57,8 +53,9 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   },
 ];
 
-/** The default account for "open the demo without logging in" flows. */
-export const DEFAULT_DEMO_ACCOUNT = DEMO_ACCOUNTS[0]; // Superadmin
+/** The default account for "open the demo without logging in" flows. This is a
+ *  non-privileged Admin (NOT a superadmin — see the audit #1 note above). */
+export const DEFAULT_DEMO_ACCOUNT = DEMO_ACCOUNTS[0]; // Admin
 
 /** Validate credentials against the demo set. */
 export function findAccount(

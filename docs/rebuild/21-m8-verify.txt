@@ -1,0 +1,77 @@
+M8 BACKEND (Settings cluster) — Verification report
+Sainskerta Loop Phase 03 — Module 8
+Date: 2026-06-29
+
+====================================================================
+RESULT: PASS
+====================================================================
+
+Both verification gates are GREEN. No errors originate from new M8 code.
+
+--------------------------------------------------------------------
+GATE 1 — npx tsc --noEmit
+--------------------------------------------------------------------
+Exit: 0 (clean, no output)
+TypeScript strict type check passed with zero errors.
+
+--------------------------------------------------------------------
+GATE 2 — npm run lint  (next lint)
+--------------------------------------------------------------------
+Exit: 0 (passed)
+Only 2 pre-existing warnings, BOTH in unrelated legacy files
+(NOT in M8 backend surface):
+
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.
+            @typescript-eslint/no-unused-vars
+
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.
+            @typescript-eslint/no-unused-vars
+
+Neither file is part of M8 (modules/settings/* or app/api/settings/*).
+ESLint is intentionally lenient for the prototype (unused vars = warning),
+so these are non-blocking and out of scope for this module.
+
+--------------------------------------------------------------------
+M8 CODE SURFACE VERIFIED CLEAN
+--------------------------------------------------------------------
+Module (modular monolith):
+  modules/settings/schema.ts
+  modules/settings/repo.ts
+  modules/settings/service.ts
+
+Thin API routes:
+  app/api/settings/ai/route.ts
+  app/api/settings/billing/route.ts
+  app/api/settings/compliance/route.ts
+  app/api/settings/kb/route.ts
+  app/api/settings/kb/trashed/route.ts
+  app/api/settings/kb/[id]/route.ts
+  app/api/settings/kb/[id]/restore/route.ts
+  app/api/settings/mailboxes/route.ts
+
+Migration (generated, NOT pushed):
+  drizzle/migrations/0035_nosy_jane_foster.sql  (+ snapshot/journal)
+  New tables: knowledge_base, tenant_settings (snake_case, no FKs,
+  soft-delete deleted_at). DB NOT pushed/migrated/seeded.
+
+Zero M8-attributable tsc errors. Zero M8-attributable lint findings.
+Build remains GREEN.
+
+====================================================================
+FIX PASS RE-VERIFICATION — 2026-06-29
+====================================================================
+Re-ran both gates to confirm M8 code is clean (no fixes required).
+
+GATE 1 — npx tsc --noEmit
+  Exit: 0 (clean, no output). Zero TypeScript errors.
+
+GATE 2 — npm run lint (next lint)
+  Exit: 0 (passed). Only the 2 pre-existing warnings remain, both in
+  unrelated legacy files (settings/diagnostics/page.tsx :514 _body;
+  components/shared/table-pagination.tsx :65 pageSize). Neither is
+  part of the M8 surface (modules/settings/* or app/api/settings/*).
+
+No tsc/lint errors found in new M8 code. Nothing to fix.
+FINAL TSC STATUS: PASS (exit 0, zero errors). Build remains GREEN.

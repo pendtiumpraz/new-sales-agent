@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WIREFRAME — Register (low-fi)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:Inter,system-ui,sans-serif}.ph{background:#e5e7eb;border:1px dashed #9ca3af}</style>
+</head><body class="bg-gray-100 text-gray-700">
+<nav class="bg-gray-800 text-gray-200 text-xs px-3 py-2 flex flex-wrap gap-3 sticky top-0 z-50">
+  <span class="font-bold">WIREFRAMES M1:</span>
+  <a class="underline" href="index.html">Index</a>
+  <a class="underline" href="login.html">Login</a>
+  <a class="underline" href="register.html">Register</a>
+  <a class="underline" href="pending.html">Pending</a>
+  <a class="underline" href="superadmin-users.html">Superadmin</a>
+  <a class="underline" href="onboarding.html">Onboarding</a>
+  <a class="underline" href="dashboard-shell.html">Dashboard</a>
+</nav>
+<div class="bg-gray-200 text-gray-600 text-center text-xs py-1">WIREFRAME — Register — low-fi: review the FLOW, not the styling</div>
+<!-- CONTENT -->
+
+<!-- Pre-auth page: centered card, NO sidebar -->
+<main class="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-md">
+
+    <!-- Brand / logo placeholder (white-label slot) -->
+    <div class="flex flex-col items-center mb-6">
+      <div class="ph w-12 h-12 rounded mb-3 flex items-center justify-center text-[10px] text-gray-500">logo</div>
+      <div class="ph w-40 h-4 rounded"></div>
+      <p class="text-xs text-gray-400 mt-2">brand name (per-tenant)</p>
+    </div>
+
+    <!-- Register card -->
+    <div class="bg-white border border-gray-300 rounded-lg shadow-sm p-6">
+      <h1 class="text-lg font-bold text-gray-800 mb-1">Daftar Workspace</h1>
+      <p class="text-xs text-gray-500 mb-5">Buat akun workspace baru untuk tim kamu</p>
+
+      <form class="space-y-4">
+
+        <!-- Nama workspace / perusahaan -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Nama Workspace / Perusahaan</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">PT Contoh Jaya</div>
+        </div>
+
+        <!-- Nama admin -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Nama Admin</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">Nama lengkap admin</div>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Email</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">admin@perusahaan.com</div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Password</label>
+          <div class="ph h-10 w-full rounded flex items-center px-3 text-xs text-gray-500">••••••••</div>
+        </div>
+
+        <!-- Usage / vertical dropdown -->
+        <div>
+          <label class="block text-[13px] font-medium text-gray-600 mb-1">Pilih Usage / Vertical</label>
+          <div class="ph h-10 w-full rounded flex items-center justify-between px-3 text-xs text-gray-500">
+            <span>Pilih: HR / Sales / Lainnya</span>
+            <span class="text-gray-400">▾</span>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-1">Menentukan modul &amp; entitlement aktif (HR / Sales / Lainnya)</p>
+        </div>
+
+        <!-- Primary action -->
+        <a href="pending.html" class="block">
+          <div class="bg-gray-700 text-white text-center text-sm font-medium h-10 rounded flex items-center justify-center">
+            Daftar
+          </div>
+        </a>
+
+        <!-- Small note: pending activation -->
+        <div class="ph rounded p-3 text-[11px] text-gray-500 leading-relaxed">
+          Catatan: Akun menunggu aktivasi superadmin sebelum bisa dipakai.
+        </div>
+
+      </form>
+
+      <!-- Link ke Login -->
+      <p class="text-center text-xs text-gray-500 mt-5">
+        Sudah punya akun?
+        <a href="login.html" class="underline text-gray-700 font-medium">Masuk di sini</a>
+      </p>
+    </div>
+
+  </div>
+</main>
+
+</body></html>

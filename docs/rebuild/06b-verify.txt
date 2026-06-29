@@ -1,0 +1,62 @@
+06b — Module 1 Backend Verification
+Sainskerta Loop Phase 03, Module 1
+Date: 2026-06-28
+Scope verified: NEW Module 1 domain code only —
+  modules/{auth,onboarding,branding,superadmin}/{schema,repo,service}.ts (+ auth/password.ts)
+  app/api/{auth,onboarding,entitlements,branding,superadmin}/**
+
+=========================================================
+RESULT: PASS
+=========================================================
+
+1) npx tsc --noEmit
+   EXIT 0 — no type errors.
+   Zero diagnostics in any Module 1 domain file.
+
+2) npm run lint  (next lint)
+   EXIT 0 — no errors. Only warnings, ALL in pre-existing legacy
+   files (none in Module 1 domain/route code):
+     - app/(app)/contacts/profiles/page.tsx        (9 unused-var warnings)
+     - app/(app)/settings/diagnostics/page.tsx      (1 unused-var warning)
+     - components/shared/table-pagination.tsx       (1 unused-var warning)
+   These are unrelated to this tick and match the "pre-existing warnings
+   in unrelated legacy files" carve-out in 06-m1-backend-design.md §6.
+
+Module 1 route surface confirmed present:
+  auth:        register, password-reset (+confirm), sessions (+[id]), [...nextauth]
+  onboarding:  route, verticals (+[id], [id]/restore, trashed),
+               modules (+[id], [id]/restore, trashed)
+  entitlements: route
+  branding:    theme (+theme/reset)
+  superadmin:  overview, audit, settings, provision, tenants (+[id]/activation),
+               users
+
+No errors to report. No new lint/type issues introduced by Module 1 code.
+
+=========================================================
+RE-VERIFY (Fix pass) — Date: 2026-06-28
+=========================================================
+
+Task: Fix any tsc/lint errors in new Module 1 domain code.
+
+Findings: NO errors found. The Module 1 domain code was already
+type-clean and lint-clean. No fixes were required.
+
+Re-ran the gates from a clean repo state:
+
+1) npx tsc --noEmit
+   EXIT 0 — no type errors. Whole-repo check (no excludes), so all 16
+   Module 1 domain files (modules/{auth,onboarding,branding,superadmin,
+   tenant}/{schema,repo,service}.ts + auth/password.ts) were covered
+   and emitted zero diagnostics.
+
+2) npm run lint  (next lint)
+   EXIT 0 — no errors. Only the same 3 pre-existing legacy-file warnings
+   (contacts/profiles, settings/diagnostics, table-pagination), all
+   unrelated to Module 1 and covered by the §6 carve-out.
+
+Route surface re-confirmed present (25 route.ts files across
+auth/onboarding/entitlements/branding/superadmin) plus the 16 domain
+files. No changes made; status remains PASS.
+
+FINAL TSC STATUS: PASS (npx tsc --noEmit → exit 0, zero errors).

@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="id"><head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+</head>
+<body class="bg-background text-foreground">
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-30px)]">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="chrome w-64 shrink-0 border-r flex flex-col fixed top-[30px] bottom-0 left-0 z-40">
+    <!-- brand logo block -->
+    <div class="p-3">
+      <div class="flex items-center gap-2.5 rounded-lg bg-primary text-primary-foreground px-3 py-2.5 shadow-soft">
+        <span class="flex h-8 w-8 items-center justify-center rounded-md bg-white/20">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </span>
+        <div class="min-w-0">
+          <p class="text-sm font-bold leading-tight truncate">Sainskerta</p>
+          <p class="text-[10px] text-white/80 leading-tight truncate">Agentic Sales AI</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- nav -->
+    <nav class="flex-1 overflow-y-auto px-3 pb-4 text-sm space-y-4">
+      <!-- Utama -->
+      <div>
+        <p class="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Utama</p>
+        <a href="dashboard-shell.html" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/70 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#3B82F6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="relative flex items-center gap-2.5 rounded-md px-2.5 py-2 bg-primary/10 text-primary font-medium transition">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full bg-primary"></span>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg>
+          Workspace
+        </a>
+      </div>
+      <!-- Leads -->
+      <div>
+        <p class="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/70 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#10B981" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          Contacts
+        </a>
+        <a href="enrichment.html" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/70 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#14B8A6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Enrichment / Discovery
+        </a>
+      </div>
+      <!-- Eksekusi -->
+      <div>
+        <p class="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Eksekusi</p>
+        <a href="inbox.html" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/70 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#6366F1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          Inbox
+        </a>
+        <a href="pipeline.html" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/70 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#8B5CF6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Pipeline
+        </a>
+        <a href="#" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/60 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#F59E0B" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>
+          Cadences
+        </a>
+        <a href="#" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/60 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#EF4444" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg>
+          Autopilot
+        </a>
+      </div>
+      <!-- Lainnya -->
+      <div>
+        <p class="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Lainnya</p>
+        <a href="#" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/60 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#0D9488" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+          Ecommerce · Retention · Content
+        </a>
+        <a href="#" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/60 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#8B5CF6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          Field · Reports
+        </a>
+      </div>
+      <!-- Pengaturan -->
+      <div>
+        <p class="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Pengaturan</p>
+        <a href="branding.html" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/70 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#FD7A5C" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+          Branding (akun kamu)
+        </a>
+        <a href="#" class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-foreground/60 hover:bg-white/50 transition">
+          <svg class="h-4 w-4" style="color:#6B7280" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Tim · Billing · AI
+        </a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR -->
+    <header class="glass sticky top-[30px] z-30 h-14 border-b border-border flex items-center justify-between px-4 shrink-0">
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari kontak, workspace, produk…" class="h-9 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="flex items-center gap-2 rounded-full border border-border bg-card px-3 h-9 text-xs font-medium hover:bg-muted transition">
+          <span class="h-2 w-2 rounded-full bg-tertiary"></span>
+          WhatsApp Bisnis · Paket Pro
+          <svg class="h-3.5 w-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted transition">
+          <svg class="h-5 w-5 text-foreground/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-card"></span>
+        </button>
+        <button class="h-8 w-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center shadow-soft">RA</button>
+      </div>
+    </header>
+
+    <main class="flex-1 p-6 space-y-5 overflow-auto">
+
+      <!-- ====================================================================
+           BREADCRUMB + JUDUL HALAMAN (1 workspace = 1 produk)
+      ===================================================================== -->
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div class="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+            <a href="#" class="hover:text-foreground hover:underline">Semua workspace</a>
+            <span class="text-muted-foreground/50">›</span>
+            <span class="text-foreground/70">CRM Akselera</span>
+          </div>
+          <h1 class="text-xl font-bold flex items-center gap-2.5">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-tertiary/15 text-tertiary">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </span>
+            CRM Akselera
+          </h1>
+          <p class="text-xs text-muted-foreground mt-1">Hub workspace — semua aktivitas sales fokus di sini. 1 workspace = 1 produk.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="h-9 px-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground/70 hover:bg-muted transition flex items-center gap-1.5">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></svg>
+            Arsipkan
+          </button>
+          <a href="enrichment.html" class="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            Cari kontak (Discovery)
+          </a>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           (1) KARTU RINGKASAN PRODUK
+      ===================================================================== -->
+      <section class="bg-card border border-border rounded-lg p-4 shadow-soft">
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-tertiary/15 text-tertiary shrink-0">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-base font-semibold">CRM Akselera — Paket Bisnis</p>
+              <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/15 text-tertiary px-2 py-0.5 text-[11px] font-medium">
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                Cari lead
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-success/10 text-success px-2 py-0.5 text-[11px] font-medium">
+                <span class="h-1.5 w-1.5 rounded-full bg-success"></span> Aktif
+              </span>
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+              <span class="inline-flex items-center gap-1">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                Target: <span class="text-foreground/80 font-medium">UKM Retail &amp; F&amp;B</span>
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                Produk terhubung
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                Owner: <span class="text-foreground/80 font-medium">Rara Anjani</span>
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <span class="text-foreground/80 font-medium">248</span> kontak
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           (2) SETUP STEPPER — Produk → Market-Fit → Discovery
+      ===================================================================== -->
+      <section class="bg-card border border-border rounded-lg p-4 space-y-4 shadow-soft">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <span class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Setup workspace</span>
+          <div class="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span> 1·Produk
+            </span>
+            <span class="text-muted-foreground/40">→</span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span> 2·Market-Fit
+            </span>
+            <span class="text-muted-foreground/40">→</span>
+            <span class="inline-flex items-center gap-1.5 text-foreground/70 font-medium">
+              <span class="flex h-4 w-4 items-center justify-center rounded-full bg-highlight text-highlight-foreground text-[9px] font-bold">3</span> Discovery
+            </span>
+          </div>
+        </div>
+
+        <!-- Langkah 1 — produk terhubung -->
+        <div class="flex items-center gap-2 text-sm border border-border rounded-lg px-3 py-2.5 bg-muted/30">
+          <svg class="h-4 w-4 text-primary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+          <span class="font-medium">CRM Akselera — Paket Bisnis</span>
+          <span class="truncate text-xs text-muted-foreground hidden sm:inline">CRM all-in-one + WhatsApp untuk UKM</span>
+          <a href="#" class="ml-auto text-[11px] text-primary hover:underline">Ganti produk</a>
+        </div>
+
+        <!-- Langkah 2 — Market-Fit Analyzer -->
+        <div class="border border-border rounded-lg p-3.5 space-y-3 bg-card">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <span class="text-sm font-semibold flex items-center gap-1.5">
+              <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+              Market-Fit Analyzer (B2B / B2C / mix)
+            </span>
+            <button id="reanalyzeBtn" class="h-8 px-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground/70 hover:bg-muted transition flex items-center gap-1.5">
+              <svg id="reanalyzeIcon" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              <span id="reanalyzeLabel">Analisis ulang</span>
+            </button>
+          </div>
+
+          <!-- headline tipe pasar + keyakinan -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center rounded-full bg-tertiary/15 text-tertiary px-2.5 py-0.5 text-xs font-semibold">B2C dominan (mix)</span>
+            <span class="text-xs text-muted-foreground">keyakinan <span class="font-medium text-foreground/80">82%</span> · sumber AI</span>
+          </div>
+          <p class="text-xs text-muted-foreground leading-relaxed bg-muted/40 rounded-lg px-3 py-2">
+            Produk menyasar pemilik UKM langsung (decision-maker tunggal, siklus cepat) sehingga condong B2C, tapi ada porsi B2B kecil untuk distributor/agen reseller — diklasifikasikan <span class="font-medium text-foreground/80">mix dengan kecondongan B2C</span>.
+          </p>
+
+          <div class="grid md:grid-cols-2 gap-3">
+            <!-- ICP — target ideal -->
+            <div class="bg-muted/40 border border-border rounded-lg p-3 text-xs space-y-1.5">
+              <p class="font-semibold text-foreground/80">ICP — target ideal</p>
+              <div class="flex gap-2"><span class="w-20 shrink-0 text-muted-foreground">Ukuran</span><span class="flex-1 text-foreground/90">1–20 karyawan</span></div>
+              <div class="flex gap-2"><span class="w-20 shrink-0 text-muted-foreground">Industri</span><span class="flex-1 text-foreground/90">Retail, F&amp;B, jasa</span></div>
+              <div class="flex gap-2"><span class="w-20 shrink-0 text-muted-foreground">Jabatan PIC</span><span class="flex-1 text-foreground/90">Owner, Manajer Operasional</span></div>
+              <div class="flex gap-2"><span class="w-20 shrink-0 text-muted-foreground">Demografi</span><span class="flex-1 text-foreground/90">25–45 th, kota tier-1/2</span></div>
+              <div class="flex gap-2"><span class="w-20 shrink-0 text-muted-foreground">Minat</span><span class="flex-1 text-foreground/90">Otomasi, hemat biaya, WA bisnis</span></div>
+            </div>
+            <!-- Fit per segmen (bar) -->
+            <div class="bg-muted/40 border border-border rounded-lg p-3 text-xs space-y-2.5">
+              <p class="font-semibold text-foreground/80">Fit per segmen</p>
+              <div class="flex items-center gap-2"><span class="w-24 shrink-0 truncate">UKM Retail</span><div class="h-1.5 flex-1 rounded-full bg-muted"><div class="h-full rounded-full bg-primary" style="width:88%"></div></div><span class="w-8 text-right tabular-nums text-foreground/80">88</span></div>
+              <div class="flex items-center gap-2"><span class="w-24 shrink-0 truncate">F&amp;B / Kuliner</span><div class="h-1.5 flex-1 rounded-full bg-muted"><div class="h-full rounded-full bg-primary" style="width:81%"></div></div><span class="w-8 text-right tabular-nums text-foreground/80">81</span></div>
+              <div class="flex items-center gap-2"><span class="w-24 shrink-0 truncate">Distributor</span><div class="h-1.5 flex-1 rounded-full bg-muted"><div class="h-full rounded-full bg-primary" style="width:64%"></div></div><span class="w-8 text-right tabular-nums text-foreground/80">64</span></div>
+              <div class="flex items-center gap-2"><span class="w-24 shrink-0 truncate">Enterprise</span><div class="h-1.5 flex-1 rounded-full bg-muted"><div class="h-full rounded-full bg-primary/50" style="width:31%"></div></div><span class="w-8 text-right tabular-nums text-muted-foreground">31</span></div>
+            </div>
+          </div>
+
+          <!-- Playbook discovery + teknik closing -->
+          <div class="grid md:grid-cols-2 gap-3">
+            <div class="border border-border rounded-lg p-3 text-xs space-y-2">
+              <p class="font-semibold text-foreground/80 flex items-center gap-1.5">
+                <svg class="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24m5.66 5.66 4.24 4.24M14.83 9.17l4.24-4.24M9.17 14.83l-4.24 4.24"/></svg>
+                Playbook discovery — cari di mana &amp; apa
+              </p>
+              <p class="text-[11px] text-muted-foreground">Klik kueri buat salin → cari di channel-nya → crawl email/HP.</p>
+              <div class="flex flex-wrap gap-1.5">
+                <button class="copy-chip inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground/80 hover:bg-accent transition" data-q='"toko retail" "WhatsApp" site:instagram.com'>
+                  <svg class="h-2.5 w-2.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  IG: toko retail
+                </button>
+                <button class="copy-chip inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground/80 hover:bg-accent transition" data-q='UMKM F&B Jakarta kontak owner'>
+                  <svg class="h-2.5 w-2.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Google: UMKM F&amp;B
+                </button>
+                <button class="copy-chip inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground/80 hover:bg-accent transition" data-q='distributor grosir reseller B2B site:linkedin.com'>
+                  <svg class="h-2.5 w-2.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  LinkedIn: distributor
+                </button>
+                <button class="copy-chip inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground/80 hover:bg-accent transition" data-q='toko Shopee fashion aktif'>
+                  <svg class="h-2.5 w-2.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Shopee: toko aktif
+                </button>
+              </div>
+              <a href="enrichment.html" class="inline-flex items-center gap-1 text-[11px] text-primary hover:underline pt-1">
+                Buka di Enrichment / Discovery
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+            <div class="border border-border rounded-lg p-3 text-xs space-y-2">
+              <p class="font-semibold text-foreground/80">Teknik closing yang cocok (6)</p>
+              <p class="text-[11px] text-muted-foreground">Tipe pasar nentuin teknik yang kebuka (agresif = B2C-only).</p>
+              <div class="flex flex-wrap gap-1.5">
+                <span class="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">Value Ladder</span>
+                <span class="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">Urgency / Scarcity</span>
+                <span class="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">Social Proof</span>
+                <span class="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">Trial Close</span>
+                <span class="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">Assumptive Close</span>
+                <span class="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">Bonus Stack</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           (3) FUNNEL WORKSPACE
+      ===================================================================== -->
+      <section class="bg-card border border-border rounded-lg p-4 shadow-soft">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold">Funnel workspace</h2>
+          <a href="pipeline.html" class="text-[11px] text-primary hover:underline flex items-center gap-1">
+            Buka Pipeline
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+          <div class="border border-border rounded-lg p-3 bg-muted/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Kontak</div>
+            <div class="text-2xl font-bold mt-1.5 text-foreground">248</div>
+          </div>
+          <div class="border border-border rounded-lg p-3 bg-muted/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Ter-enrich</div>
+            <div class="text-2xl font-bold mt-1.5 text-tertiary">176</div>
+          </div>
+          <div class="border border-border rounded-lg p-3 bg-muted/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Obrolan aktif</div>
+            <div class="text-2xl font-bold mt-1.5 text-foreground">54</div>
+          </div>
+          <div class="border border-border rounded-lg p-3 bg-muted/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Qualified</div>
+            <div class="text-2xl font-bold mt-1.5 text-foreground">31</div>
+          </div>
+          <div class="border border-border rounded-lg p-3 bg-primary/5 ring-1 ring-primary/20">
+            <div class="text-[10px] uppercase tracking-wide text-muted-foreground">Closing</div>
+            <div class="text-2xl font-bold mt-1.5 text-primary">12</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           (4) DAFTAR KONTAK — SEGMENTASI B2C / B2B  (PROMINEN)
+      ===================================================================== -->
+      <section class="bg-card border border-border rounded-lg overflow-hidden shadow-soft">
+
+        <!-- Header + entry ke Discovery/Enrichment -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
+          <div>
+            <h2 class="text-sm font-bold flex items-center gap-1.5">
+              <svg class="h-4 w-4 text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+              Kontak yang sudah didapat
+            </h2>
+            <p class="text-[11px] text-muted-foreground">Hasil Discovery untuk workspace ini — disegmentasi B2C / B2B.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="enrichSelected" class="h-8 px-3 rounded-lg border border-border bg-card text-[11px] font-medium text-foreground/70 flex items-center gap-1.5 hover:bg-muted transition disabled:opacity-50" disabled>
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+              Enrich terpilih (<span id="selCount">0</span>)
+            </button>
+            <a href="enrichment.html" class="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Cari kontak (Discovery)
+            </a>
+            <a href="contacts.html" class="text-[11px] text-primary hover:underline hidden lg:inline">Lihat di Contacts →</a>
+          </div>
+        </div>
+
+        <!-- TAB SEGMENTASI + COUNT -->
+        <div class="flex items-center gap-1 px-4 pt-3 text-xs border-b border-border">
+          <button class="seg-tab px-3.5 py-2 rounded-t-md border border-b-0 border-border bg-card font-semibold text-foreground -mb-px" data-seg="all">
+            Semua <span class="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">248</span>
+          </button>
+          <button class="seg-tab px-3.5 py-2 rounded-t-md text-muted-foreground hover:bg-muted/50 transition" data-seg="b2c">
+            B2C <span class="ml-1 rounded-full bg-tertiary/15 px-1.5 py-0.5 text-[10px] text-tertiary font-medium">163</span>
+          </button>
+          <button class="seg-tab px-3.5 py-2 rounded-t-md text-muted-foreground hover:bg-muted/50 transition" data-seg="b2b">
+            B2B <span class="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary font-medium">85</span>
+          </button>
+          <div class="ml-auto flex items-center gap-2 pb-1.5">
+            <button class="h-7 px-2.5 rounded-md border border-border bg-card text-[11px] text-muted-foreground flex items-center gap-1 hover:bg-muted transition">
+              Status enrich
+              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <button class="h-7 px-2.5 rounded-md border border-border bg-card text-[11px] text-muted-foreground flex items-center gap-1 hover:bg-muted transition">
+              Urutkan
+              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- TABEL KONTAK -->
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th class="px-4 py-2.5 font-medium w-8"><input id="checkAll" type="checkbox" class="h-3.5 w-3.5 rounded border-input accent-primary align-middle"></th>
+              <th class="px-4 py-2.5 font-medium">Nama</th>
+              <th class="px-4 py-2.5 font-medium">Segment</th>
+              <th class="px-4 py-2.5 font-medium">Perusahaan / Profil</th>
+              <th class="px-4 py-2.5 font-medium">Kontak (email · HP)</th>
+              <th class="px-4 py-2.5 font-medium">Status enrichment</th>
+              <th class="px-4 py-2.5 font-medium">Sumber</th>
+              <th class="px-4 py-2.5 font-medium w-8"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <!-- B2B · Lengkap -->
+            <tr class="contact-row hover:bg-muted/30 transition" data-seg="b2b">
+              <td class="px-4 py-3"><input type="checkbox" class="row-check h-3.5 w-3.5 rounded border-input accent-primary"></td>
+              <td class="px-4 py-3 font-medium text-foreground">Andi Wijaya</td>
+              <td class="px-4 py-3"><span class="inline-flex rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">B2B</span></td>
+              <td class="px-4 py-3 text-foreground/80">PT Sumber Rejeki <span class="text-muted-foreground">· Manajer Operasional</span></td>
+              <td class="px-4 py-3 text-foreground/70 text-xs">andi@sumberrejeki.id · 0812-3344-5566</td>
+              <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full bg-success/10 text-success px-2 py-0.5 text-[10px] font-medium"><span class="h-1.5 w-1.5 rounded-full bg-success"></span>Lengkap</span></td>
+              <td class="px-4 py-3 text-xs text-muted-foreground">LinkedIn</td>
+              <td class="px-4 py-3 text-muted-foreground"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+            </tr>
+            <!-- B2C · Sebagian -->
+            <tr class="contact-row hover:bg-muted/30 transition" data-seg="b2c">
+              <td class="px-4 py-3"><input type="checkbox" class="row-check h-3.5 w-3.5 rounded border-input accent-primary"></td>
+              <td class="px-4 py-3 font-medium text-foreground">Siti Rahmawati</td>
+              <td class="px-4 py-3"><span class="inline-flex rounded-full bg-tertiary/15 text-tertiary px-2 py-0.5 text-[10px] font-semibold">B2C</span></td>
+              <td class="px-4 py-3 text-foreground/80">Toko Siti Snack <span class="text-muted-foreground">· @sitisnack</span></td>
+              <td class="px-4 py-3 text-foreground/70 text-xs">— · 0857-1122-3344</td>
+              <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full bg-highlight/15 text-highlight-foreground px-2 py-0.5 text-[10px] font-medium"><span class="h-1.5 w-1.5 rounded-full bg-highlight"></span>Sebagian</span></td>
+              <td class="px-4 py-3 text-xs text-muted-foreground">Instagram</td>
+              <td class="px-4 py-3 text-muted-foreground"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+            </tr>
+            <!-- B2B · Belum enrich → CTA inline -->
+            <tr class="contact-row hover:bg-muted/30 transition" data-seg="b2b">
+              <td class="px-4 py-3"><input type="checkbox" class="row-check h-3.5 w-3.5 rounded border-input accent-primary"></td>
+              <td class="px-4 py-3 font-medium text-foreground">Budi Santoso</td>
+              <td class="px-4 py-3"><span class="inline-flex rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">B2B</span></td>
+              <td class="px-4 py-3 text-foreground/80">CV Maju Bersama <span class="text-muted-foreground">· Owner</span></td>
+              <td class="px-4 py-3 text-[11px] text-muted-foreground italic">— belum ada —</td>
+              <td class="px-4 py-3"><a href="enrichment.html" class="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/5 text-primary px-2 py-0.5 text-[10px] font-medium hover:bg-primary/10 transition"><svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>Belum · Enrich</a></td>
+              <td class="px-4 py-3 text-xs text-muted-foreground">Google Maps</td>
+              <td class="px-4 py-3 text-muted-foreground"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+            </tr>
+            <!-- B2C · Lengkap -->
+            <tr class="contact-row hover:bg-muted/30 transition" data-seg="b2c">
+              <td class="px-4 py-3"><input type="checkbox" class="row-check h-3.5 w-3.5 rounded border-input accent-primary"></td>
+              <td class="px-4 py-3 font-medium text-foreground">Dewi Lestari</td>
+              <td class="px-4 py-3"><span class="inline-flex rounded-full bg-tertiary/15 text-tertiary px-2 py-0.5 text-[10px] font-semibold">B2C</span></td>
+              <td class="px-4 py-3 text-foreground/80">Dewi Fashion Store <span class="text-muted-foreground">· @dewifashion</span></td>
+              <td class="px-4 py-3 text-foreground/70 text-xs">dewi.l@gmail.com · 0813-5566-7788</td>
+              <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full bg-success/10 text-success px-2 py-0.5 text-[10px] font-medium"><span class="h-1.5 w-1.5 rounded-full bg-success"></span>Lengkap</span></td>
+              <td class="px-4 py-3 text-xs text-muted-foreground">Shopee</td>
+              <td class="px-4 py-3 text-muted-foreground"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+            </tr>
+            <!-- B2B · Lengkap -->
+            <tr class="contact-row hover:bg-muted/30 transition" data-seg="b2b">
+              <td class="px-4 py-3"><input type="checkbox" class="row-check h-3.5 w-3.5 rounded border-input accent-primary"></td>
+              <td class="px-4 py-3 font-medium text-foreground">Hendra Gunawan</td>
+              <td class="px-4 py-3"><span class="inline-flex rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">B2B</span></td>
+              <td class="px-4 py-3 text-foreground/80">PT Distribusi Nusantara <span class="text-muted-foreground">· Direktur</span></td>
+              <td class="px-4 py-3 text-foreground/70 text-xs">hendra@distnusantara.co.id · 0811-9988-7766</td>
+              <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full bg-success/10 text-success px-2 py-0.5 text-[10px] font-medium"><span class="h-1.5 w-1.5 rounded-full bg-success"></span>Lengkap</span></td>
+              <td class="px-4 py-3 text-xs text-muted-foreground">LinkedIn</td>
+              <td class="px-4 py-3 text-muted-foreground"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+            </tr>
+            <!-- B2C · Sebagian -->
+            <tr class="contact-row hover:bg-muted/30 transition" data-seg="b2c">
+              <td class="px-4 py-3"><input type="checkbox" class="row-check h-3.5 w-3.5 rounded border-input accent-primary"></td>
+              <td class="px-4 py-3 font-medium text-foreground">Rina Kusuma</td>
+              <td class="px-4 py-3"><span class="inline-flex rounded-full bg-tertiary/15 text-tertiary px-2 py-0.5 text-[10px] font-semibold">B2C</span></td>
+              <td class="px-4 py-3 text-foreground/80">Rina Kopi &amp; Kue <span class="text-muted-foreground">· @rinakopi</span></td>
+              <td class="px-4 py-3 text-foreground/70 text-xs">rina.kopi@gmail.com · —</td>
+              <td class="px-4 py-3"><span class="inline-flex items-center gap-1 rounded-full bg-highlight/15 text-highlight-foreground px-2 py-0.5 text-[10px] font-medium"><span class="h-1.5 w-1.5 rounded-full bg-highlight"></span>Sebagian</span></td>
+              <td class="px-4 py-3 text-xs text-muted-foreground">Instagram</td>
+              <td class="px-4 py-3 text-muted-foreground"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- empty state per tab (hidden by default) -->
+        <div id="emptyState" class="hidden px-4 py-10 text-center">
+          <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <p class="text-sm font-medium" id="emptyTitle">Belum ada kontak di segmen ini</p>
+          <p class="text-xs text-muted-foreground mt-1 mb-3">Jalankan Discovery untuk mengisi kontak workspace ini.</p>
+          <a href="enrichment.html" class="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-soft hover:opacity-90 transition">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Cari kontak (Discovery)
+          </a>
+        </div>
+
+        <!-- footer -->
+        <div class="px-4 py-2.5 border-t border-border text-[11px] text-muted-foreground flex items-center justify-between">
+          <span id="rowSummary">Menampilkan 6 dari 248 kontak · disegmentasi otomatis saat Discovery.</span>
+          <a href="contacts.html" class="text-primary hover:underline">Semua kontak →</a>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           (5) SALES SCRIPT (Sales Play)
+      ===================================================================== -->
+      <section class="bg-card border border-border rounded-lg p-4 shadow-soft">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold flex items-center gap-1.5">
+              <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+              Sales Script (Sales Play)
+            </h2>
+            <p class="text-[11px] text-muted-foreground">Alur · adab · teknik closing · materi per tahap — nyetir orkestrator obrolan.</p>
+          </div>
+          <button class="h-8 px-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground/70 hover:bg-muted transition flex items-center gap-1.5">
+            Atur Sales Play
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        </div>
+        <div class="mt-3 grid sm:grid-cols-3 gap-2.5 text-[11px]">
+          <div class="rounded-lg border border-border bg-muted/30 p-3">
+            <p class="font-semibold text-foreground/80 mb-0.5">Value ladder / anchors</p>
+            <p class="text-muted-foreground">Demo gratis → Paket Bisnis → Add-on WhatsApp API</p>
+          </div>
+          <div class="rounded-lg border border-border bg-muted/30 p-3">
+            <p class="font-semibold text-foreground/80 mb-0.5">Adab &amp; price-gate</p>
+            <p class="text-muted-foreground">Harga dibuka setelah kualifikasi · sopan, value-first</p>
+          </div>
+          <div class="rounded-lg border border-border bg-muted/30 p-3">
+            <p class="font-semibold text-foreground/80 mb-0.5">Materi per tahap</p>
+            <p class="text-muted-foreground">4 aset: studi kasus, demo, brosur harga, testimoni</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           (6) EKSEKUSI — kirim & pantau obrolan
+      ===================================================================== -->
+      <section class="bg-card border border-border rounded-lg p-4 shadow-soft">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-sm font-bold flex items-center gap-1.5">
+              <svg class="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+              Eksekusi — kirim &amp; pantau obrolan
+            </h2>
+            <p class="text-[11px] text-muted-foreground">Mulai obrolan konsultatif value-first ke kontak workspace ini.</p>
+          </div>
+          <a href="inbox.html" class="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+            Mulai obrolan
+          </a>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div class="rounded-lg border border-border bg-muted/30 p-3 text-xs">
+            <p class="font-semibold text-foreground/80 mb-1.5">Kontak siap di-chat (54)</p>
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between"><span class="text-foreground/80">Andi Wijaya</span><span class="rounded-full bg-tertiary/15 text-tertiary px-1.5 py-0.5 text-[10px]">Balas terakhir 2j</span></div>
+              <div class="flex items-center justify-between"><span class="text-foreground/80">Dewi Lestari</span><span class="rounded-full bg-highlight/15 text-highlight-foreground px-1.5 py-0.5 text-[10px]">Nunggu balasan</span></div>
+              <div class="flex items-center justify-between"><span class="text-foreground/80">Hendra Gunawan</span><span class="rounded-full bg-muted text-muted-foreground px-1.5 py-0.5 text-[10px]">Belum dimulai</span></div>
+            </div>
+          </div>
+          <div class="rounded-lg border border-border bg-muted/30 p-3 text-xs">
+            <p class="font-semibold text-foreground/80 mb-1.5">Ringkasan AI — obrolan terakhir</p>
+            <p class="text-muted-foreground leading-relaxed">Andi tertarik integrasi WhatsApp tapi ragu soal harga. AI merekomendasikan <span class="text-foreground/80 font-medium">trial close + studi kasus</span> retail sejenis sebelum buka harga Paket Bisnis.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           (7) LAINNYA — modul sekunder workspace
+      ===================================================================== -->
+      <section>
+        <p class="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">Lainnya (modul terkait workspace)</p>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <a href="#" class="bg-card border border-border rounded-lg p-3 flex items-center gap-2.5 text-sm hover:border-primary/40 hover:shadow-soft transition">
+            <svg class="h-4 w-4 text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            Cadence
+          </a>
+          <a href="pipeline.html" class="bg-card border border-border rounded-lg p-3 flex items-center gap-2.5 text-sm hover:border-primary/40 hover:shadow-soft transition">
+            <svg class="h-4 w-4 text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            Riset Prospek / Pipeline
+          </a>
+          <a href="#" class="bg-card border border-border rounded-lg p-3 flex items-center gap-2.5 text-sm text-foreground/70 hover:border-primary/40 hover:shadow-soft transition">
+            <svg class="h-4 w-4 text-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg>
+            Autopilot
+          </a>
+          <a href="#" class="bg-card border border-border rounded-lg p-3 flex items-center gap-2.5 text-sm text-foreground/70 hover:border-primary/40 hover:shadow-soft transition">
+            <svg class="h-4 w-4 text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>
+            Reports
+          </a>
+        </div>
+      </section>
+
+      <!-- catatan flow -->
+      <p class="text-[11px] text-muted-foreground pt-1 leading-relaxed">
+        Flow: <b class="text-foreground/70">Setup (produk → market-fit B2B/B2C)</b> → <b class="text-foreground/70">Discovery/Enrichment</b> isi kontak →
+        <b class="text-foreground/70">kontak ter-segmentasi B2C/B2B</b> di tabel atas → <b class="text-foreground/70">Sales Script</b> → <b class="text-foreground/70">Eksekusi obrolan</b> → Pipeline.
+      </p>
+
+    </main>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast" class="fixed bottom-5 right-5 z-[200] hidden items-center gap-2 rounded-lg bg-foreground text-background px-3.5 py-2.5 text-xs font-medium shadow-soft">
+  <svg class="h-4 w-4 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg">Disalin</span>
+</div>
+
+<script>
+(function(){
+  function showToast(msg){
+    var t=document.getElementById('toast'), m=document.getElementById('toastMsg');
+    m.textContent=msg; t.classList.remove('hidden'); t.classList.add('flex');
+    clearTimeout(t._timer); t._timer=setTimeout(function(){ t.classList.add('hidden'); t.classList.remove('flex'); },1800);
+  }
+
+  // --- copy playbook query chips ---
+  document.querySelectorAll('.copy-chip').forEach(function(b){
+    b.addEventListener('click',function(){
+      var q=b.getAttribute('data-q')||'';
+      if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(q).catch(function(){}); }
+      showToast('Kueri disalin: '+q.slice(0,28)+(q.length>28?'…':''));
+    });
+  });
+
+  // --- re-analyze (mock loading) ---
+  var reBtn=document.getElementById('reanalyzeBtn'), reIcon=document.getElementById('reanalyzeIcon'), reLabel=document.getElementById('reanalyzeLabel');
+  if(reBtn){
+    reBtn.addEventListener('click',function(){
+      if(reBtn.disabled) return;
+      reBtn.disabled=true; reIcon.classList.add('animate-spin'); reLabel.textContent='Menganalisis…';
+      setTimeout(function(){
+        reIcon.classList.remove('animate-spin'); reLabel.textContent='Analisis ulang'; reBtn.disabled=false;
+        showToast('Market-fit dianalisis ulang');
+      },1400);
+    });
+  }
+
+  // --- segmentation tabs ---
+  var tabs=document.querySelectorAll('.seg-tab');
+  var rows=document.querySelectorAll('.contact-row');
+  var empty=document.getElementById('emptyState');
+  var emptyTitle=document.getElementById('emptyTitle');
+  var rowSummary=document.getElementById('rowSummary');
+  var totals={all:248,b2c:163,b2b:85};
+  var labels={all:'Belum ada kontak',b2c:'Belum ada kontak B2C',b2b:'Belum ada kontak B2B'};
+  function activateTab(seg){
+    tabs.forEach(function(t){
+      var on=t.getAttribute('data-seg')===seg;
+      if(on){ t.classList.add('bg-card','font-semibold','text-foreground','border','border-b-0','border-border','-mb-px'); t.classList.remove('text-muted-foreground'); }
+      else { t.classList.remove('bg-card','font-semibold','text-foreground','border','border-b-0','border-border','-mb-px'); t.classList.add('text-muted-foreground'); }
+    });
+    var shown=0;
+    rows.forEach(function(r){
+      var match=(seg==='all'||r.getAttribute('data-seg')===seg);
+      r.style.display=match?'':'none';
+      if(match) shown++;
+    });
+    var table=document.querySelector('section table');
+    if(shown===0){ empty.classList.remove('hidden'); emptyTitle.textContent=labels[seg]; if(table) table.parentElement.style.display='none'; }
+    else { empty.classList.add('hidden'); if(table) table.parentElement.style.display=''; }
+    rowSummary.textContent='Menampilkan '+shown+' dari '+(totals[seg]||0)+' kontak'+(seg==='all'?' · disegmentasi otomatis saat Discovery.':' di segmen '+seg.toUpperCase()+'.');
+    // reset selection when switching tab
+    document.getElementById('checkAll').checked=false;
+    updateSelection();
+  }
+  tabs.forEach(function(t){ t.addEventListener('click',function(){ activateTab(t.getAttribute('data-seg')); }); });
+
+  // --- row selection / enrich button ---
+  var checkAll=document.getElementById('checkAll');
+  var selCount=document.getElementById('selCount');
+  var enrichBtn=document.getElementById('enrichSelected');
+  function visibleChecks(){ return Array.prototype.filter.call(document.querySelectorAll('.row-check'),function(c){ return c.closest('tr').style.display!=='none'; }); }
+  function updateSelection(){
+    var checks=visibleChecks();
+    var n=checks.filter(function(c){return c.checked;}).length;
+    selCount.textContent=n;
+    enrichBtn.disabled=n===0;
+    if(checkAll) checkAll.checked=(n>0&&n===checks.length);
+  }
+  document.querySelectorAll('.row-check').forEach(function(c){ c.addEventListener('change',updateSelection); });
+  if(checkAll){ checkAll.addEventListener('change',function(){ visibleChecks().forEach(function(c){ c.checked=checkAll.checked; }); updateSelection(); }); }
+  if(enrichBtn){ enrichBtn.addEventListener('click',function(){ if(!enrichBtn.disabled) showToast(selCount.textContent+' kontak dikirim ke Enrichment'); }); }
+
+  // init
+  activateTab('all');
+  updateSelection();
+})();
+</script>
+</body></html>

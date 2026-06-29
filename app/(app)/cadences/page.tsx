@@ -1,507 +1,1831 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+// Cadence (Outreach) — Module 7 FRONTEND (Sainskerta Loop Phase 04). Wired to the
+// NEW M7 / outreach backend (no mock data). A cadence is a named, ordered follow-up
+// SEQUENCE that walks a contact across channels (wa/email/call) with a delay before
+// each step. Reads/mutations against app/api/cadences:
+//   GET  /api/cadences                       — list live cadences (name, step_count, status)
+//   GET  /api/cadences/trashed               — the Sampah view (soft-deleted)
+//   GET  /api/cadences/enrollments           — enrollments (to count enrolled per cadence)
+//   GET  /api/cadences/[id]/steps            — ordered steps of the open cadence (drawer)
+//   GET  /api/contacts                       — contact picker for the Enroll action
+//   PATCH  /api/cadences/[id]                — edit name / description / status
+//   POST   /api/cadences/[id]/steps          — append a step
+//   PATCH  /api/cadences/steps/[id]          — edit a step (channel/delay/subject/template)
+//   DELETE /api/cadences/steps/[id]          — remove a step
+//   POST   /api/cadences/[id]/enroll         — enroll a contact (schedules first step)
+//   DELETE /api/cadences/[id]                — SOFT delete (cascades to steps + enrollments)
+//   PATCH  /api/cadences/[id]/restore        — un-trash
+//   DELETE /api/cadences/[id]?purge=1        — HARD delete (permanent, irreversible)
+// Faithful to the established Coral Sunset design system — mirrors app/(app)/contacts/
+// page.tsx: stat strip, Aktif | Sampah tabs, list + right-drawer + trash/restore/purge.
+// Every band has loading + empty + error states. Lives in the (app) shell.
+
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Archive,
-  ArchiveRestore,
+  AlertTriangle,
+  ArrowDown,
+  Check,
+  ChevronRight,
+  Clock,
+  Layers,
+  Mail,
   MessageCircle,
-  Play,
+  Pencil,
+  Phone,
   Plus,
-  Sparkles,
-  TrendingUp,
+  RotateCcw,
+  Search,
+  Trash2,
+  UserPlus,
   Users,
   Workflow,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { ChannelDot } from "@/components/shared/channel-dot";
-import { KpiStrip, KpiTile } from "@/components/shared/kpi-tile";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCadences } from "@/lib/api-mock/hooks";
-import type { Cadence, CadenceStepChannel } from "@/lib/types";
-import { channelMeta } from "@/lib/utils/channel-config";
 import { cn } from "@/lib/utils";
 
-const STATUS: Record<
-  Cadence["status"],
-  { label: string; variant: "success" | "muted" | "warning" }
-> = {
-  active: { label: "Aktif", variant: "success" },
-  draft: { label: "Draf", variant: "muted" },
-  paused: { label: "Jeda", variant: "warning" },
-};
+// ── API envelope + row shapes (NEW M7 / outreach backend — { ok, data }) ─────
 
-// Primary channel → border tint (hex with alpha) for each card.
-// Picks the first channel in the mix; "multi" coral fallback when 3+.
-function primaryAccent(mix: CadenceStepChannel[]): {
-  hex: string;
-  // tw classes for ring/border softening; keep alpha low so it stays neat
-  borderClass: string;
-  haloClass: string;
-} {
-  if (mix.length >= 3) {
-    return {
-      hex: "#FB5E3B",
-      borderClass: "border-primary/25",
-      haloClass: "from-primary/5 to-tertiary/5",
-    };
-  }
-  const first = mix[0];
-  const color = first ? channelMeta(first).color : "#FB5E3B";
-  return {
-    hex: color,
-    borderClass: "border-[color:var(--cad-border)]/40",
-    haloClass: "from-[color:var(--cad-halo)]/8 to-transparent",
-  };
+interface ApiOk<T> {
+  ok: true;
+  data: T;
+}
+interface ApiErr {
+  ok: false;
+  error: string;
+  code?: string;
+}
+type ApiResult<T> = ApiOk<T> | ApiErr;
+
+/** Row from GET /api/cadences (modules/outreach · cadence_v2). */
+interface CadenceRow {
+  id: string;
+  tenantId: string;
+  workspaceId: string | null;
+  name: string;
+  description: string | null;
+  status: string; // active | paused | archived
+  stepCount: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null; // set on rows from /api/cadences/trashed
 }
 
-// Filter chip definitions — channel + status, with color hints
-const CHANNEL_CHIPS: { key: "all" | CadenceStepChannel; label: string }[] = [
-  { key: "all", label: "Semua channel" },
-  { key: "whatsapp", label: "WhatsApp" },
-  { key: "email", label: "Email" },
-  { key: "instagram", label: "Instagram" },
-  { key: "linkedin", label: "LinkedIn" },
-];
+/** Row from GET /api/cadences/[id]/steps (modules/outreach · cadence_step_v2). */
+interface StepRow {
+  id: string;
+  tenantId: string;
+  cadenceId: string;
+  sort: number;
+  channel: string; // wa | email | call
+  delayHours: number;
+  subject: string | null;
+  template: string;
+  meta: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const STATUS_CHIPS: {
-  key: "all" | Cadence["status"];
-  label: string;
-  dot: string;
-}[] = [
-  { key: "all", label: "Semua status", dot: "bg-muted-foreground/40" },
-  { key: "active", label: "Aktif", dot: "bg-emerald-500" },
-  { key: "draft", label: "Draf", dot: "bg-muted-foreground/40" },
-  { key: "paused", label: "Jeda", dot: "bg-amber-500" },
-];
+/** Row from GET /api/cadences/enrollments (modules/outreach · cadence_enrollment_v2). */
+interface EnrollmentRow {
+  id: string;
+  cadenceId: string;
+  contactId: string;
+  currentStep: number;
+  status: string; // active | paused | completed | stopped
+  nextRunAt: string | null;
+  createdAt: string;
+}
+
+/** Row from GET /api/contacts (modules/crm · contact) — only the fields the picker needs. */
+interface ContactRow {
+  id: string;
+  fullName: string;
+  title: string | null;
+  segment: string;
+}
+
+// ── enums / display metadata ─────────────────────────────────────────────────
+
+type MainTab = "aktif" | "sampah";
+const STEP_CHANNELS = ["wa", "email", "call"] as const;
+type StepChannel = (typeof STEP_CHANNELS)[number];
+
+const CHANNEL_META: Record<string, { label: string; short: string; color: string; icon: typeof MessageCircle }> = {
+  wa: { label: "WhatsApp", short: "WA", color: "#25D366", icon: MessageCircle },
+  email: { label: "Email", short: "Email", color: "#6366F1", icon: Mail },
+  call: { label: "Telepon", short: "Call", color: "#8B5CF6", icon: Phone },
+};
+
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: "Aktif", cls: "bg-success/15 text-success" },
+  paused: { label: "Jeda", cls: "bg-warning/15 text-warning" },
+  archived: { label: "Arsip", cls: "bg-muted text-muted-foreground" },
+};
+
+const STEP_CHANNEL_FALLBACK = { label: "—", short: "—", color: "#94A3B8", icon: MessageCircle };
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+async function readJson<T>(r: Response): Promise<T> {
+  const j = (await r.json().catch(() => null)) as ApiResult<T> | null;
+  if (!r.ok || !j || j.ok === false) {
+    if (r.status === 403) throw new Error("forbidden");
+    throw new Error((j && "error" in j && j.error) || "Permintaan gagal");
+  }
+  return j.data;
+}
+
+function channelOf(c: string) {
+  return CHANNEL_META[c] ?? STEP_CHANNEL_FALLBACK;
+}
+
+/** delay_hours → human label (jam → hari when ≥24h). */
+function fmtDelay(hours: number): string {
+  if (hours <= 0) return "Langsung";
+  if (hours < 24) return `Tunggu ${hours} jam`;
+  const days = Math.round(hours / 24);
+  return `Tunggu ${days} hari`;
+}
+
+function fmtRelID(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diff = Date.now() - d.getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "Baru saja";
+  if (h < 24) return `${h} jam lalu`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `${days} hari lalu`;
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
 
 export default function CadencesPage() {
-  const [showArchived, setShowArchived] = useState(false); // doc 49 — Arsip view
-  const { data: cadences, isLoading } = useCadences(showArchived);
-  const reduce = useReducedMotion();
-  const [channelFilter, setChannelFilter] = useState<
-    (typeof CHANNEL_CHIPS)[number]["key"]
-  >("all");
-  const [statusFilter, setStatusFilter] = useState<
-    (typeof STATUS_CHIPS)[number]["key"]
-  >("all");
+  const qc = useQueryClient();
 
-  // Workspace scope (doc 44): ?workspace=<id> filters cadences to that workspace.
-  const workspaceId = useSearchParams().get("workspace");
-  const [wsAll, setWsAll] = useState(false);
+  // live cadences + all enrollments (enrollments resolve the per-cadence enrolled count)
+  const cadencesQ = useQuery({
+    queryKey: ["outreach", "cadences", "list"],
+    queryFn: async () => readJson<CadenceRow[]>(await fetch("/api/cadences")),
+    retry: false,
+  });
+  const enrollmentsQ = useQuery({
+    queryKey: ["outreach", "enrollments", "list"],
+    queryFn: async () => readJson<EnrollmentRow[]>(await fetch("/api/cadences/enrollments")),
+    retry: false,
+  });
+
+  const cadences = useMemo(() => cadencesQ.data ?? [], [cadencesQ.data]);
+  const enrollments = useMemo(() => enrollmentsQ.data ?? [], [enrollmentsQ.data]);
+
+  // enrolled count per cadence (active enrollments) + total active count
+  const enrolledByCadence = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const e of enrollments) {
+      if (e.status === "active") m[e.cadenceId] = (m[e.cadenceId] ?? 0) + 1;
+    }
+    return m;
+  }, [enrollments]);
+
+  // ── tabs ───────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<MainTab>("aktif");
+
+  const trashedQ = useQuery({
+    queryKey: ["outreach", "cadences", "trashed"],
+    enabled: tab === "sampah",
+    queryFn: async () => readJson<CadenceRow[]>(await fetch("/api/cadences/trashed")),
+    retry: false,
+  });
+  const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
+
+  // ── filters ──────────────────────────────────────────────────────────────────
+  const [statusF, setStatusF] = useState<"all" | "active" | "paused" | "archived">("all");
+  const [search, setSearch] = useState("");
+
+  const stats = useMemo(() => {
+    let steps = 0;
+    let active = 0;
+    let paused = 0;
+    for (const c of cadences) {
+      steps += c.stepCount;
+      if (c.status === "active") active++;
+      else if (c.status === "paused") paused++;
+    }
+    const enrolled = Object.values(enrolledByCadence).reduce((a, b) => a + b, 0);
+    return { total: cadences.length, steps, active, paused, enrolled };
+  }, [cadences, enrolledByCadence]);
+
   const visible = useMemo(() => {
-    const list = cadences ?? [];
-    return list.filter((c) => {
-      const channelOk =
-        channelFilter === "all" ||
-        c.channelMix.includes(channelFilter as CadenceStepChannel);
-      const statusOk = statusFilter === "all" || c.status === statusFilter;
-      const wsOk = !workspaceId || wsAll || (c as { workspaceId?: string | null }).workspaceId === workspaceId;
-      return channelOk && statusOk && wsOk;
+    const q = search.trim().toLowerCase();
+    return cadences.filter((c) => {
+      const okStatus = statusF === "all" || c.status === statusF;
+      const okSearch =
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        (c.description ?? "").toLowerCase().includes(q);
+      return okStatus && okSearch;
     });
-  }, [cadences, channelFilter, statusFilter, workspaceId, wsAll]);
+  }, [cadences, statusF, search]);
 
-  const summary = useMemo(() => {
-    // KPI must describe the VISIBLE (filtered + workspace-scoped) set, not the
-    // tenant-wide list — otherwise pills and cards describe different populations.
-    const list = visible;
-    const active = list.filter((c) => c.status === "active");
-    const enrolled = list.reduce((s, c) => s + c.enrolled, 0);
-    // Average reply rate across cadences that actually have an audience
-    // (enrolled > 0), INCLUDING the 0%-reply ones — filtering those out of the
-    // denominator biased the headline upward (e.g. "32%" while half reply 0%).
-    const replyRates = list.filter((c) => c.enrolled > 0).map((c) => c.replyRate);
-    const avgReply =
-      replyRates.length > 0
-        ? Math.round(
-            replyRates.reduce((s, r) => s + r, 0) / replyRates.length,
-          )
-        : 0;
-    return { activeCount: active.length, enrolled, avgReply };
-  }, [visible]);
+  const visibleTrashed = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return trashed;
+    return trashed.filter((c) => c.name.toLowerCase().includes(q));
+  }, [trashed, search]);
+
+  // ── drawer ───────────────────────────────────────────────────────────────────
+  const [openId, setOpenId] = useState<string | null>(null);
+  const active = useMemo(() => cadences.find((c) => c.id === openId) ?? null, [cadences, openId]);
+
+  useEffect(() => {
+    if (!openId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openId]);
+
+  // ── confirm targets ──────────────────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<CadenceRow | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<CadenceRow | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<CadenceRow | null>(null);
+  const [purgeConfirm, setPurgeConfirm] = useState("");
+
+  // ── mutations ──────────────────────────────────────────────────────────────
+  function refreshAll() {
+    qc.invalidateQueries({ queryKey: ["outreach", "cadences"] });
+    qc.invalidateQueries({ queryKey: ["outreach", "enrollments"] });
+  }
+
+  // SOFT delete — moves an active cadence into "Sampah" (cascades to steps + enrollments).
+  const softDelete = useMutation({
+    mutationFn: async (c: CadenceRow) =>
+      readJson<{ id: string; deleted: boolean }>(
+        await fetch(`/api/cadences/${c.id}`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, c) => {
+      toast.success(`"${c.name}" dipindah ke Sampah`);
+      refreshAll();
+      setDeleteTarget(null);
+      if (openId === c.id) setOpenId(null);
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus cadence");
+      setDeleteTarget(null);
+    },
+  });
+
+  // RESTORE — clears deleted_at, returning the cadence to the active tab.
+  const restore = useMutation({
+    mutationFn: async (c: CadenceRow) =>
+      readJson<CadenceRow>(await fetch(`/api/cadences/${c.id}/restore`, { method: "PATCH" })),
+    onSuccess: (_res, c) => {
+      toast.success(`"${c.name}" dipulihkan`);
+      refreshAll();
+      qc.invalidateQueries({ queryKey: ["outreach", "cadences", "trashed"] });
+      setRestoreTarget(null);
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal memulihkan cadence");
+      setRestoreTarget(null);
+    },
+  });
+
+  // HARD delete (purge) — permanent removal from trash. Irreversible.
+  const purge = useMutation({
+    mutationFn: async (c: CadenceRow) =>
+      readJson<{ id: string; purged: boolean }>(
+        await fetch(`/api/cadences/${c.id}?purge=1`, { method: "DELETE" }),
+      ),
+    onSuccess: (_res, c) => {
+      toast.success(`"${c.name}" dihapus permanen`);
+      qc.invalidateQueries({ queryKey: ["outreach", "cadences", "trashed"] });
+      setPurgeTarget(null);
+      setPurgeConfirm("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
+  });
+
+  // ── top-level loading / error ────────────────────────────────────────────────
+  const listError = cadencesQ.isError;
+  const forbidden = cadencesQ.error instanceof Error && cadencesQ.error.message === "forbidden";
 
   return (
     <div>
-      <PageHeader title="Cadence" description="Rangkaian pesan lintas channel — dijalankan manual via “Jalankan sekarang”.">
-        <div className="flex items-center gap-2">
-          <RunAutoReplyButton />
-          <RunUpsellButton />
-          <RunCadencesButton scopeWorkspaceId={workspaceId && !wsAll ? workspaceId : null} />
-          <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived((v) => !v)}>
-            {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-            {showArchived ? "Aktif" : "Arsip"}
-          </Button>
-          <Button asChild>
-            <Link href="/cadences/new">
-              <Plus className="h-4 w-4" />
-              Buat cadence
-            </Link>
-          </Button>
-        </div>
+      <PageHeader
+        title="Cadence"
+        description="Urutan follow-up otomatis lintas channel (WhatsApp · Email · Telepon). Tiap step menunggu jeda lalu mengirim template. Klik baris untuk lihat & edit step + daftarkan kontak."
+      >
+        <Button asChild size="sm">
+          <a href="/cadences/new">
+            <Plus className="h-4 w-4" /> Cadence baru
+          </a>
+        </Button>
       </PageHeader>
 
       <div className="space-y-5 p-6">
-        {workspaceId && (
-          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-            <span>Difilter ke <b>workspace ini</b> — {wsAll ? "semua cadence" : "cadence workspace ini saja"}.</span>
-            <button onClick={() => setWsAll((v) => !v)} className="ml-auto text-xs text-primary hover:underline">
-              {wsAll ? "Workspace saja" : "Lihat semua"}
+        {/* ============ STAT STRIP ============ */}
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total cadence"
+            value={cadencesQ.isLoading ? null : stats.total}
+            hint="urutan follow-up"
+          />
+          <StatCard
+            label="Total step"
+            value={cadencesQ.isLoading ? null : stats.steps}
+            hint="di semua cadence"
+          />
+          <StatCard
+            label="Kontak ter-enroll"
+            value={enrollmentsQ.isLoading ? null : stats.enrolled}
+            hint="enrollment aktif"
+            valueClass="text-tertiary"
+          />
+          <StatCard
+            label="Aktif berjalan"
+            value={cadencesQ.isLoading ? null : stats.active}
+            hint="status aktif"
+            valueClass="text-success"
+          />
+        </section>
+
+        {/* ============ MAIN TABS: Aktif | Sampah ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "aktif"} onClick={() => setTab("aktif")}>
+            <Workflow className="h-4 w-4" />
+            Aktif
+            <CountPill>{cadences.length}</CountPill>
+          </TabButton>
+          <TabButton active={tab === "sampah"} onClick={() => setTab("sampah")}>
+            <Trash2 className="h-4 w-4" />
+            Sampah
+            {trashed.length > 0 && (
+              <span className="rounded-full bg-destructive/[0.12] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-destructive">
+                {trashed.length}
+              </span>
+            )}
+          </TabButton>
+        </div>
+
+        {tab === "aktif" ? (
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            {/* TOOLBAR: status segmented control + search */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-border px-4 py-3">
+              <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+                {(
+                  [
+                    { v: "all", label: "Semua" },
+                    { v: "active", label: "Aktif" },
+                    { v: "paused", label: "Jeda" },
+                    { v: "archived", label: "Arsip" },
+                  ] as const
+                ).map((s) => (
+                  <button
+                    key={s.v}
+                    type="button"
+                    onClick={() => setStatusF(s.v)}
+                    className={cn(
+                      "h-7 rounded-md px-3.5 text-xs transition-colors",
+                      statusF === s.v
+                        ? "bg-card font-semibold text-foreground shadow-sm"
+                        : "font-medium text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* inline search */}
+              <div className="relative ml-auto w-44">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter nama cadence…"
+                  className="h-7 w-full rounded-lg border border-transparent bg-muted/60 pl-8 pr-2.5 text-xs focus:border-border focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
+
+              <span className="text-[11px] text-muted-foreground">
+                <b className="text-foreground">{visible.length}</b> hasil
+              </span>
+            </div>
+
+            {/* TABLE */}
+            {cadencesQ.isLoading ? (
+              <TableLoading />
+            ) : listError ? (
+              <ErrorState
+                className="border-0"
+                title={forbidden ? "Tidak punya akses" : "Gagal memuat cadence"}
+                description={
+                  forbidden
+                    ? "Akun kamu tidak punya izin baca data (data.read). Hubungi admin workspace."
+                    : "Tidak bisa mengambil daftar cadence. Pastikan kamu login & database tersedia."
+                }
+                onRetry={() => cadencesQ.refetch()}
+              />
+            ) : cadences.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Workflow}
+                title="Belum ada cadence"
+                description="Cadence adalah urutan follow-up otomatis. Buat satu, tambahkan step (WA / Email / Telepon + jeda + template), lalu daftarkan kontak."
+                action={
+                  <Button asChild size="sm">
+                    <a href="/cadences/new">
+                      <Plus className="h-4 w-4" /> Cadence baru
+                    </a>
+                  </Button>
+                }
+              />
+            ) : visible.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Search}
+                title="Tidak ada cadence yang cocok"
+                description="Coba ubah filter status atau kata kunci pencarian."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[820px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-3 font-semibold">Nama cadence</th>
+                      <th className="px-3 py-3 font-semibold">Channel</th>
+                      <th className="px-3 py-3 font-semibold">Step</th>
+                      <th className="px-3 py-3 font-semibold">Ter-enroll</th>
+                      <th className="px-3 py-3 font-semibold">Status</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visible.map((c) => (
+                      <CadenceTableRow
+                        key={c.id}
+                        cadence={c}
+                        enrolled={enrolledByCadence[c.id] ?? 0}
+                        onOpen={() => setOpenId(c.id)}
+                        onDelete={() => setDeleteTarget(c)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ) : (
+          /* ============ SAMPAH (trash) view ============ */
+          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs">
+              <span className="text-muted-foreground">
+                Cadence yang dihapus disimpan di sini. <b>Pulihkan</b> mengembalikannya ke tab
+                Aktif (beserta step &amp; enrollment), <b>Hapus permanen</b> menghapus selamanya.
+              </span>
+              <span className="ml-auto text-muted-foreground">
+                {visibleTrashed.length} dari {trashed.length} cadence
+              </span>
+            </div>
+
+            {trashedQ.isLoading ? (
+              <TableLoading />
+            ) : trashedQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat sampah"
+                description="Tidak bisa mengambil cadence yang dihapus."
+                onRetry={() => trashedQ.refetch()}
+              />
+            ) : visibleTrashed.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Trash2}
+                title={trashed.length === 0 ? "Sampah kosong" : "Tidak ada yang cocok"}
+                description={
+                  trashed.length === 0
+                    ? "Cadence yang kamu hapus akan muncul di sini dan bisa dipulihkan."
+                    : "Coba ubah kata kunci pencarian."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-3 font-semibold">Nama cadence</th>
+                      <th className="px-3 py-3 font-semibold">Step</th>
+                      <th className="px-3 py-3 font-semibold">Dihapus</th>
+                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visibleTrashed.map((c) => (
+                      <TrashedTableRow
+                        key={c.id}
+                        cadence={c}
+                        onRestore={() => setRestoreTarget(c)}
+                        onPurge={() => {
+                          setPurgeTarget(c);
+                          setPurgeConfirm("");
+                        }}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Legend */}
+        <p className="max-w-3xl text-[11px] text-muted-foreground">
+          Channel step:{" "}
+          <ChannelLegend channel="wa" /> · <ChannelLegend channel="email" /> ·{" "}
+          <ChannelLegend channel="call" />. Klik baris → panel kanan (edit cadence + step
+          berurutan + daftarkan kontak).
+        </p>
+      </div>
+
+      {/* ===================== RIGHT DRAWER ===================== */}
+      <div
+        onClick={() => setOpenId(null)}
+        className={cn(
+          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
+          openId ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-[440px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
+          openId ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {active && (
+          <CadenceDrawer
+            cadence={active}
+            enrolled={enrolledByCadence[active.id] ?? 0}
+            onClose={() => setOpenId(null)}
+            onDelete={() => setDeleteTarget(active)}
+            onChanged={refreshAll}
+          />
+        )}
+      </aside>
+
+      {/* ===================== SOFT-DELETE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
+        title="Pindahkan ke Sampah?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> akan dihapus
+            dan dipindah ke tab <b>Sampah</b> (cascade ke step &amp; enrollment-nya). Kamu masih
+            bisa memulihkannya nanti.
+          </>
+        }
+        confirmLabel="Ya, hapus"
+        confirmPending={softDelete.isPending}
+        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
+      />
+
+      {/* ===================== RESTORE CONFIRM ===================== */}
+      <ConfirmModal
+        open={!!restoreTarget}
+        onClose={() => setRestoreTarget(null)}
+        icon={<RotateCcw className="h-5 w-5" />}
+        tone="tertiary"
+        title="Pulihkan cadence?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{restoreTarget?.name}</span> akan
+            dikembalikan ke tab <b>Aktif</b> beserta step &amp; enrollment-nya.
+          </>
+        }
+        confirmLabel="Ya, pulihkan"
+        confirmPending={restore.isPending}
+        onConfirm={() => restoreTarget && restore.mutate(restoreTarget)}
+      />
+
+      {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setPurgeTarget(null);
+            setPurgeConfirm("");
+          }
+        }}
+        className={cn(
+          "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
+        <div
+          className={cn(
+            "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
+            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+                <span className="font-medium text-foreground">{purgeTarget?.name}</span> akan
+                dihapus selamanya beserta step &amp; enrollment-nya.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="mb-1.5 block text-[12px] text-muted-foreground">
+              Ketik{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
+                HAPUS
+              </code>{" "}
+              untuk konfirmasi.
+            </label>
+            <input
+              type="text"
+              value={purgeConfirm}
+              onChange={(e) => setPurgeConfirm(e.target.value)}
+              placeholder="HAPUS"
+              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
+            />
+          </div>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              onClick={() => {
+                setPurgeTarget(null);
+                setPurgeConfirm("");
+              }}
+              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Batal
+            </button>
+            <button
+              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
+              disabled={purge.isPending || purgeConfirm.trim().toUpperCase() !== "HAPUS"}
+              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
             </button>
           </div>
-        )}
-        {/* KPI strip — scoped to the visible (filtered) cadences */}
-        <KpiStrip className="lg:grid-cols-3">
-          <KpiTile icon={<Sparkles className="h-5 w-5" />} accent="#FB5E3B" label="Cadence aktif" count={summary.activeCount} />
-          <KpiTile icon={<Users className="h-5 w-5" />} accent="#14B8A6" label="Total enrolled" count={summary.enrolled} />
-          <KpiTile icon={<TrendingUp className="h-5 w-5" />} accent="#F59E0B" label="Avg reply rate" count={summary.avgReply} suffix="%" />
-        </KpiStrip>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Filter chips — channel + status */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {CHANNEL_CHIPS.map((f) => {
-              const active = channelFilter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setChannelFilter(f.key)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
-                    active
-                      ? "border-primary bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_rgba(251,94,59,0.55)]"
-                      : "bg-card text-muted-foreground hover:-translate-y-px hover:text-foreground hover:shadow-sm",
-                  )}
-                >
-                  {f.key !== "all" && (
-                    <ChannelDot channel={f.key} size={8} />
-                  )}
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {STATUS_CHIPS.map((f) => {
-              const active = statusFilter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setStatusFilter(f.key)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
-                    active
-                      ? "border-tertiary/40 bg-tertiary/10 text-tertiary"
-                      : "bg-card text-muted-foreground hover:text-foreground hover:shadow-sm",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className={cn("h-1.5 w-1.5 rounded-full", f.dot)}
-                  />
-                  {f.label}
-                </button>
-              );
-            })}
+// ───────────────────────── drawer (view/edit cadence + steps + enroll) ─────────
+
+function CadenceDrawer({
+  cadence,
+  enrolled,
+  onClose,
+  onDelete,
+  onChanged,
+}: {
+  cadence: CadenceRow;
+  enrolled: number;
+  onClose: () => void;
+  onDelete: () => void;
+  onChanged: () => void;
+}) {
+  const qc = useQueryClient();
+
+  // ── editable cadence header (name/description/status) ──────────────────────
+  const [name, setName] = useState(cadence.name);
+  const [description, setDescription] = useState(cadence.description ?? "");
+  const [status, setStatus] = useState(cadence.status);
+
+  // Re-seed local form whenever a different cadence opens.
+  useEffect(() => {
+    setName(cadence.name);
+    setDescription(cadence.description ?? "");
+    setStatus(cadence.status);
+  }, [cadence.id, cadence.name, cadence.description, cadence.status]);
+
+  const dirty =
+    name.trim() !== cadence.name ||
+    description !== (cadence.description ?? "") ||
+    status !== cadence.status;
+
+  // ── ordered steps ──────────────────────────────────────────────────────────
+  const stepsQ = useQuery({
+    queryKey: ["outreach", "cadence-steps", cadence.id],
+    queryFn: async () => readJson<StepRow[]>(await fetch(`/api/cadences/${cadence.id}/steps`)),
+    retry: false,
+  });
+  const steps = useMemo(() => stepsQ.data ?? [], [stepsQ.data]);
+
+  function refreshSteps() {
+    qc.invalidateQueries({ queryKey: ["outreach", "cadence-steps", cadence.id] });
+    onChanged();
+  }
+
+  // PATCH cadence header
+  const saveCadence = useMutation({
+    mutationFn: async () =>
+      readJson<CadenceRow>(
+        await fetch(`/api/cadences/${cadence.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            description: description.trim() || null,
+            status,
+          }),
+        }),
+      ),
+    onSuccess: () => {
+      toast.success("Cadence diperbarui");
+      onChanged();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan cadence"),
+  });
+
+  // POST a new step (appended to the end)
+  const addStep = useMutation({
+    mutationFn: async (vars: { channel: StepChannel; delayHours: number; subject: string | null; template: string }) =>
+      readJson<StepRow>(
+        await fetch(`/api/cadences/${cadence.id}/steps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(vars),
+        }),
+      ),
+    onSuccess: () => {
+      toast.success("Step ditambahkan");
+      refreshSteps();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menambah step"),
+  });
+
+  // PATCH a step
+  const saveStep = useMutation({
+    mutationFn: async (vars: { id: string; patch: Partial<Pick<StepRow, "channel" | "delayHours" | "subject" | "template">> }) =>
+      readJson<StepRow>(
+        await fetch(`/api/cadences/steps/${vars.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(vars.patch),
+        }),
+      ),
+    onSuccess: () => {
+      toast.success("Step diperbarui");
+      refreshSteps();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan step"),
+  });
+
+  // DELETE a step (soft delete — backend de-counts step_count)
+  const deleteStep = useMutation({
+    mutationFn: async (id: string) =>
+      readJson<{ id: string; deleted: boolean }>(
+        await fetch(`/api/cadences/steps/${id}`, { method: "DELETE" }),
+      ),
+    onSuccess: () => {
+      toast.success("Step dihapus");
+      refreshSteps();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus step"),
+  });
+
+  // ── enroll contacts ────────────────────────────────────────────────────────
+  const [enrollOpen, setEnrollOpen] = useState(false);
+
+  return (
+    <>
+      {/* header */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/[0.12] text-primary">
+            <Workflow className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold text-foreground">{cadence.name}</h2>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {cadence.stepCount} step · {enrolled} ter-enroll
+            </p>
           </div>
         </div>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
 
-        {/* Cadence cards grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {isLoading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-52 w-full rounded-2xl" />
-              ))
-            : visible.map((c, i) => {
-                const accent = primaryAccent(c.channelMix);
-                const status = STATUS[c.status];
-                const isMulti = c.channelMix.length >= 3;
+      {/* body */}
+      <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+        {/* (A) CADENCE HEADER — editable */}
+        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Nama
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-8 w-full rounded-lg border border-border bg-card px-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Deskripsi
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tujuan cadence ini…"
+              className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Status
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(["active", "paused", "archived"] as const).map((s) => {
+                const meta = STATUS_META[s];
+                const on = status === s;
                 return (
-                  <motion.div
-                    key={c.id}
-                    initial={reduce ? false : { opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.32,
-                      ease: "easeOut",
-                      delay: reduce ? 0 : Math.min(i * 0.04, 0.32),
-                    }}
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatus(s)}
+                    className={cn(
+                      "h-7 rounded-full px-3 text-xs transition-colors",
+                      on
+                        ? cn("font-semibold", meta.cls)
+                        : "border border-border bg-card font-medium text-foreground/70 hover:border-primary/40",
+                    )}
                   >
-                    <Link href={`/cadences/${c.id}`} className="block h-full">
-                      <Card
-                        className={cn(
-                          "group relative h-full overflow-hidden border transition-all duration-200 ease-out",
-                        )}
-                        style={
-                          {
-                            // CSS vars feed the dynamic per-channel border tint
-                            "--cad-border": accent.hex,
-                            "--cad-halo": accent.hex,
-                            borderColor: isMulti
-                              ? undefined
-                              : `${accent.hex}33`,
-                          } as React.CSSProperties
-                        }
-                      >
-                        {/* Top channel-tinted strip */}
-                        <span
-                          aria-hidden
-                          className="absolute inset-x-0 top-0 h-1"
-                          style={{
-                            background: isMulti
-                              ? "linear-gradient(90deg, #FB5E3B 0%, #F59E0B 50%, #14B8A6 100%)"
-                              : `linear-gradient(90deg, ${accent.hex}cc, ${accent.hex}33)`,
-                          }}
-                        />
-                        {/* Soft corner halo using the channel hex */}
-                        <span
-                          aria-hidden
-                          className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-60 blur-2xl transition-opacity duration-300 group-hover:opacity-90"
-                          style={{
-                            background: `radial-gradient(circle at center, ${accent.hex}22, transparent 70%)`,
-                          }}
-                        />
-
-                        <CardContent className="relative flex h-full flex-col p-5 pt-6">
-                          <div className="flex items-start justify-between gap-2">
-                            <span
-                              className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105"
-                              style={{
-                                backgroundColor: `${accent.hex}1A`,
-                                color: accent.hex,
-                              }}
-                            >
-                              <Workflow className="h-5 w-5" />
-                            </span>
-                            <Badge variant={status.variant}>
-                              {status.label}
-                            </Badge>
-                          </div>
-
-                          <h3 className="mt-3 line-clamp-2 font-semibold leading-snug">
-                            {c.name}
-                          </h3>
-
-                          {/* Channel mix big dots row */}
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="flex items-center gap-1">
-                              {c.channelMix.map((ch) => (
-                                <ChannelDot key={ch} channel={ch} size={10} />
-                              ))}
-                            </div>
-                            <span className="tnum text-xs font-medium text-muted-foreground">
-                              · {c.steps.length} langkah
-                            </span>
-                          </div>
-
-                          {/* Footer with enrolled + reply rate */}
-                          <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-3 text-sm">
-                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                              <Users className="h-4 w-4" />
-                              <span className="tnum font-medium text-foreground">
-                                {c.enrolled}
-                              </span>
-                              <span className="text-xs">kontak</span>
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <MessageCircle
-                                className={cn(
-                                  "h-3.5 w-3.5",
-                                  c.replyRate >= 25
-                                    ? "text-tertiary"
-                                    : "text-muted-foreground",
-                                )}
-                              />
-                              <span
-                                className={cn(
-                                  "tnum text-sm font-semibold",
-                                  c.replyRate >= 25
-                                    ? "text-tertiary"
-                                    : "text-foreground",
-                                )}
-                              >
-                                {c.replyRate}%
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                balas
-                              </span>
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  </motion.div>
+                    {meta.label}
+                  </button>
                 );
               })}
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-0.5">
+            {dirty && (
+              <button
+                type="button"
+                onClick={() => {
+                  setName(cadence.name);
+                  setDescription(cadence.description ?? "");
+                  setStatus(cadence.status);
+                }}
+                className="h-7 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Reset
+              </button>
+            )}
+            <Button
+              size="sm"
+              disabled={!dirty || !name.trim() || saveCadence.isPending}
+              onClick={() => saveCadence.mutate()}
+            >
+              <Check className="h-3.5 w-3.5" />
+              {saveCadence.isPending ? "Menyimpan…" : "Simpan"}
+            </Button>
+          </div>
         </div>
 
-        {/* Empty state — coral-tinted, not grey */}
-        {!isLoading && visible.length === 0 && (
-          <Card className="border-primary/15 bg-gradient-to-br from-primary/5 via-card to-tertiary/5">
-            <CardContent className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Workflow className="h-6 w-6" />
+        {/* (B) ORDERED STEPS */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <Layers className="h-3.5 w-3.5" /> Step berurutan
+            </h3>
+            <span className="text-[11px] text-muted-foreground">{steps.length} step</span>
+          </div>
+
+          {stepsQ.isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : stepsQ.isError ? (
+            <ErrorState
+              className="border-0 py-6"
+              title="Gagal memuat step"
+              description="Tidak bisa mengambil step cadence ini."
+              onRetry={() => stepsQ.refetch()}
+            />
+          ) : steps.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center">
+              <p className="text-[12px] text-muted-foreground">
+                Belum ada step. Tambahkan step pertama agar kontak bisa di-enroll.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {steps.map((step, i) => (
+                <StepEditor
+                  key={step.id}
+                  step={step}
+                  index={i}
+                  isLast={i === steps.length - 1}
+                  onSave={(patch) => saveStep.mutate({ id: step.id, patch })}
+                  saving={saveStep.isPending && saveStep.variables?.id === step.id}
+                  onDelete={() => deleteStep.mutate(step.id)}
+                  deleting={deleteStep.isPending && deleteStep.variables === step.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* add step */}
+          <AddStepForm
+            onAdd={(vars) => addStep.mutate(vars)}
+            pending={addStep.isPending}
+            nextIndex={steps.length}
+          />
+        </div>
+      </div>
+
+      {/* footer */}
+      <div className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-5 py-3">
+        <Button variant="outline" size="sm" onClick={onDelete}>
+          <Trash2 className="h-4 w-4 text-destructive" /> Hapus
+        </Button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={steps.length === 0}
+          onClick={() => setEnrollOpen(true)}
+          title={steps.length === 0 ? "Tambahkan step dulu sebelum enroll" : undefined}
+        >
+          <UserPlus className="h-4 w-4" /> Daftarkan kontak
+        </Button>
+      </div>
+
+      {/* enroll modal */}
+      <EnrollModal
+        open={enrollOpen}
+        cadence={cadence}
+        hasSteps={steps.length > 0}
+        onClose={() => setEnrollOpen(false)}
+        onEnrolled={onChanged}
+      />
+    </>
+  );
+}
+
+// ───────────────────────── step editor (inline edit one step) ─────────────────
+
+function StepEditor({
+  step,
+  index,
+  isLast,
+  onSave,
+  saving,
+  onDelete,
+  deleting,
+}: {
+  step: StepRow;
+  index: number;
+  isLast: boolean;
+  onSave: (patch: Partial<Pick<StepRow, "channel" | "delayHours" | "subject" | "template">>) => void;
+  saving: boolean;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [channel, setChannel] = useState<StepChannel>((step.channel as StepChannel) ?? "wa");
+  const [delayHours, setDelayHours] = useState(step.delayHours);
+  const [subject, setSubject] = useState(step.subject ?? "");
+  const [template, setTemplate] = useState(step.template);
+
+  useEffect(() => {
+    setChannel((step.channel as StepChannel) ?? "wa");
+    setDelayHours(step.delayHours);
+    setSubject(step.subject ?? "");
+    setTemplate(step.template);
+  }, [step.id, step.channel, step.delayHours, step.subject, step.template]);
+
+  const meta = channelOf(step.channel);
+  const Icon = meta.icon;
+
+  if (!editing) {
+    return (
+      <div className="relative">
+        <div className="group flex items-start gap-2.5 rounded-lg border border-border bg-card p-2.5 transition-colors hover:border-primary/40">
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white"
+            style={{ background: meta.color }}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-semibold text-foreground">
+                {index + 1}. {meta.label}
               </span>
-              <div>
-                <p className="text-sm font-medium">
-                  Tidak ada cadence untuk filter ini
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Coba ubah filter channel atau status, atau buat cadence baru.
-                </p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <Clock className="h-2.5 w-2.5" /> {fmtDelay(step.delayHours)}
+              </span>
+            </div>
+            {step.subject && (
+              <p className="mt-0.5 truncate text-[11px] font-medium text-foreground/80">
+                {step.subject}
+              </p>
+            )}
+            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+              {step.template || <span className="italic">Template kosong</span>}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              title="Edit step"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting}
+              title="Hapus step"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+        {!isLast && (
+          <div className="flex justify-center py-0.5 text-muted-foreground/50">
+            <ArrowDown className="h-3 w-3" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="space-y-2.5 rounded-lg border border-primary/40 bg-accent/40 p-3">
+        {/* channel + delay */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+            {STEP_CHANNELS.map((c) => {
+              const cm = channelOf(c);
+              const on = channel === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setChannel(c)}
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] transition-colors",
+                    on ? "bg-card font-semibold text-foreground shadow-sm" : "font-medium text-muted-foreground",
+                  )}
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ background: cm.color }} /> {cm.short}
+                </button>
+              );
+            })}
+          </div>
+          <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Clock className="h-3 w-3" /> Jeda
+            <input
+              type="number"
+              min={0}
+              value={delayHours}
+              onChange={(e) => setDelayHours(Math.max(0, Number(e.target.value) || 0))}
+              className="h-7 w-16 rounded-md border border-border bg-card px-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+            />
+            jam
+          </label>
+        </div>
+        {/* subject (email only) */}
+        {channel === "email" && (
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Subjek email…"
+            className="h-8 w-full rounded-lg border border-border bg-card px-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+          />
+        )}
+        {/* template */}
+        <textarea
+          rows={3}
+          value={template}
+          onChange={(e) => setTemplate(e.target.value)}
+          placeholder="Isi pesan / skrip telepon…"
+          className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+        />
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="h-7 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Batal
+          </button>
+          <Button
+            size="sm"
+            disabled={saving}
+            onClick={() => {
+              onSave({
+                channel,
+                delayHours,
+                subject: channel === "email" ? subject.trim() || null : null,
+                template,
+              });
+              setEditing(false);
+            }}
+          >
+            <Check className="h-3.5 w-3.5" /> {saving ? "Menyimpan…" : "Simpan step"}
+          </Button>
+        </div>
+      </div>
+      {!isLast && (
+        <div className="flex justify-center py-0.5 text-muted-foreground/50">
+          <ArrowDown className="h-3 w-3" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────── add step form ──────────────────────────────────────
+
+function AddStepForm({
+  onAdd,
+  pending,
+  nextIndex,
+}: {
+  onAdd: (vars: { channel: StepChannel; delayHours: number; subject: string | null; template: string }) => void;
+  pending: boolean;
+  nextIndex: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [channel, setChannel] = useState<StepChannel>("wa");
+  const [delayHours, setDelayHours] = useState(24);
+  const [subject, setSubject] = useState("");
+  const [template, setTemplate] = useState("");
+
+  function reset() {
+    setChannel("wa");
+    setDelayHours(24);
+    setSubject("");
+    setTemplate("");
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-[12px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+      >
+        <Plus className="h-3.5 w-3.5" /> Tambah step {nextIndex + 1}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-2.5 rounded-lg border border-primary/40 bg-accent/40 p-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+          {STEP_CHANNELS.map((c) => {
+            const cm = channelOf(c);
+            const on = channel === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setChannel(c)}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] transition-colors",
+                  on ? "bg-card font-semibold text-foreground shadow-sm" : "font-medium text-muted-foreground",
+                )}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ background: cm.color }} /> {cm.short}
+              </button>
+            );
+          })}
+        </div>
+        <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Clock className="h-3 w-3" /> Jeda
+          <input
+            type="number"
+            min={0}
+            value={delayHours}
+            onChange={(e) => setDelayHours(Math.max(0, Number(e.target.value) || 0))}
+            className="h-7 w-16 rounded-md border border-border bg-card px-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+          />
+          jam
+        </label>
+      </div>
+      {channel === "email" && (
+        <input
+          type="text"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Subjek email…"
+          className="h-8 w-full rounded-lg border border-border bg-card px-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+        />
+      )}
+      <textarea
+        rows={3}
+        value={template}
+        onChange={(e) => setTemplate(e.target.value)}
+        placeholder="Isi pesan / skrip telepon…"
+        className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+      />
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            reset();
+          }}
+          className="h-7 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Batal
+        </button>
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            onAdd({
+              channel,
+              delayHours,
+              subject: channel === "email" ? subject.trim() || null : null,
+              template,
+            })
+          }
+        >
+          <Plus className="h-3.5 w-3.5" /> {pending ? "Menambah…" : "Tambah step"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────── enroll modal (contact picker) ──────────────────────
+
+function EnrollModal({
+  open,
+  cadence,
+  hasSteps,
+  onClose,
+  onEnrolled,
+}: {
+  open: boolean;
+  cadence: CadenceRow;
+  hasSteps: boolean;
+  onClose: () => void;
+  onEnrolled: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Contact picker — only fetch when the modal is actually open.
+  const contactsQ = useQuery({
+    queryKey: ["outreach", "enroll-contacts"],
+    enabled: open,
+    queryFn: async () => readJson<ContactRow[]>(await fetch("/api/contacts")),
+    retry: false,
+  });
+  const contacts = useMemo(() => contactsQ.data ?? [], [contactsQ.data]);
+
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setSelected(new Set());
+    }
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) => c.fullName.toLowerCase().includes(q) || (c.title ?? "").toLowerCase().includes(q),
+    );
+  }, [contacts, search]);
+
+  // Enroll the selected contacts one POST at a time (the backend upserts per contact).
+  const enroll = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0;
+      const errors: string[] = [];
+      for (const contactId of ids) {
+        try {
+          await readJson<EnrollmentRow>(
+            await fetch(`/api/cadences/${cadence.id}/enroll`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contactId }),
+            }),
+          );
+          ok++;
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : "gagal");
+        }
+      }
+      return { ok, errors };
+    },
+    onSuccess: (res) => {
+      if (res.ok > 0) toast.success(`${res.ok} kontak didaftarkan ke "${cadence.name}"`);
+      if (res.errors.length > 0)
+        toast.error(`${res.errors.length} kontak gagal didaftarkan (${res.errors[0]})`);
+      onEnrolled();
+      onClose();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mendaftarkan kontak"),
+  });
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex max-h-[80vh] w-full max-w-md flex-col rounded-lg border border-border bg-card shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+              <UserPlus className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Daftarkan kontak</h3>
+              <p className="text-[11px] text-muted-foreground">ke cadence “{cadence.name}”</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {!hasSteps ? (
+          <div className="px-5 py-8">
+            <EmptyState
+              className="border-0"
+              icon={Layers}
+              title="Cadence belum punya step"
+              description="Tambahkan minimal satu step dulu — step pertama menentukan kapan pesan awal dijadwalkan."
+            />
+          </div>
+        ) : (
+          <>
+            {/* search */}
+            <div className="border-b border-border px-5 py-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari kontak…"
+                  className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
               </div>
-              <Button asChild size="sm" className="mt-1">
-                <Link href="/cadences/new">
-                  <Plus className="h-4 w-4" />
-                  Buat cadence
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* list */}
+            <div className="min-h-[180px] flex-1 overflow-y-auto px-2 py-2">
+              {contactsQ.isLoading ? (
+                <div className="space-y-1.5 px-3 py-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : contactsQ.isError ? (
+                <ErrorState
+                  className="border-0 py-8"
+                  title="Gagal memuat kontak"
+                  description="Tidak bisa mengambil daftar kontak untuk enroll."
+                  onRetry={() => contactsQ.refetch()}
+                />
+              ) : filtered.length === 0 ? (
+                <EmptyState
+                  className="border-0 py-8"
+                  icon={Users}
+                  title={contacts.length === 0 ? "Belum ada kontak" : "Tidak ada yang cocok"}
+                  description={
+                    contacts.length === 0
+                      ? "Jalankan Discovery / Enrichment dulu untuk mendapatkan kontak."
+                      : "Coba kata kunci lain."
+                  }
+                />
+              ) : (
+                <div className="space-y-0.5">
+                  {filtered.map((c) => {
+                    const on = selected.has(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggle(c.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors",
+                          on ? "bg-primary/[0.08]" : "hover:bg-muted/60",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                            on ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                          )}
+                        >
+                          {on && <Check className="h-3 w-3" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-foreground">
+                            {c.fullName}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {c.title || "Perorangan"}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* footer */}
+            <div className="flex items-center justify-between border-t border-border px-5 py-3">
+              <span className="text-[12px] text-muted-foreground">
+                <b className="text-foreground">{selected.size}</b> dipilih
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onClose}
+                  className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+                >
+                  Batal
+                </button>
+                <Button
+                  size="sm"
+                  className="h-9"
+                  disabled={selected.size === 0 || enroll.isPending}
+                  onClick={() => enroll.mutate(Array.from(selected))}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  {enroll.isPending ? "Mendaftarkan…" : `Daftarkan ${selected.size || ""}`.trim()}
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-// ── Pieces ───────────────────────────────────────────────────────────────
+// ───────────────────────── list rows / shared bits ─────────────────────────────
 
-// Runs all due enrollments now (Fase 5 slice 2): personalize → dispatch email
-// to the send queue / queue other channels → advance each enrollment.
-function RunCadencesButton({ scopeWorkspaceId }: { scopeWorkspaceId?: string | null }) {
-  const [pending, setPending] = useState(false);
-  async function run() {
-    setPending(true);
-    try {
-      // Scope the run to the active workspace so we don't blast every workspace.
-      const url = scopeWorkspaceId
-        ? `/api/cadences/process?workspace=${encodeURIComponent(scopeWorkspaceId)}`
-        : "/api/cadences/process";
-      const r = await fetch(url, { method: "POST" });
-      const j = await r.json();
-      if (j?.source === "mock") {
-        toast.info("Mode demo — sambungkan database untuk benar-benar menjalankan cadence.");
-        return;
-      }
-      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
-      const s = j.summary as {
-        dueEnrollments: number;
-        emailQueued: number;
-        waSent: number;
-        otherQueued: number;
-        completed: number;
-        skipped: number;
-        failed: number;
-      };
-      if (s.dueEnrollments === 0) {
-        toast.info("Tidak ada langkah cadence yang jatuh tempo saat ini.");
-      } else {
-        toast.success(
-          `Cadence dijalankan — ${s.emailQueued} email antri${s.waSent ? `, ${s.waSent} WhatsApp terkirim` : ""}, ${s.otherQueued} channel lain antri, ${s.completed} selesai${s.skipped ? `, ${s.skipped} dilewati` : ""}.`,
-        );
-      }
-    } catch (e) {
-      toast.error(`Gagal menjalankan cadence (${e instanceof Error ? e.message : e})`);
-    } finally {
-      setPending(false);
-    }
-  }
+function StatCard({
+  label,
+  value,
+  hint,
+  valueClass,
+}: {
+  label: string;
+  value: number | null;
+  hint: string;
+  valueClass?: string;
+}) {
   return (
-    <Button variant="outline" onClick={run} disabled={pending}>
-      <Play className="h-4 w-4" />
-      {pending ? "Menjalankan…" : "Jalankan sekarang"}
-    </Button>
+    <div className="rounded-lg border border-border bg-card p-4 shadow-soft">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        {value == null ? (
+          <Skeleton className="h-7 w-12" />
+        ) : (
+          <span className={cn("text-2xl font-bold tabular-nums", valueClass)}>
+            {value.toLocaleString("id-ID")}
+          </span>
+        )}
+      </div>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
   );
 }
 
-// Autonomous auto-reply + escalation (doc 36): draft + judge inbound chats,
-// auto-send when confident + opted in, else escalate to a human.
-function RunAutoReplyButton() {
-  const [pending, setPending] = useState(false);
-  async function run() {
-    setPending(true);
-    try {
-      const r = await fetch("/api/engagement/auto-reply", { method: "POST" });
-      const j = await r.json();
-      if (j?.source === "mock") {
-        toast.info("Mode demo — sambungkan database untuk menjalankan auto-reply.");
-        return;
-      }
-      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
-      const s = j.summary as {
-        candidates: number;
-        sent: number;
-        escalated: number;
-        skipped: number;
-        failed: number;
-        autoSend: boolean;
-      };
-      if (s.candidates === 0) {
-        toast.info("Tidak ada percakapan yang menunggu balasan.");
-      } else {
-        toast.success(
-          `Auto-reply — ${s.sent} terkirim, ${s.escalated} escalate ke manusia${s.failed ? `, ${s.failed} gagal` : ""}${s.autoSend ? "" : " (auto-send OFF)"}.`,
-        );
-      }
-    } catch (e) {
-      toast.error(`Gagal auto-reply (${e instanceof Error ? e.message : e})`);
-    } finally {
-      setPending(false);
-    }
-  }
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <Button variant="outline" onClick={run} disabled={pending}>
-      <MessageCircle className="h-4 w-4" />
-      {pending ? "Memproses…" : "Auto-reply"}
-    </Button>
+    <button
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
-// Autonomous upsell + close (doc 35): offer the KB upsell product to closed-won
-// customers with a Stripe checkout link, via email/WA. Idempotent per contact.
-function RunUpsellButton() {
-  const [pending, setPending] = useState(false);
-  async function run() {
-    setPending(true);
-    try {
-      const r = await fetch("/api/engagement/upsell", { method: "POST" });
-      const j = await r.json();
-      if (j?.source === "mock") {
-        toast.info("Mode demo — sambungkan database untuk menjalankan upsell.");
-        return;
-      }
-      if (!r.ok || !j.ok) throw new Error(j?.error ?? "gagal");
-      const s = j.summary as {
-        candidates: number;
-        sent: number;
-        skipped: number;
-        failed: number;
-        dedup: number;
-      };
-      if (s.candidates === 0) {
-        toast.info("Belum ada customer closed-won untuk di-upsell.");
-      } else {
-        toast.success(
-          `Upsell jalan — ${s.sent} terkirim, ${s.dedup} sudah pernah, ${s.skipped} dilewati${s.failed ? `, ${s.failed} gagal` : ""}.`,
-        );
-      }
-    } catch (e) {
-      toast.error(`Gagal upsell (${e instanceof Error ? e.message : e})`);
-    } finally {
-      setPending(false);
-    }
-  }
+function CountPill({ children }: { children: React.ReactNode }) {
   return (
-    <Button variant="outline" onClick={run} disabled={pending}>
-      <Sparkles className="h-4 w-4" />
-      {pending ? "Memproses…" : "Jalankan upsell"}
-    </Button>
+    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+      {children}
+    </span>
   );
 }
 
+function StatusBadge({ status }: { status: string }) {
+  const meta = STATUS_META[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", meta.cls)}>
+      {meta.label}
+    </span>
+  );
+}
+
+function ChannelLegend({ channel }: { channel: string }) {
+  const meta = channelOf(channel);
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-foreground/70">
+      <span className="h-2 w-2 rounded-full" style={{ background: meta.color }} /> {meta.label}
+    </span>
+  );
+}
+
+function CadenceTableRow({
+  cadence,
+  enrolled,
+  onOpen,
+  onDelete,
+}: {
+  cadence: CadenceRow;
+  enrolled: number;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <tr onClick={onOpen} className="cursor-pointer transition-colors hover:bg-muted/40">
+      <td className="px-3 py-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{cadence.name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {cadence.description || "Tanpa deskripsi"}
+          </p>
+        </div>
+      </td>
+      <td className="px-3 py-3">
+        {/* Channel mix is unknown without loading steps; show generic channel dots
+            keyed by the step count so the column reads as "multi-channel". */}
+        <div className="flex items-center gap-1">
+          {STEP_CHANNELS.map((c) => {
+            const meta = channelOf(c);
+            const Icon = meta.icon;
+            return (
+              <span
+                key={c}
+                title={meta.label}
+                className="flex h-5 w-5 items-center justify-center rounded-full"
+                style={{ background: `${meta.color}1f`, color: meta.color }}
+              >
+                <Icon className="h-2.5 w-2.5" />
+              </span>
+            );
+          })}
+        </div>
+      </td>
+      <td className="px-3 py-3">
+        <span className="inline-flex items-center gap-1 text-sm text-foreground/80">
+          <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+          <b className="tabular-nums">{cadence.stepCount}</b>
+        </span>
+      </td>
+      <td className="px-3 py-3">
+        <span className="inline-flex items-center gap-1 text-sm text-foreground/80">
+          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+          <b className="tabular-nums">{enrolled}</b>
+        </span>
+      </td>
+      <td className="px-3 py-3">
+        <StatusBadge status={cadence.status} />
+      </td>
+      <td className="px-3 py-3 text-right">
+        <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-primary/40"
+          >
+            Buka <ChevronRight className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Hapus (ke Sampah)"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function TrashedTableRow({
+  cadence,
+  onRestore,
+  onPurge,
+}: {
+  cadence: CadenceRow;
+  onRestore: () => void;
+  onPurge: () => void;
+}) {
+  return (
+    <tr className="transition-colors hover:bg-muted/30">
+      <td className="px-3 py-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground/80">{cadence.name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {cadence.description || "Tanpa deskripsi"}
+          </p>
+        </div>
+      </td>
+      <td className="px-3 py-3">
+        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+          <Layers className="h-3.5 w-3.5" />
+          <b className="tabular-nums">{cadence.stepCount}</b>
+        </span>
+      </td>
+      <td className="px-3 py-3 text-xs text-muted-foreground">
+        {fmtRelID(cadence.deletedAt ?? null)}
+      </td>
+      <td className="px-3 py-3 text-right">
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary"
+          >
+            <RotateCcw className="h-3 w-3" /> Pulihkan
+          </button>
+          <button
+            type="button"
+            onClick={onPurge}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3 w-3" /> Hapus permanen
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ConfirmModal({
+  open,
+  onClose,
+  icon,
+  tone,
+  title,
+  body,
+  confirmLabel,
+  confirmPending,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  icon: React.ReactNode;
+  tone: "destructive" | "tertiary";
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  confirmPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              tone === "destructive"
+                ? "bg-destructive/[0.12] text-destructive"
+                : "bg-tertiary/[0.12] text-tertiary",
+            )}
+          >
+            {icon}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold">{title}</h3>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={confirmPending}
+            className={cn(
+              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
+              tone === "destructive"
+                ? "bg-destructive text-white"
+                : "bg-tertiary text-tertiary-foreground",
+            )}
+          >
+            {confirmPending ? "Memproses…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableLoading() {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-4">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="ml-auto h-4 w-20" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}

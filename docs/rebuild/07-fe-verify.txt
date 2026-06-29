@@ -1,0 +1,68 @@
+Module 1 Frontend — Verification Report (Sainskerta Loop Phase 04)
+Date: 2026-06-28
+Commands: `npx tsc --noEmit` then `npm run lint`
+
+================================================================
+RESULT: PASS
+================================================================
+
+--- npx tsc --noEmit ---
+Exit code: 0
+Errors: 0
+Type-check is clean across the whole project, including all new Module 1
+frontend + auth code:
+  - lib/auth/auth.ts (credentials provider -> new app_user/auth_session/membership/tenant)
+  - lib/auth/next-auth.d.ts
+  - lib/db/client.ts
+  - app/register/page.tsx, app/pending/page.tsx, app/onboarding/page.tsx
+  - app/api/auth/{register,password-reset,sessions}/**
+  - app/api/tenant/**  (route.ts, [id]/**, trashed/**)
+  - app/api/onboarding/**  (route.ts, modules/**, verticals/**)
+  - app/api/branding/theme/**
+  - app/api/superadmin/**  (overview, audit, provision, settings, tenants, users)
+  - app/api/entitlements/route.ts
+  - components/auth/auth-sync.tsx
+  - components/layout/user-theme-provider.tsx
+  - app/(app)/layout.tsx
+
+--- npm run lint (next lint) ---
+Exit code: 0
+Errors: 0
+Warnings: 11 (all pre-existing, NONE in Module 1 / auth code)
+  app/(app)/contacts/profiles/page.tsx        — 9 unused-vars warnings
+  app/(app)/settings/diagnostics/page.tsx:514 — 1 unused-var warning (_body)
+  components/shared/table-pagination.tsx:65    — 1 unused-var warning (pageSize)
+
+These warnings are unused imports/vars in OLD pages outside Module 1 scope.
+Per CLAUDE.md, ESLint is intentionally lenient (unused vars are warnings),
+so they do not fail the build and are not Module 1 regressions.
+
+================================================================
+CONCLUSION
+================================================================
+No tsc errors and no lint errors from the new Module 1 frontend or the
+re-pointed next-auth setup. BUILD (tsc) is green as required.
+
+================================================================
+FIX-PASS RE-VERIFICATION (Phase 04 fix tick)
+Date: 2026-06-28
+================================================================
+Re-ran the full type-check and lint on the current working tree to
+confirm no new Module 1 / auth errors were introduced.
+
+--- npx tsc --noEmit ---
+Exit code: 0  (TSC_EXIT=0)
+Errors: 0
+No fixes were required — the new Module 1 frontend + re-pointed
+next-auth code already type-checks clean. No source changes made.
+
+--- npm run lint (next lint) ---
+Exit code: 0  (LINT_EXIT=0)
+Errors: 0
+Warnings: 11 (unchanged, all pre-existing in OLD non-Module-1 pages:
+  app/(app)/contacts/profiles/page.tsx        — 9 unused-vars
+  app/(app)/settings/diagnostics/page.tsx:514 — 1 unused-var (_body)
+  components/shared/table-pagination.tsx:65    — 1 unused-var (pageSize))
+
+CONCLUSION: BUILD (tsc) remains GREEN. No errors to fix in the new
+frontend/auth code; no edits applied.

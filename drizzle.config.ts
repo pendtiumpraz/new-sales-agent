@@ -47,7 +47,10 @@ function findConnectionUrl(): string {
 }
 
 export default defineConfig({
-  schema: "./lib/db/schema.ts",
+  // Legacy prototype tables + rebuild module tables (modules/<domain>/schema.ts).
+  // db:generate emits migration files for both; the rebuild tables use distinct
+  // SQL names so there is no collision with the legacy set.
+  schema: ["./lib/db/schema.ts", "./modules/**/schema.ts"],
   out: "./drizzle/migrations",
   dialect: "postgresql",
   dbCredentials: {

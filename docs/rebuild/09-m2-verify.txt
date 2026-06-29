@@ -1,0 +1,85 @@
+M2 BACKEND VERIFICATION (Workspace + Product) — Sainskerta Loop Phase 03
+========================================================================
+Date: 2026-06-28
+Branch: new-main
+Scope verified: modules/workspace/{schema,repo,service}.ts,
+                modules/product/{schema,repo,service}.ts,
+                modules/index.ts (schema barrel — both registered),
+                app/api/workspace/** (route, [id], [id]/restore, [id]/purge,
+                  [id]/market-fit, [id]/sales-play, trashed),
+                app/api/product/** (route, [id], [id]/restore, [id]/purge, trashed)
+
+RESULT: PASS
+------------------------------------------------------------------------
+
+1) npx tsc --noEmit
+   -> exit 0, NO output. Type-check clean across the whole project,
+      including all new M2 files. No errors.
+
+2) npm run lint  (next lint)
+   -> exit 0. NO errors. Only pre-existing WARNINGS in unrelated legacy
+      files (none in the M2 code):
+        ./app/(app)/contacts/profiles/page.tsx        (9 unused-var warnings)
+        ./app/(app)/settings/diagnostics/page.tsx     (1 unused-var warning)
+        ./components/shared/table-pagination.tsx       (1 unused-var warning)
+      These three files were last touched in commit d9b0814 ("fix(ux): audit
+      batch B …"), predating M2 — confirmed pre-existing, not introduced by
+      this tick. Zero warnings/errors in modules/workspace, modules/product,
+      app/api/workspace, or app/api/product.
+
+CONVENTION CHECK (vs docs/rebuild/06-m1-backend-design.md + tenant reference)
+------------------------------------------------------------------------
+- Modular monolith: modules/<domain>/{schema,repo,service}.ts + THIN routes.  OK
+- Postgres+Drizzle, snake_case SQL / camelCase props.                          OK
+- NO foreign keys: product_id / workspace_id are plain text soft refs;
+  integrity enforced in services (productRepo.get() validation,
+  app-level cascade). No .references() anywhere.                               OK
+- Non-collision naming: workspace_v2 / product_v2 (legacy twins exist),
+  market_fit / sales_play (no twin → clean names). Matches _v2 precedent.      OK
+- Soft delete EVERYWHERE: every table has deleted_at; repos expose
+  softDelete() + restore() + hardDelete(); list/get filter deleted_at IS NULL;
+  listTrashed filters IS NOT NULL.                                             OK
+- delete/restore/purge surfaced on routes:
+    DELETE /api/{workspace,product}/[id]            (soft)                      OK
+    DELETE /api/{workspace,product}/[id]?purge=1    (hard)                      OK
+    DELETE|POST /api/{workspace,product}/[id]/purge (hard alias)               OK
+    PATCH  /api/{workspace,product}/[id]/restore    (un-trash)                  OK
+    GET    /api/{workspace,product}/trashed         (restore candidates)        OK
+- App-level cascade: workspace soft-delete/restore/purge cascades to its
+  1:1 satellites (market_fit + sales_play) in the service, not via DB FK.      OK
+- Grain = TENANT: all reads/writes wrapped in withTenant(ctx, …) and scoped
+  by ctx.tenantId; satellites carry tenant_id + *_tenant_idx; 1:1 enforced
+  via uniqueIndex on (tenant_id, workspace_id).                                OK
+- Response envelope { ok,data } | { ok,error } via modules/_shared/api
+  (ok/fail/handle); routes call requirePermission (data.read/data.write),
+  guard hasDb() with offline-safe empty/503 envelopes.                         OK
+- Audit: every mutation writes audit_log_v2 via platformRepo.insertAudit
+  (signature matches; cross-module write goes through superadmin repo).        OK
+- Schema barrel: modules/index.ts re-exports workspace/schema + product/schema
+  so the drizzle client + drizzle-kit glob (modules/**/schema.ts) pick them up.OK
+- TS strict, interface for object shapes, double quotes, semicolons.           OK
+- NO mock data; NO db:push/migrate/seed run (live Neon untouched).             OK
+
+Both verification gates GREEN. Build remains green.
+
+========================================================================
+FIX TICK RE-VERIFY — 2026-06-28 (Sainskerta Loop Phase 03)
+------------------------------------------------------------------------
+Re-ran the gates after reviewing all M2 code (modules/workspace/{schema,
+repo,service}.ts, modules/product/{schema,repo,service}.ts, modules/index.ts,
+app/api/workspace/**, app/api/product/**). No tsc/lint errors were found in
+the M2 code; nothing required changing.
+
+1) npx tsc --noEmit
+   -> exit 0, NO output. Type-check clean across the whole project. No errors.
+
+2) npm run lint (next lint)
+   -> exit 0. NO errors. Same three PRE-EXISTING warnings only, all in legacy
+      files outside M2 (confirmed unchanged):
+        ./app/(app)/contacts/profiles/page.tsx        (9 unused-var warnings)
+        ./app/(app)/settings/diagnostics/page.tsx     (1 unused-var warning)
+        ./components/shared/table-pagination.tsx       (1 unused-var warning)
+      Zero warnings/errors in modules/workspace, modules/product,
+      app/api/workspace, or app/api/product.
+
+FINAL STATUS: PASS — npx tsc --noEmit exit 0 (clean). Build remains green.

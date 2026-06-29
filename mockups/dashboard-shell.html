@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+.drawer{transition:transform .3s ease}.drawer.closed{transform:translateX(100%)}
+a.dev{color:#9ca3af}
+</style>
+<style>
+/* mockup-only helpers */
+.kpi-spark path{stroke-dasharray:240;stroke-dashoffset:240;animation:draw 1.1s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.funnel-bar{transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.task-done .task-title{text-decoration:line-through;color:hsl(var(--muted-foreground))}
+.flash{animation:flash .7s ease}
+@keyframes flash{0%{background:hsl(160 84% 39% / .18)}100%{background:transparent}}
+.count{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.kpi-spark path{animation:none;stroke-dashoffset:0}.funnel-bar{transition:none}}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="login.html">Login</a><a class="dev hover:text-white" href="register.html">Register</a><a class="dev hover:text-white" href="pending.html">Pending</a><a class="dev hover:text-white" href="superadmin-users.html">Superadmin</a><a class="dev hover:text-white" href="onboarding.html">Onboarding</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="workspace.html">Workspace</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="inbox.html">Inbox</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="branding.html">Branding</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-33px)]">
+
+  <!-- ===================== SIDEBAR (w-64) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+
+    <!-- BRAND TENANT (white-label slot: logo + nama brand) -->
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-soft">SA</div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Sapa<span class="text-primary">AI</span></div>
+        <div class="text-[10px] text-muted-foreground truncate">CV Maju Bersama</div>
+      </div>
+    </div>
+
+    <!-- MENU (entitlement-gated per vertical) -->
+    <nav class="flex-1 overflow-y-auto py-4 text-sm space-y-5">
+
+      <!-- GROUP: UTAMA -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="dashboard-shell.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+          Workspace
+        </a>
+      </div>
+
+      <!-- GROUP: LEADS -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6366F1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kontak
+        </a>
+        <a href="enrichment.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#8B5CF6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Pengayaan Data
+        </a>
+        <a href="pipeline.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="12" width="3" height="6" rx="1"/></svg>
+          Pipeline
+        </a>
+      </div>
+
+      <!-- GROUP: EKSEKUSI -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eksekusi</p>
+        <a href="inbox.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#25D366" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Inbox
+          <span class="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">7</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#F59E0B" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/><path d="m9 12 2 2 4-4"/></svg>
+          Cadence
+        </a>
+      </div>
+
+      <!-- GROUP: PENGATURAN -->
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pengaturan</p>
+        <a href="branding.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EC4899" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg>
+          Branding
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6B7280" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Pengaturan
+        </a>
+      </div>
+    </nav>
+
+    <!-- Sidebar footer: akun user -->
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center font-semibold text-xs">RA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Rini Aprilia</div>
+        <div class="text-muted-foreground truncate">Sales Rep</div>
+      </div>
+      <a href="login.html" title="Keluar" class="text-muted-foreground hover:text-danger transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR (h-14, glass) -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-[33px] z-20">
+      <!-- left: search -->
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari kontak, deal, percakapan…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <!-- right: workspace switcher + notif + avatar -->
+      <div class="flex items-center gap-3">
+        <button id="wsChip" class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Paket UMKM Pro</span>
+          <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="relative h-9 w-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-card"></span>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">RA</div>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 overflow-auto">
+
+      <!-- Page header strip -->
+      <div class="px-6 pt-6 pb-1 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p class="text-sm text-muted-foreground mt-0.5">Ringkasan hari ini · Workspace: <span class="font-medium text-foreground/80">Paket UMKM Pro</span></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- channel filter -->
+          <div class="relative">
+            <select id="channelSel" class="appearance-none h-9 pl-3 pr-8 rounded-lg bg-card border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer">
+              <option value="all">Semua channel</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="email">Email</option>
+              <option value="instagram">Instagram</option>
+              <option value="shopee">Shopee</option>
+            </select>
+            <svg class="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <button class="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-2 shadow-soft hover:opacity-90 transition-opacity">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+            Buka Workspace
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- ============ KPI CARDS ============ -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+          <!-- KPI 1 — Lead baru -->
+          <div class="bg-card rounded-lg border border-border shadow-soft p-5">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Lead baru</p>
+                <p class="mt-1.5 text-3xl font-bold count" data-count="38" data-suffix="">0</p>
+              </div>
+              <span class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 text-xs font-medium text-success">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+                +18%
+              </span>
+              <!-- sparkline -->
+              <svg class="kpi-spark" width="70" height="26" viewBox="0 0 70 26" fill="none"><path d="M2 20 L14 16 L26 18 L38 9 L50 12 L62 4 L68 6" stroke="#FD7A5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="mt-1 text-[11px] text-muted-foreground">vs minggu lalu</p>
+          </div>
+
+          <!-- KPI 2 — Obrolan aktif -->
+          <div class="bg-card rounded-lg border border-border shadow-soft p-5">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Obrolan aktif</p>
+                <p class="mt-1.5 text-3xl font-bold count" data-count="24">0</p>
+              </div>
+              <span class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background:#25D36618;color:#1faa52">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+              </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 text-xs font-medium" style="color:#1faa52">
+                <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                7 belum dibaca
+              </span>
+              <svg class="kpi-spark" width="70" height="26" viewBox="0 0 70 26" fill="none"><path d="M2 14 L14 18 L26 10 L38 13 L50 8 L62 11 L68 7" stroke="#25D366" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="mt-1 text-[11px] text-muted-foreground">Lintas WhatsApp · Email · IG</p>
+          </div>
+
+          <!-- KPI 3 — Deal jalan -->
+          <div class="bg-card rounded-lg border border-border shadow-soft p-5">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Deal jalan</p>
+                <p class="mt-1.5 text-3xl font-bold"><span class="count" data-count="12">0</span></p>
+                <p class="text-xs font-semibold text-tertiary mt-0.5 count-idr" data-idr="284000000">Rp 0</p>
+              </div>
+              <span class="w-10 h-10 rounded-lg bg-tertiary/12 text-tertiary flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+              </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 text-xs font-medium text-success">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+                +12,4%
+              </span>
+              <svg class="kpi-spark" width="70" height="26" viewBox="0 0 70 26" fill="none"><path d="M2 22 L14 19 L26 20 L38 14 L50 15 L62 8 L68 5" stroke="#14B8A6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="mt-1 text-[11px] text-muted-foreground">3 closing minggu ini · <span class="text-warning font-medium">2 lewat tempo</span></p>
+          </div>
+
+          <!-- KPI 4 — Kuota AI (entitlement) -->
+          <div class="bg-card rounded-lg border border-border shadow-soft p-5">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-medium text-muted-foreground">Kuota token AI</p>
+                <p class="mt-1.5 text-3xl font-bold"><span class="count" data-count="62">0</span><span class="text-lg text-muted-foreground font-semibold">k</span></p>
+              </div>
+              <span class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background:hsl(38 92% 50% / .15);color:#d97706">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m13 2-3 7h6l-3 7"/><path d="M5 13h2M17 13h2"/><circle cx="12" cy="20" r="1"/></svg>
+              </span>
+            </div>
+            <div class="mt-4">
+              <div class="flex items-center justify-between text-[11px] mb-1.5">
+                <span class="text-muted-foreground">62k / 100k token</span>
+                <span class="font-semibold text-highlight-foreground">62%</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div id="quotaBar" class="h-full rounded-full bg-highlight funnel-bar" style="width:0%"></div>
+              </div>
+            </div>
+            <p class="mt-2 text-[11px] text-muted-foreground">Reset 1 Jul · <a href="#" class="text-primary font-medium hover:underline">Tambah kuota</a></p>
+          </div>
+        </section>
+
+        <!-- ============ BAND 2: Funnel/area chart + Tugas hari ini ============ -->
+        <section class="grid gap-4 lg:grid-cols-12">
+
+          <!-- Funnel pipeline (styled div, no chart lib) -->
+          <div class="bg-card rounded-lg border border-border shadow-soft lg:col-span-5">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h2 class="text-sm font-semibold">Funnel pipeline</h2>
+                <p class="text-[11px] text-muted-foreground">Total <span class="font-medium text-foreground/80">53 deal</span> aktif</p>
+              </div>
+              <a href="pipeline.html" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                Pipeline <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </a>
+            </div>
+            <div class="p-5 space-y-3" id="funnel">
+              <!-- rows: label · bar(coral→teal ramp) · count -->
+              <div class="funnel-row" data-w="100" data-fill="#FB5E3B">
+                <div class="flex items-center justify-between text-xs mb-1"><span class="font-medium">Prospek</span><span class="text-muted-foreground"><b class="text-foreground">21</b> · Rp 96 jt</span></div>
+                <div class="h-7 rounded-md bg-muted overflow-hidden"><div class="funnel-bar h-full rounded-md" style="width:0%;background:#FB5E3B"></div></div>
+              </div>
+              <div class="funnel-row" data-w="76" data-fill="#F6845C">
+                <div class="flex items-center justify-between text-xs mb-1"><span class="font-medium">Kualifikasi</span><span class="text-muted-foreground"><b class="text-foreground">16</b> · Rp 78 jt</span></div>
+                <div class="h-7 rounded-md bg-muted overflow-hidden"><div class="funnel-bar h-full rounded-md" style="width:0%;background:#F6845C"></div></div>
+              </div>
+              <div class="funnel-row" data-w="43" data-fill="#D9A98E">
+                <div class="flex items-center justify-between text-xs mb-1"><span class="font-medium">Penawaran</span><span class="text-muted-foreground"><b class="text-foreground">9</b> · Rp 62 jt</span></div>
+                <div class="h-7 rounded-md bg-muted overflow-hidden"><div class="funnel-bar h-full rounded-md" style="width:0%;background:#D9A98E"></div></div>
+              </div>
+              <div class="funnel-row" data-w="24" data-fill="#86C7BE">
+                <div class="flex items-center justify-between text-xs mb-1"><span class="font-medium">Negosiasi</span><span class="text-muted-foreground"><b class="text-foreground">5</b> · Rp 34 jt</span></div>
+                <div class="h-7 rounded-md bg-muted overflow-hidden"><div class="funnel-bar h-full rounded-md" style="width:0%;background:#86C7BE"></div></div>
+              </div>
+              <div class="funnel-row" data-w="10" data-fill="#14B8A6">
+                <div class="flex items-center justify-between text-xs mb-1"><span class="font-medium">Tutup</span><span class="text-muted-foreground"><b class="text-foreground">2</b> · Rp 14 jt</span></div>
+                <div class="h-7 rounded-md bg-muted overflow-hidden"><div class="funnel-bar h-full rounded-md" style="width:0%;background:#14B8A6"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tugas prioritas hari ini -->
+          <div class="bg-card rounded-lg border border-border shadow-soft lg:col-span-7 flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 class="text-sm font-semibold">Tugas prioritas hari ini</h2>
+              <div class="flex items-center gap-2">
+                <span id="taskCount" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">5 tersisa</span>
+                <a href="inbox.html" class="text-xs font-medium text-primary hover:underline">Lihat semua</a>
+              </div>
+            </div>
+            <ul class="divide-y divide-border" id="taskList">
+              <!-- task row template: checkbox · channel dot · title/contact · priority · due · open -->
+              <li class="task-row flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                <button class="task-check w-5 h-5 rounded-md border-2 border-border flex items-center justify-center shrink-0 hover:border-primary transition-colors"></button>
+                <span class="w-2 h-2 rounded-full shrink-0" style="background:#25D366" title="WhatsApp"></span>
+                <a href="inbox.html" class="min-w-0 flex-1">
+                  <p class="task-title text-sm font-medium truncate">Follow-up penawaran ke Bu Sari</p>
+                  <p class="text-xs text-muted-foreground truncate">Sari Boutique · Toko Online</p>
+                </a>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-danger/12 text-danger">Tinggi</span>
+                <span class="hidden sm:block w-14 text-right text-[11px] text-muted-foreground">09:30</span>
+                <a href="inbox.html" class="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors shrink-0">Buka</a>
+              </li>
+              <li class="task-row flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                <button class="task-check w-5 h-5 rounded-md border-2 border-border flex items-center justify-center shrink-0 hover:border-primary transition-colors"></button>
+                <span class="w-2 h-2 rounded-full shrink-0" style="background:#6366F1" title="Email"></span>
+                <a href="inbox.html" class="min-w-0 flex-1">
+                  <p class="task-title text-sm font-medium truncate">Kirim proposal revisi — PT Sinar Abadi</p>
+                  <p class="text-xs text-muted-foreground truncate">Andi Wijaya · Distributor B2B</p>
+                </a>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning/15 text-warning">Sedang</span>
+                <span class="hidden sm:block w-14 text-right text-[11px] text-muted-foreground">11:00</span>
+                <a href="inbox.html" class="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors shrink-0">Buka</a>
+              </li>
+              <li class="task-row flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                <button class="task-check w-5 h-5 rounded-md border-2 border-border flex items-center justify-center shrink-0 hover:border-primary transition-colors"></button>
+                <span class="w-2 h-2 rounded-full shrink-0" style="background:#E1306C" title="Instagram"></span>
+                <a href="inbox.html" class="min-w-0 flex-1">
+                  <p class="task-title text-sm font-medium truncate">Balas DM minat katalog skincare</p>
+                  <p class="text-xs text-muted-foreground truncate">@dewi.cantika · Reseller</p>
+                </a>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-danger/12 text-danger">Tinggi</span>
+                <span class="hidden sm:block w-14 text-right text-[11px] text-muted-foreground">13:15</span>
+                <a href="inbox.html" class="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors shrink-0">Buka</a>
+              </li>
+              <li class="task-row flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                <button class="task-check w-5 h-5 rounded-md border-2 border-border flex items-center justify-center shrink-0 hover:border-primary transition-colors"></button>
+                <span class="w-2 h-2 rounded-full shrink-0" style="background:#EE4D2D" title="Shopee"></span>
+                <a href="inbox.html" class="min-w-0 flex-1">
+                  <p class="task-title text-sm font-medium truncate">Konfirmasi stok pesanan grosir</p>
+                  <p class="text-xs text-muted-foreground truncate">Toko Berkah Jaya · Grosir</p>
+                </a>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning/15 text-warning">Sedang</span>
+                <span class="hidden sm:block w-14 text-right text-[11px] text-muted-foreground">15:00</span>
+                <a href="inbox.html" class="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors shrink-0">Buka</a>
+              </li>
+              <li class="task-row flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                <button class="task-check w-5 h-5 rounded-md border-2 border-border flex items-center justify-center shrink-0 hover:border-primary transition-colors"></button>
+                <span class="w-2 h-2 rounded-full shrink-0" style="background:#25D366" title="WhatsApp"></span>
+                <a href="inbox.html" class="min-w-0 flex-1">
+                  <p class="task-title text-sm font-medium truncate">Jadwalkan demo produk minggu depan</p>
+                  <p class="text-xs text-muted-foreground truncate">Hendra Gunawan · Kafe & Resto</p>
+                </a>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">Rendah</span>
+                <span class="hidden sm:block w-14 text-right text-[11px] text-muted-foreground">16:30</span>
+                <a href="inbox.html" class="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors shrink-0">Buka</a>
+              </li>
+            </ul>
+            <!-- empty state (hidden until all done) -->
+            <div id="taskEmpty" class="hidden flex-1 flex flex-col items-center justify-center py-10 text-center">
+              <div class="w-12 h-12 rounded-full bg-success/15 text-success flex items-center justify-center mb-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+              </div>
+              <p class="text-sm font-medium">Semua tugas hari ini selesai</p>
+              <p class="text-xs text-muted-foreground mt-0.5">Kerja bagus! Cek lagi besok pagi.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ BAND 3: Kontak terbaru (mini-table w/ B2C/B2B badges) ============ -->
+        <section class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div>
+              <h2 class="text-sm font-semibold">Kontak terbaru</h2>
+              <p class="text-[11px] text-muted-foreground">Lead masuk 7 hari terakhir — kelola penuh di modul Kontak</p>
+            </div>
+            <a href="contacts.html" class="text-xs font-medium text-primary hover:underline">Lihat semua →</a>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left min-w-[680px]">
+              <thead class="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th class="px-5 py-2.5 font-semibold">Nama</th>
+                  <th class="px-5 py-2.5 font-semibold">Segmen</th>
+                  <th class="px-5 py-2.5 font-semibold">Sumber</th>
+                  <th class="px-5 py-2.5 font-semibold">Tahap</th>
+                  <th class="px-5 py-2.5 font-semibold text-right">Skor Fit</th>
+                  <th class="px-5 py-2.5 font-semibold text-right">Update</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <tr class="hover:bg-muted/40 transition-colors cursor-pointer">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-full bg-primary/12 text-primary text-[11px] font-semibold flex items-center justify-center shrink-0">SB</span>
+                      <div class="min-w-0"><p class="font-medium truncate">Sari Boutique</p><p class="text-[11px] text-muted-foreground truncate">Sari Wulandari</p></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span></td>
+                  <td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#E1306C"></span>Instagram</span></td>
+                  <td class="px-5 py-3"><span class="text-xs text-muted-foreground">Kualifikasi</span></td>
+                  <td class="px-5 py-3 text-right"><span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success/15 text-success">86</span></td>
+                  <td class="px-5 py-3 text-right text-xs text-muted-foreground">2 jam lalu</td>
+                </tr>
+                <tr class="hover:bg-muted/40 transition-colors cursor-pointer">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-full bg-tertiary/12 text-tertiary text-[11px] font-semibold flex items-center justify-center shrink-0">SA</span>
+                      <div class="min-w-0"><p class="font-medium truncate">PT Sinar Abadi</p><p class="text-[11px] text-muted-foreground truncate">Andi Wijaya · Purchasing</p></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span></td>
+                  <td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#6366F1"></span>Email</span></td>
+                  <td class="px-5 py-3"><span class="text-xs text-muted-foreground">Penawaran</span></td>
+                  <td class="px-5 py-3 text-right"><span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success/15 text-success">92</span></td>
+                  <td class="px-5 py-3 text-right text-xs text-muted-foreground">4 jam lalu</td>
+                </tr>
+                <tr class="hover:bg-muted/40 transition-colors cursor-pointer">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-full bg-primary/12 text-primary text-[11px] font-semibold flex items-center justify-center shrink-0">DC</span>
+                      <div class="min-w-0"><p class="font-medium truncate">Dewi Cantika</p><p class="text-[11px] text-muted-foreground truncate">@dewi.cantika</p></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#E1306C18;color:#c01f5b">B2C</span></td>
+                  <td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#25D366"></span>WhatsApp</span></td>
+                  <td class="px-5 py-3"><span class="text-xs text-muted-foreground">Prospek</span></td>
+                  <td class="px-5 py-3 text-right"><span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-warning/15 text-warning">68</span></td>
+                  <td class="px-5 py-3 text-right text-xs text-muted-foreground">Kemarin</td>
+                </tr>
+                <tr class="hover:bg-muted/40 transition-colors cursor-pointer">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-full bg-tertiary/12 text-tertiary text-[11px] font-semibold flex items-center justify-center shrink-0">BJ</span>
+                      <div class="min-w-0"><p class="font-medium truncate">Toko Berkah Jaya</p><p class="text-[11px] text-muted-foreground truncate">Hj. Maemunah</p></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span></td>
+                  <td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#EE4D2D"></span>Shopee</span></td>
+                  <td class="px-5 py-3"><span class="text-xs text-muted-foreground">Negosiasi</span></td>
+                  <td class="px-5 py-3 text-right"><span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success/15 text-success">79</span></td>
+                  <td class="px-5 py-3 text-right text-xs text-muted-foreground">Kemarin</td>
+                </tr>
+                <tr class="hover:bg-muted/40 transition-colors cursor-pointer">
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-full bg-primary/12 text-primary text-[11px] font-semibold flex items-center justify-center shrink-0">HG</span>
+                      <div class="min-w-0"><p class="font-medium truncate">Kafe Senja</p><p class="text-[11px] text-muted-foreground truncate">Hendra Gunawan</p></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3"><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:hsl(173 80% 40% / .14);color:#0d9488">B2B</span></td>
+                  <td class="px-5 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#25D366"></span>WhatsApp</span></td>
+                  <td class="px-5 py-3"><span class="text-xs text-muted-foreground">Prospek</span></td>
+                  <td class="px-5 py-3 text-right"><span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">54</span></td>
+                  <td class="px-5 py-3 text-right text-xs text-muted-foreground">2 hari lalu</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <p class="text-[11px] text-muted-foreground">
+          Shell ini dipakai semua halaman app (sidebar + topbar identik) — konten di-swap per modul.
+          White-label: <b>logo &amp; warna primary tenant</b> ter-apply via CSS variable di brand mark, menu aktif, tombol primary, &amp; aksen — editable di <a href="branding.html" class="text-primary hover:underline">Branding</a>.
+        </p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ── Count-up KPI numbers ──────────────────────────────────────────────
+  function animateCount(el, target, dur){
+    var start=0, t0=null;
+    function step(ts){
+      if(!t0) t0=ts;
+      var p=Math.min((ts-t0)/dur,1);
+      var ease=1-Math.pow(1-p,3);
+      el.textContent=Math.round(start+(target-start)*ease).toLocaleString('id-ID');
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function fmtIDR(n){
+    if(n>=1e9) return 'Rp '+(n/1e9).toLocaleString('id-ID',{maximumFractionDigits:1})+' M';
+    if(n>=1e6) return 'Rp '+(n/1e6).toLocaleString('id-ID',{maximumFractionDigits:0})+' jt';
+    return 'Rp '+n.toLocaleString('id-ID');
+  }
+  var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  document.querySelectorAll('.count').forEach(function(el){
+    var target=parseInt(el.dataset.count,10);
+    if(reduce){ el.textContent=target.toLocaleString('id-ID'); return; }
+    animateCount(el, target, 900);
+  });
+  document.querySelectorAll('.count-idr').forEach(function(el){
+    var target=parseInt(el.dataset.idr,10);
+    if(reduce){ el.textContent=fmtIDR(target); return; }
+    var t0=null;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/900,1); var e=1-Math.pow(1-p,3); el.textContent=fmtIDR(Math.round(target*e)); if(p<1)requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  });
+
+  // ── Animate bars on load (funnel + quota) ─────────────────────────────
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    document.querySelectorAll('#funnel .funnel-row').forEach(function(row){
+      var w=row.dataset.w; row.querySelector('.funnel-bar').style.width=w+'%';
+    });
+    var q=document.getElementById('quotaBar'); if(q) q.style.width='62%';
+  });});
+
+  // ── Task list: check off → strike + flash + recount + empty state ─────
+  var checkSVG='<svg class="w-3 h-3 text-primary-foreground" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+  var list=document.getElementById('taskList');
+  var countEl=document.getElementById('taskCount');
+  var emptyEl=document.getElementById('taskEmpty');
+  function recount(){
+    var total=list.querySelectorAll('.task-row').length;
+    var done=list.querySelectorAll('.task-row.task-done').length;
+    var left=total-done;
+    countEl.textContent=left+' tersisa';
+    if(left===0){ list.classList.add('hidden'); emptyEl.classList.remove('hidden'); emptyEl.classList.add('flex'); }
+    else { list.classList.remove('hidden'); emptyEl.classList.add('hidden'); emptyEl.classList.remove('flex'); }
+  }
+  list.querySelectorAll('.task-check').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      var row=btn.closest('.task-row');
+      var done=row.classList.toggle('task-done');
+      if(done){
+        btn.classList.add('bg-primary','border-primary'); btn.innerHTML=checkSVG;
+        row.classList.add('flash'); setTimeout(function(){row.classList.remove('flash');},700);
+      } else {
+        btn.classList.remove('bg-primary','border-primary'); btn.innerHTML='';
+      }
+      recount();
+    });
+  });
+
+  // ── Channel filter: relabel page subtitle (mock; data would re-derive) ─
+  var sel=document.getElementById('channelSel');
+  if(sel){ sel.addEventListener('change', function(){
+    // light visual cue only — flash KPI cards to show re-derivation
+    document.querySelectorAll('section .bg-card').forEach(function(c){
+      c.animate([{opacity:.55},{opacity:1}],{duration:300,easing:'ease-out'});
+    });
+  });}
+})();
+</script>
+
+</body></html>

@@ -103,6 +103,7 @@ const NAV_GROUPS: { label: string; items: NavItem[]; collapsible?: boolean }[] =
     collapsible: true,
     items: [
       // cari prospek
+      { href: "/enrichment", icon: Sparkles, label: "Pengayaan Data", desc: "Discovery lead + enrich + klasifikasi B2C/B2B (fit produk)" },
       { href: "/pipeline", icon: Database, label: "Riset Prospek", desc: "Enrichment + positioning AI (fit produk)" },
       { href: "/marketplace", icon: Store, label: "Marketplace Data", desc: "Jual-beli data perusahaan antar-tenant", managerOnly: true },
       // jangkau & closing
@@ -213,14 +214,14 @@ export function SideNav() {
             {!collapsed && group.collapsible ? (
               <button
                 onClick={() => setShowMore((v) => !v)}
-                className="flex w-full items-center gap-1 px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+                className="flex w-full items-center gap-1 px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
               >
                 <ChevronDown className={cn("h-3 w-3 transition-transform", showMore ? "" : "-rotate-90")} />
                 <span className="flex-1 text-left">{group.label}</span>
                 <span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums">{visible(group.items).length}</span>
               </button>
             ) : !collapsed ? (
-              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.label}
               </p>
             ) : null}
@@ -353,7 +354,7 @@ export function TopBar() {
           <nav className="flex flex-col gap-0.5 p-2">
             {NAV_GROUPS.map((group) => (
               <div key={group.label} className="mt-2 first:mt-0">
-                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.label}
                 </p>
                 {group.items

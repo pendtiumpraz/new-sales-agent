@@ -22,7 +22,9 @@ export const runtime = "nodejs";
 const Body = z.object({ planKey: z.string().min(1) });
 
 export async function POST(req: Request) {
-  const guard = await requirePermission("tenant.billing");
+  // Recovery endpoint: a suspended/expired tenant must reach billing to pay /
+  // reactivate, so it opts out of the tenant-active gate (audit #6).
+  const guard = await requirePermission("tenant.billing", { allowInactiveTenant: true });
   if ("error" in guard) return guard.error;
   const { ctx } = guard;
 
