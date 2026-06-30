@@ -7,6 +7,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Module 4 · inbox domain schema (rebuild — REAL backend, no mock).
@@ -67,6 +68,11 @@ export const conversationTable = pgTable(
     contactIdx: index("conversation_v2_contact_idx").on(t.tenantId, t.contactId),
     workspaceIdx: index("conversation_v2_workspace_idx").on(t.tenantId, t.workspaceId),
     lastMsgIdx: index("conversation_v2_last_msg_idx").on(t.tenantId, t.lastMessageAt),
+    // Partial index matching the live inbox list shape (newest thread first by
+    // `last_message_at`, then `created_at`) — soft-deleted threads excluded.
+    liveIdx: index("conversation_v2_live_idx")
+      .on(t.tenantId, t.lastMessageAt.desc(), t.createdAt.desc())
+      .where(sql`${t.deletedAt} is null`),
   }),
 );
 
@@ -98,6 +104,14 @@ export const messageTable = pgTable(
       t.conversationId,
       t.createdAt,
     ),
+    // Partial index matching the live thread read shape
+    // `(tenant_id, conversation_id, created_at) WHERE deleted_at IS NULL`. This
+    // is the hottest table (every bubble of every thread); the keyset-paginated
+    // `listMessages` (most-recent N, then older by `created_at < cursor`) walks
+    // this index without touching soft-deleted rows.
+    liveConversationIdx: index("message_v2_live_conversation_idx")
+      .on(t.tenantId, t.conversationId, t.createdAt.desc())
+      .where(sql`${t.deletedAt} is null`),
   }),
 );
 

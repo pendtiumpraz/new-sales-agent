@@ -70,6 +70,27 @@ export function permissionsFor(role: Role): Permission[] {
 }
 
 /**
+ * Map a `membership.role` value (`tenant_owner|tenant_admin|sales_manager|
+ * sales_rep`) onto a canonical RBAC `Role`. `is_superadmin` on the user overrides
+ * everything. Shared by the login `authorize()` (lib/auth/auth.ts) and the
+ * per-request re-resolution in `getTenantContext()` (audit #7) so both derive the
+ * effective role from the SAME source of truth — pure, no Node imports, edge-safe.
+ */
+export function membershipRole(role: string, isSuperadmin: boolean): Role {
+  if (isSuperadmin) return "superadmin";
+  switch (role) {
+    case "tenant_owner":
+      return "tenant_owner";
+    case "tenant_admin":
+      return "tenant_admin";
+    case "sales_manager":
+    case "sales_rep":
+    default:
+      return "member";
+  }
+}
+
+/**
  * Map the prototype's display roles (lib/auth/demo-accounts.ts) onto canonical
  * RBAC roles so the demo can exercise all four. Replaced by membership.role once
  * Auth.js lands (slice 2).

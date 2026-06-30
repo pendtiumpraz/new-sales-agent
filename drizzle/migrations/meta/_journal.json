@@ -260,6 +260,13 @@
       "when": 1782697021825,
       "tag": "0036_omniscient_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1782780340410,
+      "tag": "0037_faithful_captain_britain",
+      "breakpoints": true
     }
   ]
 }

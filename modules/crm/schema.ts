@@ -8,6 +8,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Module 3 · crm domain schema (rebuild — REAL backend, no mock).
@@ -118,6 +119,12 @@ export const contactTable = pgTable(
     companyIdx: index("contact_company_idx").on(t.tenantId, t.companyId),
     workspaceIdx: index("contact_workspace_idx").on(t.tenantId, t.workspaceId),
     ownerIdx: index("contact_owner_idx").on(t.tenantId, t.ownerUserId),
+    // Partial index matching the live-read shape (list/keyset paginate the
+    // newest live contacts): `WHERE deleted_at IS NULL` so soft-deleted rows
+    // don't bloat the index or erode tenant selectivity.
+    liveIdx: index("contact_live_idx")
+      .on(t.tenantId, t.createdAt.desc(), t.id.desc())
+      .where(sql`${t.deletedAt} is null`),
   }),
 );
 
@@ -193,6 +200,11 @@ export const dealTable = pgTable(
     stageIdx: index("deal_stage_idx").on(t.tenantId, t.stageId),
     contactIdx: index("deal_contact_idx").on(t.tenantId, t.contactId),
     pipelineIdx: index("deal_pipeline_idx").on(t.tenantId, t.pipelineId),
+    // Partial index matching the live-read shape (list/keyset paginate the
+    // newest live deals) — soft-deleted rows excluded.
+    liveIdx: index("deal_live_idx")
+      .on(t.tenantId, t.createdAt.desc(), t.id.desc())
+      .where(sql`${t.deletedAt} is null`),
   }),
 );
 
@@ -218,6 +230,12 @@ export const activityTable = pgTable(
   (t) => ({
     tenantIdx: index("activity_tenant_idx").on(t.tenantId),
     subjectIdx: index("activity_subject_idx").on(t.tenantId, t.subjectType, t.subjectId),
+    // Partial index matching the live-read shape: a subject's live activities
+    // newest-first (timeline) + the tenant-wide newest-first list. Soft-deleted
+    // rows excluded; the cascade reads also probe by subject under this filter.
+    liveSubjectIdx: index("activity_live_subject_idx")
+      .on(t.tenantId, t.subjectType, t.subjectId, t.createdAt.desc())
+      .where(sql`${t.deletedAt} is null`),
   }),
 );
 

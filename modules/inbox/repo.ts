@@ -1,6 +1,12 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
+import {
+  DEFAULT_PAGE_LIMIT,
+  decodeCursor,
+  encodeCursor,
+  type Page,
+} from "@/modules/_shared/api";
 import {
   conversationTable,
   messageTable,
@@ -22,7 +28,18 @@ import {
  * for cascade (a conversation's messages) and rollups (latest message preview /
  * unread bump) — exposed here as `listMessagesByConversation` + bulk
  * `setMessagesDeletedByConversation` + `hardDeleteMessagesByConversation`.
+ *
+ * `message_v2` is the hottest table (every bubble of every thread), so its list
+ * read is keyset-paginated: `pageMessages` returns the MOST-RECENT N and a cursor
+ * to lazily load OLDER bubbles (perf audit #13).
  */
+
+/** Pagination input for the keyset message page (most-recent-first window). */
+export interface PageParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export const inboxRepo = {
   // ═══════════════════════ conversation_v2 ══════════════════════════
   // Tenant-scoped; optionally filter by `contactId` / `workspaceId` / `channel`
@@ -199,6 +216,64 @@ export const inboxRepo = {
         )
         .orderBy(asc(messageTable.createdAt)),
     );
+  },
+
+  /**
+   * Keyset-paginated thread window: the MOST-RECENT `limit` live messages of a
+   * conversation, returned in ASCENDING order (a transcript reads top→bottom).
+   *
+   * Internally selects newest-first (`created_at DESC, id DESC`) over the
+   * `message_v2_live_conversation_idx` partial index, over-fetches `limit + 1` to
+   * detect older history, then reverses the trimmed slice for display. The
+   * `nextCursor` pins the OLDEST returned bubble so the client can lazily page
+   * BACK through history (`created_at < cursor`).
+   */
+  async pageMessages(
+    ctx: TenantContext,
+    conversationId: string,
+    page?: PageParams,
+    direction?: string,
+  ): Promise<Page<MessageRow>> {
+    const limit = page?.limit ?? DEFAULT_PAGE_LIMIT;
+    const cursor = decodeCursor(page?.cursor);
+    const before = cursor
+      ? (() => {
+          const at = new Date(cursor.createdAt);
+          return or(
+            lt(messageTable.createdAt, at),
+            and(eq(messageTable.createdAt, at), lt(messageTable.id, cursor.id)),
+          );
+        })()
+      : undefined;
+
+    const rows = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(messageTable)
+        .where(
+          and(
+            eq(messageTable.tenantId, ctx.tenantId),
+            eq(messageTable.conversationId, conversationId),
+            isNull(messageTable.deletedAt),
+            direction ? eq(messageTable.direction, direction) : undefined,
+            before,
+          ),
+        )
+        .orderBy(desc(messageTable.createdAt), desc(messageTable.id))
+        .limit(limit + 1),
+    );
+
+    const hasMore = rows.length > limit;
+    const newestFirst = hasMore ? rows.slice(0, limit) : rows;
+    // The oldest bubble in this window is the keyset for loading further back.
+    const oldest = newestFirst[newestFirst.length - 1];
+    return {
+      items: [...newestFirst].reverse(), // ASC for display (oldest→newest)
+      nextCursor:
+        hasMore && oldest
+          ? encodeCursor({ createdAt: oldest.createdAt.toISOString(), id: oldest.id })
+          : null,
+    };
   },
 
   async listTrashedMessages(ctx: TenantContext): Promise<MessageRow[]> {

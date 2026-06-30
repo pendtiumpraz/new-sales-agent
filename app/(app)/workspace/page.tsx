@@ -59,6 +59,12 @@ interface ApiEnvelope<T> {
   error?: string;
 }
 
+/** Keyset page envelope returned by the list endpoints (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 /** Row from GET /api/workspace (modules/workspace · workspace_v2). */
 interface WorkspaceRow {
   id: string;
@@ -288,8 +294,12 @@ export default function WorkspaceHubPage() {
   const contactsQ = useQuery({
     queryKey: ["m3", "contacts", "workspace", wsId],
     enabled: !!wsId,
-    queryFn: () =>
-      getEnvelope<ContactRow[]>(`/api/contacts?workspaceId=${encodeURIComponent(wsId as string)}`),
+    queryFn: async () =>
+      (
+        await getEnvelope<Page<ContactRow>>(
+          `/api/contacts?workspaceId=${encodeURIComponent(wsId as string)}&limit=200`,
+        )
+      )?.items ?? [],
     retry: false,
   });
 

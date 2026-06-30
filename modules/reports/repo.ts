@@ -151,172 +151,260 @@ export const reportsRepo = {
   // ═══════════════════════ aggregations (read-only) ═════════════════
   // These read OTHER modules' tables for roll-ups only (no writes). All filter
   // `deleted_at IS NULL` so trashed rows never skew a dashboard.
+  //
+  // Each public method wraps ONE query-builder in its own `withTenant`. The
+  // builders are the bare `tx` queries (no transaction of their own) so the
+  // read-hot `overview` can run ALL of them inside a SINGLE `withTenant`
+  // (one BEGIN + 3×set_config + COMMIT) instead of one transaction per aggregate
+  // (perf audit #15).
 
   /** Live contacts grouped by `segment` (b2c|b2b|unknown). */
-  async contactsBySegment(
-    ctx: TenantContext,
-  ): Promise<{ segment: string; count: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ segment: contactTable.segment, n: count() })
-        .from(contactTable)
-        .where(and(eq(contactTable.tenantId, ctx.tenantId), isNull(contactTable.deletedAt)))
-        .groupBy(contactTable.segment),
-    );
-    return rows.map((r) => ({ segment: r.segment, count: Number(r.n) }));
+  async contactsBySegment(ctx: TenantContext): Promise<{ segment: string; count: number }[]> {
+    return withTenant(ctx, (tx) => contactsBySegmentQ(tx, ctx.tenantId));
   },
 
   /** Live contacts grouped by `lifecycle_stage` (lead|mql|sql|customer|churned). */
-  async contactsByLifecycle(
-    ctx: TenantContext,
-  ): Promise<{ stage: string; count: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ stage: contactTable.lifecycleStage, n: count() })
-        .from(contactTable)
-        .where(and(eq(contactTable.tenantId, ctx.tenantId), isNull(contactTable.deletedAt)))
-        .groupBy(contactTable.lifecycleStage),
-    );
-    return rows.map((r) => ({ stage: r.stage, count: Number(r.n) }));
+  async contactsByLifecycle(ctx: TenantContext): Promise<{ stage: string; count: number }[]> {
+    return withTenant(ctx, (tx) => contactsByLifecycleQ(tx, ctx.tenantId));
   },
 
   /** Live deals grouped by `stage_id`, with count + summed value (open deals). */
   async dealsByStage(
     ctx: TenantContext,
   ): Promise<{ stageId: string | null; count: number; value: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ stageId: dealTable.stageId, n: count(), v: sum(dealTable.value) })
-        .from(dealTable)
-        .where(and(eq(dealTable.tenantId, ctx.tenantId), isNull(dealTable.deletedAt)))
-        .groupBy(dealTable.stageId),
-    );
-    return rows.map((r) => ({
-      stageId: r.stageId,
-      count: Number(r.n),
-      value: Number(r.v ?? 0),
-    }));
+    return withTenant(ctx, (tx) => dealsByStageQ(tx, ctx.tenantId));
   },
 
   /** Live deals grouped by `status` (open|won|lost), count + summed value. */
   async dealsByStatus(
     ctx: TenantContext,
   ): Promise<{ status: string; count: number; value: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ status: dealTable.status, n: count(), v: sum(dealTable.value) })
-        .from(dealTable)
-        .where(and(eq(dealTable.tenantId, ctx.tenantId), isNull(dealTable.deletedAt)))
-        .groupBy(dealTable.status),
-    );
-    return rows.map((r) => ({ status: r.status, count: Number(r.n), value: Number(r.v ?? 0) }));
+    return withTenant(ctx, (tx) => dealsByStatusQ(tx, ctx.tenantId));
   },
 
   /** The tenant's pipeline stages (for labeling the deals-by-stage roll-up). */
   async pipelineStages(
     ctx: TenantContext,
   ): Promise<{ id: string; name: string; sort: number; isWon: boolean; isLost: boolean }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({
-          id: pipelineStageTable.id,
-          name: pipelineStageTable.name,
-          sort: pipelineStageTable.sort,
-          isWon: pipelineStageTable.isWon,
-          isLost: pipelineStageTable.isLost,
-        })
-        .from(pipelineStageTable)
-        .where(
-          and(eq(pipelineStageTable.tenantId, ctx.tenantId), isNull(pipelineStageTable.deletedAt)),
-        ),
-    );
-    return rows;
+    return withTenant(ctx, (tx) => pipelineStagesQ(tx, ctx.tenantId));
   },
 
   /** Live conversations grouped by `status` (open|snoozed|closed). */
-  async conversationsByStatus(
-    ctx: TenantContext,
-  ): Promise<{ status: string; count: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ status: conversationTable.status, n: count() })
-        .from(conversationTable)
-        .where(
-          and(eq(conversationTable.tenantId, ctx.tenantId), isNull(conversationTable.deletedAt)),
-        )
-        .groupBy(conversationTable.status),
-    );
-    return rows.map((r) => ({ status: r.status, count: Number(r.n) }));
+  async conversationsByStatus(ctx: TenantContext): Promise<{ status: string; count: number }[]> {
+    return withTenant(ctx, (tx) => conversationsByStatusQ(tx, ctx.tenantId));
   },
 
   /** Closing-readiness rows grouped by `band` (cold|warm|hot). */
-  async closingReadinessByBand(
-    ctx: TenantContext,
-  ): Promise<{ band: string; count: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ band: closingReadinessTable.band, n: count() })
-        .from(closingReadinessTable)
-        .where(
-          and(
-            eq(closingReadinessTable.tenantId, ctx.tenantId),
-            isNull(closingReadinessTable.deletedAt),
-          ),
-        )
-        .groupBy(closingReadinessTable.band),
-    );
-    return rows.map((r) => ({ band: r.band, count: Number(r.n) }));
+  async closingReadinessByBand(ctx: TenantContext): Promise<{ band: string; count: number }[]> {
+    return withTenant(ctx, (tx) => closingReadinessByBandQ(tx, ctx.tenantId));
   },
 
   /** Marketplace orders grouped by `channel`, count + summed total. */
   async ordersByChannel(
     ctx: TenantContext,
   ): Promise<{ channel: string; count: number; total: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ channel: marketplaceOrderTable.channel, n: count(), v: sum(marketplaceOrderTable.total) })
-        .from(marketplaceOrderTable)
-        .where(
-          and(
-            eq(marketplaceOrderTable.tenantId, ctx.tenantId),
-            isNull(marketplaceOrderTable.deletedAt),
-          ),
-        )
-        .groupBy(marketplaceOrderTable.channel),
-    );
-    return rows.map((r) => ({ channel: r.channel, count: Number(r.n), total: Number(r.v ?? 0) }));
+    return withTenant(ctx, (tx) => ordersByChannelQ(tx, ctx.tenantId));
   },
 
   /** Marketplace orders grouped by `status`. */
   async ordersByStatus(
     ctx: TenantContext,
   ): Promise<{ status: string; count: number; total: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ status: marketplaceOrderTable.status, n: count(), v: sum(marketplaceOrderTable.total) })
-        .from(marketplaceOrderTable)
-        .where(
-          and(
-            eq(marketplaceOrderTable.tenantId, ctx.tenantId),
-            isNull(marketplaceOrderTable.deletedAt),
-          ),
-        )
-        .groupBy(marketplaceOrderTable.status),
-    );
-    return rows.map((r) => ({ status: r.status, count: Number(r.n), total: Number(r.v ?? 0) }));
+    return withTenant(ctx, (tx) => ordersByStatusQ(tx, ctx.tenantId));
   },
 
   /** Field visits grouped by `status` (planned|in_progress|completed|…). */
-  async visitsByStatus(
-    ctx: TenantContext,
-  ): Promise<{ status: string; count: number }[]> {
-    const rows = await withTenant(ctx, (tx) =>
-      tx
-        .select({ status: fieldVisitTable.status, n: count() })
-        .from(fieldVisitTable)
-        .where(and(eq(fieldVisitTable.tenantId, ctx.tenantId), isNull(fieldVisitTable.deletedAt)))
-        .groupBy(fieldVisitTable.status),
-    );
-    return rows.map((r) => ({ status: r.status, count: Number(r.n) }));
+  async visitsByStatus(ctx: TenantContext): Promise<{ status: string; count: number }[]> {
+    return withTenant(ctx, (tx) => visitsByStatusQ(tx, ctx.tenantId));
+  },
+
+  /**
+   * The dashboard OVERVIEW roll-ups in ONE transaction. Runs all 8 aggregates +
+   * the pipeline-stage labels concurrently on a single `tx` (`Promise.all`), so
+   * the read-hot dashboard pays the BEGIN/set_config/COMMIT tax once, not 9×.
+   * The service composes/sorts/totals the raw result.
+   */
+  async overview(ctx: TenantContext): Promise<OverviewRaw> {
+    return withTenant(ctx, async (tx) => {
+      const t = ctx.tenantId;
+      const [
+        contactsBySegment,
+        contactsByLifecycle,
+        dealsByStage,
+        dealsByStatus,
+        pipelineStages,
+        conversationsByStatus,
+        closingReadinessByBand,
+        ordersByChannel,
+        visitsByStatus,
+      ] = await Promise.all([
+        contactsBySegmentQ(tx, t),
+        contactsByLifecycleQ(tx, t),
+        dealsByStageQ(tx, t),
+        dealsByStatusQ(tx, t),
+        pipelineStagesQ(tx, t),
+        conversationsByStatusQ(tx, t),
+        closingReadinessByBandQ(tx, t),
+        ordersByChannelQ(tx, t),
+        visitsByStatusQ(tx, t),
+      ]);
+      return {
+        contactsBySegment,
+        contactsByLifecycle,
+        dealsByStage,
+        dealsByStatus,
+        pipelineStages,
+        conversationsByStatus,
+        closingReadinessByBand,
+        ordersByChannel,
+        visitsByStatus,
+      };
+    });
   },
 };
+
+// ── query builders (operate on an open `tx`; no transaction of their own) ─────
+type TxArg = Parameters<Parameters<typeof withTenant>[1]>[0];
+
+/** Raw, un-composed roll-ups returned by `reportsRepo.overview` (one txn). */
+export interface OverviewRaw {
+  contactsBySegment: { segment: string; count: number }[];
+  contactsByLifecycle: { stage: string; count: number }[];
+  dealsByStage: { stageId: string | null; count: number; value: number }[];
+  dealsByStatus: { status: string; count: number; value: number }[];
+  pipelineStages: { id: string; name: string; sort: number; isWon: boolean; isLost: boolean }[];
+  conversationsByStatus: { status: string; count: number }[];
+  closingReadinessByBand: { band: string; count: number }[];
+  ordersByChannel: { channel: string; count: number; total: number }[];
+  visitsByStatus: { status: string; count: number }[];
+}
+
+async function contactsBySegmentQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ segment: string; count: number }[]> {
+  const rows = await tx
+    .select({ segment: contactTable.segment, n: count() })
+    .from(contactTable)
+    .where(and(eq(contactTable.tenantId, tenantId), isNull(contactTable.deletedAt)))
+    .groupBy(contactTable.segment);
+  return rows.map((r) => ({ segment: r.segment, count: Number(r.n) }));
+}
+
+async function contactsByLifecycleQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ stage: string; count: number }[]> {
+  const rows = await tx
+    .select({ stage: contactTable.lifecycleStage, n: count() })
+    .from(contactTable)
+    .where(and(eq(contactTable.tenantId, tenantId), isNull(contactTable.deletedAt)))
+    .groupBy(contactTable.lifecycleStage);
+  return rows.map((r) => ({ stage: r.stage, count: Number(r.n) }));
+}
+
+async function dealsByStageQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ stageId: string | null; count: number; value: number }[]> {
+  const rows = await tx
+    .select({ stageId: dealTable.stageId, n: count(), v: sum(dealTable.value) })
+    .from(dealTable)
+    .where(and(eq(dealTable.tenantId, tenantId), isNull(dealTable.deletedAt)))
+    .groupBy(dealTable.stageId);
+  return rows.map((r) => ({ stageId: r.stageId, count: Number(r.n), value: Number(r.v ?? 0) }));
+}
+
+async function dealsByStatusQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ status: string; count: number; value: number }[]> {
+  const rows = await tx
+    .select({ status: dealTable.status, n: count(), v: sum(dealTable.value) })
+    .from(dealTable)
+    .where(and(eq(dealTable.tenantId, tenantId), isNull(dealTable.deletedAt)))
+    .groupBy(dealTable.status);
+  return rows.map((r) => ({ status: r.status, count: Number(r.n), value: Number(r.v ?? 0) }));
+}
+
+async function pipelineStagesQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ id: string; name: string; sort: number; isWon: boolean; isLost: boolean }[]> {
+  return tx
+    .select({
+      id: pipelineStageTable.id,
+      name: pipelineStageTable.name,
+      sort: pipelineStageTable.sort,
+      isWon: pipelineStageTable.isWon,
+      isLost: pipelineStageTable.isLost,
+    })
+    .from(pipelineStageTable)
+    .where(and(eq(pipelineStageTable.tenantId, tenantId), isNull(pipelineStageTable.deletedAt)));
+}
+
+async function conversationsByStatusQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ status: string; count: number }[]> {
+  const rows = await tx
+    .select({ status: conversationTable.status, n: count() })
+    .from(conversationTable)
+    .where(and(eq(conversationTable.tenantId, tenantId), isNull(conversationTable.deletedAt)))
+    .groupBy(conversationTable.status);
+  return rows.map((r) => ({ status: r.status, count: Number(r.n) }));
+}
+
+async function closingReadinessByBandQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ band: string; count: number }[]> {
+  const rows = await tx
+    .select({ band: closingReadinessTable.band, n: count() })
+    .from(closingReadinessTable)
+    .where(
+      and(eq(closingReadinessTable.tenantId, tenantId), isNull(closingReadinessTable.deletedAt)),
+    )
+    .groupBy(closingReadinessTable.band);
+  return rows.map((r) => ({ band: r.band, count: Number(r.n) }));
+}
+
+async function ordersByChannelQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ channel: string; count: number; total: number }[]> {
+  const rows = await tx
+    .select({ channel: marketplaceOrderTable.channel, n: count(), v: sum(marketplaceOrderTable.total) })
+    .from(marketplaceOrderTable)
+    .where(
+      and(eq(marketplaceOrderTable.tenantId, tenantId), isNull(marketplaceOrderTable.deletedAt)),
+    )
+    .groupBy(marketplaceOrderTable.channel);
+  return rows.map((r) => ({ channel: r.channel, count: Number(r.n), total: Number(r.v ?? 0) }));
+}
+
+async function ordersByStatusQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ status: string; count: number; total: number }[]> {
+  const rows = await tx
+    .select({ status: marketplaceOrderTable.status, n: count(), v: sum(marketplaceOrderTable.total) })
+    .from(marketplaceOrderTable)
+    .where(
+      and(eq(marketplaceOrderTable.tenantId, tenantId), isNull(marketplaceOrderTable.deletedAt)),
+    )
+    .groupBy(marketplaceOrderTable.status);
+  return rows.map((r) => ({ status: r.status, count: Number(r.n), total: Number(r.v ?? 0) }));
+}
+
+async function visitsByStatusQ(
+  tx: TxArg,
+  tenantId: string,
+): Promise<{ status: string; count: number }[]> {
+  const rows = await tx
+    .select({ status: fieldVisitTable.status, n: count() })
+    .from(fieldVisitTable)
+    .where(and(eq(fieldVisitTable.tenantId, tenantId), isNull(fieldVisitTable.deletedAt)))
+    .groupBy(fieldVisitTable.status);
+  return rows.map((r) => ({ status: r.status, count: Number(r.n) }));
+}

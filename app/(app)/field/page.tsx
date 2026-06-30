@@ -19,7 +19,7 @@
 // timeline, and a check-in/out form). Every band has loading + empty + error states.
 // Lives in the (app) shell.
 
-import { useEffect, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -44,6 +44,10 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { withFieldId } from "@/components/shared/field-id";
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -60,6 +64,12 @@ interface ApiErr {
   code?: string;
 }
 type ApiResult<T> = ApiOk<T> | ApiErr;
+
+/** Keyset page envelope returned by the list endpoints (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
 
 /** Row from GET /api/field/visits (modules/field · field_visit). */
 interface VisitRow {
@@ -280,7 +290,8 @@ export default function FieldPage() {
   // gracefully (no torn page) when CRM is empty / unavailable.
   const contactsQ = useQuery({
     queryKey: ["field", "contacts", "resolve"],
-    queryFn: async () => readJson<ContactRow[]>(await fetch("/api/contacts")),
+    queryFn: async () =>
+      (await readJson<Page<ContactRow>>(await fetch("/api/contacts?limit=200"))).items,
     retry: false,
   });
   const companiesQ = useQuery({
@@ -364,18 +375,10 @@ export default function FieldPage() {
   const active = useMemo(() => visits.find((v) => v.id === openId) ?? null, [visits, openId]);
 
   const drawerOpen = !!openId || creating;
-
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpenId(null);
-        setCreating(false);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [drawerOpen]);
+  function closeDrawer() {
+    setOpenId(null);
+    setCreating(false);
+  }
 
   // Check-ins of the open visit.
   const checkInsQ = useQuery({
@@ -390,7 +393,6 @@ export default function FieldPage() {
   const [deleteTarget, setDeleteTarget] = useState<VisitRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<VisitRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<VisitRow | null>(null);
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshAll() {
@@ -505,7 +507,6 @@ export default function FieldPage() {
       toast.success(`"${v.title}" dihapus permanen`);
       refreshAll();
       setPurgeTarget(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -761,10 +762,7 @@ export default function FieldPage() {
                         visit={v}
                         location={locationText(v)}
                         onRestore={() => setRestoreTarget(v)}
-                        onPurge={() => {
-                          setPurgeTarget(v);
-                          setPurgeConfirm("");
-                        }}
+                        onPurge={() => setPurgeTarget(v)}
                       />
                     ))}
                   </tbody>
@@ -795,21 +793,11 @@ export default function FieldPage() {
       </div>
 
       {/* ===================== RIGHT DRAWER ===================== */}
-      <div
-        onClick={() => {
-          setOpenId(null);
-          setCreating(false);
-        }}
-        className={cn(
-          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-          drawerOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          drawerOpen ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={drawerOpen}
+        onClose={closeDrawer}
+        title={creating ? "Jadwalkan kunjungan" : active?.title ?? "Detail kunjungan"}
+        widthClassName="w-[420px] max-w-full"
       >
         {creating ? (
           <CreateVisitDrawer
@@ -852,10 +840,10 @@ export default function FieldPage() {
             onClose={() => setOpenId(null)}
           />
         ) : null}
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== SOFT-DELETE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -874,7 +862,7 @@ export default function FieldPage() {
       />
 
       {/* ===================== RESTORE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreTarget}
         onClose={() => setRestoreTarget(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -891,74 +879,21 @@ export default function FieldPage() {
         onConfirm={() => restoreTarget && restore.mutate(restoreTarget)}
       />
 
-      {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setPurgeTarget(null);
-            setPurgeConfirm("");
-          }
-        }}
-        className={cn(
-          "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
-        <div
-          className={cn(
-            "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
-            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0",
-          )}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
-                <span className="font-medium text-foreground">{purgeTarget?.title}</span> akan
-                dihapus selamanya beserta check-in-nya.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="mb-1.5 block text-[12px] text-muted-foreground">
-              Ketik{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
-                HAPUS
-              </code>{" "}
-              untuk konfirmasi.
-            </label>
-            <input
-              type="text"
-              value={purgeConfirm}
-              onChange={(e) => setPurgeConfirm(e.target.value)}
-              placeholder="HAPUS"
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-            />
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => {
-                setPurgeTarget(null);
-                setPurgeConfirm("");
-              }}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
-              disabled={purge.isPending || purgeConfirm.trim().toUpperCase() !== "HAPUS"}
-              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* ===================== HARD-DELETE (PURGE) CONFIRM ===================== */}
+      <PurgeDialog
+        open={!!purgeTarget}
+        label={purgeTarget?.title ?? ""}
+        pending={purge.isPending}
+        onClose={() => setPurgeTarget(null)}
+        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+        body={
+          <>
+            Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+            <span className="font-medium text-foreground">{purgeTarget?.title}</span> akan dihapus
+            selamanya beserta check-in-nya.
+          </>
+        }
+      />
     </div>
   );
 }
@@ -1609,20 +1544,25 @@ function Field({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">{label}</label>
-      {children}
+      <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+        {label}
+      </label>
+      {withFieldId(children, id)}
       {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
 
 function SelectInput({
+  id,
   value,
   onChange,
   options,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
@@ -1630,6 +1570,7 @@ function SelectInput({
   return (
     <div className="relative">
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"

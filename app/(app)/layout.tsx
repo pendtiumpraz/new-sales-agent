@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useSession } from "next-auth/react";
@@ -18,6 +18,15 @@ export default function AppLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { status } = useSession();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // a11y (audit #18): move focus to the content region on every route change so
+  // keyboard / screen-reader users land on the new page's content instead of
+  // staying parked on a now-stale control. Pairs with the skip link below.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    mainRef.current?.focus();
+  }, [pathname, status]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -60,11 +69,20 @@ export default function AppLayout({
 
   return (
     <UserThemeProvider>
+      {/* Skip link (audit #18): first focusable element, visually hidden until
+          focused. Lets keyboard users jump past the ~17 nav links + topbar
+          straight to the page content. */}
+      <a
+        href="#main"
+        className="sr-only z-[100] rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Lewati ke konten
+      </a>
       <div className="flex min-h-screen bg-background">
         <SideNav />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar />
-          <main className="min-w-0 flex-1">
+          <main id="main" tabIndex={-1} ref={mainRef} className="min-w-0 flex-1 outline-none">
             <WorkspaceGate>{children}</WorkspaceGate>
           </main>
         </div>

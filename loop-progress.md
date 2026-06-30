@@ -159,7 +159,10 @@ Auth/Onboarding/Superadmin/Branding → Workspace+Product → CRM (B2C/B2B + pip
 - [x] ✅ **PUSHED** ke `pendtiumpraz/main` (commit `434c63e`, rebased di atas `c317ddb` v0.3.0, no conflict)
 - [🔴] **GAP DITEMUKAN USER: flow/shell masih LAMA.** Rebuild ganti isi page per-modul tapi landing(`/`)+top-bar+nav+rute-lama gak disatuin ke IA baru → app kerasa lama. (Verifikasi-ku cuma tsc+HTTP-status, gak cek rendered UI — salah.) → [[verify-rendered-ui]]
 - [x] ✅ **Flow/shell unification** — landing baru (Maira/Masuk/Daftar, no old markers — **diverifikasi rendered**) + side-nav IA baru (link mati bersih, /workspace) + top-bar baru. Commit `dd4c3c7` PUSHED. (minor sisa: rute orphan use-case/workspaces/team belum redirect, tapi udah unlinked)
-- [🔄] #5 Radix dialogs + #3 RLS — retry (API udah balik)
+- [x] ✅ #5 Radix dialogs (shared app-drawer/confirm/purge, 7 page adopt; sisa di `audit-5-remaining.md`) + #3 RLS code (enable-rls.sql ke tabel rebuild + `APP_POSTGRES_URL` wiring + isolation test + README operator steps). Commit `65ee4e0` PUSHED.
+- [ ] 🧑‍🔧 **#3 RLS — langkah INFRA user** (di Neon): create role `app_user` NOBYPASSRLS → apply enable-rls.sql → set `APP_POSTGRES_URL` di `.env.local` → `npx tsx scripts/test-tenant-isolation.mts`. (Lihat `drizzle/rls/README.md`.)
+- [🔄] **Polish tick** (deferrable HIGH/MED): a11y (#16 labels, #18 skip-link, #20 icon-aria, #38 cue, sisa #5 dialogs) · perf (#12 indexes, #13 pagination, #14/#15 tx-fold) · security #7 (JWT revalidation) · orphan-route redirects
+- [ ] 👀 **Fase 06 Deploy = gate kamu** (Vercel) — setelah RLS + kamu OK
 - [ ] 👀 User review audit + verdict → **Fase 06 Deploy = gate kamu**
 - [ ] ⚠️ Transisi: halaman lama yg belum di-rebuild bisa rusak sementara (auth pindah tabel baru) — wajar, ke-cover snapshot
 - [ ] ⚠️ `db:push` ke Neon — GATE (butuh OK user; sebelum itu cuma `db:generate` + tsc/lint)

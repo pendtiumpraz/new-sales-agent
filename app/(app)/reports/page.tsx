@@ -17,7 +17,7 @@
 // (Coral Sunset, the (app) shell): stat strip, cards, list table, confirm
 // modals. Every band has loading + empty + error states.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -253,6 +253,8 @@ export default function ReportsPage() {
   const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
 
   // ── save form + confirm targets ──────────────────────────────────────────────
+  const nameId = useId();
+  const descId = useId();
   const [form, setForm] = useState<SaveForm>(EMPTY_SAVE_FORM);
   const [deleteTarget, setDeleteTarget] = useState<SavedReportRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<SavedReportRow | null>(null);
@@ -424,6 +426,7 @@ export default function ReportsPage() {
                       color: r.isWon ? "#16A34A" : r.isLost ? "#EF4444" : "#FB5E3B",
                       value: r.count,
                       caption: fmtIDR(r.value),
+                      cue: r.isWon ? "Menang" : r.isLost ? "Kalah" : "Terbuka",
                     }))}
                   />
                 </ChartCard>
@@ -696,6 +699,8 @@ export default function ReportsPage() {
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Tutup"
             onClick={() => setForm((d) => ({ ...d, open: false }))}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
@@ -706,10 +711,14 @@ export default function ReportsPage() {
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {/* Name */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+            <label
+              htmlFor={nameId}
+              className="mb-1.5 block text-[13px] font-medium text-foreground/80"
+            >
               Nama laporan
             </label>
             <input
+              id={nameId}
               type="text"
               value={form.name}
               onChange={(e) => setForm((d) => ({ ...d, name: e.target.value }))}
@@ -720,7 +729,7 @@ export default function ReportsPage() {
 
           {/* Kind */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Agregat</label>
+            <div className="mb-1.5 block text-[13px] font-medium text-foreground/80">Agregat</div>
             <div className="grid grid-cols-1 gap-2">
               {REPORT_KINDS.map((k) => {
                 const on = form.kind === k.value;
@@ -746,10 +755,14 @@ export default function ReportsPage() {
 
           {/* Description */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+            <label
+              htmlFor={descId}
+              className="mb-1.5 block text-[13px] font-medium text-foreground/80"
+            >
               Deskripsi <span className="font-normal text-muted-foreground">(opsional)</span>
             </label>
             <textarea
+              id={descId}
               rows={3}
               value={form.description}
               onChange={(e) => setForm((d) => ({ ...d, description: e.target.value }))}
@@ -760,7 +773,7 @@ export default function ReportsPage() {
 
           {/* Scope */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Lingkup</label>
+            <div className="mb-1.5 block text-[13px] font-medium text-foreground/80">Lingkup</div>
             <div className="flex gap-2">
               {(
                 [
@@ -1096,6 +1109,9 @@ interface BarRow {
   color: string;
   value: number;
   caption?: string;
+  /** Non-color status cue (audit #38): short text shown next to the label so
+   *  win/lost/open isn't conveyed by bar colour alone. */
+  cue?: string;
 }
 
 /** Horizontal bar chart built from styled divs (no chart lib). Bars scale to the
@@ -1114,6 +1130,14 @@ function BarList({ rows }: { rows: BarRow[] }) {
               <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-foreground/80">
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.color }} />
                 <span className="truncate">{r.label}</span>
+                {r.cue && (
+                  <span
+                    className="shrink-0 rounded px-1 py-px text-[9px] font-bold uppercase tracking-wide"
+                    style={{ color: r.color, background: `${r.color}1A` }}
+                  >
+                    {r.cue}
+                  </span>
+                )}
               </span>
               <span className="shrink-0 text-[12px] tabular-nums">
                 <b className="text-foreground">{num(r.value)}</b>

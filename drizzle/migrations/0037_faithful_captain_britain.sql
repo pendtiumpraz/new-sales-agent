@@ -1,0 +1,5 @@
+CREATE INDEX "activity_live_subject_idx" ON "activity" USING btree ("tenant_id","subject_type","subject_id","created_at" DESC NULLS LAST) WHERE "activity"."deleted_at" is null;--> statement-breakpoint
+CREATE INDEX "contact_live_idx" ON "contact" USING btree ("tenant_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "contact"."deleted_at" is null;--> statement-breakpoint
+CREATE INDEX "deal_live_idx" ON "deal" USING btree ("tenant_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "deal"."deleted_at" is null;--> statement-breakpoint
+CREATE INDEX "conversation_v2_live_idx" ON "conversation_v2" USING btree ("tenant_id","last_message_at" DESC NULLS LAST,"created_at" DESC NULLS LAST) WHERE "conversation_v2"."deleted_at" is null;--> statement-breakpoint
+CREATE INDEX "message_v2_live_conversation_idx" ON "message_v2" USING btree ("tenant_id","conversation_id","created_at" DESC NULLS LAST) WHERE "message_v2"."deleted_at" is null;

@@ -4,7 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { findAccount } from "./demo-accounts";
 import { isDemoMode } from "./dev-gate";
 import { rateLimit, clientIp } from "./rate-limit";
-import { mapDemoRole, type Role } from "@/lib/rbac/permissions";
+import { mapDemoRole, membershipRole } from "@/lib/rbac/permissions";
 import { hasDb } from "@/lib/db/client";
 import { authService } from "@/modules/auth/service";
 import { tenantService } from "@/modules/tenant/service";
@@ -18,25 +18,6 @@ import { authConfig } from "./auth.config";
 // JWT strategy is required for the Credentials provider; the persistent
 // `auth_session` table augments (not replaces) the stateless JWT.
 const DEFAULT_TENANT_ID = "t_default";
-
-/**
- * Map a `membership.role` value (`tenant_owner|tenant_admin|sales_manager|
- * sales_rep`) onto a canonical RBAC `Role` (`superadmin|tenant_owner|
- * tenant_admin|member`). `is_superadmin` on the user overrides everything.
- */
-function membershipRole(role: string, isSuperadmin: boolean): Role {
-  if (isSuperadmin) return "superadmin";
-  switch (role) {
-    case "tenant_owner":
-      return "tenant_owner";
-    case "tenant_admin":
-      return "tenant_admin";
-    case "sales_manager":
-    case "sales_rep":
-    default:
-      return "member";
-  }
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,

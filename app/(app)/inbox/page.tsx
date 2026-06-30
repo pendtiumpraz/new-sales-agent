@@ -55,6 +55,7 @@ import { toast } from "sonner";
 import { ClosingReadinessBadge } from "@/components/inbox/closing-readiness-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,12 @@ interface ApiErr {
   code?: string;
 }
 type ApiResult<T> = ApiOk<T> | ApiErr;
+
+/** Keyset page envelope returned by the list endpoints (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
 
 // ── row shapes (NEW M4 inbox + M3 crm backends) ──────────────────────────────
 
@@ -260,7 +267,8 @@ export default function InboxPage() {
   });
   const contactsQ = useQuery({
     queryKey: ["inbox", "contacts", "list"],
-    queryFn: async () => readJson<ContactRow[]>(await fetch("/api/contacts")),
+    queryFn: async () =>
+      (await readJson<Page<ContactRow>>(await fetch("/api/contacts?limit=200"))).items,
     retry: false,
   });
 
@@ -334,7 +342,8 @@ export default function InboxPage() {
     queryKey: ["inbox", "messages", activeId],
     enabled: !!activeId,
     queryFn: async () =>
-      readJson<MessageRow[]>(await fetch(`/api/messages?conversationId=${activeId}`)),
+      (await readJson<Page<MessageRow>>(await fetch(`/api/messages?conversationId=${activeId}`)))
+        .items,
     retry: false,
   });
   const messages = useMemo(() => messagesQ.data ?? [], [messagesQ.data]);
@@ -343,7 +352,9 @@ export default function InboxPage() {
   const dealsQ = useQuery({
     queryKey: ["inbox", "deals", active?.contactId],
     enabled: !!active?.contactId,
-    queryFn: async () => readJson<DealRow[]>(await fetch(`/api/deals?contactId=${active!.contactId}`)),
+    queryFn: async () =>
+      (await readJson<Page<DealRow>>(await fetch(`/api/deals?contactId=${active!.contactId}`)))
+        .items,
     retry: false,
   });
 
@@ -1024,7 +1035,7 @@ export default function InboxPage() {
       )}
 
       {/* ===================== SOFT-DELETE (ARCHIVE) CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1045,7 +1056,7 @@ export default function InboxPage() {
       />
 
       {/* ===================== RESTORE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreTarget}
         onClose={() => setRestoreTarget(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1457,86 +1468,6 @@ function ThreadLoading() {
       </div>
       <div className="flex justify-start">
         <Skeleton className="h-10 w-40 rounded-2xl rounded-bl-sm" />
-      </div>
-    </div>
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive"
-                ? "bg-destructive text-white"
-                : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
       </div>
     </div>
   );

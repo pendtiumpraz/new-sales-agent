@@ -85,6 +85,28 @@ function assertEnum(value: string | undefined, allowed: readonly string[], field
   return v;
 }
 
+/** Join grouped deal counts to their stage labels and sort by stage order. */
+function composeDealsByStage(
+  grouped: { stageId: string | null; count: number; value: number }[],
+  stages: { id: string; name: string; sort: number; isWon: boolean; isLost: boolean }[],
+): DealsByStageRow[] {
+  const byId = new Map(stages.map((s) => [s.id, s]));
+  return grouped
+    .map((g) => {
+      const stage = g.stageId ? byId.get(g.stageId) : undefined;
+      return {
+        stageId: g.stageId,
+        stageName: stage?.name ?? "(tanpa stage)",
+        sort: stage?.sort ?? 9999,
+        isWon: stage?.isWon ?? false,
+        isLost: stage?.isLost ?? false,
+        count: g.count,
+        value: g.value,
+      };
+    })
+    .sort((a, b) => a.sort - b.sort);
+}
+
 export const reportsService = {
   // ═══════════════════════ saved_report CRUD ════════════════════════
   async listReports(
@@ -180,21 +202,7 @@ export const reportsService = {
       reportsRepo.dealsByStage(ctx),
       reportsRepo.pipelineStages(ctx),
     ]);
-    const byId = new Map(stages.map((s) => [s.id, s]));
-    return grouped
-      .map((g) => {
-        const stage = g.stageId ? byId.get(g.stageId) : undefined;
-        return {
-          stageId: g.stageId,
-          stageName: stage?.name ?? "(tanpa stage)",
-          sort: stage?.sort ?? 9999,
-          isWon: stage?.isWon ?? false,
-          isLost: stage?.isLost ?? false,
-          count: g.count,
-          value: g.value,
-        };
-      })
-      .sort((a, b) => a.sort - b.sort);
+    return composeDealsByStage(grouped, stages);
   },
 
   /** Closing funnel: readiness band distribution + conversation status mix. */
@@ -226,25 +234,19 @@ export const reportsService = {
    * tenant via `withTenant`.
    */
   async overview(ctx: TenantContext): Promise<DashboardOverview> {
-    const [
+    // ONE transaction for every roll-up (perf audit #15): the repo runs all 8
+    // aggregates + stage labels on a single `tx`; we compose/sort/total here.
+    const raw = await reportsRepo.overview(ctx);
+    const {
       contactsBySegment,
       contactsByLifecycle,
       dealsByStatus,
-      dealsByStage,
       conversationsByStatus,
       closingReadinessByBand,
       ordersByChannel,
       visitsByStatus,
-    ] = await Promise.all([
-      reportsRepo.contactsBySegment(ctx),
-      reportsRepo.contactsByLifecycle(ctx),
-      reportsRepo.dealsByStatus(ctx),
-      this.dealsByStage(ctx),
-      reportsRepo.conversationsByStatus(ctx),
-      reportsRepo.closingReadinessByBand(ctx),
-      reportsRepo.ordersByChannel(ctx),
-      reportsRepo.visitsByStatus(ctx),
-    ]);
+    } = raw;
+    const dealsByStage = composeDealsByStage(raw.dealsByStage, raw.pipelineStages);
 
     const sumCount = (rows: { count: number }[]) => rows.reduce((a, r) => a + r.count, 0);
     const open = dealsByStatus.find((d) => d.status === "open");

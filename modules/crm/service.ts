@@ -1,8 +1,8 @@
 import type { TenantContext } from "@/lib/db/tenant-context";
 
-import { ServiceError } from "@/modules/_shared/api";
+import { ServiceError, type Page } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
-import { crmRepo } from "./repo";
+import { crmRepo, type PageParams } from "./repo";
 import type {
   CompanyRow,
   ContactRow,
@@ -246,16 +246,17 @@ export const crmService = {
   async softDeleteCompany(ctx: TenantContext, id: string): Promise<void> {
     const ok = await crmRepo.softDeleteCompany(ctx, id);
     if (!ok) throw new ServiceError("Perusahaan tidak ditemukan", 404, "not_found");
-    // App-level cascade: trash the company's contacts + their activities.
-    const contacts = await crmRepo.listContactsByCompany(ctx, id);
-    for (const c of contacts) await this.cascadeContactDeleted(ctx, c.id, true);
-    await this.cascadeSubjectActivitiesDeleted(ctx, "company", id, true);
+    // App-level cascade (one transaction, set-based): the company's contacts +
+    // their deals + every related activity + the company's own activities.
+    await crmRepo.cascadeCompanyDeleted(ctx, id, true);
     await this.audit(ctx, "crm.company.delete", "company", id);
   },
 
   async restoreCompany(ctx: TenantContext, id: string): Promise<CompanyRow> {
     const ok = await crmRepo.restoreCompany(ctx, id);
     if (!ok) throw new ServiceError("Perusahaan tidak ada di trash", 404, "not_found");
+    // Mirror the cascade on restore (single transaction).
+    await crmRepo.cascadeCompanyDeleted(ctx, id, false);
     await this.audit(ctx, "crm.company.restore", "company", id);
     return this.getCompany(ctx, id);
   },
@@ -272,6 +273,15 @@ export const crmService = {
     filter?: { workspaceId?: string; companyId?: string; segment?: string },
   ): Promise<ContactRow[]> {
     return crmRepo.listContacts(ctx, filter);
+  },
+
+  /** Keyset-paginated live contacts (newest first) — the route's default read. */
+  async pageContacts(
+    ctx: TenantContext,
+    filter?: { workspaceId?: string; companyId?: string; segment?: string },
+    page?: PageParams,
+  ): Promise<Page<ContactRow>> {
+    return crmRepo.pageContacts(ctx, filter, page);
   },
 
   async listTrashedContacts(ctx: TenantContext): Promise<ContactRow[]> {
@@ -379,7 +389,8 @@ export const crmService = {
   async softDeleteContact(ctx: TenantContext, id: string): Promise<void> {
     const ok = await crmRepo.softDeleteContact(ctx, id);
     if (!ok) throw new ServiceError("Kontak tidak ditemukan", 404, "not_found");
-    await this.cascadeContactDeleted(ctx, id, true);
+    // Cascade the contact's deals + activities in ONE set-based transaction.
+    await crmRepo.cascadeContactsDeleted(ctx, [id], true);
     await this.audit(ctx, "crm.contact.delete", "contact", id);
   },
 
@@ -554,6 +565,15 @@ export const crmService = {
     filter?: { pipelineId?: string; stageId?: string; contactId?: string; workspaceId?: string },
   ): Promise<DealRow[]> {
     return crmRepo.listDeals(ctx, filter);
+  },
+
+  /** Keyset-paginated live deals (newest first) — the route's default read. */
+  async pageDeals(
+    ctx: TenantContext,
+    filter?: { pipelineId?: string; stageId?: string; contactId?: string; workspaceId?: string },
+    page?: PageParams,
+  ): Promise<Page<DealRow>> {
+    return crmRepo.pageDeals(ctx, filter, page);
   },
 
   async listTrashedDeals(ctx: TenantContext): Promise<DealRow[]> {
@@ -801,43 +821,23 @@ export const crmService = {
     }
   },
 
-  /** Cascade a contact's children (its deals + its activities) on soft delete. */
-  async cascadeContactDeleted(
-    ctx: TenantContext,
-    contactId: string,
-    deleted: boolean,
-  ): Promise<void> {
-    const deals = await crmRepo.listDealsByContact(ctx, contactId);
-    for (const d of deals) {
-      if (deleted) await crmRepo.softDeleteDeal(ctx, d.id);
-      else await crmRepo.restoreDeal(ctx, d.id);
-      await this.cascadeSubjectActivitiesDeleted(ctx, "deal", d.id, deleted);
-    }
-    await this.cascadeSubjectActivitiesDeleted(ctx, "contact", contactId, deleted);
-  },
-
-  /** Soft-delete/restore every activity on a subject (cascade). */
+  /** Soft-delete/restore every activity on a subject (set-based cascade). */
   async cascadeSubjectActivitiesDeleted(
     ctx: TenantContext,
     subjectType: string,
     subjectId: string,
     deleted: boolean,
   ): Promise<void> {
-    const activities = await crmRepo.listActivitiesBySubject(ctx, subjectType, subjectId);
-    for (const a of activities) {
-      if (deleted) await crmRepo.softDeleteActivity(ctx, a.id);
-      else await crmRepo.restoreActivity(ctx, a.id);
-    }
+    await crmRepo.setActivitiesDeletedBySubject(ctx, subjectType, subjectId, deleted);
   },
 
-  /** Permanently delete every activity on a subject (purge cascade). */
+  /** Permanently delete every activity on a subject (set-based purge cascade). */
   async cascadeSubjectActivitiesHard(
     ctx: TenantContext,
     subjectType: string,
     subjectId: string,
   ): Promise<void> {
-    const activities = await crmRepo.listActivitiesBySubject(ctx, subjectType, subjectId);
-    for (const a of activities) await crmRepo.hardDeleteActivity(ctx, a.id);
+    await crmRepo.hardDeleteActivitiesBySubject(ctx, subjectType, subjectId);
   },
 
   /** Write a tenant-scoped audit row for a CRM mutation. */

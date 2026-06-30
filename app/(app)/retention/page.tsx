@@ -19,10 +19,9 @@
 // AND the per-flow step editor (channel · delay · offer · template). Every band has
 // loading + empty + error states. Lives in the (app) shell.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   ArrowDownUp,
   Check,
   Gift,
@@ -45,6 +44,10 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { withFieldId } from "@/components/shared/field-id";
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -316,20 +319,6 @@ export default function RetentionPage() {
     setDrawerOpen(false);
   }
 
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeDrawer();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [drawerOpen]);
-
   // Steps of the flow open in the drawer — only fetched in edit mode.
   const stepsQ = useQuery({
     queryKey: ["retention", "steps", editId],
@@ -344,7 +333,6 @@ export default function RetentionPage() {
   const [deleteTarget, setDeleteTarget] = useState<FlowRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<FlowRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<FlowRow | null>(null);
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshFlows() {
@@ -439,7 +427,6 @@ export default function RetentionPage() {
       toast.success(`"${f.name}" dihapus permanen`);
       refreshFlows();
       setPurgeTarget(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -752,10 +739,7 @@ export default function RetentionPage() {
                     key={f.id}
                     flow={f}
                     onRestore={() => setRestoreTarget(f)}
-                    onPurge={() => {
-                      setPurgeTarget(f);
-                      setPurgeConfirm("");
-                    }}
+                    onPurge={() => setPurgeTarget(f)}
                   />
                 ))}
               </div>
@@ -783,18 +767,11 @@ export default function RetentionPage() {
       </div>
 
       {/* ===================== CREATE / EDIT DRAWER ===================== */}
-      <div
-        onClick={closeDrawer}
-        className={cn(
-          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-          drawerOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[440px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          drawerOpen ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={drawerOpen}
+        onClose={closeDrawer}
+        title={drawerMode === "create" ? "Buat flow retensi" : "Edit flow & langkah"}
+        widthClassName="w-[440px] max-w-full"
       >
         {/* header */}
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
@@ -814,6 +791,8 @@ export default function RetentionPage() {
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Tutup"
             onClick={closeDrawer}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
@@ -1013,10 +992,10 @@ export default function RetentionPage() {
             </button>
           )}
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== SOFT-DELETE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1035,7 +1014,7 @@ export default function RetentionPage() {
       />
 
       {/* ===================== RESTORE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreTarget}
         onClose={() => setRestoreTarget(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1053,73 +1032,20 @@ export default function RetentionPage() {
       />
 
       {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setPurgeTarget(null);
-            setPurgeConfirm("");
-          }
-        }}
-        className={cn(
-          "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
-        <div
-          className={cn(
-            "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
-            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0",
-          )}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
-                <span className="font-medium text-foreground">{purgeTarget?.name}</span> akan
-                dihapus selamanya beserta seluruh langkahnya.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="mb-1.5 block text-[12px] text-muted-foreground">
-              Ketik{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
-                HAPUS
-              </code>{" "}
-              untuk konfirmasi.
-            </label>
-            <input
-              type="text"
-              value={purgeConfirm}
-              onChange={(e) => setPurgeConfirm(e.target.value)}
-              placeholder="HAPUS"
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-            />
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => {
-                setPurgeTarget(null);
-                setPurgeConfirm("");
-              }}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
-              disabled={purge.isPending || purgeConfirm.trim().toUpperCase() !== "HAPUS"}
-              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
-            </button>
-          </div>
-        </div>
-      </div>
+      <PurgeDialog
+        open={!!purgeTarget}
+        label={purgeTarget?.name ?? ""}
+        pending={purge.isPending}
+        onClose={() => setPurgeTarget(null)}
+        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+        body={
+          <>
+            Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+            <span className="font-medium text-foreground">{purgeTarget?.name}</span> akan dihapus
+            selamanya beserta seluruh langkahnya.
+          </>
+        }
+      />
     </div>
   );
 }
@@ -1336,13 +1262,14 @@ function Field({
   optional?: boolean;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+      <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-foreground/80">
         {label}
         {optional && <span className="ml-1 font-normal text-muted-foreground">(opsional)</span>}
       </label>
-      {children}
+      {withFieldId(children, id)}
     </div>
   );
 }
@@ -1634,84 +1561,6 @@ function StepFields({
         />
       </div>
     </>
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive"
-                ? "bg-destructive text-white"
-                : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

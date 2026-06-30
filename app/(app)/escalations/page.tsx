@@ -72,6 +72,12 @@ interface ApiErr {
 }
 type ApiResult<T> = ApiOk<T> | ApiErr;
 
+/** Keyset page envelope returned by the list endpoints (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 /** Row from GET /api/escalations (modules/outreach · escalation). */
 interface EscalationRow {
   id: string;
@@ -336,7 +342,8 @@ export default function EscalationsHandoffPage() {
   // contacts + members resolve the soft-ref names; degrade quietly on failure.
   const contactsQ = useQuery({
     queryKey: ["outreach", "contacts", "min"],
-    queryFn: async () => readJson<ContactRow[]>(await fetch("/api/contacts")),
+    queryFn: async () =>
+      (await readJson<Page<ContactRow>>(await fetch("/api/contacts?limit=200"))).items,
     retry: false,
   });
   const membersQ = useQuery({
@@ -479,9 +486,11 @@ export default function EscalationsHandoffPage() {
     queryKey: ["outreach", "messages", active?.conversationId],
     enabled: !!active?.conversationId,
     queryFn: async () =>
-      readJson<MessageRow[]>(
-        await fetch(`/api/messages?conversationId=${active!.conversationId}`),
-      ),
+      (
+        await readJson<Page<MessageRow>>(
+          await fetch(`/api/messages?conversationId=${active!.conversationId}`),
+        )
+      ).items,
     retry: false,
   });
 

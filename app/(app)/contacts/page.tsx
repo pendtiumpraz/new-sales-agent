@@ -58,6 +58,12 @@ interface ApiErr {
 }
 type ApiResult<T> = ApiOk<T> | ApiErr;
 
+/** Keyset page envelope returned by the list endpoints (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 /** Row from GET /api/contacts (modules/crm · contact). fit_score is 0..1. */
 interface ContactRow {
   id: string;
@@ -222,7 +228,8 @@ export default function ContactsCrmPage() {
   // live contacts + companies (companies resolve the companyId → name join)
   const contactsQ = useQuery({
     queryKey: ["crm", "contacts", "list"],
-    queryFn: async () => readJson<ContactRow[]>(await fetch("/api/contacts")),
+    queryFn: async () =>
+      (await readJson<Page<ContactRow>>(await fetch("/api/contacts?limit=200"))).items,
     retry: false,
   });
   const companiesQ = useQuery({
@@ -332,7 +339,8 @@ export default function ContactsCrmPage() {
   const dealsQ = useQuery({
     queryKey: ["crm", "deals", openId],
     enabled: !!openId && drawerTab === "deal",
-    queryFn: async () => readJson<DealRow[]>(await fetch(`/api/deals?contactId=${openId}`)),
+    queryFn: async () =>
+      (await readJson<Page<DealRow>>(await fetch(`/api/deals?contactId=${openId}`))).items,
     retry: false,
   });
 

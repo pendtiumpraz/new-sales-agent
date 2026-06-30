@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, or } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -29,6 +29,28 @@ export const authRepo = {
       .from(authSessionTable)
       .where(and(eq(authSessionTable.userId, userId), isNull(authSessionTable.revokedAt)))
       .orderBy(desc(authSessionTable.createdAt));
+  },
+
+  /**
+   * Does this user hold at least one usable session — i.e. not revoked and not
+   * past `expires_at` (null = no explicit expiry)? Drives the per-request
+   * "session-not-revoked" gate in `getTenantContext()` (audit #7): when a user
+   * revokes ALL their sessions ("log out everywhere"), every subsequent request
+   * is denied immediately instead of waiting for the JWT to expire. Counts in SQL
+   * (no row materialization) since it runs on the request hot path.
+   */
+  async hasActiveSession(userId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ n: count() })
+      .from(authSessionTable)
+      .where(
+        and(
+          eq(authSessionTable.userId, userId),
+          isNull(authSessionTable.revokedAt),
+          or(isNull(authSessionTable.expiresAt), gt(authSessionTable.expiresAt, new Date())),
+        ),
+      );
+    return (row?.n ?? 0) > 0;
   },
 
   async getSession(id: string): Promise<AuthSessionRow | undefined> {

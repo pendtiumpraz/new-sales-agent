@@ -25,7 +25,7 @@
 // Every band has loading + empty + error states. NO DB mutations beyond the wired
 // API; everything reads/writes the real content backend.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -53,6 +53,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { AppDrawer } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PurgeDialog } from "@/components/shared/purge-dialog";
+import { withFieldId } from "@/components/shared/field-id";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -1405,6 +1406,7 @@ function PlanCalendar({
         <div className="ml-2 inline-flex items-center gap-1">
           <button
             type="button"
+            aria-label="Bulan sebelumnya"
             onClick={onPrev}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
           >
@@ -1419,6 +1421,7 @@ function PlanCalendar({
           </button>
           <button
             type="button"
+            aria-label="Bulan berikutnya"
             onClick={onNext}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
           >
@@ -1724,19 +1727,24 @@ function TrashActions({ onRestore, onPurge }: { onRestore: () => void; onPurge: 
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
   return (
     <div>
-      <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">{label}</label>
-      {children}
+      <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+        {label}
+      </label>
+      {withFieldId(children, id)}
     </div>
   );
 }
 
 function SelectInput({
+  id,
   value,
   onChange,
   options,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
@@ -1744,6 +1752,7 @@ function SelectInput({
   return (
     <div className="relative">
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"

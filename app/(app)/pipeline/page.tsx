@@ -33,7 +33,7 @@ import { toast } from "sonner";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PurgeDialog } from "@/components/shared/purge-dialog";
-import type { ApiResult } from "@/modules/_shared/api";
+import type { ApiResult, Page } from "@/modules/_shared/api";
 
 // ── API row shapes (mirror modules/crm/schema · selected fields) ─────────────
 interface PipelineRow {
@@ -201,9 +201,11 @@ export default function PipelinePage() {
     queryKey: ["crm", "deals", activePipelineId],
     enabled: !!activePipelineId,
     queryFn: async () =>
-      readJson<DealRow[]>(
-        await fetch(`/api/deals?pipelineId=${encodeURIComponent(activePipelineId!)}`),
-      ),
+      (
+        await readJson<Page<DealRow>>(
+          await fetch(`/api/deals?pipelineId=${encodeURIComponent(activePipelineId!)}&limit=200`),
+        )
+      ).items,
   });
   const deals = useMemo(() => dealsQ.data ?? [], [dealsQ.data]);
 

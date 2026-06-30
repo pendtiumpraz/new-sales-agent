@@ -1,9 +1,9 @@
 import type { TenantContext } from "@/lib/db/tenant-context";
 
-import { ServiceError } from "@/modules/_shared/api";
+import { ServiceError, type Page } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 import { crmService } from "@/modules/crm/service";
-import { inboxRepo } from "./repo";
+import { inboxRepo, type PageParams } from "./repo";
 import type { ConversationRow, MessageRow } from "./schema";
 
 /**
@@ -205,6 +205,23 @@ export const inboxService = {
     filter?: { conversationId?: string; direction?: string },
   ): Promise<MessageRow[]> {
     return inboxRepo.listMessages(ctx, filter);
+  },
+
+  /**
+   * Keyset-paginated thread window — the route's default read. Requires a
+   * `conversationId` (a thread is always read in the context of one conversation)
+   * and returns the MOST-RECENT N live messages (ascending for display) plus a
+   * `nextCursor` to lazily load older history.
+   */
+  async pageMessages(
+    ctx: TenantContext,
+    conversationId: string,
+    page?: PageParams,
+    direction?: string,
+  ): Promise<Page<MessageRow>> {
+    const cid = conversationId?.trim();
+    if (!cid) throw new ServiceError("conversation_id wajib diisi", 400, "validation");
+    return inboxRepo.pageMessages(ctx, cid, page, direction);
   },
 
   async listTrashedMessages(ctx: TenantContext): Promise<MessageRow[]> {

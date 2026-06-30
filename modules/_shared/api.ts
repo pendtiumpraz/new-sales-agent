@@ -21,6 +21,55 @@ export interface ApiErr {
 
 export type ApiResult<T> = ApiOk<T> | ApiErr;
 
+/**
+ * One page of a keyset-paginated list. `items` is the slice; `nextCursor` is the
+ * opaque cursor to pass back as `?cursor=` to fetch the NEXT (older) page, or
+ * `null` when the list is exhausted. Keyset (not offset) so deep pages stay
+ * O(log n) and don't skip/duplicate rows under concurrent writes.
+ */
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
+/** Inclusive cap on a single page so one big tenant can't ship its whole table. */
+export const MAX_PAGE_LIMIT = 200;
+export const DEFAULT_PAGE_LIMIT = 50;
+
+/** Clamp a client-supplied `?limit=` into `[1, MAX_PAGE_LIMIT]` (default 50). */
+export function parseLimit(raw: string | null | undefined, fallback = DEFAULT_PAGE_LIMIT): number {
+  const n = raw == null ? NaN : Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(n, MAX_PAGE_LIMIT);
+}
+
+/**
+ * Encode/decode a keyset cursor. The cursor pins the last seen row by its sort
+ * keys `(created_at, id)` so the next page resumes strictly after it. Encoded as
+ * base64url JSON — opaque to the client, no `as any`, round-trips cleanly.
+ */
+export interface KeysetCursor {
+  createdAt: string; // ISO timestamp of the last row on the previous page
+  id: string; // tie-breaker (stable order when timestamps collide)
+}
+
+export function encodeCursor(cursor: KeysetCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+export function decodeCursor(raw: string | null | undefined): KeysetCursor | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as Partial<KeysetCursor>;
+    if (typeof parsed.createdAt === "string" && typeof parsed.id === "string") {
+      return { createdAt: parsed.createdAt, id: parsed.id };
+    }
+  } catch {
+    // Malformed cursor → treat as "from the start" rather than 500.
+  }
+  return undefined;
+}
+
 export function ok<T>(data: T, init?: ResponseInit): NextResponse<ApiOk<T>> {
   return NextResponse.json({ ok: true, data }, init);
 }

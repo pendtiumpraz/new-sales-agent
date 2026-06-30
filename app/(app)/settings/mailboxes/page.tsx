@@ -27,7 +27,7 @@
 // error states. Connect/disconnect controls gate on mailbox.connect (the same
 // permission the infra routes enforce); read needs data.read.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -49,6 +49,7 @@ import {
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { withFieldId } from "@/components/shared/field-id";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -849,10 +850,13 @@ function Field({
   className?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className={cn("space-y-1", className)}>
-      <Label className="text-xs">{label}</Label>
-      {children}
+      <Label htmlFor={id} className="text-xs">
+        {label}
+      </Label>
+      {withFieldId(children, id)}
     </div>
   );
 }
