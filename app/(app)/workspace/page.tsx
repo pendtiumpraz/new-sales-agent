@@ -16,10 +16,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  Boxes,
   Briefcase,
   Building2,
   ChevronRight,
@@ -49,6 +48,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { cn } from "@/lib/utils";
 
 // ── API shapes (NEW M2 backend — { ok, data } envelope) ─────────────────────
@@ -320,6 +336,119 @@ export default function WorkspaceHubPage() {
 
   const [seg, setSeg] = useState<"all" | "b2c" | "b2b">("all");
 
+  // ── Create-workspace flow ──────────────────────────────────────────────────
+  // FIX: the empty state used to <Link href="/workspaces">, but /workspaces just
+  // redirect()s back to /workspace → an infinite loop where no workspace ever got
+  // made. Replace it with a real create dialog → POST /api/workspace (productId is
+  // OPTIONAL on the backend, so "tambah produk dulu" is not a hard prerequisite).
+  const qc = useQueryClient();
+  const setActiveWs = useWorkspaceStore((s) => s.setActive);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState("lead_gen");
+  const [newProductId, setNewProductId] = useState("");
+  const createWs = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName.trim(),
+          type: newType,
+          ...(newProductId ? { productId: newProductId } : {}),
+        }),
+      });
+      const j = (await r.json()) as ApiEnvelope<WorkspaceRow>;
+      if (!r.ok || !j.ok || !j.data) throw new Error(j.error || "Gagal membuat workspace");
+      return j.data;
+    },
+    onSuccess: (ws) => {
+      toast.success(`Workspace "${ws.name}" dibuat`);
+      setActiveWs({ id: ws.id, name: ws.name, type: ws.type });
+      qc.invalidateQueries({ queryKey: ["m2", "workspace", "list"] });
+      setCreateOpen(false);
+      setNewName("");
+      setNewProductId("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat workspace"),
+  });
+
+  const createDialog = (
+    <Dialog open={createOpen} onOpenChange={(o) => !createWs.isPending && setCreateOpen(o)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Buat workspace</DialogTitle>
+          <DialogDescription>
+            1 workspace = 1 produk. Beri nama dulu — produk &amp; market-fit bisa dihubungkan
+            setelahnya.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nama workspace</Label>
+            <Input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="mis. Paket UMKM Pro"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newName.trim() && !createWs.isPending) createWs.mutate();
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Tujuan workspace</Label>
+            <Select value={newType} onValueChange={setNewType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lead_gen">Cari lead</SelectItem>
+                <SelectItem value="partner">Cari partner</SelectItem>
+                <SelectItem value="offering">Penawaran</SelectItem>
+                <SelectItem value="retention">Follow-up retensi</SelectItem>
+                <SelectItem value="custom">Lainnya</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {products.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Produk (opsional)</Label>
+              <Select
+                value={newProductId || "none"}
+                onValueChange={(v) => setNewProductId(v === "none" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tanpa produk dulu" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tanpa produk dulu</SelectItem>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setCreateOpen(false)}
+            disabled={createWs.isPending}
+          >
+            Batal
+          </Button>
+          <Button onClick={() => createWs.mutate()} disabled={!newName.trim() || createWs.isPending}>
+            {createWs.isPending ? "Membuat…" : "Buat workspace"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   // Live per-segment counts + the filtered view for the active tab.
   const segCounts = useMemo(() => {
     let b2c = 0;
@@ -403,10 +532,8 @@ export default function WorkspaceHubPage() {
             description="Buat workspace pertama (1 workspace = 1 produk) untuk mulai: hubungkan produk, analisis market-fit (B2B/B2C/mix), lalu cari kontak lewat Discovery."
             action={
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button asChild>
-                  <Link href="/workspaces">
-                    <Plus className="h-4 w-4" /> Buat workspace
-                  </Link>
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" /> Buat workspace
                 </Button>
                 {products.length === 0 && (
                   <Button asChild variant="outline">
@@ -419,6 +546,7 @@ export default function WorkspaceHubPage() {
             }
           />
         </div>
+        {createDialog}
       </div>
     );
   }
@@ -446,10 +574,8 @@ export default function WorkspaceHubPage() {
         title={activeWs.name}
         description="Hub workspace — semua aktivitas sales fokus di sini. 1 workspace = 1 produk."
       >
-        <Button asChild variant="outline" size="sm">
-          <Link href="/workspaces">
-            <Boxes className="h-4 w-4" /> Semua workspace
-          </Link>
+        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4" /> Workspace baru
         </Button>
         <Button asChild size="sm">
           <Link href="/contacts/discovery">
@@ -1188,6 +1314,7 @@ export default function WorkspaceHubPage() {
           <b className="text-foreground/70">Eksekusi obrolan</b> → Pipeline.
         </p>
       </div>
+      {createDialog}
     </div>
   );
 }
