@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -27,15 +27,29 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
   const scoped = isScopedRoute(pathname);
 
   const q = useQuery({
-    queryKey: ["workspaces"],
+    queryKey: ["workspace", "list"],
     queryFn: async () => {
-      const r = await fetch("/api/workspaces");
+      // Singular /api/workspace (workspace_v2) — same source as the switcher,
+      // hub, and onboarding bootstrap.
+      const r = await fetch("/api/workspace");
       if (!r.ok) throw new Error("forbidden");
-      return (await r.json()) as { data: WsRow[] };
+      return (await r.json()) as { ok: boolean; data: WsRow[] };
     },
     enabled: scoped && !active,
     retry: false,
   });
+  const list = (q.data?.data ?? []).filter((w) => w.status !== "archived");
+
+  // Auto-select the first workspace when none is active but the tenant has ≥1
+  // (e.g. straight after onboarding) — so scoped routes aren't needlessly
+  // blocked. Only the truly empty tenant sees the picker below.
+  useEffect(() => {
+    if (scoped && !active && list.length > 0) {
+      const first = list[0];
+      setActive({ id: first.id, name: first.name, type: first.type });
+      router.replace(withWorkspace(pathname, first.id));
+    }
+  }, [scoped, active, list, setActive, router, pathname]);
 
   if (!scoped || active) return <>{children}</>;
 
@@ -43,7 +57,16 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
     setActive({ id: w.id, name: w.name, type: w.type });
     router.replace(withWorkspace(pathname, w.id)); // carry scope into the URL the page reads
   };
-  const list = (q.data?.data ?? []).filter((w) => w.status !== "archived");
+
+  // While the list is still loading, don't flash the "no workspace" picker —
+  // the auto-select effect above resolves it once the query resolves.
+  if (q.isLoading || (list.length > 0 && !active)) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6">
+        <LayoutGrid className="h-6 w-6 animate-pulse text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
@@ -72,7 +95,7 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
           </div>
         )}
         <Button asChild className="w-full">
-          <Link href="/workspaces">
+          <Link href="/workspace">
             <Plus className="h-4 w-4" /> Kelola / buat workspace
           </Link>
         </Button>

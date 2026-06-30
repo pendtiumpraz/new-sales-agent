@@ -2,6 +2,8 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { productService } from "@/modules/product/service";
+import { workspaceService } from "@/modules/workspace/service";
 import { onboardingRepo } from "./repo";
 import type {
   VerticalRow,
@@ -259,6 +261,20 @@ export const onboardingService = {
     }
 
     const row = await onboardingRepo.upsertState(ctx, patch);
+
+    // Completing onboarding BOOTSTRAPS the tenant's first workspace (+ its one
+    // product) so scoped features aren't gated on an empty tenant. Idempotent:
+    // skipped when the tenant already owns ≥1 workspace. The product name is read
+    // from the wizard's product step (state.data.productName), falling back to a
+    // sensible default. Fail-soft — a bootstrap glitch must not block "done".
+    if (input.complete) {
+      try {
+        await this.bootstrapWorkspace(ctx, row, actorUserId);
+      } catch (err) {
+        console.error("[onboarding.bootstrapWorkspace]", err);
+      }
+    }
+
     await platformRepo.insertAudit({
       tenantId: ctx.tenantId,
       actorUserId: actorUserId ?? ctx.userId,
@@ -268,6 +284,52 @@ export const onboardingService = {
       meta: { step: row.step, verticalKey: row.verticalKey, complete: !!input.complete },
     });
     return row;
+  },
+
+  /**
+   * Bootstrap the tenant's FIRST workspace + product on onboarding completion
+   * (1 workspace = 1 product). Idempotent: returns null when a workspace already
+   * exists. Reads the product name the user entered in the wizard's product step
+   * (`onboarding_state.data.productName`), defaulting to the tenant's brand-ish
+   * name or "Workspace utama". The workspace is named after the product so the
+   * switcher/gate immediately have something meaningful to auto-select.
+   */
+  async bootstrapWorkspace(
+    ctx: TenantContext,
+    state: OnboardingStateRow,
+    actorUserId?: string,
+  ): Promise<{ workspaceId: string; productId: string } | null> {
+    const existing = await workspaceService.list(ctx);
+    if (existing.length > 0) return null;
+
+    const data = (state.data ?? {}) as Record<string, unknown>;
+    const rawName = typeof data.productName === "string" ? data.productName.trim() : "";
+    const productName = rawName || "Produk utama";
+    const category = state.verticalKey ?? null;
+    const targetMarketRaw =
+      typeof data.targetMarket === "string" ? data.targetMarket.trim() : "";
+
+    const product = await productService.create(ctx, {
+      name: productName,
+      category,
+      targetMarket: targetMarketRaw || null,
+    });
+
+    const workspace = await workspaceService.create(ctx, {
+      name: productName,
+      ownerUserId: actorUserId ?? ctx.userId,
+      productId: product.id,
+    });
+
+    await platformRepo.insertAudit({
+      tenantId: ctx.tenantId,
+      actorUserId: actorUserId ?? ctx.userId,
+      action: "onboarding.bootstrap_workspace",
+      targetType: "workspace",
+      targetId: workspace.id,
+      meta: { workspaceId: workspace.id, productId: product.id, productName },
+    });
+    return { workspaceId: workspace.id, productId: product.id };
   },
 
   // ── vertical → entitlements (the core onboarding action) ─────────

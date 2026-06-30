@@ -88,6 +88,9 @@ export default function OnboardingPage() {
   const [verticals, setVerticals] = useState<VerticalRow[] | null>(null);
   const [catalogError, setCatalogError] = useState(false);
   const [vertical, setVertical] = useState<string>("sales");
+  // Product the tenant sells — 1 workspace = 1 product. Captured here so
+  // completing onboarding can bootstrap the first workspace named after it.
+  const [productName, setProductName] = useState("");
 
   const [brandName, setBrandName] = useState("");
   const [primaryHex, setPrimaryHex] = useState("#FD7A5C");
@@ -162,7 +165,11 @@ export default function OnboardingPage() {
       const r = await fetch("/api/onboarding", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: "branding", verticalKey: vertical }),
+        body: JSON.stringify({
+          step: "branding",
+          verticalKey: vertical,
+          data: { productName: productName.trim() },
+        }),
       });
       // Non-200 is non-fatal for the demo flow, but surface real failures.
       if (!r.ok && r.status !== 503) {
@@ -216,7 +223,9 @@ export default function OnboardingPage() {
       await fetch("/api/onboarding", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ complete: true }),
+        // Re-send the product name so the bootstrap names the first workspace
+        // after it even if the user skipped straight from step 1.
+        body: JSON.stringify({ complete: true, data: { productName: productName.trim() } }),
       });
     } catch {
       /* fail-soft: still proceed to the dashboard */
@@ -417,6 +426,27 @@ export default function OnboardingPage() {
                   </span>
                 </div>
               )}
+
+              {/* Product → first workspace (1 workspace = 1 product). Naming the
+                  product here lets onboarding bootstrap the tenant's first
+                  workspace so scoped fitur langsung bisa dipakai. */}
+              <div className="mt-5">
+                <label htmlFor="productName" className="mb-1.5 block text-[13px] font-medium">
+                  Produk / layanan yang dijual{" "}
+                  <span className="text-muted-foreground">(opsional)</span>
+                </label>
+                <input
+                  id="productName"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="mis. Paket Coaching, SaaS HRIS, Jasa Renovasi…"
+                  className="h-11 w-full rounded-md border border-input bg-card px-3 text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/50"
+                />
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Kami buatkan <b className="text-foreground">workspace pertama</b> bernama produk ini
+                  (1 workspace = 1 produk). Kosongkan untuk pakai nama bawaan — bisa diubah nanti.
+                </p>
+              </div>
             </div>
 
             <div className="mt-5 flex items-center justify-between">

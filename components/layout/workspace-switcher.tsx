@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -32,15 +33,27 @@ export function WorkspaceSwitcher() {
   const setActive = useWorkspaceStore((s) => s.setActive);
 
   const q = useQuery({
-    queryKey: ["workspaces"],
+    queryKey: ["workspace", "list"],
     queryFn: async () => {
-      const r = await fetch("/api/workspaces");
+      // Singular /api/workspace (workspace_v2) — the SAME source the workspace
+      // hub + onboarding bootstrap use, so the switcher/gate stay consistent.
+      const r = await fetch("/api/workspace");
       if (!r.ok) throw new Error("forbidden");
-      return (await r.json()) as { data: WsRow[] };
+      return (await r.json()) as { ok: boolean; data: WsRow[] };
     },
     retry: false,
   });
   const list = (q.data?.data ?? []).filter((w) => w.status !== "archived");
+
+  // Auto-select the first workspace when none is active (freshly onboarded
+  // tenant) — and re-validate a stale selection against the live list.
+  useEffect(() => {
+    if (list.length > 0) {
+      useWorkspaceStore
+        .getState()
+        .ensureActive(list.map((w) => ({ id: w.id, name: w.name, type: w.type })));
+    }
+  }, [list]);
 
   const choose = (w: WsRow) => {
     setActive({ id: w.id, name: w.name, type: w.type });
@@ -72,7 +85,7 @@ export function WorkspaceSwitcher() {
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/workspaces" className="gap-2">
+          <Link href="/workspace" className="gap-2">
             <Plus className="h-4 w-4" /> Kelola / buat workspace
           </Link>
         </DropdownMenuItem>

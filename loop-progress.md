@@ -161,7 +161,8 @@ Auth/Onboarding/Superadmin/Branding → Workspace+Product → CRM (B2C/B2B + pip
 - [x] ✅ **Flow/shell unification** — landing baru (Maira/Masuk/Daftar, no old markers — **diverifikasi rendered**) + side-nav IA baru (link mati bersih, /workspace) + top-bar baru. Commit `dd4c3c7` PUSHED. (minor sisa: rute orphan use-case/workspaces/team belum redirect, tapi udah unlinked)
 - [x] ✅ #5 Radix dialogs (shared app-drawer/confirm/purge, 7 page adopt; sisa di `audit-5-remaining.md`) + #3 RLS code (enable-rls.sql ke tabel rebuild + `APP_POSTGRES_URL` wiring + isolation test + README operator steps). Commit `65ee4e0` PUSHED.
 - [ ] 🧑‍🔧 **#3 RLS — langkah INFRA user** (di Neon): create role `app_user` NOBYPASSRLS → apply enable-rls.sql → set `APP_POSTGRES_URL` di `.env.local` → `npx tsx scripts/test-tenant-isolation.mts`. (Lihat `drizzle/rls/README.md`.)
-- [🔄] **Polish tick** (deferrable HIGH/MED): a11y (#16 labels, #18 skip-link, #20 icon-aria, #38 cue, sisa #5 dialogs) · perf (#12 indexes, #13 pagination, #14/#15 tx-fold) · security #7 (JWT revalidation) · orphan-route redirects
+- [x] ✅ **Polish (deferrable HIGH/MED)** — a11y (labels/skip-link/icon-aria/cue/sisa dialogs) · perf (5 partial index `0037` APPLIED + pagination + tx-fold) · security #7 JWT revalidation · orphan redirects. Commit `dbaf455` PUSHED.
+  - ⚠️ Sub-agent **STALL** mid-tick (harness retry muter berjam-jam) → TaskStop + salvage: fix half-applied `field/page.tsx` purge dialog by hand → tsc green + smoke-check (semua 200/302) → push. [[stalled-workflow-recovery]]
 - [ ] 👀 **Fase 06 Deploy = gate kamu** (Vercel) — setelah RLS + kamu OK
 - [ ] 👀 User review audit + verdict → **Fase 06 Deploy = gate kamu**
 - [ ] ⚠️ Transisi: halaman lama yg belum di-rebuild bisa rusak sementara (auth pindah tabel baru) — wajar, ke-cover snapshot

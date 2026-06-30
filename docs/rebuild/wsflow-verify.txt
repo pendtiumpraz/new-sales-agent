@@ -1,0 +1,31 @@
+wsflow-verify — build verification report
+Generated: 2026-06-30
+
+=== npx tsc --noEmit ===
+EXIT CODE: 0
+No type errors. Build is type-clean.
+
+=== npm run lint (next lint) ===
+EXIT CODE: 0 (warnings only, no errors)
+
+Warnings (all pre-existing, intentionally lenient per CLAUDE.md — unused vars are warnings, not errors):
+  ./app/(app)/ecommerce/page.tsx
+    21:10  Warning: 'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/field/page.tsx
+    25:3    Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+    1591:10 Warning: 'ConfirmModal' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/settings/knowledge-base/page.tsx
+    27:3    Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+=== RESULT ===
+PASS — build is GREEN. tsc exits 0 with no type errors; lint exits 0 with only
+unused-var warnings (lenient-by-design, no errors introduced).
+
+=== Fix-errors re-run (2026-06-30) ===
+Re-ran `npx tsc --noEmit` → EXIT CODE: 0 (no type errors).
+Re-ran `npm run lint` → EXIT CODE: 0 (same pre-existing unused-var warnings only).
+No tsc/lint errors were present; nothing to fix. Build remains GREEN.
