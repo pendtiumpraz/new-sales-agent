@@ -25,7 +25,35 @@ import type { AuditLogRow, PlatformSettingRow } from "./schema";
  * domain and is NOT re-exposed here; this service is provisioning + overview only.
  */
 
-function targetCtx(tenantId: string, operatorUserId: string): TenantContext {
+/**
+ * Service-level superadmin gate (audit #9/#29). Every cross-tenant method below
+ * asserts the CALLER's verified context is a platform superadmin BEFORE touching
+ * any unscoped read/write — defense-in-depth behind the route `platform.manage`
+ * guard, so a future caller (a new route, an Inngest job, a composed service)
+ * that forgets the route guard still can't leak all tenants. The `role` here is
+ * resolved per-request from the session (and, post audit #7, re-validated against
+ * the DB), so this is not the same stale-JWT trust the routes used to lean on.
+ */
+function assertSuperadmin(ctx: TenantContext): void {
+  if (ctx.role !== "superadmin") {
+    throw new ServiceError("Forbidden", 403, "forbidden");
+  }
+}
+
+/**
+ * Mint a cross-tenant `role:"superadmin"` context for `tenantId` so the platform
+ * console can provision / activate ANY tenant. Audit #10: this is an RLS-bypass
+ * token, so it must NOT be synthesized from a bare `tenantId` argument — the
+ * caller must first PROVE it is acting as a superadmin by passing its own verified
+ * `TenantContext` (which `assertSuperadmin` checks). `operatorUserId` is recorded
+ * as the acting principal; it does not, by itself, confer the role.
+ */
+function targetCtx(
+  callerCtx: TenantContext,
+  tenantId: string,
+  operatorUserId: string,
+): TenantContext {
+  assertSuperadmin(callerCtx);
   return { tenantId, userId: operatorUserId, role: "superadmin" };
 }
 
@@ -69,8 +97,9 @@ export interface CreateOperatorInput {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const superadminService = {
-  /** Cross-tenant rollup for the platform console. */
-  async overview(): Promise<PlatformOverview> {
+  /** Cross-tenant rollup for the platform console. Superadmin-only (audit #9). */
+  async overview(ctx: TenantContext): Promise<PlatformOverview> {
+    assertSuperadmin(ctx);
     const [statusRows, totalUsers, superadmins, auditEvents] = await Promise.all([
       tenantService.countTenantsByStatus(),
       tenantService.countUsers(false),
@@ -92,18 +121,24 @@ export const superadminService = {
     };
   },
 
-  /** Full cross-tenant tenant listing (active). Mirrors the tenant console list. */
-  async listTenants(): Promise<TenantRow[]> {
+  /** Full cross-tenant tenant listing (active). Mirrors the tenant console list.
+   *  Superadmin-only (audit #9). */
+  async listTenants(ctx: TenantContext): Promise<TenantRow[]> {
+    assertSuperadmin(ctx);
     return tenantService.list();
   },
 
-  /** All live app_users (platform directory). */
-  async listUsers(): Promise<AppUserRow[]> {
+  /** All live app_users (platform directory). Superadmin-only (audit #9). */
+  async listUsers(ctx: TenantContext): Promise<AppUserRow[]> {
+    assertSuperadmin(ctx);
     return tenantService.listUsers();
   },
 
-  /** Recent audit events; pass a tenantId to scope, or null for platform-wide. */
-  async recentAudit(tenantId: string | null, limit = 50): Promise<AuditLogRow[]> {
+  /** Recent audit events; pass a tenantId to scope, or null for platform-wide.
+   *  Superadmin-only (audit #9/#29): the null-tenant path reads ALL tenants on the
+   *  unscoped db, so the service gate is the only thing standing in front of it. */
+  async recentAudit(ctx: TenantContext, tenantId: string | null, limit = 50): Promise<AuditLogRow[]> {
+    assertSuperadmin(ctx);
     return platformRepo.recentAudit(tenantId, limit);
   },
 
@@ -149,9 +184,11 @@ export const superadminService = {
    * The whole flow is audited under `platform.provision`.
    */
   async provisionTenant(
+    ctx: TenantContext,
     input: ProvisionTenantInput,
     operatorUserId: string,
   ): Promise<ProvisionTenantResult> {
+    assertSuperadmin(ctx);
     const name = input.name?.trim();
     const adminName = input.admin?.name?.trim();
     const adminEmail = input.admin?.email?.trim().toLowerCase();
@@ -189,13 +226,13 @@ export const superadminService = {
     });
 
     // 3) owner membership inside the new tenant's context.
-    const ctx = targetCtx(tenant.id, operatorUserId);
-    await tenantService.addMembership(ctx, admin.id, "tenant_owner", "active");
+    const newTenantCtx = targetCtx(ctx, tenant.id, operatorUserId);
+    await tenantService.addMembership(newTenantCtx, admin.id, "tenant_owner", "active");
 
     // 4) optional starting quota ceilings.
     if (input.quotas) {
       for (const [metric, limit] of Object.entries(input.quotas)) {
-        await tenantService.setQuota(ctx, metric, limit, "lifetime", operatorUserId);
+        await tenantService.setQuota(newTenantCtx, metric, limit, "lifetime", operatorUserId);
       }
     }
 
@@ -231,14 +268,16 @@ export const superadminService = {
    * are the tenant domain's `activate` + `setQuota` (no logic duplicated here).
    */
   async setActivationWindow(
+    ctx: TenantContext,
     tenantId: string,
     input: { activeUntil?: string | null; planKey?: string; quotas?: Record<string, number | null> },
     operatorUserId: string,
   ): Promise<TenantRow> {
-    const ctx = targetCtx(tenantId, operatorUserId);
+    assertSuperadmin(ctx);
+    const targetTenantCtx = targetCtx(ctx, tenantId, operatorUserId);
     if (input.quotas) {
       for (const [metric, limit] of Object.entries(input.quotas)) {
-        await tenantService.setQuota(ctx, metric, limit, "lifetime", operatorUserId);
+        await tenantService.setQuota(targetTenantCtx, metric, limit, "lifetime", operatorUserId);
       }
     }
     return tenantService.activate(
@@ -248,8 +287,15 @@ export const superadminService = {
     );
   },
 
-  /** Create a platform-staff (superadmin) account. */
-  async createOperator(input: CreateOperatorInput, operatorUserId: string): Promise<AppUserRow> {
+  /** Create a platform-staff (superadmin) account. Superadmin-only (audit #9):
+   *  this mints a new principal with full platform access, so it must be gated at
+   *  the service layer too, not only at the route. */
+  async createOperator(
+    ctx: TenantContext,
+    input: CreateOperatorInput,
+    operatorUserId: string,
+  ): Promise<AppUserRow> {
+    assertSuperadmin(ctx);
     const name = input.name?.trim();
     const email = input.email?.trim().toLowerCase();
     const password = input.password ?? "";

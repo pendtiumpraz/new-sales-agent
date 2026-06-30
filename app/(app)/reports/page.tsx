@@ -1149,7 +1149,7 @@ function BarList({ rows }: { rows: BarRow[] }) {
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full transition-[width] duration-700"
+                className="h-full rounded-full transition-[width] duration-700 motion-reduce:transition-none"
                 style={{ width: `${Math.max(pct, r.value > 0 ? 4 : 0)}%`, background: r.color }}
               />
             </div>

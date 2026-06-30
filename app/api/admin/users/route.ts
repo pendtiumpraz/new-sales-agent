@@ -43,7 +43,13 @@ export async function POST(req: Request) {
     await recordAudit(guard.ctx, "user.create", r.userId, { tenantId: r.tenantId, email: body.email, role: r.role });
     return NextResponse.json({ ok: true, ...r });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: msg }, { status: msg.includes("terdaftar") ? 409 : 500 });
+    // Surface ONLY the known "email sudah terdaftar" validation (a benign 409 the
+    // form relies on); anything else is generic so no raw error string leaks.
+    const raw = err instanceof Error ? err.message : "";
+    if (raw.includes("terdaftar")) {
+      return NextResponse.json({ ok: false, error: raw }, { status: 409 });
+    }
+    console.error("[api/admin/users POST]", err);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       planKey?: string;
       quotas?: Record<string, number | null>;
     };
-    const row = await superadminService.setActivationWindow(params.id, body, g.ctx.userId);
+    const row = await superadminService.setActivationWindow(g.ctx, params.id, body, g.ctx.userId);
     return ok(row);
   }, "api/superadmin/tenants/[id]/activation PATCH");
 }

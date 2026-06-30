@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, lte, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import {
@@ -179,9 +179,9 @@ export const outreachRepo = {
 
   /** Count LIVE steps of a cadence — drives the denormalized `step_count`. */
   async countSteps(ctx: TenantContext, cadenceId: string): Promise<number> {
-    const rows = await withTenant(ctx, (tx) =>
+    const [row] = await withTenant(ctx, (tx) =>
       tx
-        .select({ id: cadenceStepTable.id })
+        .select({ n: count() })
         .from(cadenceStepTable)
         .where(
           and(
@@ -191,7 +191,25 @@ export const outreachRepo = {
           ),
         ),
     );
-    return rows.length;
+    return row?.n ?? 0;
+  },
+
+  /**
+   * Atomically adjust a cadence's denormalized `step_count` by `delta` (+1 on
+   * add/restore, -1 on delete) in ONE statement — no scan, no read-modify-write
+   * race. Floors at 0 so a redundant decrement can't push it negative.
+   */
+  async bumpStepCount(ctx: TenantContext, cadenceId: string, delta: number): Promise<void> {
+    if (delta === 0) return;
+    await withTenant(ctx, (tx) =>
+      tx
+        .update(cadenceTable)
+        .set({
+          stepCount: sql`GREATEST(0, ${cadenceTable.stepCount} + ${delta})`,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(cadenceTable.tenantId, ctx.tenantId), eq(cadenceTable.id, cadenceId))),
+    );
   },
 
   async listTrashedSteps(ctx: TenantContext): Promise<CadenceStepRow[]> {

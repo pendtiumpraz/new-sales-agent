@@ -24,6 +24,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {
     console.error("[api/tenant/invites/[id] DELETE]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

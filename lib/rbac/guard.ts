@@ -52,6 +52,15 @@ export async function requirePermission(
     return { error: fail("Forbidden", 403, "forbidden") };
   }
 
+  // 403 — superadmin-only routes (the only holder of `platform.manage`) must ALSO
+  // satisfy a DIRECT `is_superadmin` assertion (audit #39), not just the role-
+  // derived gate. `ctx.isSuperadmin` is re-resolved from the DB per request
+  // (audit #7), so this is a fresh check on the actual `app_user.is_superadmin`
+  // flag, not a stale JWT claim.
+  if (permission === "platform.manage" && ctx.isSuperadmin !== true) {
+    return { error: fail("Forbidden", 403, "forbidden") };
+  }
+
   // 403 — tenant suspended/pending/expired (kill-switch enforced server-side).
   // Superadmin platform actions are exempt (they operate ON blocked tenants);
   // so are explicitly-opted-out recovery endpoints. Skipped without a DB

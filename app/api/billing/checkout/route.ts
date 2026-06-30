@@ -77,6 +77,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, url: session.url });
   } catch (err) {
     console.error("[api/billing/checkout]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

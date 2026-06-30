@@ -10,6 +10,13 @@ export interface TenantContext {
   tenantId: string;
   userId: string;
   role: string; // superadmin | tenant_owner | tenant_admin | member
+  /**
+   * Platform-staff flag from `app_user.is_superadmin`, re-resolved per request
+   * (audit #7) and asserted directly on superadmin-only routes (audit #39) rather
+   * than trusting only the role string. Optional so the many synthesized contexts
+   * (login, provisioning `targetCtx`, register) stay valid without it.
+   */
+  isSuperadmin?: boolean;
 }
 
 /**

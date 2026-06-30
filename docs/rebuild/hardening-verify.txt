@@ -1,0 +1,65 @@
+HARDENING VERIFY REPORT
+=======================
+Date: 2026-07-01
+Branch: new-main
+HEAD: 0d0729f fix(rebuild): close audit functional gaps — workspace dead-loops, per-user logo, onboarding hardDelete, crawl-jobs trash
+
+Commands run (cwd D:/github/agentic-sales-ai):
+  1) npx tsc --noEmit
+  2) npm run lint   (next lint)
+
+RESULT: PASS
+
+----------------------------------------------------------------------
+1) npx tsc --noEmit
+----------------------------------------------------------------------
+No output. Zero type errors. Build is type-clean.
+
+----------------------------------------------------------------------
+2) npm run lint (next lint)
+----------------------------------------------------------------------
+Zero errors. 6 WARNINGS only, all pre-existing (no-unused-vars) in files
+NOT touched by the hardening changes (none appear in git status -M list):
+
+  ./app/(app)/ecommerce/page.tsx
+    21:10  Warning: 'useEffect' is defined but never used.
+
+  ./app/(app)/field/page.tsx
+    25:3    Warning: 'AlertTriangle' is defined but never used.
+    1591:10 Warning: 'ConfirmModal' is defined but never used.
+
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.
+
+  ./app/(app)/settings/knowledge-base/page.tsx
+    27:3    Warning: 'AlertTriangle' is defined but never used.
+
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.
+
+These are warnings (ESLint is intentionally lenient per CLAUDE.md) and were
+present before the hardening work; not introduced by the audited changes.
+
+----------------------------------------------------------------------
+NEW (untracked) migration files present, additive-only, NOT applied:
+  drizzle/migrations/0040_drop_redundant_password_reset_token_idx.sql
+  drizzle/migrations/0041_auth_session_active_idx.sql
+
+----------------------------------------------------------------------
+CONCLUSION: No errors introduced. tsc clean, lint error-free (warnings
+pre-existing). Build is GREEN.
+
+----------------------------------------------------------------------
+FIX-ERRORS RE-VERIFY (2026-07-01)
+----------------------------------------------------------------------
+Re-ran the two checks against the current working tree (hardening
+changes still uncommitted + migrations 0040/0041 untracked, not applied):
+
+  1) npx tsc --noEmit  -> exit 0, no output (zero type errors)
+  2) npm run lint      -> exit 0, ZERO errors; same 6 pre-existing
+     no-unused-vars WARNINGS only, all in files NOT in the modified set
+     (ecommerce/page.tsx, field/page.tsx, settings/diagnostics/page.tsx,
+     settings/knowledge-base/page.tsx, components/shared/table-pagination.tsx).
+
+No tsc/lint errors were introduced by the hardening work; nothing to fix.
+Build remains GREEN. Auth/login/session paths untouched.

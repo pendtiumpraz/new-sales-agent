@@ -3,6 +3,9 @@ import { randomBytes } from "node:crypto";
 import type { TenantContext } from "@/lib/db/tenant-context";
 import { isDemoMode } from "@/lib/auth/dev-gate";
 
+import { membershipRole } from "@/lib/rbac/permissions";
+import type { Role } from "@/lib/rbac/permissions";
+
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 import { tenantService } from "@/modules/tenant/service";
@@ -48,6 +51,19 @@ export interface RegisterResult {
 export interface VerifiedCredential {
   user: AppUserRow;
   membership: MembershipRow;
+}
+
+/**
+ * The freshly re-resolved authorization-critical fields for a request principal
+ * (audit #7). `revoked` is true ONLY when the user has session rows on record and
+ * none are active — so the absence of any session row (the current login reality)
+ * never trips it. `null` from `resolvePrincipal` means "couldn't re-resolve"
+ * (unknown user / DB error) → callers fall back to the JWT claims (fail-open).
+ */
+export interface ResolvedPrincipal {
+  role: Role;
+  isSuperadmin: boolean;
+  revoked: boolean;
 }
 
 export const authService = {
@@ -196,6 +212,35 @@ export const authService = {
     return { ok: true };
   },
 
+  /**
+   * Re-resolve a principal's authorization-critical fields from the DB on the
+   * REQUEST hot path (audit #7) so a JWT minted at login can't be trusted forever:
+   * a demoted user, a flipped `is_superadmin`, or a "log out everywhere" revoke
+   * takes effect on the very next request instead of waiting for the token to
+   * expire. Returns `null` when the user can't be resolved (deleted / no DB row)
+   * so the caller can decide its fallback. Conservative by construction — it only
+   * ever DOWNGRADES (it reads the live role/flag; it never invents elevation).
+   *
+   * `revoked` is absence-tolerant: true only when the user HAS session rows and
+   * none are usable. With no session rows (login does not call `recordSession`
+   * yet) it stays false, so normal sessions keep working.
+   */
+  async resolvePrincipal(userId: string): Promise<ResolvedPrincipal | null> {
+    const user = await tenantService.getUserById(userId);
+    if (!user) return null; // unknown/deleted user → caller falls back to JWT
+
+    const membership = await tenantService.firstMembership(userId);
+    const role = membershipRole(membership?.role ?? "member", user.isSuperadmin);
+
+    const totalSessions = await authRepo.countSessionsForUser(userId);
+    let revoked = false;
+    if (totalSessions > 0) {
+      revoked = !(await authRepo.hasActiveSession(userId));
+    }
+
+    return { role, isSuperadmin: user.isSuperadmin, revoked };
+  },
+
   // ── Revocable sessions (augment the JWT) ─────────────────────────
   async listSessions(userId: string): Promise<AuthSessionRow[]> {
     return authRepo.listSessionsForUser(userId);
@@ -235,5 +280,23 @@ export const authService = {
       targetType: "auth_session",
       targetId: id,
     });
+  },
+
+  /**
+   * Retention sweep (audit #51): hard-delete spent rows from the two append-only
+   * auth tables — revoked/expired `auth_session` rows and used/expired
+   * `password_reset` tokens — that nothing else ever purges, so they grow
+   * unbounded. `olderThan` (default now) is the expiry cutoff. Idempotent and
+   * safe to run repeatedly; returns how many of each were removed.
+   *
+   * INVOCATION: there is no scheduler wired yet. A daily cron / Inngest job is the
+   * intended trigger — e.g. an Inngest scheduled function (`lib/inngest/`) or a
+   * Vercel Cron route that simply calls `authService.purgeExpired()`. Until then a
+   * superadmin can invoke it manually.
+   */
+  async purgeExpired(olderThan: Date = new Date()): Promise<{ sessions: number; resets: number }> {
+    const sessions = await authRepo.purgeExpiredSessions(olderThan);
+    const resets = await authRepo.purgeExpiredResets(olderThan);
+    return { sessions, resets };
   },
 };

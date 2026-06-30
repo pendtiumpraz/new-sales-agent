@@ -2,6 +2,8 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError, type Page } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { workspaceRepo } from "@/modules/workspace/repo";
+import { productRepo } from "@/modules/product/repo";
 import { crmRepo, type PageParams } from "./repo";
 import type {
   CompanyRow,
@@ -305,8 +307,9 @@ export const crmService = {
     const enrichmentStatus = assertEnum(input.enrichmentStatus, ENRICHMENT_STATUSES, "enrichment_status");
     const lifecycleStage = assertEnum(input.lifecycleStage, LIFECYCLE_STAGES, "lifecycle_stage");
     const fitScore = assertFitScore(input.fitScore);
-    // Integrity: a referenced company must be a live row in this tenant.
+    // Integrity: every soft ref must be a live row in this tenant.
     if (input.companyId) await this.getCompany(ctx, input.companyId);
+    if (input.workspaceId) await this.assertWorkspace(ctx, input.workspaceId);
 
     const row = await crmRepo.insertContact(ctx, {
       id: "ctc_" + crypto.randomUUID(),
@@ -365,8 +368,11 @@ export const crmService = {
       if (input.companyId) await this.getCompany(ctx, input.companyId);
       patch.companyId = input.companyId;
     }
+    if (input.workspaceId !== undefined) {
+      if (input.workspaceId) await this.assertWorkspace(ctx, input.workspaceId);
+      patch.workspaceId = input.workspaceId;
+    }
     for (const f of [
-      "workspaceId",
       "title",
       "occupationId",
       "department",
@@ -432,6 +438,7 @@ export const crmService = {
   async createPipeline(ctx: TenantContext, input: CreatePipelineInput): Promise<PipelineRow> {
     const name = input.name?.trim();
     if (!name) throw new ServiceError("Nama pipeline wajib diisi", 400, "validation");
+    if (input.workspaceId) await this.assertWorkspace(ctx, input.workspaceId);
     const row = await crmRepo.insertPipeline(ctx, {
       id: "ppl_" + crypto.randomUUID(),
       tenantId: ctx.tenantId,
@@ -455,7 +462,10 @@ export const crmService = {
       if (!name) throw new ServiceError("Nama pipeline wajib diisi", 400, "validation");
       patch.name = name;
     }
-    if (input.workspaceId !== undefined) patch.workspaceId = input.workspaceId;
+    if (input.workspaceId !== undefined) {
+      if (input.workspaceId) await this.assertWorkspace(ctx, input.workspaceId);
+      patch.workspaceId = input.workspaceId;
+    }
     if (input.isDefault !== undefined) patch.isDefault = input.isDefault;
     const row = await crmRepo.updatePipeline(ctx, id, patch);
     if (!row) throw new ServiceError("Pipeline tidak ditemukan", 404, "not_found");
@@ -605,6 +615,8 @@ export const crmService = {
     if (input.stageId) await this.assertStageInPipeline(ctx, input.stageId, input.pipelineId);
     if (input.contactId) await this.getContact(ctx, input.contactId);
     if (input.companyId) await this.getCompany(ctx, input.companyId);
+    if (input.workspaceId) await this.assertWorkspace(ctx, input.workspaceId);
+    if (input.productId) await this.assertProduct(ctx, input.productId);
 
     const row = await crmRepo.insertDeal(ctx, {
       id: "deal_" + crypto.randomUUID(),
@@ -673,9 +685,15 @@ export const crmService = {
       if (input.companyId) await this.getCompany(ctx, input.companyId);
       patch.companyId = input.companyId;
     }
+    if (input.workspaceId !== undefined) {
+      if (input.workspaceId) await this.assertWorkspace(ctx, input.workspaceId);
+      patch.workspaceId = input.workspaceId;
+    }
+    if (input.productId !== undefined) {
+      if (input.productId) await this.assertProduct(ctx, input.productId);
+      patch.productId = input.productId;
+    }
     for (const f of [
-      "workspaceId",
-      "productId",
       "currency",
       "expectedClose",
       "lostReason",
@@ -808,6 +826,18 @@ export const crmService = {
     if (pipelineId && stage.pipelineId !== pipelineId) {
       throw new ServiceError("Stage bukan milik pipeline ini", 400, "stage_pipeline_mismatch");
     }
+  },
+
+  /** A referenced workspace must be a live row in this tenant (soft ref, no FK). */
+  async assertWorkspace(ctx: TenantContext, workspaceId: string): Promise<void> {
+    const row = await workspaceRepo.get(ctx, workspaceId);
+    if (!row) throw new ServiceError("Workspace tidak ditemukan", 400, "invalid_workspace");
+  },
+
+  /** A referenced product must be a live row in this tenant (soft ref, no FK). */
+  async assertProduct(ctx: TenantContext, productId: string): Promise<void> {
+    const row = await productRepo.get(ctx, productId);
+    if (!row) throw new ServiceError("Produk tidak ditemukan", 400, "invalid_product");
   },
 
   /** The polymorphic subject of an activity must be a live row of its type. */

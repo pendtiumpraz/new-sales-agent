@@ -86,6 +86,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, data: ws, source: "db" });
   } catch (err) {
     console.error("[api/workspaces POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

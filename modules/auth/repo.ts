@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -51,6 +51,21 @@ export const authRepo = {
         ),
       );
     return (row?.n ?? 0) > 0;
+  },
+
+  /**
+   * Total session rows EVER recorded for a user (revoked or not). Lets the
+   * per-request revocation gate (audit #7) tell "this user has sessions, all of
+   * them revoked → reject" apart from "no session rows were ever written for this
+   * user" (the current reality, since login does not yet call `recordSession`) →
+   * must NOT reject, or every login breaks. Pairs with `hasActiveSession`.
+   */
+  async countSessionsForUser(userId: string): Promise<number> {
+    const [row] = await db
+      .select({ n: count() })
+      .from(authSessionTable)
+      .where(eq(authSessionTable.userId, userId));
+    return row?.n ?? 0;
   },
 
   async getSession(id: string): Promise<AuthSessionRow | undefined> {
@@ -131,5 +146,41 @@ export const authRepo = {
       .where(and(eq(passwordResetTable.id, id), isNull(passwordResetTable.usedAt)))
       .returning({ id: passwordResetTable.id });
     return rows.length > 0;
+  },
+
+  // ── retention sweep (audit #51 — neither table is otherwise purged) ──
+  /**
+   * Hard-delete auth_session rows that are no longer usable as of `cutoff`:
+   * already revoked, or past their `expires_at`. Active, non-expiring sessions
+   * (`expires_at IS NULL`, not revoked) are kept. Returns the number purged.
+   */
+  async purgeExpiredSessions(cutoff: Date): Promise<number> {
+    const rows = await db
+      .delete(authSessionTable)
+      .where(
+        or(
+          isNotNull(authSessionTable.revokedAt),
+          and(isNotNull(authSessionTable.expiresAt), lt(authSessionTable.expiresAt, cutoff)),
+        ),
+      )
+      .returning({ id: authSessionTable.id });
+    return rows.length;
+  },
+
+  /**
+   * Hard-delete one-shot password_reset tokens that are spent as of `cutoff`:
+   * already consumed (`used_at` set), or past `expires_at`. Returns the count.
+   */
+  async purgeExpiredResets(cutoff: Date): Promise<number> {
+    const rows = await db
+      .delete(passwordResetTable)
+      .where(
+        or(
+          isNotNull(passwordResetTable.usedAt),
+          and(isNotNull(passwordResetTable.expiresAt), lt(passwordResetTable.expiresAt, cutoff)),
+        ),
+      )
+      .returning({ id: passwordResetTable.id });
+    return rows.length;
   },
 };

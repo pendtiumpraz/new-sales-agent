@@ -337,29 +337,28 @@ export const enrichmentService = {
       startedAt: new Date(),
     });
 
-    const results: DiscoveryResultRow[] = [];
+    let results: DiscoveryResultRow[] = [];
     try {
-      for (const r of input.results ?? []) {
-        const row = await enrichmentRepo.insertResult(ctx, {
-          id: "dsr_" + crypto.randomUUID(),
-          tenantId: ctx.tenantId,
-          jobId: job.id,
-          workspaceId: input.workspaceId ?? null,
-          fullName: r.fullName ?? null,
-          companyName: r.companyName ?? null,
-          title: r.title ?? null,
-          email: r.email ?? null,
-          phone: r.phone ?? null,
-          whatsapp: r.whatsapp ?? null,
-          location: r.location ?? null,
-          website: r.website ?? null,
-          socials: r.socials ?? null,
-          snippet: r.snippet ?? null,
-          sourceUrl: r.sourceUrl ?? null,
-          raw: r.raw ?? null,
-        });
-        results.push(row);
-      }
+      // Batch every found lead into ONE insert (audit #32 — was a per-row loop).
+      const rows = (input.results ?? []).map((r) => ({
+        id: "dsr_" + crypto.randomUUID(),
+        tenantId: ctx.tenantId,
+        jobId: job.id,
+        workspaceId: input.workspaceId ?? null,
+        fullName: r.fullName ?? null,
+        companyName: r.companyName ?? null,
+        title: r.title ?? null,
+        email: r.email ?? null,
+        phone: r.phone ?? null,
+        whatsapp: r.whatsapp ?? null,
+        location: r.location ?? null,
+        website: r.website ?? null,
+        socials: r.socials ?? null,
+        snippet: r.snippet ?? null,
+        sourceUrl: r.sourceUrl ?? null,
+        raw: r.raw ?? null,
+      }));
+      results = await enrichmentRepo.insertResults(ctx, rows);
       const finished = await enrichmentRepo.updateJob(ctx, job.id, {
         status: "done",
         resultsCount: results.length,

@@ -104,7 +104,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[api/db/cadence-enrollments POST]", err);
     return NextResponse.json(
-      { ok: false, error: String(err) },
+      { ok: false, error: "Internal error" },
       { status: 500 },
     );
   }
@@ -149,7 +149,7 @@ export async function PUT(req: Request) {
   } catch (err) {
     console.error("[api/db/cadence-enrollments PUT]", err);
     return NextResponse.json(
-      { ok: false, error: String(err) },
+      { ok: false, error: "Internal error" },
       { status: 500 },
     );
   }

@@ -12,7 +12,10 @@ export const runtime = "nodejs";
 //
 // Body: { token, password }
 export async function POST(req: Request) {
-  if (!hasDb()) return fail("Database tidak tersedia", 503, "no_db");
+  // Don't reveal DB state to an anonymous caller (audit #45): a no-DB deployment
+  // returns the SAME generic "invalid token" an attacker gets for a wrong token,
+  // so it's indistinguishable from a normal failed reset (no `no_db` oracle).
+  if (!hasDb()) return fail("Token tidak valid atau sudah dipakai", 400, "invalid_token");
   const rl = rateLimit("reset-confirm", clientIp(req), 20, 60 * 60 * 1000); // 20/hour/IP
   if (!rl.ok) return fail("Terlalu banyak percobaan. Coba lagi nanti.", 429, "rate_limited");
   return handle(async () => {

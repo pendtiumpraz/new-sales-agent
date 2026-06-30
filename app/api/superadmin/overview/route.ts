@@ -16,5 +16,5 @@ export async function GET() {
       users: { total: 0, superadmins: 0 },
       auditEvents: 0,
     });
-  return handle(async () => ok(await superadminService.overview()), "api/superadmin/overview GET");
+  return handle(async () => ok(await superadminService.overview(g.ctx)), "api/superadmin/overview GET");
 }

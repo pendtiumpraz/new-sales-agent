@@ -63,6 +63,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id, source: gen.source, model: gen.generatedBy, insight: gen.insight });
   } catch (err) {
     console.error("[api/db/positioning POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

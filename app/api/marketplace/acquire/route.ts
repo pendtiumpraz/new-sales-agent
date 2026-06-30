@@ -23,6 +23,6 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof MarketplaceError) return NextResponse.json({ error: err.message, code: err.code }, { status: 400 });
     console.error("[api/marketplace/acquire]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

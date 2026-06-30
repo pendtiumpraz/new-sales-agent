@@ -363,6 +363,6 @@ export async function POST(req: Request) {
     await withTenant(ctx, (tx) =>
       tx.update(crawlJobTable).set({ status: "error", error: String(err), finishedAt: new Date() }).where(eq(crawlJobTable.id, jobId)),
     ).catch(() => {});
-    return NextResponse.json({ ok: false, error: String(err), jobId }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error", jobId }, { status: 500 });
   }
 }

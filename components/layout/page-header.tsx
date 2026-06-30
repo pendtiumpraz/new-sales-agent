@@ -28,7 +28,7 @@ export function PageHeader({
         {breadcrumb && (
           <div className="mb-1 text-xs text-muted-foreground">{breadcrumb}</div>
         )}
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">
+        <h1 className="text-2xl font-semibold leading-tight tracking-tight sm:text-[28px]">
           {title}
         </h1>
         {description && (

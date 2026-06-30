@@ -66,7 +66,7 @@ export async function PUT(req: Request) {
   } catch (err) {
     console.error("[api/db/contacts PUT]", err);
     return NextResponse.json(
-      { ok: false, error: String(err) },
+      { ok: false, error: "Internal error" },
       { status: 500 },
     );
   }
@@ -85,6 +85,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true, deleted: ids.length, source: "db" });
   } catch (err) {
     console.error("[api/db/contacts DELETE]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

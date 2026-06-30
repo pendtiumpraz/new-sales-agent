@@ -11,7 +11,7 @@ export async function GET() {
   const g = await requirePermission("platform.manage");
   if ("error" in g) return fail("Forbidden", 403, "forbidden");
   if (!hasDb()) return ok([]);
-  return handle(async () => ok(await superadminService.listUsers()), "api/superadmin/users GET");
+  return handle(async () => ok(await superadminService.listUsers(g.ctx)), "api/superadmin/users GET");
 }
 
 // POST /api/superadmin/users → create a platform-staff (superadmin) account.
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (!hasDb()) return fail("Database tidak tersedia", 503, "no_db");
   return handle(async () => {
     const body = (await req.json()) as CreateOperatorInput;
-    const row = await superadminService.createOperator(body, g.ctx.userId);
+    const row = await superadminService.createOperator(g.ctx, body, g.ctx.userId);
     return ok(row, { status: 201 });
   }, "api/superadmin/users POST");
 }

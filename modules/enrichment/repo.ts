@@ -237,6 +237,24 @@ export const enrichmentRepo = {
     return row;
   },
 
+  /**
+   * Bulk-insert a discovery job's results in ONE statement (audit #32 — replaces a
+   * per-row insert loop). Empty input is a no-op. Every row is force-stamped with
+   * the caller's `tenant_id` (belt-and-suspenders alongside RLS).
+   */
+  async insertResults(
+    ctx: TenantContext,
+    rows: DiscoveryResultInsert[],
+  ): Promise<DiscoveryResultRow[]> {
+    if (rows.length === 0) return [];
+    return withTenant(ctx, (tx) =>
+      tx
+        .insert(discoveryResultTable)
+        .values(rows.map((r) => ({ ...r, tenantId: ctx.tenantId })))
+        .returning(),
+    );
+  },
+
   async updateResult(
     ctx: TenantContext,
     id: string,

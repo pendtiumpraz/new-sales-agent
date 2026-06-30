@@ -287,7 +287,7 @@ export const outreachService = {
       template: input.template ?? "",
       meta: input.meta ?? null,
     });
-    await this.syncStepCount(ctx, cadenceId);
+    await outreachRepo.bumpStepCount(ctx, cadenceId, 1);
     await this.audit(ctx, "outreach.step.create", "cadence_step", row.id, {
       cadenceId,
       channel,
@@ -321,7 +321,7 @@ export const outreachService = {
     const step = await outreachRepo.getStep(ctx, id);
     const ok = await outreachRepo.softDeleteStep(ctx, id);
     if (!ok) throw new ServiceError("Step cadence tidak ditemukan", 404, "not_found");
-    if (step) await this.syncStepCount(ctx, step.cadenceId);
+    if (step) await outreachRepo.bumpStepCount(ctx, step.cadenceId, -1);
     await this.audit(ctx, "outreach.step.delete", "cadence_step", id);
   },
 
@@ -330,7 +330,7 @@ export const outreachService = {
     if (!ok) throw new ServiceError("Step tidak ada di trash", 404, "not_found");
     await this.audit(ctx, "outreach.step.restore", "cadence_step", id);
     const row = await this.getStep(ctx, id);
-    await this.syncStepCount(ctx, row.cadenceId);
+    await outreachRepo.bumpStepCount(ctx, row.cadenceId, 1);
     return row;
   },
 
@@ -338,11 +338,19 @@ export const outreachService = {
     const step = await outreachRepo.getStep(ctx, id);
     const ok = await outreachRepo.hardDeleteStep(ctx, id);
     if (!ok) throw new ServiceError("Step cadence tidak ditemukan", 404, "not_found");
-    if (step) await this.syncStepCount(ctx, step.cadenceId);
+    // A purge of a LIVE step decrements the count; a trashed step was already
+    // excluded (its delete-time decrement happened), so don't double-count.
+    if (step && !step.deletedAt) await outreachRepo.bumpStepCount(ctx, step.cadenceId, -1);
     await this.audit(ctx, "outreach.step.purge", "cadence_step", id);
   },
 
-  /** Recompute + persist the cadence's denormalized `step_count`. */
+  /**
+   * Authoritative recompute of the cadence's denormalized `step_count` from a
+   * single SQL `count()`. The hot step-mutation paths (create/delete/restore/
+   * purge) instead use the atomic `bumpStepCount(±1)` to avoid a scan per write
+   * (audit #31); this full recompute remains as a reconciliation/repair helper
+   * (e.g. after a bulk cascade) should the denormalized count ever drift.
+   */
   async syncStepCount(ctx: TenantContext, cadenceId: string): Promise<void> {
     const count = await outreachRepo.countSteps(ctx, cadenceId);
     await outreachRepo.updateCadence(ctx, cadenceId, { stepCount: count });

@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     const draft = await composeQuote(guard.ctx, body);
     return NextResponse.json({ data: draft });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[api/quotes/compose POST]", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

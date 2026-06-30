@@ -76,6 +76,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id, source: "db" });
   } catch (err) {
     console.error("[api/tenant/members POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

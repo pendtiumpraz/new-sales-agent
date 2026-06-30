@@ -68,7 +68,7 @@ export async function DELETE(
   } catch (err) {
     console.error("[api/db/cadences/[id] DELETE]", err);
     return NextResponse.json(
-      { ok: false, error: String(err) },
+      { ok: false, error: "Internal error" },
       { status: 500 },
     );
   }

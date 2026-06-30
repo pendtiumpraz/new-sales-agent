@@ -33,7 +33,22 @@ const statements = sql.split("--> statement-breakpoint").map((s) => s.trim()).fi
 // Additive guard — only CREATE is allowed. Destructive DDL aborts (won't match
 // the "deleted_at" column name; we require the table/column keyword).
 const DESTRUCTIVE = /\b(drop\s+table|drop\s+column|alter\s+table|alter\s+column|truncate)\b/i;
-const bad = statements.find((s) => DESTRUCTIVE.test(s));
+
+// Strip SQL line-comments (everything from `--` to end-of-line, incl. inline
+// trailing comments) and normalize whitespace before matching (mirror
+// scripts/apply-additive-alter.mts). Without this, a `-- drop table …` comment
+// would FALSE-trigger the abort, and DDL split across odd whitespace/newlines
+// could read differently to the regex than to Postgres. We match the real,
+// executable SQL only.
+const stripComments = (s: string) =>
+  s
+    .split(/\r?\n/)
+    .map((ln) => ln.replace(/--.*$/, ""))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const bad = statements.find((s) => DESTRUCTIVE.test(stripComments(s)));
 if (bad) {
   console.log("ABORT=destructive statement detected (needs human review):\n" + bad.slice(0, 220));
   process.exit(2);

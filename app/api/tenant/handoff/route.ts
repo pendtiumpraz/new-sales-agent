@@ -47,6 +47,6 @@ export async function PUT(req: Request) {
     return NextResponse.json({ ok: true, config: clean, source: "db" });
   } catch (err) {
     console.error("[api/tenant/handoff PUT]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

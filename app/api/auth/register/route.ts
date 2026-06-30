@@ -13,7 +13,9 @@ export const runtime = "nodejs";
 //
 // Body: { company, name, email, password }
 export async function POST(req: Request) {
-  if (!hasDb()) return fail("Database tidak tersedia", 503, "no_db");
+  // Generic 503 — DON'T reveal DB availability to an anonymous caller (audit #45).
+  // A specific `no_db` oracle lets an unauthenticated probe map our infra state.
+  if (!hasDb()) return fail("Layanan tidak tersedia. Coba lagi nanti.", 503);
   const rl = rateLimit("register", clientIp(req), 5, 60 * 60 * 1000); // 5/hour/IP
   if (!rl.ok) return fail("Terlalu banyak percobaan. Coba lagi nanti.", 429, "rate_limited");
   return handle(async () => {

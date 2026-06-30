@@ -35,6 +35,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   Check,
   ChevronRight,
@@ -537,7 +538,15 @@ export default function InboxPage() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] min-h-0 overflow-hidden">
       {/* ============ COLUMN 1 — CONVERSATION LIST ============ */}
-      <section className="flex w-[336px] min-h-0 shrink-0 flex-col border-r border-border bg-card">
+      {/* Below lg this is a single pane: full-width list; when a thread is open
+          (inbox view + active) it hides and the thread takes over (see col 2). */}
+      <section
+        className={cn(
+          "flex min-h-0 shrink-0 flex-col border-r border-border bg-card",
+          "w-full lg:w-[336px]",
+          view === "inbox" && active ? "hidden lg:flex" : "flex",
+        )}
+      >
         {/* header: title + WA mode toggle + search + view tabs + filter chips */}
         <div className="shrink-0 space-y-3 border-b border-border p-3">
           <div className="flex items-center justify-between">
@@ -702,7 +711,14 @@ export default function InboxPage() {
       </section>
 
       {/* ============ COLUMN 2 — THREAD ============ */}
-      <section className="flex min-w-0 flex-1 flex-col min-h-0">
+      {/* On lg+ always present (flex-1). Below lg it only shows once a thread is
+          open in inbox view — otherwise the list (col 1) owns the single pane. */}
+      <section
+        className={cn(
+          "min-w-0 flex-1 flex-col min-h-0",
+          view === "inbox" && active ? "flex" : "hidden lg:flex",
+        )}
+      >
         {view === "sampah" || !active ? (
           <div className="flex flex-1 items-center justify-center p-8">
             <EmptyState
@@ -716,6 +732,16 @@ export default function InboxPage() {
           <>
             {/* (a) thread header — identity + channel/segment + closing-readiness */}
             <div className="flex min-h-16 shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5">
+              {/* back to list — single-pane mobile only (desktop keeps the list visible) */}
+              <button
+                type="button"
+                onClick={() => setActiveId(null)}
+                title="Kembali ke daftar"
+                className="-ml-1 flex h-8 shrink-0 items-center gap-1 rounded-lg px-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Kembali
+              </button>
               <span
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",

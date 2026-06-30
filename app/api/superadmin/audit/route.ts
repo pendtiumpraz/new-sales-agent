@@ -16,6 +16,6 @@ export async function GET(req: Request) {
     const tenantId = url.searchParams.get("tenantId");
     const limitRaw = url.searchParams.get("limit");
     const limit = limitRaw ? Math.min(Math.max(Number.parseInt(limitRaw, 10) || 50, 1), 200) : 50;
-    return ok(await superadminService.recentAudit(tenantId, limit));
+    return ok(await superadminService.recentAudit(g.ctx, tenantId, limit));
   }, "api/superadmin/audit GET");
 }

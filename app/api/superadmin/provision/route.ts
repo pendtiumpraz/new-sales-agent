@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (!hasDb()) return fail("Database tidak tersedia", 503, "no_db");
   return handle(async () => {
     const body = (await req.json()) as ProvisionTenantInput;
-    const result = await superadminService.provisionTenant(body, g.ctx.userId);
+    const result = await superadminService.provisionTenant(g.ctx, body, g.ctx.userId);
     return ok(result, { status: 201 });
   }, "api/superadmin/provision POST");
 }

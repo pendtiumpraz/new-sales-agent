@@ -11,7 +11,8 @@ const COLORS = ["#FB5E3B", "#14B8A6", "#F59E0B", "#3B82F6", "#8B5CF6"];
 // GET /api/invites/:token — public: view an invite so the accept page can show
 // "Anda diundang ke <Tenant> sebagai <role>".
 export async function GET(_req: Request, { params }: { params: { token: string } }) {
-  if (!hasDb()) return NextResponse.json({ error: "Database belum aktif." }, { status: 503 });
+  // Generic 503 — don't reveal DB availability to an anonymous caller (audit #45).
+  if (!hasDb()) return NextResponse.json({ error: "Layanan tidak tersedia. Coba lagi nanti." }, { status: 503 });
   const [inv] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.token)).limit(1);
   if (!inv) return NextResponse.json({ error: "Undangan tidak ditemukan" }, { status: 404 });
 
@@ -35,7 +36,8 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 // user (if new) + an active membership, and marks the invite accepted so the
 // invited sales rep can finally log in.
 export async function POST(req: Request, { params }: { params: { token: string } }) {
-  if (!hasDb()) return NextResponse.json({ ok: false, error: "Database belum aktif." }, { status: 503 });
+  // Generic 503 — don't reveal DB availability to an anonymous caller (audit #45).
+  if (!hasDb()) return NextResponse.json({ ok: false, error: "Layanan tidak tersedia. Coba lagi nanti." }, { status: 503 });
 
   const [inv] = await db.select().from(invitesTable).where(eq(invitesTable.token, params.token)).limit(1);
   if (!inv) return NextResponse.json({ error: "Undangan tidak ditemukan" }, { status: 404 });
@@ -79,6 +81,6 @@ export async function POST(req: Request, { params }: { params: { token: string }
     return NextResponse.json({ ok: true, message: "Undangan diterima. Silakan login." });
   } catch (err) {
     console.error("[api/invites/[token] POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

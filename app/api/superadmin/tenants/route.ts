@@ -12,5 +12,5 @@ export async function GET() {
   const g = await requirePermission("platform.manage");
   if ("error" in g) return fail("Forbidden", 403, "forbidden");
   if (!hasDb()) return ok([]);
-  return handle(async () => ok(await superadminService.listTenants()), "api/superadmin/tenants GET");
+  return handle(async () => ok(await superadminService.listTenants(g.ctx)), "api/superadmin/tenants GET");
 }

@@ -78,7 +78,7 @@ export default function PendingPage() {
   if (sessionStatus === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="h-72 w-full max-w-md animate-pulse rounded-lg border border-border bg-card" />
+        <div className="h-72 w-full max-w-md animate-pulse rounded-lg border border-border bg-card motion-reduce:animate-none" />
       </div>
     );
   }
@@ -128,7 +128,7 @@ export default function PendingPage() {
             >
               {!activated && (
                 <span
-                  className="absolute -inset-1.5 animate-ping rounded-full"
+                  className="absolute -inset-1.5 animate-ping rounded-full motion-reduce:animate-none"
                   style={{ background: "hsl(38 92% 50% / 0.18)" }}
                   aria-hidden="true"
                 />
@@ -218,7 +218,7 @@ export default function PendingPage() {
                 </>
               ) : checking ? (
                 <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <RefreshCw className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                   Memeriksa…
                 </>
               ) : (

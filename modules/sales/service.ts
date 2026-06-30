@@ -365,18 +365,19 @@ export const salesService = {
     const existing = await salesRepo.countTechniques(ctx);
     if (existing > 0 && !opts?.force) return salesRepo.listTechniques(ctx);
 
-    let sort = 0;
-    for (const t of CLOSING_TECHNIQUES_17) {
-      await salesRepo.upsertTechniqueByKey(ctx, {
+    // Single batched upsert of all 17 (audit #33 — was 17 sequential round-trips).
+    await salesRepo.seedTechniques(
+      ctx,
+      CLOSING_TECHNIQUES_17.map((t, sort) => ({
         key: t.key,
         name: t.name,
         inti: t.inti,
         contoh: t.contoh ?? null,
         cocokUntuk: t.cocokUntuk,
         sinyal: t.sinyal,
-        sort: sort++,
-      });
-    }
+        sort,
+      })),
+    );
     await this.audit(ctx, "sales.technique.seed", "kb_technique", null, {
       count: CLOSING_TECHNIQUES_17.length,
     });

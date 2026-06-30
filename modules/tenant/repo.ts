@@ -219,13 +219,13 @@ export const tenantRepo = {
 
   /** Count active (non-deleted) memberships — drives the seats quota check. */
   async countActiveMembers(ctx: TenantContext): Promise<number> {
-    const rows = await withTenant(ctx, (tx) =>
+    const [row] = await withTenant(ctx, (tx) =>
       tx
-        .select({ id: membershipTable.id })
+        .select({ n: count() })
         .from(membershipTable)
         .where(and(eq(membershipTable.tenantId, ctx.tenantId), isNull(membershipTable.deletedAt))),
     );
-    return rows.length;
+    return row?.n ?? 0;
   },
 
   // ── usage_counter (tenant-scoped quota rollup) ───────────────────

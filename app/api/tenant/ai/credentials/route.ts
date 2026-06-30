@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[api/tenant/ai/credentials POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }
 
@@ -62,6 +62,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[api/tenant/ai/credentials DELETE]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

@@ -79,7 +79,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {
     console.error("[api/db/products PUT]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }
 
@@ -95,6 +95,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true, source: "db" });
   } catch (err) {
     console.error("[api/db/products DELETE]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

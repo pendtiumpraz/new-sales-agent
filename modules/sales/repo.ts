@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import {
@@ -390,6 +390,43 @@ export const salesRepo = {
         .returning(),
     );
     return row;
+  },
+
+  /**
+   * Batch-seed techniques in ONE upsert (audit #33 — replaces 17 sequential
+   * `upsertTechniqueByKey` round-trips). Idempotent on (tenant,key): re-seeding
+   * refreshes copy + un-trashes without duplicating. Empty input is a no-op.
+   */
+  async seedTechniques(
+    ctx: TenantContext,
+    items: Omit<KbTechniqueInsert, "id" | "tenantId">[],
+  ): Promise<KbTechniqueRow[]> {
+    if (items.length === 0) return [];
+    return withTenant(ctx, (tx) =>
+      tx
+        .insert(kbTechniqueTable)
+        .values(
+          items.map((v) => ({
+            ...v,
+            id: "tek_" + crypto.randomUUID(),
+            tenantId: ctx.tenantId,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [kbTechniqueTable.tenantId, kbTechniqueTable.key],
+          set: {
+            name: sql`excluded.name`,
+            inti: sql`excluded.inti`,
+            contoh: sql`excluded.contoh`,
+            cocokUntuk: sql`excluded.cocok_untuk`,
+            sinyal: sql`excluded.sinyal`,
+            sort: sql`excluded.sort`,
+            deletedAt: null,
+            updatedAt: new Date(),
+          },
+        })
+        .returning(),
+    );
   },
 
   /** Idempotently upsert a technique on (tenant,key) — used by the seeder. */

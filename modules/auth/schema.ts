@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
 
 /**
@@ -26,6 +27,12 @@ export const authSessionTable = pgTable(
   },
   (t) => ({
     userIdx: index("auth_session_user_idx").on(t.userId),
+    // Partial index for the request hot-path active-session lookup
+    // (hasActiveSession / the retention sweep) — only live, un-revoked rows
+    // (audit #51). Additive; see 0041_auth_session_active_idx.sql.
+    activeUserIdx: index("auth_session_active_user_idx")
+      .on(t.userId)
+      .where(sql`${t.revokedAt} is null`),
   }),
 );
 
@@ -40,9 +47,10 @@ export const passwordResetTable = pgTable(
     usedAt: timestamp("used_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => ({
-    tokenIdx: index("password_reset_token_idx").on(t.token),
-  }),
+  // No extra index on `token`: the `.unique()` above already backs it with a
+  // unique index (`password_reset_token_unique`). A second non-unique
+  // `password_reset_token_idx` was redundant — dropped (audit #36, see
+  // drizzle/migrations/0040_drop_redundant_password_reset_token_idx.sql).
 );
 
 export type AuthSessionRow = typeof authSessionTable.$inferSelect;

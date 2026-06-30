@@ -31,6 +31,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id });
   } catch (err) {
     console.error("[api/wa/send]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

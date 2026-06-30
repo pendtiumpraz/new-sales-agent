@@ -90,6 +90,20 @@ export class ServiceError extends Error {
   }
 }
 
+/**
+ * Parse a request JSON body, throwing a typed `ServiceError(400,"bad_json")` on a
+ * malformed/empty body instead of letting the raw `SyntaxError` bubble into a 500
+ * with a leaky message. Pair with `handle()` so the thrown error becomes a clean
+ * `{ ok:false, error, code:"bad_json" }` envelope.
+ */
+export async function parseJson<T>(req: Request): Promise<T> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    throw new ServiceError("Malformed JSON body", 400, "bad_json");
+  }
+}
+
 /** Wrap a route body so thrown ServiceErrors become consistent error envelopes
  *  and anything unexpected becomes a 500 — no stack leaks to the client. */
 export async function handle<T>(

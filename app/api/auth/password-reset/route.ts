@@ -14,7 +14,10 @@ export const runtime = "nodejs";
 //
 // Body: { email }
 export async function POST(req: Request) {
-  if (!hasDb()) return fail("Database tidak tersedia", 503, "no_db");
+  // Mirror the no-enumeration contract to infra state too (audit #45): when there
+  // is no DB, still return the SAME `{ requested: true }` an anonymous caller gets
+  // on success — never a `no_db` oracle that maps our backend.
+  if (!hasDb()) return ok({ requested: true as const });
   // Throttle by IP (anti-flood) AND by email (so one victim can't be hammered
   // into a token-issuance loop regardless of source IP) — audit #8.
   const rlIp = rateLimit("reset-ip", clientIp(req), 10, 60 * 60 * 1000); // 10/hour/IP

@@ -79,7 +79,7 @@ export async function PUT(req: Request) {
   } catch (err) {
     console.error("[api/db/autopilot-runs PUT]", err);
     return NextResponse.json(
-      { ok: false, error: String(err) },
+      { ok: false, error: "Internal error" },
       { status: 500 },
     );
   }

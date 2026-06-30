@@ -39,6 +39,6 @@ export async function POST() {
     return NextResponse.json({ ok: true, summary, source: "db" });
   } catch (err) {
     console.error("[api/engagement/upsell POST]", err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }
