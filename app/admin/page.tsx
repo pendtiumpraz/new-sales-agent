@@ -6,6 +6,10 @@ import { useSession } from "next-auth/react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PurgeDialog } from "@/components/shared/purge-dialog";
+
 /**
  * Superadmin console — PLATFORM-LEVEL (Sainskerta Loop Phase 04, Module 1 FE).
  *
@@ -288,21 +292,12 @@ export default function SuperadminConsole() {
     setDrawer((d) => ({ ...d, open: false }));
   }
 
-  // ESC + body scroll-lock while the drawer is open
+  // Autofocus the name field once the drawer's open animation settles.
+  // (Esc-to-close, scroll-lock, and focus-trap are handled by AppDrawerRaw.)
   useEffect(() => {
     if (!drawer.open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeDrawer();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const t = setTimeout(() => nameRef.current?.focus(), 320);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-      clearTimeout(t);
-    };
+    return () => clearTimeout(t);
   }, [drawer.open]);
 
   // ── confirm modals (suspend / soft-delete / restore / purge) ─────
@@ -310,8 +305,6 @@ export default function SuperadminConsole() {
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<TenantRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<TenantRow | null>(null);
-  // strong confirm for the irreversible purge: operator must type the slug
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   // ── mutations ────────────────────────────────────────────────────
   function refreshAll() {
@@ -447,7 +440,6 @@ export default function SuperadminConsole() {
       toast.success(`"${t.name}" dihapus permanen`);
       refreshAll();
       setPurgeTarget(null);
-      setPurgeConfirm("");
     },
     onError: (e) => {
       toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen");
@@ -821,7 +813,6 @@ export default function SuperadminConsole() {
                               onRestore={() => setRestoreTarget(t)}
                               onPurge={() => {
                                 setPurgeTarget(t);
-                                setPurgeConfirm("");
                               }}
                             />
                           ))}
@@ -853,16 +844,11 @@ export default function SuperadminConsole() {
       </div>
 
       {/* ===================== BACKDROP + DRAWER ===================== */}
-      <div
-        onClick={closeDrawer}
-        className={`fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300 ${
-          drawer.open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      />
-      <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-[420px] flex-col border-l border-border bg-card shadow-soft transition-transform duration-300 ${
-          drawer.open ? "translate-x-0" : "translate-x-full"
-        }`}
+      <AppDrawerRaw
+        open={drawer.open}
+        onClose={closeDrawer}
+        title={drawer.mode === "create" ? "Buat akun tenant" : "Aktifkan tenant"}
+        widthClassName="w-full max-w-[420px]"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -1059,206 +1045,79 @@ export default function SuperadminConsole() {
                 : "Aktifkan tenant"}
           </button>
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== SUSPEND CONFIRM ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setSuspendTarget(null);
-        }}
-        className={`fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200 ${
-          suspendTarget ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        <div
-          className={`w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200 ${
-            suspendTarget ? "scale-100 opacity-100" : "scale-95 opacity-0"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-              <AlertIcon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold">Suspend tenant?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Akses <span className="font-medium text-foreground">{suspendTarget?.name}</span> akan dikunci. Data
-                tetap aman dan bisa diaktifkan kembali.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => setSuspendTarget(null)}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => suspendTarget && suspend.mutate(suspendTarget)}
-              disabled={suspend.isPending}
-              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {suspend.isPending ? "Memproses…" : "Ya, suspend"}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ConfirmDialog
+        open={!!suspendTarget}
+        onClose={() => setSuspendTarget(null)}
+        icon={<AlertIcon className="h-5 w-5" />}
+        tone="destructive"
+        title="Suspend tenant?"
+        body={
+          <>
+            Akses <span className="font-medium text-foreground">{suspendTarget?.name}</span> akan
+            dikunci. Data tetap aman dan bisa diaktifkan kembali.
+          </>
+        }
+        confirmLabel="Ya, suspend"
+        confirmPending={suspend.isPending}
+        onConfirm={() => suspendTarget && suspend.mutate(suspendTarget)}
+      />
 
       {/* ===================== SOFT-DELETE CONFIRM ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setDeleteTarget(null);
-        }}
-        className={`fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200 ${
-          deleteTarget ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        <div
-          className={`w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200 ${
-            deleteTarget ? "scale-100 opacity-100" : "scale-95 opacity-0"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-              <TrashIcon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold">Pindahkan ke Sampah?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                <span className="font-medium text-foreground">{deleteTarget?.name}</span> akan dihapus dan dipindah
-                ke tab <b>Sampah</b>. Anda masih bisa memulihkannya nanti.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => setDeleteTarget(null)}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => deleteTarget && softDelete.mutate(deleteTarget)}
-              disabled={softDelete.isPending}
-              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {softDelete.isPending ? "Memproses…" : "Ya, hapus"}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<TrashIcon className="h-5 w-5" />}
+        tone="destructive"
+        title="Pindahkan ke Sampah?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{deleteTarget?.name}</span> akan dihapus
+            dan dipindah ke tab <b>Sampah</b>. Anda masih bisa memulihkannya nanti.
+          </>
+        }
+        confirmLabel="Ya, hapus"
+        confirmPending={softDelete.isPending}
+        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
+      />
 
       {/* ===================== RESTORE CONFIRM ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setRestoreTarget(null);
-        }}
-        className={`fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200 ${
-          restoreTarget ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        <div
-          className={`w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200 ${
-            restoreTarget ? "scale-100 opacity-100" : "scale-95 opacity-0"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tertiary/[0.12] text-tertiary">
-              <RestoreIcon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold">Pulihkan tenant?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                <span className="font-medium text-foreground">{restoreTarget?.name}</span> akan dikembalikan ke tab{" "}
-                <b>Aktif</b> dengan status terakhirnya.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => setRestoreTarget(null)}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => restoreTarget && restore.mutate(restoreTarget)}
-              disabled={restore.isPending}
-              className="h-9 rounded-lg bg-tertiary px-4 text-sm font-semibold text-tertiary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {restore.isPending ? "Memproses…" : "Ya, pulihkan"}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ConfirmDialog
+        open={!!restoreTarget}
+        onClose={() => setRestoreTarget(null)}
+        icon={<RestoreIcon className="h-5 w-5" />}
+        tone="tertiary"
+        title="Pulihkan tenant?"
+        body={
+          <>
+            <span className="font-medium text-foreground">{restoreTarget?.name}</span> akan
+            dikembalikan ke tab <b>Aktif</b> dengan status terakhirnya.
+          </>
+        }
+        confirmLabel="Ya, pulihkan"
+        confirmPending={restore.isPending}
+        onConfirm={() => restoreTarget && restore.mutate(restoreTarget)}
+      />
 
       {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setPurgeTarget(null);
-            setPurgeConfirm("");
-          }
-        }}
-        className={`fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200 ${
-          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        <div
-          className={`w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200 ${
-            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-              <AlertIcon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
-                <span className="font-medium text-foreground">{purgeTarget?.name}</span> akan dihapus selamanya dari
-                platform.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="mb-1.5 block text-[12px] text-muted-foreground">
-              Ketik slug{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
-                {purgeTarget?.slug}
-              </code>{" "}
-              untuk konfirmasi.
-            </label>
-            <input
-              type="text"
-              value={purgeConfirm}
-              onChange={(e) => setPurgeConfirm(e.target.value)}
-              placeholder={purgeTarget?.slug ?? ""}
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-            />
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => {
-                setPurgeTarget(null);
-                setPurgeConfirm("");
-              }}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
-              disabled={purge.isPending || purgeConfirm.trim() !== purgeTarget?.slug}
-              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
-            </button>
-          </div>
-        </div>
-      </div>
+      <PurgeDialog
+        open={!!purgeTarget}
+        label={purgeTarget?.name ?? ""}
+        pending={purge.isPending}
+        confirmPhrase={purgeTarget?.slug ?? "HAPUS"}
+        caseInsensitive={false}
+        onClose={() => setPurgeTarget(null)}
+        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+        body={
+          <>
+            Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+            <span className="font-medium text-foreground">{purgeTarget?.name}</span> akan dihapus
+            selamanya dari platform.
+          </>
+        }
+      />
     </div>
   );
 }

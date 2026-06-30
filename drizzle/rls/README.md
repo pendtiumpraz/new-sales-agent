@@ -26,10 +26,11 @@ queries in `withTenant` (they do, in the rebuild).
 ## Apply steps (operator runs these, in order)
 
 > Run from the repo root. `$OWNER_URL` = `POSTGRES_URL_NON_POOLING` (the
-> `neondb_owner` direct endpoint). All three SQL files are applied with `psql`
-> (or pasted into the Neon SQL editor) — **never** through
-> `scripts/apply-rebuild-migration.mts`, whose additive-only guard ABORTS on the
-> `ALTER TABLE` statements these files are made of.
+> `neondb_owner` direct endpoint). Both SQL files (`create-app-role.sql`,
+> `enable-rls.sql`) are applied with `psql` (or pasted into the Neon SQL editor)
+> — **never** through `scripts/apply-rebuild-migration.mts`, whose additive-only
+> guard ABORTS on the `ALTER TABLE`/`CREATE POLICY` statements these files are
+> made of. The dedicated apply path is plain `psql -f`.
 
 1. **Create the NOBYPASSRLS app role.** Edit `create-app-role.sql` and replace
    `<STRONG_PASSWORD>`, then run it as the owner:

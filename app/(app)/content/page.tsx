@@ -28,7 +28,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   CalendarDays,
   CalendarClock,
   Check,
@@ -45,7 +44,6 @@ import {
   Send,
   Tag,
   Trash2,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -416,7 +414,6 @@ export default function ContentPage() {
   const [restorePlan, setRestorePlan] = useState<PlanRow | null>(null);
   const [purgeTpl, setPurgeTpl] = useState<TemplateRow | null>(null);
   const [purgePlan, setPurgePlan] = useState<PlanRow | null>(null);
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshTemplates() {
@@ -553,7 +550,6 @@ export default function ContentPage() {
       toast.success(`"${t.name}" dihapus permanen`);
       qc.invalidateQueries({ queryKey: ["content", "templates", "trashed"] });
       setPurgeTpl(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -567,7 +563,6 @@ export default function ContentPage() {
       toast.success(`"${p.title}" dihapus permanen`);
       qc.invalidateQueries({ queryKey: ["content", "plans", "trashed"] });
       setPurgePlan(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -862,7 +857,6 @@ export default function ContentPage() {
                 onRestore={setRestoreTpl}
                 onPurge={(t) => {
                   setPurgeTpl(t);
-                  setPurgeConfirm("");
                 }}
               />
             ) : (
@@ -874,7 +868,6 @@ export default function ContentPage() {
                 onRestore={setRestorePlan}
                 onPurge={(p) => {
                   setPurgePlan(p);
-                  setPurgeConfirm("");
                 }}
               />
             )}
@@ -883,9 +876,10 @@ export default function ContentPage() {
       </div>
 
       {/* ===================== TEMPLATE DRAWER ===================== */}
-      <DrawerShell
+      <AppDrawer
         open={tplForm.open}
         onClose={() => setTplForm((f) => ({ ...f, open: false }))}
+        widthClassName="w-full max-w-[460px]"
         icon={<FileText className="h-[18px] w-[18px]" />}
         title={tplForm.id ? "Sunting template" : "Template baru"}
         subtitle="Pesan/konten reusable dengan {{variabel}}"
@@ -976,12 +970,13 @@ export default function ContentPage() {
             />
           </Field>
         </div>
-      </DrawerShell>
+      </AppDrawer>
 
       {/* ===================== PLAN DRAWER ===================== */}
-      <DrawerShell
+      <AppDrawer
         open={planForm.open}
         onClose={() => setPlanForm((f) => ({ ...f, open: false }))}
+        widthClassName="w-full max-w-[460px]"
         icon={<CalendarClock className="h-[18px] w-[18px]" />}
         title={planForm.id ? "Sunting rencana konten" : "Rencana konten baru"}
         subtitle="Item kalender editorial — kapan & di mana terbit"
@@ -1071,10 +1066,10 @@ export default function ContentPage() {
             className="w-full resize-y rounded-lg border border-input bg-card p-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </Field>
-      </DrawerShell>
+      </AppDrawer>
 
       {/* ===================== CONFIRM MODALS ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTpl}
         onClose={() => setDeleteTpl(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1090,7 +1085,7 @@ export default function ContentPage() {
         confirmPending={softDeleteTpl.isPending}
         onConfirm={() => deleteTpl && softDeleteTpl.mutate(deleteTpl)}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deletePlan}
         onClose={() => setDeletePlan(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1106,7 +1101,7 @@ export default function ContentPage() {
         confirmPending={softDeletePlan.isPending}
         onConfirm={() => deletePlan && softDeletePlan.mutate(deletePlan)}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreTpl}
         onClose={() => setRestoreTpl(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1122,7 +1117,7 @@ export default function ContentPage() {
         confirmPending={restoreTplM.isPending}
         onConfirm={() => restoreTpl && restoreTplM.mutate(restoreTpl)}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restorePlan}
         onClose={() => setRestorePlan(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1140,18 +1135,15 @@ export default function ContentPage() {
       />
 
       {/* strong type-to-confirm purge (template + rencana share one modal) */}
-      <PurgeModal
+      <PurgeDialog
         open={!!purgeTpl || !!purgePlan}
         label={purgeTpl?.name ?? purgePlan?.title ?? ""}
-        confirm={purgeConfirm}
-        onConfirmChange={setPurgeConfirm}
         pending={purgeTplM.isPending || purgePlanM.isPending}
         onClose={() => {
           setPurgeTpl(null);
           setPurgePlan(null);
-          setPurgeConfirm("");
         }}
-        onPurge={() => {
+        onConfirm={() => {
           if (purgeTpl) purgeTplM.mutate(purgeTpl);
           else if (purgePlan) purgePlanM.mutate(purgePlan);
         }}
@@ -1785,219 +1777,6 @@ function VarHint({ body }: { body: string }) {
           {`{{${v}}}`}
         </span>
       ))}
-    </div>
-  );
-}
-
-function DrawerShell({
-  open,
-  onClose,
-  icon,
-  title,
-  subtitle,
-  footer,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  footer: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <div
-        onClick={onClose}
-        className={cn(
-          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-          open ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-[460px] flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          open ? "translate-x-0" : "translate-x-full",
-        )}
-      >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {icon}
-            </span>
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-bold text-foreground">{title}</h2>
-              <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">{open && children}</div>
-        <div className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-5 py-3">
-          {footer}
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive" ? "bg-destructive text-white" : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PurgeModal({
-  open,
-  label,
-  confirm,
-  onConfirmChange,
-  pending,
-  onClose,
-  onPurge,
-}: {
-  open: boolean;
-  label: string;
-  confirm: string;
-  onConfirmChange: (v: string) => void;
-  pending: boolean;
-  onClose: () => void;
-  onPurge: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-            <AlertTriangle className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
-              <span className="font-medium text-foreground">{label}</span> akan dihapus selamanya.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4">
-          <label className="mb-1.5 block text-[12px] text-muted-foreground">
-            Ketik{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">HAPUS</code>{" "}
-            untuk konfirmasi.
-          </label>
-          <input
-            type="text"
-            value={confirm}
-            onChange={(e) => onConfirmChange(e.target.value)}
-            placeholder="HAPUS"
-            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-          />
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onPurge}
-            disabled={pending || confirm.trim().toUpperCase() !== "HAPUS"}
-            className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? "Menghapus…" : "Hapus permanen"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

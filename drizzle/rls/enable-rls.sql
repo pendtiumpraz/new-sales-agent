@@ -41,8 +41,9 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    -- tenant
-    'membership','usage_counter',
+    -- tenant (membership is OMITTED here on purpose — it gets its own
+    -- user_id-aware policy in the dedicated block below)
+    'usage_counter',
     -- crm
     'company_v2','contact','pipeline','pipeline_stage','deal','activity',
     -- inbox

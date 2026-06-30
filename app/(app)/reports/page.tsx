@@ -20,7 +20,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   BarChart3,
   Boxes,
   Building2,
@@ -42,8 +41,11 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -255,7 +257,6 @@ export default function ReportsPage() {
   const [deleteTarget, setDeleteTarget] = useState<SavedReportRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<SavedReportRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<SavedReportRow | null>(null);
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   useEffect(() => {
     if (!form.open) return;
@@ -273,7 +274,6 @@ export default function ReportsPage() {
     onRestored: () => setRestoreTarget(null),
     onPurged: () => {
       setPurgeTarget(null);
-      setPurgeConfirm("");
     },
   });
 
@@ -659,7 +659,6 @@ export default function ReportsPage() {
                               type="button"
                               onClick={() => {
                                 setPurgeTarget(r);
-                                setPurgeConfirm("");
                               }}
                               className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
                             >
@@ -678,12 +677,11 @@ export default function ReportsPage() {
       </div>
 
       {/* ===================== SAVE-REPORT DRAWER ===================== */}
-      <DrawerBackdrop open={form.open} onClose={() => setForm((d) => ({ ...d, open: false }))} />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          form.open ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={form.open}
+        onClose={() => setForm((d) => ({ ...d, open: false }))}
+        title="Simpan laporan"
+        widthClassName="w-[420px] max-w-full"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -815,10 +813,10 @@ export default function ReportsPage() {
             {save.isPending ? "Menyimpan…" : "Simpan laporan"}
           </Button>
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== SOFT-DELETE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -836,7 +834,7 @@ export default function ReportsPage() {
       />
 
       {/* ===================== RESTORE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreTarget}
         onClose={() => setRestoreTarget(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -854,16 +852,11 @@ export default function ReportsPage() {
       />
 
       {/* ===================== HARD-DELETE (PURGE) CONFIRM ===================== */}
-      <PurgeModal
+      <PurgeDialog
         open={!!purgeTarget}
-        targetLabel={purgeTarget?.name ?? ""}
-        value={purgeConfirm}
-        onChange={setPurgeConfirm}
+        label={purgeTarget?.name ?? ""}
         pending={purge.isPending}
-        onClose={() => {
-          setPurgeTarget(null);
-          setPurgeConfirm("");
-        }}
+        onClose={() => setPurgeTarget(null)}
         onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
       />
     </div>
@@ -1201,177 +1194,6 @@ function SavedTableRow({
         </button>
       </td>
     </tr>
-  );
-}
-
-function DrawerBackdrop({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <div
-      onClick={onClose}
-      className={cn(
-        "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    />
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive"
-                ? "bg-destructive text-white"
-                : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PurgeModal({
-  open,
-  targetLabel,
-  value,
-  onChange,
-  pending,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean;
-  targetLabel: string;
-  value: string;
-  onChange: (v: string) => void;
-  pending: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-            <AlertTriangle className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
-              <span className="font-medium text-foreground">{targetLabel}</span> akan dihapus selamanya.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4">
-          <label className="mb-1.5 block text-[12px] text-muted-foreground">
-            Ketik{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
-              HAPUS
-            </code>{" "}
-            untuk konfirmasi.
-          </label>
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="HAPUS"
-            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-          />
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={pending || value.trim().toUpperCase() !== "HAPUS"}
-            className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? "Menghapus…" : "Hapus permanen"}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

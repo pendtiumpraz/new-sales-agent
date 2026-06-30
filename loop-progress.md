@@ -158,9 +158,8 @@ Auth/Onboarding/Superadmin/Branding → Workspace+Product → CRM (B2C/B2B + pip
 - [x] ✅ **Fix tick** (security CRITICAL + kontras): #1 backdoor gated (`dev-gate.ts`) · #2 reset-token gak dibalikin · #6 tenant-status server-side · #8 rate-limit (`rate-limit.ts`) · #11 guard envelope · #21 role allow-list · #4 #19 kontras WCAG. tsc PASS.
 - [x] ✅ **PUSHED** ke `pendtiumpraz/main` (commit `434c63e`, rebased di atas `c317ddb` v0.3.0, no conflict)
 - [🔴] **GAP DITEMUKAN USER: flow/shell masih LAMA.** Rebuild ganti isi page per-modul tapi landing(`/`)+top-bar+nav+rute-lama gak disatuin ke IA baru → app kerasa lama. (Verifikasi-ku cuma tsc+HTTP-status, gak cek rendered UI — salah.) → [[verify-rendered-ui]]
-- [🔄] **Flow/shell unification tick**: landing baru + side-nav ke IA baru + top-bar + redirect rute lama (use-case/workspaces/team/penawaran). HARUS verify rendered content, bukan cuma tsc.
-- [ ] #5 Radix dialogs — GAGAL (API ConnectionRefused), retry pending
-- [ ] #3 RLS DB-level — GAGAL (API), retry pending (apply role ke Neon = infra user)
+- [x] ✅ **Flow/shell unification** — landing baru (Maira/Masuk/Daftar, no old markers — **diverifikasi rendered**) + side-nav IA baru (link mati bersih, /workspace) + top-bar baru. Commit `dd4c3c7` PUSHED. (minor sisa: rute orphan use-case/workspaces/team belum redirect, tapi udah unlinked)
+- [🔄] #5 Radix dialogs + #3 RLS — retry (API udah balik)
 - [ ] 👀 User review audit + verdict → **Fase 06 Deploy = gate kamu**
 - [ ] ⚠️ Transisi: halaman lama yg belum di-rebuild bisa rusak sementara (auth pindah tabel baru) — wajar, ke-cover snapshot
 - [ ] ⚠️ `db:push` ke Neon — GATE (butuh OK user; sebelum itu cuma `db:generate` + tsc/lint)
