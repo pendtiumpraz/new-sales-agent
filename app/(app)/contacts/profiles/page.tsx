@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { Archive, ArchiveRestore, Briefcase, Building2, Handshake, Radar, Search, Sparkles, User2, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { ContactsTabs } from "@/components/contacts/contacts-tabs";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { DataTable, type Column } from "@/components/profiles/data-table";
 import { ProfileDetailSheet } from "@/components/profiles/profile-detail-sheet";
@@ -361,7 +360,6 @@ export default function ProfilesPage() {
           {showArchived ? "Lihat aktif" : "Lihat arsip"}
         </Button>
       </PageHeader>
-      <ContactsTabs />
       <div className="p-6">
         <Tabs defaultValue="perusahaan">
           <TabsList>

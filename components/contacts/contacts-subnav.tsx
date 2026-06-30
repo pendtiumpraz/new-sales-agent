@@ -2,41 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Contact, MapPin, Radar, Users } from "lucide-react";
+import { Building2, Map, Radar, Users, type LucideIcon } from "lucide-react";
 
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { withWorkspace } from "@/lib/workspace/scope";
 import { cn } from "@/lib/utils";
 
-// One coherent flow for the whole Kontak cluster so users aren't lost between
-// the 4 sub-pages (doc 40): Cari → Hasil → Sebaran → Kelola.
-const STEPS = [
-  { href: "/contacts/discovery", icon: Radar, label: "1. Cari", hint: "Discovery / crawl" },
-  { href: "/contacts/profiles", icon: Users, label: "2. Hasil", hint: "Profil orang & PT" },
-  { href: "/contacts/map", icon: MapPin, label: "3. Sebaran", hint: "Peta provinsi" },
-  { href: "/contacts", icon: Contact, label: "4. Kelola", hint: "Daftar kontak & outreach" },
+// ONE tab row for the whole "Kontak & Lead" cluster. This replaces the two
+// competing sub-navs that used to STACK on /contacts/* — the numbered step pills
+// ("1.Cari → 2.Hasil → 3.Sebaran → 4.Kelola") AND a second in-page `ContactsTabs`
+// bar (Kontak/Profil/Discovery/Peta) — which made discovery/profiles/map show a
+// confusing double nav (docs/rebuild/05-product-flow §). Plain tabs, NO step
+// numbers (the flow isn't strictly sequential), the main list (Kontak) first.
+// Each tab is a real route; the active one is derived from the pathname; the
+// active workspace param is carried along (doc 44 workspace-first nav).
+const TABS: { href: string; label: string; icon: LucideIcon; exact?: boolean }[] = [
+  { href: "/contacts", label: "Kontak", icon: Users, exact: true },
+  { href: "/contacts/discovery", label: "Discovery", icon: Radar },
+  { href: "/contacts/profiles", label: "Profil", icon: Building2 },
+  { href: "/contacts/map", label: "Peta", icon: Map },
 ];
 
 export function ContactsSubnav() {
   const pathname = usePathname();
+  const activeWs = useWorkspaceStore((s) => s.active);
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b bg-card px-4 py-2">
-      {STEPS.map((s) => {
-        // exact match for /contacts so it doesn't light up on every sub-route
-        const active = s.href === "/contacts" ? pathname === "/contacts" : pathname.startsWith(s.href);
+    <div className="scrollbar-thin flex gap-1 overflow-x-auto border-b border-border bg-card px-4">
+      {TABS.map((t) => {
+        const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
+        const Icon = t.icon;
         return (
           <Link
-            key={s.href}
-            href={s.href}
-            title={s.hint}
+            key={t.href}
+            href={withWorkspace(t.href, activeWs?.id)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
               active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            <s.icon className="h-3.5 w-3.5" />
-            {s.label}
-            <span className="hidden text-[10px] font-normal opacity-70 sm:inline">· {s.hint}</span>
+            <Icon className="h-4 w-4" />
+            {t.label}
           </Link>
         );
       })}
