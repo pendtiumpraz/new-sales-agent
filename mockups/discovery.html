@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="id" class="">
+<head>
+<!-- SHARED HEAD — paste verbatim. Default theme = "Coral Sunset" (the EXISTING app theme). Themable via CSS vars (white-label, per-user). -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOCKUP — Discovery (goal-first, multi-channel)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{
+ fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},
+ borderRadius:{lg:'var(--radius)',md:'calc(var(--radius) - 4px)',sm:'calc(var(--radius) - 8px)'},
+ colors:{
+  background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:'hsl(var(--card))','card-foreground':'hsl(var(--card-foreground))',
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))','foreground':'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  tertiary:{DEFAULT:'hsl(var(--tertiary))',foreground:'hsl(var(--tertiary-foreground))'},
+  destructive:{DEFAULT:'hsl(var(--destructive))'},border:'hsl(var(--border))',input:'hsl(var(--input))',ring:'hsl(var(--ring))',
+  brand:{DEFAULT:'#0D9488',hover:'#0F766E'},highlight:{DEFAULT:'hsl(var(--highlight))',foreground:'hsl(var(--highlight-foreground))'},
+  success:'#10B981',warning:'#F59E0B',danger:'#EF4444',info:'#3B82F6',
+  channel:{wa:'#25D366',ig:'#E1306C',email:'#6366F1',shopee:'#EE4D2D'},
+ }
+}}}
+</script>
+<style>
+:root{--background:18 100% 98%;--foreground:24 6% 10%;--card:0 0% 100%;--card-foreground:24 6% 10%;
+--primary:12 96% 67%;--primary-foreground:0 0% 100%;--secondary:24 16% 94%;--secondary-foreground:24 10% 24%;
+--muted:24 30% 96%;--muted-foreground:20 6% 45%;--accent:18 80% 96%;--accent-foreground:24 6% 10%;
+--destructive:0 84% 60%;--destructive-foreground:0 0% 100%;--border:24 24% 91%;--input:24 24% 91%;--ring:12 96% 67%;
+--tertiary:173 80% 40%;--tertiary-foreground:0 0% 100%;--highlight:38 92% 50%;--highlight-foreground:24 6% 10%;--radius:1rem;}
+body{font-family:'Inter',system-ui,sans-serif;background:hsl(var(--background));color:hsl(var(--foreground))}
+.chrome{background:linear-gradient(180deg,hsl(18 95% 95%),hsl(14 88% 92%));border-color:hsl(14 70% 86%)}
+.glass{background:hsl(var(--card)/0.72);backdrop-filter:blur(20px) saturate(150%)}
+.shadow-soft{box-shadow:0 12px 28px -8px hsl(16 45% 30% / 0.12)}
+a.dev{color:#9ca3af}
+.fade-in{animation:fadeIn .35s ease both}@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.count{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.fade-in{animation:none}}
+</style>
+</head>
+<body class="bg-background text-foreground">
+
+<!-- thin dev-nav to jump between mockups -->
+<nav class="bg-foreground/90 text-white/80 text-xs px-3 py-1.5 flex flex-wrap gap-2.5 sticky top-0 z-[100]" style="background:hsl(var(--foreground)/0.92)">
+ <span class="font-semibold text-white">MOCKUP:</span>
+ <a class="dev hover:text-white" href="index.html">Index</a><a class="dev hover:text-white" href="dashboard-shell.html">Dashboard</a><a class="dev hover:text-white" href="contacts.html">Contacts</a><a class="dev hover:text-white font-semibold text-white" href="discovery.html">Discovery</a><a class="dev hover:text-white" href="taxonomy.html">Taxonomy</a><a class="dev hover:text-white" href="enrichment.html">Enrichment</a><a class="dev hover:text-white" href="pipeline.html">Pipeline</a><a class="dev hover:text-white" href="inbox.html">Inbox</a>
+</nav>
+
+<div class="flex min-h-[calc(100vh-33px)]">
+
+  <!-- ===================== SIDEBAR (w-64) ===================== -->
+  <aside class="w-64 shrink-0 chrome border-r flex flex-col fixed inset-y-0 top-[33px] z-30">
+    <div class="h-14 flex items-center gap-2.5 px-4 border-b" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-soft">SA</div>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold text-foreground truncate">Sapa<span class="text-primary">AI</span></div>
+        <div class="text-[10px] text-muted-foreground truncate">CV Maju Bersama</div>
+      </div>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 text-sm space-y-5">
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Utama</p>
+        <a href="dashboard-shell.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#3B82F6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </a>
+        <a href="workspace.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M9 7h6"/></svg>
+          Workspace
+        </a>
+      </div>
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Leads</p>
+        <a href="contacts.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#6366F1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kontak
+        </a>
+        <a href="discovery.html" class="relative flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary font-medium">
+          <span class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-primary"></span>
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+          Discovery
+        </a>
+        <a href="pipeline.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px] text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="12" width="3" height="6" rx="1"/></svg>
+          Pipeline
+        </a>
+      </div>
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Eksekusi</p>
+        <a href="inbox.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#25D366" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+          Inbox
+        </a>
+      </div>
+      <div>
+        <p class="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Pengaturan</p>
+        <a href="taxonomy.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#0d9488" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+          Master Data
+        </a>
+        <a href="branding.html" class="flex items-center gap-3 px-4 py-2 text-foreground/70 hover:bg-primary/5 hover:text-foreground transition-colors">
+          <svg class="w-[18px] h-[18px]" style="color:#EC4899" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg>
+          Branding
+        </a>
+      </div>
+    </nav>
+    <div class="border-t px-4 py-3 flex items-center gap-2.5" style="border-color:hsl(14 70% 86%)">
+      <div class="w-9 h-9 rounded-full bg-tertiary/15 text-tertiary flex items-center justify-center font-semibold text-xs">RA</div>
+      <div class="text-xs leading-tight min-w-0 flex-1">
+        <div class="font-medium text-foreground truncate">Rini Aprilia</div>
+        <div class="text-muted-foreground truncate">Sales Rep</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN COLUMN ===================== -->
+  <div class="flex-1 flex flex-col min-w-0 ml-64">
+
+    <!-- TOPBAR -->
+    <header class="h-14 glass border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-[33px] z-20">
+      <div class="relative w-72 max-w-[40vw]">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Cari lead, perusahaan, kontak…" class="w-full h-9 pl-9 pr-3 rounded-lg bg-card/80 border border-border text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring/40">
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="h-9 pl-2.5 pr-3 rounded-lg bg-card border border-border flex items-center gap-2 text-sm hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+          <span class="font-medium">Paket UMKM Pro</span>
+          <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs cursor-pointer shadow-soft">RA</div>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <main class="flex-1 overflow-auto">
+
+      <!-- Cluster tab row (the unified one: Kontak • Discovery • Profil • Peta — no step numbers) -->
+      <div class="flex gap-1 overflow-x-auto border-b border-border bg-card px-4">
+        <a href="contacts.html" class="-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Kontak
+        </a>
+        <a href="discovery.html" class="-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2.5 text-sm font-medium text-foreground">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>Discovery
+        </a>
+        <a href="#" class="-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>Profil
+        </a>
+        <a href="#" class="-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 3 5 5v16l4-2 6 3 4-2V4l-4 2-6-3Z"/></svg>Peta
+        </a>
+      </div>
+
+      <!-- Page header -->
+      <div class="px-6 pt-6 pb-1 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Discovery</h1>
+          <p class="text-sm text-muted-foreground mt-0.5">Cari <b class="text-foreground/80">perusahaan + kontaknya + orang di dalamnya</b> dari channel mana pun. Workspace: <span class="font-medium text-foreground/80">Paket UMKM Pro</span></p>
+        </div>
+        <a href="#" class="h-9 px-3 rounded-lg bg-card border border-border text-sm font-medium flex items-center gap-2 hover:border-primary/40 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-warning"></span>Extension: <span class="font-semibold text-foreground/80">Belum terhubung</span>
+        </a>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- =============================================================== -->
+        <!-- GOAL BANNER — apa yang dicari (channel-NEUTRAL, bukan LinkedIn)  -->
+        <!-- =============================================================== -->
+        <div class="rounded-lg border border-tertiary/30 bg-tertiary/[0.06] p-4 flex items-start gap-3">
+          <svg class="w-5 h-5 text-tertiary shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          <div class="text-[13px] leading-relaxed">
+            <b>Targetnya bukan "hasil LinkedIn"</b> — tapi sebuah graf: <span class="font-medium text-tertiary">Perusahaan</span> (nama · telp · email · domain · alamat · industri) → <span class="font-medium text-tertiary">Orang di dalamnya</span> (nama · jabatan · telp · email). Channel cuma jalan buat ngisi graf itu — LinkedIn, Google Maps, Instagram, Facebook, Shopee/Tokopedia, TikTok, dll.
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- DUA MODE MASUK: (A) Cari by target   (B) Tempel URL apa aja      -->
+        <!-- =============================================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- (A) GOAL-FIRST: deskripsikan target → AI rencana lintas-channel -->
+          <div class="bg-card rounded-lg border border-border shadow-soft p-5 space-y-3.5">
+            <div class="flex items-center gap-2">
+              <span class="h-7 w-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              </span>
+              <h2 class="text-sm font-semibold">Cari berdasarkan target</h2>
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-tertiary/12 text-tertiary ml-auto">AI rencana lintas-channel</span>
+            </div>
+            <div>
+              <label class="block text-[12px] font-medium text-foreground/70 mb-1">Siapa yang dicari?</label>
+              <input type="text" value="kepala HRD pabrik manufaktur" class="w-full h-9 px-3 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40" placeholder="mis. owner toko bangunan · dokter gigi · manajer logistik">
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[12px] font-medium text-foreground/70 mb-1">Lokasi</label>
+                <div class="relative">
+                  <select class="appearance-none w-full h-9 pl-3 pr-8 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer"><option>Indonesia</option><option>Jabodetabek</option><option>Surabaya</option><option>Bandung</option></select>
+                  <svg class="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[12px] font-medium text-foreground/70 mb-1">Seniority</label>
+                <div class="relative">
+                  <select class="appearance-none w-full h-9 pl-3 pr-8 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer"><option>Semua</option><option>Owner / C-level</option><option>Manajer</option><option>Staf</option></select>
+                  <svg class="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
+            <button class="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 shadow-soft hover:opacity-90 transition-opacity">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              Susun rencana lintas-channel
+            </button>
+            <p class="text-[10px] text-muted-foreground text-center">AI bikin rencana per-channel; orang aslinya diambil via extension/crawl — bukan dikarang AI.</p>
+          </div>
+
+          <!-- (B) UNIVERSAL: tempel URL apa aja → scrape langsung -->
+          <div class="bg-card rounded-lg border border-border shadow-soft p-5 space-y-3.5">
+            <div class="flex items-center gap-2">
+              <span class="h-7 w-7 rounded-lg bg-info/12 text-info flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19"/></svg>
+              </span>
+              <h2 class="text-sm font-semibold">Tempel URL apa aja</h2>
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-info/12 text-info ml-auto">scrape langsung</span>
+            </div>
+            <div>
+              <label class="block text-[12px] font-medium text-foreground/70 mb-1">Link profil · post · toko · Google Maps</label>
+              <textarea rows="3" class="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 resize-none" placeholder="https://www.linkedin.com/posts/…  (post → ambil komentator & reactor)&#10;https://maps.google.com/…  ·  https://shopee.co.id/toko…  ·  https://instagram.com/…">https://www.linkedin.com/posts/susan-susanti_lowongan-share-7477…</textarea>
+            </div>
+            <!-- Intent-mining hint (the Susan Susanti example) -->
+            <div class="rounded-lg border border-highlight/40 bg-highlight/[0.08] px-3 py-2 text-[11px] leading-relaxed flex items-start gap-2">
+              <svg class="w-4 h-4 text-highlight shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+              <span><b>URL post terdeteksi</b> — extension akan ambil <b>yang nge-komen / react / di-tag</b> (sinyal niat terpanas), bukan cuma yang posting.</span>
+            </div>
+            <button class="w-full h-10 rounded-lg bg-foreground text-background text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+              Scrape URL ini
+            </button>
+            <p class="text-[10px] text-muted-foreground text-center">Channel dikenali otomatis dari URL — gak perlu pilih platform dulu.</p>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- RENCANA LINTAS-CHANNEL — grid kartu channel (NETRAL, ada WIP)    -->
+        <!-- =============================================================== -->
+        <div class="bg-card rounded-lg border border-border shadow-soft p-5">
+          <div class="flex items-center justify-between mb-3.5">
+            <h3 class="text-sm font-semibold flex items-center gap-2">
+              <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              Rencana lintas-channel
+            </h3>
+            <span class="text-[10px] text-muted-foreground">target: <b class="text-foreground/70">kepala HRD pabrik manufaktur · Indonesia</b></span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+
+            <!-- LinkedIn (LIVE) — incl post/komentar intent-mining -->
+            <div class="rounded-lg border border-border p-3.5 hover:border-primary/40 transition-colors">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2.5 h-2.5 rounded-sm" style="background:#0A66C2"></span>
+                <span class="text-[13px] font-semibold">LinkedIn</span>
+                <span class="ml-auto text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-success/15 text-success">Live</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground mb-2">Search · profil · <b class="text-foreground/70">post &amp; komentar</b> (intent-mining)</p>
+              <div class="space-y-1 text-[11px]">
+                <div class="flex items-center gap-1.5 rounded border border-border px-2 py-1"><span class="flex-1 truncate">"HRD manufaktur" OR "kepala personalia"</span><a href="#" class="text-primary font-medium shrink-0">Buka ›</a></div>
+                <div class="flex items-center gap-1.5 rounded border border-border px-2 py-1"><span class="flex-1 truncate">post: "lowongan pabrik" → komentator</span><span class="text-[9px] px-1 rounded bg-highlight/15 text-highlight font-semibold shrink-0">niat</span></div>
+              </div>
+            </div>
+
+            <!-- Google Maps (LIVE) -->
+            <div class="rounded-lg border border-border p-3.5 hover:border-primary/40 transition-colors">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2.5 h-2.5 rounded-sm" style="background:#34A853"></span>
+                <span class="text-[13px] font-semibold">Google Maps</span>
+                <span class="ml-auto text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-success/15 text-success">Live</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground mb-2">PT + telp + alamat + kategori industri</p>
+              <div class="space-y-1 text-[11px]">
+                <div class="flex items-center gap-1.5 rounded border border-border px-2 py-1"><span class="flex-1 truncate">pabrik manufaktur Bekasi</span><a href="#" class="text-primary font-medium shrink-0">Buka ›</a></div>
+                <div class="flex items-center gap-1.5 rounded border border-border px-2 py-1"><span class="flex-1 truncate">kawasan industri Cikarang</span><a href="#" class="text-primary font-medium shrink-0">Buka ›</a></div>
+              </div>
+            </div>
+
+            <!-- Google SERP/dork (LIVE) -->
+            <div class="rounded-lg border border-border p-3.5 hover:border-primary/40 transition-colors">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2.5 h-2.5 rounded-sm" style="background:#EA4335"></span>
+                <span class="text-[13px] font-semibold">Google SERP</span>
+                <span class="ml-auto text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-success/15 text-success">Live</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground mb-2">Dork → website PT + kontak</p>
+              <div class="space-y-1 text-[11px]">
+                <div class="flex items-center gap-1.5 rounded bg-muted px-2 py-1 font-mono text-[10px]"><span class="flex-1 truncate">site:*.co.id "HRD" "manufaktur" email</span><button class="text-muted-foreground shrink-0">⧉</button></div>
+              </div>
+            </div>
+
+            <!-- Instagram (WIP) -->
+            <div class="rounded-lg border border-dashed border-border p-3.5 opacity-90">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2.5 h-2.5 rounded-sm" style="background:#E1306C"></span>
+                <span class="text-[13px] font-semibold">Instagram</span>
+                <span class="ml-auto text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-warning/15 text-warning">WIP</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground">Business profile → tombol kontak (email/telp/WA), bio, link. Adapter extension menyusul.</p>
+            </div>
+
+            <!-- Facebook (WIP) -->
+            <div class="rounded-lg border border-dashed border-border p-3.5 opacity-90">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2.5 h-2.5 rounded-sm" style="background:#1877F2"></span>
+                <span class="text-[13px] font-semibold">Facebook</span>
+                <span class="ml-auto text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-warning/15 text-warning">WIP</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground">Page → "Tentang"/kontak; grup jual-beli. Adapter extension menyusul.</p>
+            </div>
+
+            <!-- Marketplace + TikTok (WIP) -->
+            <div class="rounded-lg border border-dashed border-border p-3.5 opacity-90">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2.5 h-2.5 rounded-sm" style="background:#EE4D2D"></span>
+                <span class="text-[13px] font-semibold">Shopee · Tokopedia · TikTok</span>
+                <span class="ml-auto text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-warning/15 text-warning">WIP</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground">Toko/seller → nama usaha + lokasi; profil bisnis TikTok. Adapter extension menyusul.</p>
+            </div>
+          </div>
+          <p class="text-[10px] italic text-muted-foreground mt-3">Channel <b class="text-success">Live</b> bisa langsung dieksekusi via extension. <b class="text-warning">WIP</b> = adapter scrape-nya belum jadi (ditandai jujur, bukan dicentang palsu).</p>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- HASIL — graf Perusahaan → Orang (channel-agnostic)              -->
+        <!-- =============================================================== -->
+        <div class="bg-card rounded-lg border border-border shadow-soft overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-border flex flex-wrap items-center gap-3">
+            <h3 class="text-sm font-semibold">Hasil — Perusahaan &amp; orangnya</h3>
+            <span class="text-[11px] text-muted-foreground"><b class="text-foreground/80">2</b> PT · <b class="text-foreground/80">5</b> orang</span>
+            <div class="ml-auto flex items-center gap-2">
+              <span class="text-[11px] text-muted-foreground"><b class="text-foreground/80">3</b> dipilih</span>
+              <button class="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-soft hover:opacity-90 transition-opacity">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>Simpan ke workspace
+              </button>
+            </div>
+          </div>
+
+          <!-- Company group 1 -->
+          <div class="border-b border-border">
+            <div class="px-5 py-2.5 bg-muted/40 flex flex-wrap items-center gap-2.5">
+              <input type="checkbox" checked class="h-4 w-4 rounded border-input accent-primary">
+              <svg class="w-4 h-4 text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+              <span class="font-semibold text-sm">PT Sinar Manufaktur Jaya</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-tertiary/12 text-tertiary font-medium">Manufaktur</span>
+              <span class="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"><span class="w-2 h-2 rounded-full" style="background:#34A853"></span>Google Maps</span>
+              <div class="ml-auto flex items-center gap-1.5 text-[10px]">
+                <span class="px-1.5 py-0.5 rounded bg-success/12 text-success font-medium">☎ 021-8990xxx</span>
+                <span class="px-1.5 py-0.5 rounded font-medium" style="background:#6366F118;color:#4f46e5">✉ hrd@sinarjaya.co.id</span>
+              </div>
+            </div>
+            <table class="w-full text-sm text-left">
+              <tbody class="divide-y divide-border">
+                <tr class="hover:bg-muted/30">
+                  <td class="pl-12 pr-4 py-2.5 w-9"><input type="checkbox" checked class="h-4 w-4 rounded border-input accent-primary"></td>
+                  <td class="px-2 py-2.5"><div class="font-medium">Budi Santoso</div><div class="text-[11px] text-muted-foreground">HRD Manager</div></td>
+                  <td class="px-2 py-2.5"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#0A66C2"></span>LinkedIn</span></td>
+                  <td class="px-2 py-2.5"><span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">in/budi-santoso</span></td>
+                  <td class="px-4 py-2.5 text-right"><button class="h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Lengkapi ›</button></td>
+                </tr>
+                <tr class="hover:bg-muted/30">
+                  <td class="pl-12 pr-4 py-2.5 w-9"><input type="checkbox" class="h-4 w-4 rounded border-input accent-primary"></td>
+                  <td class="px-2 py-2.5"><div class="font-medium">Andi Prasetyo</div><div class="text-[11px] text-muted-foreground">Staf Personalia</div></td>
+                  <td class="px-2 py-2.5"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full bg-highlight"></span>LinkedIn · komentar</span></td>
+                  <td class="px-2 py-2.5"><span class="px-1.5 py-0.5 rounded bg-channel-wa/15 text-[10px] font-medium" style="color:#1faa52">☎ WA</span></td>
+                  <td class="px-4 py-2.5 text-right"><button class="h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Lengkapi ›</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Company group 2 -->
+          <div>
+            <div class="px-5 py-2.5 bg-muted/40 flex flex-wrap items-center gap-2.5">
+              <input type="checkbox" checked class="h-4 w-4 rounded border-input accent-primary">
+              <svg class="w-4 h-4 text-tertiary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+              <span class="font-semibold text-sm">CV Karya Tekstil</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground font-medium">industri: belum</span>
+              <span class="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"><span class="w-2 h-2 rounded-full bg-info"></span>SERP</span>
+              <div class="ml-auto flex items-center gap-1.5 text-[10px]">
+                <span class="px-1.5 py-0.5 rounded font-medium" style="background:#6366F118;color:#4f46e5">✉ info@karyatekstil.com</span>
+              </div>
+            </div>
+            <table class="w-full text-sm text-left">
+              <tbody class="divide-y divide-border">
+                <tr class="hover:bg-muted/30">
+                  <td class="pl-12 pr-4 py-2.5 w-9"><input type="checkbox" class="h-4 w-4 rounded border-input accent-primary"></td>
+                  <td class="px-2 py-2.5"><div class="font-medium">Dewi Lestari</div><div class="text-[11px] text-muted-foreground">Owner</div></td>
+                  <td class="px-2 py-2.5"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full" style="background:#E1306C"></span>Instagram</span></td>
+                  <td class="px-2 py-2.5"><span class="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px] font-medium">@karyatekstil</span></td>
+                  <td class="px-4 py-2.5 text-right"><button class="h-7 px-2.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors">Lengkapi ›</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="px-5 py-2.5 border-t border-border text-[11px] text-muted-foreground bg-muted/30">
+            Yang disimpan masuk ke <a href="contacts.html" class="text-primary font-medium hover:underline">Kontak</a> dengan status <i>"belum di-enrich"</i>; saat enrich, industri PT &amp; jabatan orang otomatis diklasifikasi ke <a href="taxonomy.html" class="text-primary font-medium hover:underline">Master Data</a>.
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>
