@@ -128,6 +128,9 @@ const IconBilling = base(
 const IconKb = base(
   <path d="M4 4a2 2 0 0 1 2-2h13v18H6a2 2 0 0 0-2 2V4Zm4 2v2h8V6H8Zm0 4v2h8v-2H8Z" />,
 );
+const IconMasterData = base(
+  <path d="M4 3h7v7H4V3Zm9 0h7v7h-7V3ZM4 14h7v7H4v-7Zm9 0h7v7h-7v-7Zm2 2v3h3v-3h-3ZM6 5v3h3V5H6Zm9 0v3h3V5h-3ZM6 16v3h3v-3H6Z" />,
+);
 
 /* -------------------------------------------------------------------------- */
 /* NEW IA — grouped exactly like wireframes/index.html:                        */
@@ -191,6 +194,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Pengaturan",
     items: [
       { href: "/branding", icon: IconBranding, color: "#FD7A5C", label: "Branding", desc: "Tema, logo & favicon (per-user, default Coral Sunset)" },
+      { href: "/master-data", icon: IconMasterData, color: "#0D9488", label: "Master Data", desc: "Katalog industri & pekerjaan yang dipakai AI mengklasifikasi crawl" },
       { href: "/settings/ai", icon: IconAi, color: "#8B5CF6", label: "AI", desc: "Provider AI + kunci BYOK" },
       { href: "/settings/team", icon: IconTeam, color: "#EF4444", label: "Tim", desc: "Anggota tim & peran", managerOnly: true },
       { href: "/settings/billing", icon: IconBilling, color: "#10B981", label: "Billing", desc: "Paket, kuota & tagihan", managerOnly: true },

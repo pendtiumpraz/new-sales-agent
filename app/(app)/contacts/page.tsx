@@ -2,7 +2,10 @@
 
 // Kontak & Lead (CRM) — Module 3 FRONTEND (Sainskerta Loop Phase 04). Wired to the
 // NEW M3 / CRM backend (no mock data): GET /api/contacts (list, ContactRow[]),
-// GET /api/companies (resolve company names — contacts only carry companyId),
+// GET /api/companies (resolve company names + industry_id — contacts only carry
+// companyId), GET /api/taxonomy/industries + /api/taxonomy/occupations (resolve a
+// contact's company.industry_id → INDUSTRI label and the contact's occupation_id →
+// PEKERJAAN label; both also power the Industri / Pekerjaan filter dropdowns),
 // GET /api/contacts/trashed (the Sampah view), GET /api/activities?subjectType=
 // contact&subjectId= (drawer timeline) + GET /api/deals?contactId= (related deals).
 // Mutations: PATCH /api/contacts/[id] (enrich → set enrichment_status / fit /
@@ -71,6 +74,7 @@ interface ContactRow {
   workspaceId: string | null;
   fullName: string;
   title: string | null;
+  occupationId: string | null; // soft ref → occupation.id (taxonomy · resolved to a PEKERJAAN label)
   department: string | null;
   seniority: string | null;
   email: string | null;
@@ -101,9 +105,17 @@ interface CompanyRow {
   id: string;
   name: string;
   domain: string | null;
-  industry: string | null;
+  industry: string | null; // free-text label as captured (fallback)
+  industryId: string | null; // soft ref → industry.id (taxonomy · resolved to an INDUSTRI label)
   website: string | null;
   socials: Record<string, string> | null;
+}
+
+/** Row from GET /api/taxonomy/{industries|occupations} (modules/taxonomy). */
+interface TaxoRow {
+  id: string;
+  name: string;
+  nameEn: string | null;
 }
 
 /** Row from GET /api/activities?subjectType=contact&subjectId= (modules/crm · activity). */
@@ -238,12 +250,50 @@ export default function ContactsCrmPage() {
     retry: false,
   });
 
+  // Taxonomy catalogs — INDUSTRI (on a contact's company) + PEKERJAAN (on the
+  // contact). The list endpoints return the global base ∪ tenant rows; we build
+  // id → name maps to RESOLVE a contact's occupation_id / its company's
+  // industry_id into a human label (the row stores ids, never labels).
+  const industriesQ = useQuery({
+    queryKey: ["taxonomy", "industry", "list"],
+    queryFn: async () => readJson<TaxoRow[]>(await fetch("/api/taxonomy/industries")),
+    retry: false,
+  });
+  const occupationsQ = useQuery({
+    queryKey: ["taxonomy", "occupation", "list"],
+    queryFn: async () => readJson<TaxoRow[]>(await fetch("/api/taxonomy/occupations")),
+    retry: false,
+  });
+
   const contacts = useMemo(() => contactsQ.data ?? [], [contactsQ.data]);
   const companyById = useMemo(() => {
     const m: Record<string, CompanyRow> = {};
     for (const c of companiesQ.data ?? []) m[c.id] = c;
     return m;
   }, [companiesQ.data]);
+
+  // id → label lookups for the taxonomy soft refs.
+  const industryNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of industriesQ.data ?? []) m.set(r.id, r.name);
+    return m;
+  }, [industriesQ.data]);
+  const occupationNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of occupationsQ.data ?? []) m.set(r.id, r.name);
+    return m;
+  }, [occupationsQ.data]);
+
+  /** A contact's PEKERJAAN label (occupation_id → name; falls back to its title). */
+  const occupationLabel = (c: ContactRow): string | null =>
+    (c.occupationId ? occupationNameById.get(c.occupationId) : null) ?? null;
+  /** A contact's INDUSTRI label (resolved via its company's industry_id, then the
+   *  company's free-text industry as a fallback). */
+  const industryLabel = (c: ContactRow): string | null => {
+    const co = c.companyId ? companyById[c.companyId] : undefined;
+    if (!co) return null;
+    return (co.industryId ? industryNameById.get(co.industryId) : null) ?? co.industry ?? null;
+  };
 
   // ── tabs ───────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<MainTab>("aktif");
@@ -261,7 +311,37 @@ export default function ContactsCrmPage() {
   const [segF, setSegF] = useState<SegFilter>("all");
   const [enrF, setEnrF] = useState<EnrFilter>("all");
   const [srcF, setSrcF] = useState<string>("all");
+  const [indF, setIndF] = useState<string>("all"); // industry_id | "all"
+  const [occF, setOccF] = useState<string>("all"); // occupation_id | "all"
   const [search, setSearch] = useState("");
+
+  // Filter dropdown options — only the taxonomy rows ACTUALLY in use by a visible
+  // contact (id + label), so the menu stays scoped to this workspace's data
+  // instead of the full global catalog. Each option is an id; the label is
+  // resolved from the same maps used to render the cells.
+  const industryFilterOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const c of contacts) {
+      const co = c.companyId ? companyById[c.companyId] : undefined;
+      if (co?.industryId && industryNameById.has(co.industryId)) {
+        seen.set(co.industryId, industryNameById.get(co.industryId)!);
+      }
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name, "id"),
+    );
+  }, [contacts, companyById, industryNameById]);
+  const occupationFilterOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const c of contacts) {
+      if (c.occupationId && occupationNameById.has(c.occupationId)) {
+        seen.set(c.occupationId, occupationNameById.get(c.occupationId)!);
+      }
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name, "id"),
+    );
+  }, [contacts, occupationNameById]);
 
   const stats = useMemo(() => {
     let b2c = 0;
@@ -288,17 +368,27 @@ export default function ContactsCrmPage() {
     const q = search.trim().toLowerCase();
     return contacts.filter((c) => {
       const company = c.companyId ? companyById[c.companyId]?.name ?? "" : "";
+      const occ = occupationLabel(c);
+      const ind = industryLabel(c);
       const enrMatch =
         enrF === "all" ||
         (enrF === "enriched" && c.enrichmentStatus === "enriched") ||
         (enrF === "pending" && c.enrichmentStatus !== "enriched");
       const okSeg = segF === "all" || c.segment === segF;
       const okSrc = srcF === "all" || sourceBucket(c.source) === srcF;
+      const okInd =
+        indF === "all" || (!!c.companyId && companyById[c.companyId]?.industryId === indF);
+      const okOcc = occF === "all" || c.occupationId === occF;
       const okSearch =
-        !q || c.fullName.toLowerCase().includes(q) || company.toLowerCase().includes(q);
-      return okSeg && enrMatch && okSrc && okSearch;
+        !q ||
+        c.fullName.toLowerCase().includes(q) ||
+        company.toLowerCase().includes(q) ||
+        (occ?.toLowerCase().includes(q) ?? false) ||
+        (ind?.toLowerCase().includes(q) ?? false);
+      return okSeg && enrMatch && okSrc && okInd && okOcc && okSearch;
     });
-  }, [contacts, companyById, segF, enrF, srcF, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts, companyById, segF, enrF, srcF, indF, occF, search, industryNameById, occupationNameById]);
 
   const visibleTrashed = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -583,6 +673,42 @@ export default function ContactsCrmPage() {
                 <ChevronRight className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-90 text-muted-foreground" />
               </div>
 
+              {/* (3b) INDUSTRI select — resolved from the contact's company.industry_id */}
+              <div className="relative">
+                <select
+                  value={indF}
+                  onChange={(e) => setIndF(e.target.value)}
+                  disabled={industriesQ.isLoading || industryFilterOptions.length === 0}
+                  className="h-7 max-w-[180px] cursor-pointer appearance-none truncate rounded-lg border border-border bg-card pl-3 pr-7 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="all">Industri: Semua</option>
+                  {industryFilterOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronRight className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-90 text-muted-foreground" />
+              </div>
+
+              {/* (3c) PEKERJAAN select — resolved from the contact's occupation_id */}
+              <div className="relative">
+                <select
+                  value={occF}
+                  onChange={(e) => setOccF(e.target.value)}
+                  disabled={occupationsQ.isLoading || occupationFilterOptions.length === 0}
+                  className="h-7 max-w-[180px] cursor-pointer appearance-none truncate rounded-lg border border-border bg-card pl-3 pr-7 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="all">Pekerjaan: Semua</option>
+                  {occupationFilterOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronRight className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-90 text-muted-foreground" />
+              </div>
+
               {/* (4) inline search */}
               <div className="relative ml-auto w-44">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -633,15 +759,16 @@ export default function ContactsCrmPage() {
                 className="border-0"
                 icon={Search}
                 title="Tidak ada kontak yang cocok"
-                description="Coba ubah filter segmen / status enrichment / sumber, atau kata kunci."
+                description="Coba ubah filter segmen / enrichment / sumber / industri / pekerjaan, atau kata kunci."
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[940px] text-left text-sm">
+                <table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-3 py-3 font-semibold">Nama</th>
-                      <th className="px-3 py-3 font-semibold">Perusahaan</th>
+                      <th className="px-3 py-3 font-semibold">Pekerjaan</th>
+                      <th className="px-3 py-3 font-semibold">Perusahaan · Industri</th>
                       <th className="px-3 py-3 font-semibold">Segment</th>
                       <th className="w-40 px-3 py-3 font-semibold">Skor Fit</th>
                       <th className="px-3 py-3 font-semibold">Status Enrichment</th>
@@ -655,6 +782,8 @@ export default function ContactsCrmPage() {
                         key={c.id}
                         contact={c}
                         company={c.companyId ? companyById[c.companyId] ?? null : null}
+                        occupation={occupationLabel(c)}
+                        industry={industryLabel(c)}
                         onOpen={() => {
                           setOpenId(c.id);
                           setDrawerTab("act");
@@ -883,9 +1012,25 @@ export default function ContactsCrmPage() {
                 <div className="space-y-2 text-[13px]">
                   <ProfileRow label="Jabatan" value={active.title} />
                   <ProfileRow
+                    label="Pekerjaan (taksonomi)"
+                    value={occupationLabel(active)}
+                    hint={active.occupationId ? undefined : "belum diklasifikasi"}
+                  />
+                  <ProfileRow
                     label="Perusahaan"
                     value={
                       active.companyId ? companyById[active.companyId]?.name ?? "—" : "— (perorangan)"
+                    }
+                  />
+                  <ProfileRow
+                    label="Industri (taksonomi)"
+                    value={industryLabel(active)}
+                    hint={
+                      !active.companyId
+                        ? "kontak perorangan"
+                        : companyById[active.companyId]?.industryId
+                          ? undefined
+                          : "belum diklasifikasi"
                     }
                   />
                   <ProfileRow label="Departemen" value={active.department} />
@@ -1251,6 +1396,8 @@ function SourceBadge({ source }: { source: string | null }) {
 function ContactTableRow({
   contact,
   company,
+  occupation,
+  industry,
   onOpen,
   onEnrich,
   onDelete,
@@ -1258,6 +1405,10 @@ function ContactTableRow({
 }: {
   contact: ContactRow;
   company: CompanyRow | null;
+  /** Resolved PEKERJAAN label (occupation_id → name), or null. */
+  occupation: string | null;
+  /** Resolved INDUSTRI label (company.industry_id → name), or null. */
+  industry: string | null;
   onOpen: () => void;
   onEnrich: () => void;
   onDelete: () => void;
@@ -1282,8 +1433,24 @@ function ContactTableRow({
         </div>
       </td>
       <td className="px-3 py-3 text-sm">
+        {occupation ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-info/[0.1] px-2 py-0.5 text-[11px] font-medium text-info">
+            {occupation}
+          </span>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">belum diklasifikasi</span>
+        )}
+      </td>
+      <td className="px-3 py-3 text-sm">
         {company ? (
-          <span className="text-foreground/80">{company.name}</span>
+          <div className="min-w-0">
+            <p className="truncate text-foreground/80">{company.name}</p>
+            {industry ? (
+              <p className="truncate text-[11px] text-muted-foreground">{industry}</p>
+            ) : (
+              <p className="truncate text-[11px] text-muted-foreground/70">industri belum diklasifikasi</p>
+            )}
+          </div>
         ) : (
           <span className="text-muted-foreground">
             — <span className="text-[11px]">(perorangan)</span>
@@ -1391,11 +1558,26 @@ function TrashedTableRow({
   );
 }
 
-function ProfileRow({ label, value }: { label: string; value: string | null }) {
+function ProfileRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | null;
+  /** Shown (muted/italic) instead of "—" when value is empty — e.g. "belum diklasifikasi". */
+  hint?: string;
+}) {
   return (
     <div className="flex justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value || "—"}</span>
+      {value ? (
+        <span className="text-right font-medium text-foreground">{value}</span>
+      ) : hint ? (
+        <span className="text-right text-[12px] italic text-muted-foreground">{hint}</span>
+      ) : (
+        <span className="text-right font-medium text-foreground">—</span>
+      )}
     </div>
   );
 }

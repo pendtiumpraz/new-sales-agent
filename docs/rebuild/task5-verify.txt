@@ -1,0 +1,72 @@
+Task 5 — Verify build (tasks A/B/C)
+Date: 2026-06-30
+Branch: new-main
+
+=========================================================
+RESULT: PASS
+=========================================================
+No TypeScript errors and no lint warnings were introduced by tasks A/B/C.
+
+Files changed/added by tasks A/B/C (verified against `git status`):
+  M app/(app)/contacts/discovery/page.tsx
+  M app/(app)/contacts/page.tsx
+  M app/(app)/contacts/profiles/page.tsx
+  M components/layout/side-nav.tsx
+  ?? app/(app)/master-data/page.tsx
+  ?? app/api/taxonomy/industries/trashed/route.ts
+  ?? app/api/taxonomy/occupations/trashed/route.ts
+  ?? scripts/apply-additive-alter.mts
+
+---------------------------------------------------------
+1) npx tsc --noEmit
+---------------------------------------------------------
+Exit: clean (no output, 0 errors).
+
+---------------------------------------------------------
+2) npm run lint  (next lint)
+---------------------------------------------------------
+Exit: success (warnings only, none in A/B/C files).
+
+Full warning list (ALL pre-existing, in files NOT touched by A/B/C):
+
+./app/(app)/ecommerce/page.tsx
+  21:10  Warning: 'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/(app)/field/page.tsx
+  25:3    Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+  1591:10 Warning: 'ConfirmModal' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/(app)/settings/diagnostics/page.tsx
+  514:21 Warning: '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/(app)/settings/knowledge-base/page.tsx
+  27:3   Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/shared/table-pagination.tsx
+  65:45  Warning: 'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+---------------------------------------------------------
+Attribution check
+---------------------------------------------------------
+Filtered the lint output for every A/B/C path
+(master-data, contacts/discovery, contacts/page, contacts/profiles,
+side-nav, taxonomy/{industries,occupations}/trashed, apply-additive-alter)
+=> NO_WARNINGS_IN_ABC_FILES.
+
+Therefore: the 6 remaining lint warnings are pre-existing and unrelated.
+Build is GREEN for tasks A/B/C.
+
+=========================================================
+INDEPENDENT RE-VERIFICATION (fix pass) — 2026-06-30
+=========================================================
+Re-ran all checks fresh; no tsc/lint errors were introduced by A/B/C,
+so no fixes were required.
+
+  npx tsc --noEmit            => exit 0 (no output, no errors)
+  npm run lint  (next lint)   => exit 0 (5 warning entries / 6 lines, ALL
+                                 pre-existing, in files NOT touched by A/B/C:
+                                 ecommerce, field, settings/diagnostics,
+                                 settings/knowledge-base, table-pagination)
+  eslint (scoped to the 7 A/B/C files directly) => exit 0, ZERO warnings
+
+Confirmed RESULT: PASS. Build remains GREEN. Nothing to fix.

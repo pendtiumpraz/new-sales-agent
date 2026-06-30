@@ -1,53 +1,86 @@
 "use client";
 
-import { useState } from "react";
+// Discovery — Module 5 FRONTEND (Sainskerta Loop rebuild). GOAL-FIRST &
+// channel-NEUTRAL, faithful to mockups/discovery.html (Coral Sunset). The target
+// is a GRAPH — Perusahaan (nama · telp · email · domain · alamat · industri) →
+// Orang di dalamnya (nama · jabatan · telp · email) — that can be filled from ANY
+// channel; channels are just roads into the graph.
+//
+// Bands (top → bottom):
+//   (1) GOAL banner — explains the Company→People graph (channel-neutral).
+//   (2) Two entry cards:
+//        A) "Cari berdasarkan target" (field/location/seniority) →
+//           POST /api/discovery/plan → cross-channel DiscoveryPlan (modules/
+//           enrichment/plan.ts — the NEW shape, NOT linkedinQueries-only).
+//        B) "Tempel URL apa aja" — textarea → channel detected from the URL
+//           (incl. a post-URL intent-mining hint) → POST /api/discovery (kind:url)
+//           server-side crawl. Each scraped company becomes a result node.
+//   (3) Cross-channel PLAN grid — one card per channel (LinkedIn incl. post/
+//       komentar intent-mining, Google Maps, Google SERP/dork, Instagram,
+//       Facebook, Shopee/Tokopedia/TikTok) with its queries/actions + an HONEST
+//       Live/WIP badge (Live = ingest sink ready; WIP = browser scraper lands in
+//       the extension phase — marked, never fake-checked).
+//   (4) Results — the Company→People graph grouped by PT (phone/email at company
+//       AND person level, channel/source per node) with checkbox →
+//       "Simpan ke workspace" → POST /api/discovery/ingest (channel-agnostic graph
+//       sink → CRM contacts with enrichment_status "none"). HONESTY: we never
+//       fabricate people — the graph starts empty and fills from real scrapes/
+//       the extension ingest, so the results band shows an awaiting state until
+//       a real URL-scrape (or a future extension run) lands nodes.
+//
+// Every band has loading + empty + error states. Lives inside the Kontak cluster
+// subnav (app/(app)/contacts/layout.tsx) — NO in-page tab bar here.
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  ArrowDown,
+  Building2,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  Link2,
+  Mail,
+  Phone,
+  Plug,
+  Radar,
+  Sparkles,
+  Target,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Copy, ExternalLink, Radar, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CrawlProgressDialog, type CrawlStatus } from "@/components/contacts/crawl-progress-dialog";
-import { ListSkeleton } from "@/components/shared/skeletons";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { cn } from "@/lib/utils";
 
-interface Job {
-  id: string;
-  kind: string;
-  status: string;
-  posture: string;
-  input?: Record<string, unknown> | null;
-  result:
-    | (Record<string, unknown> & {
-        created?: number;
-        contactsCreated?: number;
-        peopleCreated?: number;
-        name?: string;
-        note?: string;
-        crawled?: { name: string; domain: string | null; contacts: number }[];
-        linkedinQueries?: string[];
-      })
-    | null;
-  error?: string | null;
-  createdAt: string;
-  finishedAt?: string | null;
+// ── API envelope ({ ok, data } | { ok, error }) ──────────────────────────────
+interface ApiOk<T> {
+  ok: true;
+  data: T;
+}
+interface ApiErr {
+  ok: false;
+  error: string;
+  code?: string;
+}
+type ApiResult<T> = ApiOk<T> | ApiErr;
+
+async function readJson<T>(r: Response): Promise<T> {
+  const j = (await r.json().catch(() => null)) as ApiResult<T> | null;
+  if (!r.ok || !j || j.ok === false) {
+    if (r.status === 403) throw new Error("forbidden");
+    throw new Error((j && "error" in j && j.error) || "Permintaan gagal");
+  }
+  return j.data;
 }
 
+// ── cross-channel plan shape — mirrors modules/enrichment/plan.ts (the NEW shape) ──
 interface DiscoveryCompany {
   name: string;
   why: string;
@@ -72,7 +105,6 @@ interface MarketplaceChannelPlan {
   tokopedia: string[];
   note: string;
 }
-// CROSS-CHANNEL plan (channel-neutral) — see modules/enrichment/plan.ts.
 interface DiscoveryPlan {
   field: string;
   location: string;
@@ -90,613 +122,895 @@ interface DiscoveryPlan {
   note: string;
 }
 
-function relTime(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "";
-  const s = Math.floor((Date.now() - t) / 1000);
-  if (s < 60) return "baru saja";
-  if (s < 3600) return `${Math.floor(s / 60)} mnt lalu`;
-  if (s < 86400) return `${Math.floor(s / 3600)} jam lalu`;
-  return `${Math.floor(s / 86400)} hr lalu`;
+// ── channel-agnostic graph ingest shapes — mirror modules/enrichment/service.ts ──
+interface IngestPersonRef {
+  name?: string | null;
+  domain?: string | null;
+}
+interface IngestPersonInput {
+  fullName: string;
+  title?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  whatsapp?: string | null;
+  location?: string | null;
+  channelProfileUrl?: string | null;
+  companyRef?: IngestPersonRef | null;
+}
+interface IngestCompanyInput {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  domain?: string | null;
+  address?: string | null;
+  industry?: string | null;
+}
+interface IngestGraphResult {
+  companiesUpserted: number;
+  peopleUpserted: number;
+  jobId: string;
 }
 
-const STATUS_CLS: Record<string, string> = {
-  done: "bg-success/10 text-success",
-  pending: "bg-info/10 text-info",
-  error: "bg-destructive/10 text-destructive",
+// ── the in-page Company→People graph (results) ───────────────────────────────
+// One node per real scrape / extension ingest. People hang under their company.
+// Each node carries its capture channel + source for provenance (mockup band 4).
+interface PersonNode {
+  id: string;
+  fullName: string;
+  title: string | null;
+  channel: ChannelKey;
+  channelLabel: string;
+  profileHandle: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+}
+interface CompanyNode {
+  id: string;
+  name: string;
+  industry: string | null;
+  domain: string | null;
+  channel: ChannelKey;
+  channelLabel: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  people: PersonNode[];
+}
+
+// ── channel registry (the "roads" — Live vs WIP is HONEST) ───────────────────
+// Live = backend ingest sink + a working extraction path (URL crawl / future ext
+// adapter). WIP = the per-channel browser scraper hasn't landed yet — flagged, not
+// fake-checked. Colors match the mockup channel dots.
+type ChannelKey =
+  | "linkedin"
+  | "google_maps"
+  | "google"
+  | "instagram"
+  | "facebook"
+  | "marketplace"
+  | "tiktok"
+  | "web";
+
+const CHANNEL_DOT: Record<ChannelKey, string> = {
+  linkedin: "#0A66C2",
+  google_maps: "#34A853",
+  google: "#EA4335",
+  instagram: "#E1306C",
+  facebook: "#1877F2",
+  marketplace: "#EE4D2D",
+  tiktok: "#010101",
+  web: "#0D9488",
 };
-
-// A labelled list of copyable query strings, each with an optional "open" link
-// (per-channel). Reused across every channel block of the cross-channel plan.
-function QueryList({
-  title,
-  hint,
-  items,
-  linkFor,
-  onCopy,
-}: {
-  title: string;
-  hint?: string;
-  items: string[];
-  linkFor?: (q: string) => string;
-  onCopy: (q: string) => void;
-}) {
-  if (!items.length) return null;
-  return (
-    <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-      <div className="space-y-1.5">
-        {items.map((q) => (
-          <div key={q} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
-            <span className="min-w-0 flex-1 truncate">{q}</span>
-            {linkFor && (
-              <a href={linkFor(q)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                Buka <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onCopy(q)}><Copy className="h-3.5 w-3.5" /></Button>
-          </div>
-        ))}
-      </div>
-      {hint && <p className="mt-1.5 text-[11px] text-muted-foreground">{hint}</p>}
-    </div>
-  );
+// ── per-URL channel detection (mockup band 2 — "channel dikenali otomatis") ───
+interface UrlDetection {
+  channel: ChannelKey;
+  label: string;
+  /** true when the URL is a POST/feed item → intent-mining (commenters/reactors). */
+  isPost: boolean;
 }
 
+function detectChannel(rawUrl: string): UrlDetection | null {
+  const u = rawUrl.trim();
+  if (!u) return null;
+  const host = u.replace(/^https?:\/\//i, "").toLowerCase();
+  const isLinkedInPost = /linkedin\.com\/(posts|feed|pulse)\//i.test(u);
+  if (host.includes("linkedin.com")) {
+    return { channel: "linkedin", label: "LinkedIn", isPost: isLinkedInPost };
+  }
+  if (host.includes("google.") && (u.includes("/maps") || host.includes("maps.google")))
+    return { channel: "google_maps", label: "Google Maps", isPost: false };
+  if (host.includes("instagram.com"))
+    return { channel: "instagram", label: "Instagram", isPost: /\/(p|reel)\//i.test(u) };
+  if (host.includes("facebook.com") || host.includes("fb.com"))
+    return { channel: "facebook", label: "Facebook", isPost: /\/(posts|permalink|story)/i.test(u) };
+  if (host.includes("shopee.") || host.includes("tokopedia."))
+    return { channel: "marketplace", label: host.includes("shopee.") ? "Shopee" : "Tokopedia", isPost: false };
+  if (host.includes("tiktok.com"))
+    return { channel: "tiktok", label: "TikTok", isPost: /\/video\//i.test(u) };
+  if (host.includes("google."))
+    return { channel: "google", label: "Google SERP", isPost: false };
+  return { channel: "web", label: "Website", isPost: false };
+}
+
+// ── per-channel deep-link builders (open the query on the real platform) ─────
+const linkedinSearchUrl = (q: string) =>
+  `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(q)}&origin=GLOBAL_SEARCH_HEADER`;
+const linkedinContentUrl = (q: string) =>
+  `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(q)}`;
+const googleUrl = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+const mapsUrl = (q: string) => `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
+const igUrl = (q: string) =>
+  `https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/[^a-zA-Z0-9]/g, ""))}/`;
+const fbUrl = (q: string) => `https://www.facebook.com/search/top?q=${encodeURIComponent(q)}`;
+const shopeeUrl = (q: string) => `https://shopee.co.id/search?keyword=${encodeURIComponent(q)}`;
+const tokopediaUrl = (q: string) => `https://www.tokopedia.com/search?st=product&q=${encodeURIComponent(q)}`;
+const tiktokUrl = (q: string) => `https://www.tiktok.com/search?q=${encodeURIComponent(q)}`;
+
+// A channel card in the cross-channel plan grid. `live` toggles solid vs dashed
+// border + the Live/WIP badge. `queries` render as copyable rows; `linkFor`/`tag`
+// are optional per-row.
+interface PlanQuery {
+  text: string;
+  href?: string;
+  tag?: string; // e.g. "niat" for an intent-mining row
+  mono?: boolean; // render as code (dorks)
+}
+interface ChannelCard {
+  key: ChannelKey;
+  title: string;
+  subtitle: string;
+  live: boolean;
+  queries: PlanQuery[];
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
 export default function DiscoveryPage() {
-  const qc = useQueryClient();
-  const jobs = useQuery({
-    queryKey: ["crawl-jobs"],
-    queryFn: async () => {
-      const r = await fetch("/api/discovery");
-      if (!r.ok) throw new Error();
-      return ((await r.json()).data ?? []) as Job[];
-    },
-  });
-  // Extension is the PRIMARY discovery engine (RPA in the rep's own session).
-  const ext = useQuery({
+  const activeWs = useWorkspaceStore((s) => s.active);
+  const workspaceId = activeWs?.id ?? null;
+
+  // Extension last-seen → the honest "Belum terhubung / Terhubung" pill.
+  const extQ = useQuery({
     queryKey: ["rep-account"],
     queryFn: async () => {
       const r = await fetch("/api/rep/account");
       if (!r.ok) return null;
-      return (await r.json()) as { connected: boolean; lastSeenAt: string | null };
+      return (await r.json()) as { connected?: boolean; lastSeenAt?: string | null };
     },
+    retry: false,
   });
+  const extConnected = !!extQ.data?.connected;
 
-  const workspaceId = useSearchParams().get("workspace"); // tag crawled leads to this workspace (doc 44)
-  const [posture, setPosture] = useState("compliant");
-  // Opt-in: also generate + persist the AI analysis (lead classify + company
-  // positioning) for what this crawl finds. Default off (metered AI).
-  const [analyze, setAnalyze] = useState(false);
-  const [names, setNames] = useState("");
-  const [url, setUrl] = useState("");
-  const [industry, setIndustry] = useState("");
-
-  // AI discovery (find people by field, target Indonesia)
+  // ── (A) goal-first inputs ────────────────────────────────────────────────────
   const [field, setField] = useState("");
   const [location, setLocation] = useState("Indonesia");
   const [seniority, setSeniority] = useState("");
+
   const plan = useMutation({
-    mutationFn: async () => {
-      const r = await fetch("/api/discovery/plan", {
+    mutationFn: async () =>
+      readJson<DiscoveryPlan>(
+        await fetch("/api/discovery/plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field, location, seniority }),
+        }),
+      ),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyusun rencana"),
+  });
+
+  // ── (B) paste-URL inputs ─────────────────────────────────────────────────────
+  const [urls, setUrls] = useState("");
+  // The FIRST non-empty URL drives the detection hint banner.
+  const firstUrl = useMemo(() => urls.split("\n").map((u) => u.trim()).find(Boolean) ?? "", [urls]);
+  const detection = useMemo(() => detectChannel(firstUrl), [firstUrl]);
+
+  // ── results graph (real nodes only — never fabricated) ───────────────────────
+  const [companies, setCompanies] = useState<CompanyNode[]>([]);
+  // Selection: company ids + person ids that are checked for "Simpan ke workspace".
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
+  const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set());
+
+  const totalPeople = useMemo(
+    () => companies.reduce((n, c) => n + c.people.length, 0),
+    [companies],
+  );
+  const selectedCount = selectedCompanies.size + selectedPeople.size;
+
+  function toggleCompany(co: CompanyNode) {
+    setSelectedCompanies((prev) => {
+      const next = new Set(prev);
+      if (next.has(co.id)) next.delete(co.id);
+      else next.add(co.id);
+      return next;
+    });
+    // Selecting/clearing a company cascades to its people (a graph edge).
+    setSelectedPeople((prev) => {
+      const next = new Set(prev);
+      const turningOn = !selectedCompanies.has(co.id);
+      for (const p of co.people) {
+        if (turningOn) next.add(p.id);
+        else next.delete(p.id);
+      }
+      return next;
+    });
+  }
+  function togglePerson(p: PersonNode) {
+    setSelectedPeople((prev) => {
+      const next = new Set(prev);
+      if (next.has(p.id)) next.delete(p.id);
+      else next.add(p.id);
+      return next;
+    });
+  }
+
+  // ── (B) URL scrape → /api/discovery (kind:url). Each scraped company becomes a
+  // real result node we can then save to the workspace. Channel is detected from
+  // the URL (channel-neutral). NOTE: server-side crawl extracts company-level
+  // contacts from public pages; people come from the extension/ingest path.
+  const scrape = useMutation({
+    mutationFn: async (url: string) => {
+      const u = url.startsWith("http") ? url : `https://${url}`;
+      const det = detectChannel(u);
+      const r = await fetch("/api/discovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field, location, seniority }),
+        body: JSON.stringify({ kind: "url", url: u, ...(workspaceId ? { workspaceId } : {}) }),
       });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
-      return j.data as DiscoveryPlan;
+      const j = (await r.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            error?: string;
+            result?: {
+              name?: string;
+              domain?: string | null;
+              emails?: number;
+              phones?: number;
+              contactsCreated?: number;
+            } | null;
+          }
+        | null;
+      if (!r.ok || !j || j.ok === false) throw new Error(j?.error || "Gagal scrape URL");
+      return { detection: det, result: j.result ?? null, url: u };
     },
-    onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
+    onSuccess: ({ detection: det, result, url }) => {
+      const channel: ChannelKey = det?.channel ?? "web";
+      const label = det?.label ?? "Website";
+      const name = result?.name || result?.domain || url.replace(/^https?:\/\//, "");
+      const node: CompanyNode = {
+        id: `co_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name,
+        industry: null,
+        domain: result?.domain ?? null,
+        channel,
+        channelLabel: label,
+        // The crawl reports COUNTS, not the raw values — be honest: show that
+        // contacts were captured without inventing a phone/email string.
+        phone: null,
+        email: null,
+        address: null,
+        people: [],
+      };
+      setCompanies((prev) => [node, ...prev]);
+      setSelectedCompanies((prev) => new Set(prev).add(node.id));
+      const got = result?.contactsCreated ?? 0;
+      toast.success(
+        got > 0
+          ? `Scrape selesai — ${name}: ${got} kontak (${result?.emails ?? 0} email, ${result?.phones ?? 0} telp)`
+          : `Scrape selesai — ${name} (tidak ada kontak publik ditemukan)`,
+      );
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal scrape URL"),
   });
+
+  function runScrape() {
+    const list = urls.split("\n").map((u) => u.trim()).filter(Boolean);
+    if (!list.length) return;
+    // Scrape sequentially-ish: fire each; the mutation appends a node per success.
+    for (const u of list) scrape.mutate(u);
+  }
+
+  // ── (4) Simpan ke workspace → /api/discovery/ingest (channel-agnostic sink) ───
+  const ingest = useMutation({
+    mutationFn: async (payload: {
+      channel: string;
+      ingestCompanies: IngestCompanyInput[];
+      people: IngestPersonInput[];
+    }) =>
+      readJson<IngestGraphResult>(
+        await fetch("/api/discovery/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            channel: payload.channel,
+            workspaceId,
+            companies: payload.ingestCompanies,
+            people: payload.people,
+            analyze: false,
+          }),
+        }),
+      ),
+    onSuccess: (res) => {
+      toast.success(
+        `Disimpan ke workspace — ${res.companiesUpserted} PT, ${res.peopleUpserted} orang masuk ke Kontak (belum di-enrich).`,
+      );
+      // Drop the saved nodes from the in-page graph + clear selection.
+      setCompanies((prev) => prev.filter((c) => !selectedCompanies.has(c.id)));
+      setSelectedCompanies(new Set());
+      setSelectedPeople(new Set());
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan ke workspace"),
+  });
+
+  function saveSelected() {
+    if (!workspaceId) {
+      toast.error("Pilih workspace dulu (dropdown di topbar) sebelum menyimpan.");
+      return;
+    }
+    if (selectedCount === 0) return;
+    // Group selected nodes back into one ingest payload. Channel is taken from the
+    // first selected company (the ingest job is channel-tagged; mixed-channel saves
+    // would need one call per channel — kept simple: the dominant channel here).
+    const pickedCompanies = companies.filter((c) => selectedCompanies.has(c.id) || c.people.some((p) => selectedPeople.has(p.id)));
+    if (!pickedCompanies.length) return;
+    const channel = pickedCompanies[0].channel;
+    const ingestCompanies: IngestCompanyInput[] = pickedCompanies
+      .filter((c) => selectedCompanies.has(c.id))
+      .map((c) => ({
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        domain: c.domain,
+        address: c.address,
+        industry: c.industry,
+      }));
+    const people: IngestPersonInput[] = [];
+    for (const c of pickedCompanies) {
+      for (const p of c.people) {
+        if (!selectedPeople.has(p.id)) continue;
+        people.push({
+          fullName: p.fullName,
+          title: p.title,
+          phone: p.phone,
+          whatsapp: p.whatsapp,
+          email: p.email,
+          channelProfileUrl: p.profileHandle,
+          companyRef: { name: c.name, domain: c.domain },
+        });
+      }
+    }
+    ingest.mutate({ channel, ingestCompanies, people });
+  }
+
+  // ── cross-channel plan grid (built from plan.data) ───────────────────────────
+  const channelCards = useMemo<ChannelCard[] | null>(() => {
+    const p = plan.data;
+    if (!p) return null;
+    return [
+      {
+        key: "linkedin",
+        title: "LinkedIn",
+        subtitle: "Search · profil · post & komentar (intent-mining)",
+        live: true,
+        queries: [
+          ...p.linkedin.searchQueries.slice(0, 3).map((q) => ({ text: q, href: linkedinSearchUrl(q) })),
+          ...p.linkedin.postSearch.slice(0, 2).map((q) => ({ text: q, href: linkedinContentUrl(q), tag: "niat" })),
+        ],
+      },
+      {
+        key: "google_maps",
+        title: "Google Maps",
+        subtitle: "PT + telp + alamat + kategori industri",
+        live: true,
+        queries: p.googleMaps.queries.slice(0, 4).map((q) => ({ text: q, href: mapsUrl(q) })),
+      },
+      {
+        key: "google",
+        title: "Google SERP",
+        subtitle: "Dork → website PT + kontak",
+        live: true,
+        queries: p.googleDorks.slice(0, 4).map((q) => ({ text: q, href: googleUrl(q), mono: true })),
+      },
+      {
+        key: "instagram",
+        title: "Instagram",
+        subtitle: p.instagram.note,
+        live: false,
+        queries: p.instagram.queries.slice(0, 3).map((q) => ({ text: q, href: igUrl(q) })),
+      },
+      {
+        key: "facebook",
+        title: "Facebook",
+        subtitle: p.facebook.note,
+        live: false,
+        queries: p.facebook.queries.slice(0, 3).map((q) => ({ text: q, href: fbUrl(q) })),
+      },
+      {
+        key: "marketplace",
+        title: "Shopee · Tokopedia · TikTok",
+        subtitle: p.marketplace.note,
+        live: false,
+        queries: [
+          ...p.marketplace.shopee.slice(0, 2).map((q) => ({ text: q, href: shopeeUrl(q) })),
+          ...p.marketplace.tokopedia.slice(0, 1).map((q) => ({ text: q, href: tokopediaUrl(q) })),
+          ...p.tiktok.queries.slice(0, 1).map((q) => ({ text: q, href: tiktokUrl(q) })),
+        ],
+      },
+    ];
+  }, [plan.data]);
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Disalin");
   };
-  const linkedinSearchUrl = (q: string) =>
-    `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(q)}&origin=GLOBAL_SEARCH_HEADER`;
-  const linkedinContentUrl = (q: string) =>
-    `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(q)}`;
-  const googleUrl = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
-  const mapsUrl = (q: string) => `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
-
-  const run = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) => {
-      const r = await fetch("/api/discovery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, posture, analyze, ...(workspaceId ? { workspaceId } : {}) }),
-      });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
-      return j as {
-        status: string;
-        created: number;
-        contactsCreated?: number;
-        peopleCreated?: number;
-        result?: { emails?: number; phones?: number; socials?: number; name?: string; hunter?: boolean; analyzedPeople?: number; positioned?: boolean } | null;
-      };
-    },
-    onSuccess: (j) => {
-      if (j.status !== "done") {
-        toast.success("Job antri (menunggu crawler)");
-      } else if ((j.contactsCreated ?? 0) > 0 || (j.peopleCreated ?? 0) > 0) {
-        const ppl = (j.peopleCreated ?? 0) > 0 ? `, ${j.peopleCreated} orang (Hunter)` : "";
-        const ana =
-          (j.result?.analyzedPeople ?? 0) > 0 || j.result?.positioned
-            ? ` · analisis disimpan: ${j.result?.analyzedPeople ?? 0} lead${j.result?.positioned ? " + positioning" : ""}`
-            : "";
-        toast.success(
-          `Crawl selesai — ${j.result?.name ?? "perusahaan"}: ${j.contactsCreated ?? 0} kontak (${j.result?.emails ?? 0} email, ${j.result?.phones ?? 0} telp)${ppl}${ana}`,
-        );
-      } else {
-        toast.success(`Selesai — ${j.created} perusahaan dibuat`);
-      }
-      qc.invalidateQueries({ queryKey: ["crawl-jobs"] });
-    },
-    onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
-  });
-
-  const [detailJob, setDetailJob] = useState<Job | null>(null);
-
-  // Crawl progress modal (URL tab + AI candidate-company crawl)
-  const [crawlModalOpen, setCrawlModalOpen] = useState(false);
-  const [crawlTarget, setCrawlTarget] = useState("");
-  const startCrawl = (rawUrl: string) => {
-    const u = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
-    setCrawlTarget(u);
-    setCrawlModalOpen(true);
-    run.mutate({ kind: "url", url: u });
-  };
-  const crawlStatus: CrawlStatus = run.isPending ? "pending" : run.isError ? "error" : run.isSuccess ? "success" : "idle";
-  const crawlResult = run.data
-    ? {
-        name: run.data.result?.name,
-        emails: run.data.result?.emails,
-        phones: run.data.result?.phones,
-        socials: run.data.result?.socials,
-        contacts: run.data.contactsCreated,
-        people: run.data.peopleCreated,
-      }
-    : null;
-
-  const PostureSelect = (
-    <div className="space-y-2">
-      <div className="space-y-1">
-        <Label className="text-xs">Posture</Label>
-        <Select value={posture} onValueChange={setPosture}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="compliant">compliant</SelectItem>
-            <SelectItem value="balanced">balanced</SelectItem>
-            <SelectItem value="aggressive">aggressive</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <label className="flex items-start gap-2 text-xs text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={analyze}
-          onChange={(e) => setAnalyze(e.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 rounded border-input accent-primary"
-        />
-        <span>Analisis AI saat crawl — classify lead (Hunter) + positioning company, disimpan ke DB. <span className="text-muted-foreground/70">(pakai kredit AI)</span></span>
-      </label>
-    </div>
-  );
 
   return (
     <div>
-      <PageHeader title="Discovery" description="Crawl lead lewat extension (RPA + AI websearch) — datanya diambil di browser kamu, dikirim ke platform.">
-        <Link href="/contacts/profiles" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent">
-          Lihat Profil
+      <PageHeader
+        title="Discovery"
+        description="Cari perusahaan + kontaknya + orang di dalamnya dari channel mana pun — hasilnya satu graf Perusahaan → Orang, siap disimpan ke workspace."
+      >
+        <Link
+          href="/settings/extension"
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+            extConnected
+              ? "border-success/40 bg-success/5 text-success hover:border-success/60"
+              : "border-border bg-card hover:border-primary/40",
+          )}
+        >
+          <span className={cn("h-2 w-2 rounded-full", extConnected ? "bg-success" : "bg-warning")} />
+          Extension: <span className="font-semibold">{extConnected ? "Terhubung" : "Belum terhubung"}</span>
         </Link>
       </PageHeader>
-      <div className="space-y-4 p-6">
-        {workspaceId && (
-          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-            <Radar className="h-4 w-4 text-primary" />
-            <span>Crawl untuk <b>workspace ini</b> — lead hasil crawl otomatis ditandai ke workspace.</span>
-            <Link href="/contacts/discovery" className="ml-auto text-xs text-primary hover:underline">Lepas workspace</Link>
-          </div>
-        )}
-        {/* Extension = the PRIMARY discovery engine (data plane in the browser). */}
-        <Card className="border-primary/30">
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Radar className="h-4 w-4 text-primary" /> Crawl via Extension (utama)
-              {ext.data?.connected ? (
-                <Badge className="ml-auto bg-success/10 text-success">Terhubung</Badge>
-              ) : (
-                <Badge variant="muted" className="ml-auto">Belum terhubung</Badge>
-              )}
-            </CardTitle>
-            <p className="text-[11px] text-muted-foreground">
-              Extension di browser kamu yang ngambil data (RPA scrape + AI websearch) → buffer di localStorage → kirim ke platform.
-              Platform cuma simpan + CRM. (Vercel serverless gak bisa crawl sendiri.)
+
+      <div className="space-y-5 p-6">
+        {/* ============ (1) GOAL BANNER — channel-NEUTRAL ============ */}
+        <div className="flex items-start gap-3 rounded-lg border border-tertiary/30 bg-tertiary/[0.06] p-4">
+          <Target className="mt-0.5 h-5 w-5 shrink-0 text-tertiary" />
+          <p className="text-[13px] leading-relaxed">
+            <b>Targetnya bukan &quot;hasil LinkedIn&quot;</b> — tapi sebuah graf:{" "}
+            <span className="font-medium text-tertiary">Perusahaan</span> (nama · telp · email · domain · alamat ·
+            industri) → <span className="font-medium text-tertiary">Orang di dalamnya</span> (nama · jabatan · telp ·
+            email). Channel cuma jalan buat ngisi graf itu — LinkedIn, Google Maps, Instagram, Facebook,
+            Shopee/Tokopedia, TikTok, dll.
+          </p>
+        </div>
+
+        {/* ============ (2) DUA MODE MASUK ============ */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {/* (A) goal-first */}
+          <div className="space-y-3.5 rounded-lg border border-border bg-card p-5 shadow-soft">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm font-semibold">Cari berdasarkan target</h2>
+              <span className="ml-auto rounded bg-tertiary/[0.12] px-1.5 py-0.5 text-[10px] font-medium text-tertiary">
+                AI rencana lintas-channel
+              </span>
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-medium text-foreground/70">Siapa yang dicari?</label>
+              <input
+                type="text"
+                value={field}
+                onChange={(e) => setField(e.target.value)}
+                placeholder="mis. kepala HRD pabrik manufaktur · owner toko bangunan · dokter gigi"
+                className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="mb-1 block text-[12px] font-medium text-foreground/70">Lokasi</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Indonesia / Jabodetabek"
+                  className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[12px] font-medium text-foreground/70">Seniority</label>
+                <div className="relative">
+                  <select
+                    value={seniority || "all"}
+                    onChange={(e) => setSeniority(e.target.value === "all" ? "" : e.target.value)}
+                    className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-card pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  >
+                    <option value="all">Semua</option>
+                    <option value="senior">Owner / C-level</option>
+                    <option value="mid">Manajer</option>
+                    <option value="junior">Staf</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+            <Button
+              className="w-full"
+              disabled={!field.trim() || plan.isPending}
+              onClick={() => plan.mutate()}
+            >
+              <Sparkles className="h-4 w-4" />
+              {plan.isPending ? "Menyusun rencana…" : "Susun rencana lintas-channel"}
+            </Button>
+            <p className="text-center text-[10px] text-muted-foreground">
+              AI bikin rencana per-channel; orang aslinya diambil via extension/crawl — bukan dikarang AI.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-3 p-4">
-            {/* Channel-NEUTRAL: discovery fills the Perusahaan→Orang graph from ANY
-                of these. "live" = ingest sink ready (backend channel-agnostic);
-                "segera" = per-channel browser scraper lands in the extension phase. */}
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                ["LinkedIn", true],
-                ["Google Maps", false],
-                ["Google", false],
-                ["Instagram", false],
-                ["Facebook", false],
-                ["Shopee", false],
-                ["Tokopedia", false],
-                ["TikTok", false],
-              ].map(([label, on]) => (
-                <span
-                  key={label as string}
-                  className={
-                    "rounded-full px-2 py-0.5 text-[11px] font-medium " +
-                    (on ? "bg-success/10 text-success" : "bg-muted text-muted-foreground")
-                  }
-                >
-                  {label as string}
-                  {on ? "" : " · scraper segera"}
-                </span>
+          </div>
+
+          {/* (B) paste URL */}
+          <div className="space-y-3.5 rounded-lg border border-border bg-card p-5 shadow-soft">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-info/[0.12] text-info">
+                <Link2 className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm font-semibold">Tempel URL apa aja</h2>
+              <span className="ml-auto rounded bg-info/[0.12] px-1.5 py-0.5 text-[10px] font-medium text-info">
+                scrape langsung
+              </span>
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-medium text-foreground/70">
+                Link profil · post · toko · Google Maps
+              </label>
+              <textarea
+                rows={3}
+                value={urls}
+                onChange={(e) => setUrls(e.target.value)}
+                placeholder={
+                  "https://www.linkedin.com/posts/…  (post → ambil komentator & reactor)\nhttps://maps.google.com/…  ·  https://shopee.co.id/toko…  ·  https://instagram.com/…"
+                }
+                className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+            </div>
+
+            {/* live channel-detection hint (+ intent-mining for post URLs) */}
+            {detection ? (
+              detection.isPost ? (
+                <div className="flex items-start gap-2 rounded-lg border border-highlight/40 bg-highlight/[0.08] px-3 py-2 text-[11px] leading-relaxed">
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-highlight" />
+                  <span>
+                    <b>URL post {detection.label} terdeteksi</b> — extension akan ambil <b>yang nge-komen / react /
+                    di-tag</b> (sinyal niat terpanas), bukan cuma yang posting.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] leading-relaxed">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: CHANNEL_DOT[detection.channel] }} />
+                  <span>
+                    Channel terdeteksi: <b>{detection.label}</b> — gak perlu pilih platform dulu.
+                  </span>
+                </div>
+              )
+            ) : (
+              <p className="text-[11px] text-muted-foreground">Tempel satu / beberapa URL — channel dikenali otomatis.</p>
+            )}
+
+            <Button
+              variant="secondary"
+              className="w-full bg-foreground text-background hover:bg-foreground/90"
+              disabled={!firstUrl || scrape.isPending}
+              onClick={runScrape}
+            >
+              <Radar className="h-4 w-4" />
+              {scrape.isPending ? "Scraping…" : "Scrape URL ini"}
+            </Button>
+            <p className="text-center text-[10px] text-muted-foreground">
+              Channel dikenali otomatis dari URL — gak perlu pilih platform dulu.
+            </p>
+          </div>
+        </div>
+
+        {/* ============ (3) CROSS-CHANNEL PLAN GRID ============ */}
+        <div className="rounded-lg border border-border bg-card p-5 shadow-soft">
+          <div className="mb-3.5 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 text-primary" /> Rencana lintas-channel
+            </h3>
+            {plan.data && (
+              <span className="text-[10px] text-muted-foreground">
+                target: <b className="text-foreground/70">{plan.data.field} · {plan.data.location}</b>
+              </span>
+            )}
+          </div>
+
+          {plan.isPending ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-lg" />
               ))}
             </div>
-            <Link
-              href="/settings/extension"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <ExternalLink className="h-4 w-4" /> {ext.data?.connected ? "Buka pengaturan extension" : "Pasang & hubungkan extension"}
-            </Link>
-          </CardContent>
-        </Card>
+          ) : plan.isError ? (
+            <ErrorState
+              className="border-0"
+              title="Gagal menyusun rencana"
+              description="Tidak bisa membuat rencana lintas-channel. Coba lagi atau ubah kata kunci target."
+              onRetry={() => plan.mutate()}
+            />
+          ) : !channelCards ? (
+            <EmptyState
+              className="border-0"
+              icon={Sparkles}
+              title="Belum ada rencana"
+              description='Isi "Cari berdasarkan target" lalu klik Susun rencana — AI akan memetakan query/aksi per channel (LinkedIn, Maps, SERP, IG, FB, marketplace, TikTok).'
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {channelCards.map((card) => (
+                  <ChannelPlanCard key={card.key} card={card} onCopy={copy} />
+                ))}
+              </div>
+              <p className="mt-3 text-[10px] italic text-muted-foreground">
+                Channel <b className="text-success">Live</b> bisa langsung dieksekusi via extension.{" "}
+                <b className="text-warning">WIP</b> = adapter scrape-nya belum jadi (ditandai jujur, bukan dicentang
+                palsu).
+              </p>
+            </>
+          )}
+        </div>
 
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base"><Radar className="h-4 w-4 text-primary" /> Crawl server-side (web &amp; Hunter)</CardTitle>
-            <p className="text-[11px] text-muted-foreground">Pelengkap: crawl website PT (URL) + Hunter + rencana AI. Terbatas timeout serverless — untuk orang/sosmed pakai extension.</p>
-          </CardHeader>
-          <CardContent className="p-4">
-            <Tabs defaultValue="ai">
-              <TabsList>
-                <TabsTrigger value="ai" className="gap-1"><Sparkles className="h-3.5 w-3.5" /> AI Orang</TabsTrigger>
-                <TabsTrigger value="bulk">Daftar nama</TabsTrigger>
-                <TabsTrigger value="url">URL</TabsTrigger>
-                <TabsTrigger value="industry">Bidang</TabsTrigger>
-                <TabsTrigger value="auto">Auto</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="ai" className="mt-4 space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Cari <b>orang per-bidang</b> target Indonesia. AI menyusun rencana <b>lintas-kanal</b> (titel jabatan,
-                  industri, kandidat PT, query LinkedIn + intent-mining, Google Maps, dork, Instagram, Facebook,
-                  marketplace, TikTok) — <b>orang aslinya</b> diambil lewat extension / crawl per kanal, bukan dikarang AI.
-                </p>
-                <div className="grid gap-3 sm:grid-cols-[2fr_1.5fr_1fr]">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Bidang / pekerjaan</Label>
-                    <Input value={field} onChange={(e) => setField(e.target.value)} placeholder="mis. logistik, dokter gigi, HRD manufaktur" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Lokasi target</Label>
-                    <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Indonesia / Jakarta / Surabaya" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Seniority</Label>
-                    <Select value={seniority || "all"} onValueChange={(v) => setSeniority(v === "all" ? "" : v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua</SelectItem>
-                        <SelectItem value="junior">Junior</SelectItem>
-                        <SelectItem value="mid">Mid</SelectItem>
-                        <SelectItem value="senior">Senior</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button disabled={!field.trim() || plan.isPending} onClick={() => plan.mutate()}>
-                  <Sparkles className="h-4 w-4" /> {plan.isPending ? "Menyusun rencana…" : "Buat rencana discovery"}
-                </Button>
-
-                {plan.data && (
-                  <div className="space-y-5 rounded-lg border bg-card p-4">
-                    {/* Channel-agnostic scaffolding: roles + industries + keywords. */}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {plan.data.roles.length > 0 && (
-                        <div>
-                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Titel jabatan</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {plan.data.roles.map((r) => <Badge key={r} variant="muted" className="cursor-pointer" onClick={() => copy(r)}>{r}</Badge>)}
-                          </div>
-                        </div>
-                      )}
-                      {plan.data.industries.length > 0 && (
-                        <div>
-                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Industri</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {plan.data.industries.map((i) => <Badge key={i} variant="muted">{i}</Badge>)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Candidate companies — crawl/ingest to get real contacts. */}
-                    {plan.data.companies.length > 0 && (
-                      <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kandidat perusahaan (verifikasi dengan crawl)</p>
-                        <div className="space-y-1.5">
-                          {plan.data.companies.map((c) => (
-                            <div key={c.name} className="flex items-start gap-2 rounded-md border px-2 py-1.5 text-sm">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium">{c.name}{c.domainGuess ? <span className="ml-1 font-normal text-muted-foreground">· {c.domainGuess}</span> : null}</p>
-                                {c.why && <p className="text-[11px] text-muted-foreground">{c.why}</p>}
-                              </div>
-                              {c.domainGuess && (
-                                <Button size="sm" variant="outline" className="h-7 shrink-0 text-xs" disabled={run.isPending}
-                                  onClick={() => startCrawl(c.domainGuess!)}>
-                                  <Radar className="h-3.5 w-3.5" /> Crawl
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── PER-CHANNEL guidance (no channel is the default) ── */}
-                    <div className="space-y-4 border-t pt-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Panduan per-kanal — pilih yang cocok dengan ICP</p>
-
-                      {/* LinkedIn: people-search + intent-mining post-search. */}
-                      <QueryList
-                        title="LinkedIn — query orang (Tahap 1 extension)"
-                        hint="Buka query → jalankan Tahap 1 di popup extension untuk crawl semua orangnya."
-                        items={plan.data.linkedin.searchQueries}
-                        linkFor={linkedinSearchUrl}
-                        onCopy={copy}
-                      />
-                      <QueryList
-                        title="LinkedIn — intent mining (komentator/reactor post = lead)"
-                        hint="Buka pencarian konten → scrape yang nge-comment/react di post relevan."
-                        items={plan.data.linkedin.postSearch}
-                        linkFor={linkedinContentUrl}
-                        onCopy={copy}
-                      />
-                      {plan.data.linkedin.profileHints.length > 0 && (
-                        <div>
-                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">LinkedIn — ciri profil fit</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {plan.data.linkedin.profileHints.map((h) => <Badge key={h} variant="muted">{h}</Badge>)}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Google Maps: business-category + area → PT + telp + alamat. */}
-                      <QueryList
-                        title="Google Maps — kategori + area (PT + telepon + alamat)"
-                        hint="Buka Maps → ambil nama PT, telepon, alamat, kategori (scraper segera)."
-                        items={plan.data.googleMaps.queries}
-                        linkFor={mapsUrl}
-                        onCopy={copy}
-                      />
-
-                      {/* Google dorks. */}
-                      <QueryList
-                        title="Google dork"
-                        items={plan.data.googleDorks}
-                        linkFor={googleUrl}
-                        onCopy={copy}
-                      />
-
-                      {/* Instagram / Facebook / TikTok — generic search channels. */}
-                      <QueryList
-                        title="Instagram"
-                        hint={plan.data.instagram.note}
-                        items={plan.data.instagram.queries}
-                        linkFor={(q) => `https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/[^a-zA-Z0-9]/g, ""))}/`}
-                        onCopy={copy}
-                      />
-                      <QueryList
-                        title="Facebook"
-                        hint={plan.data.facebook.note}
-                        items={plan.data.facebook.queries}
-                        linkFor={(q) => `https://www.facebook.com/search/top?q=${encodeURIComponent(q)}`}
-                        onCopy={copy}
-                      />
-                      <QueryList
-                        title="Marketplace — Shopee"
-                        items={plan.data.marketplace.shopee}
-                        linkFor={(q) => `https://shopee.co.id/search?keyword=${encodeURIComponent(q)}`}
-                        onCopy={copy}
-                      />
-                      <QueryList
-                        title="Marketplace — Tokopedia"
-                        hint={plan.data.marketplace.note}
-                        items={plan.data.marketplace.tokopedia}
-                        linkFor={(q) => `https://www.tokopedia.com/search?st=product&q=${encodeURIComponent(q)}`}
-                        onCopy={copy}
-                      />
-                      <QueryList
-                        title="TikTok"
-                        hint={plan.data.tiktok.note}
-                        items={plan.data.tiktok.queries}
-                        linkFor={(q) => `https://www.tiktok.com/search?q=${encodeURIComponent(q)}`}
-                        onCopy={copy}
-                      />
-                    </div>
-
-                    <p className="text-[11px] italic text-muted-foreground">{plan.data.note}</p>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="bulk" className="mt-4 space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Nama perusahaan (satu per baris)</Label>
-                  <Textarea rows={5} value={names} onChange={(e) => setNames(e.target.value)} placeholder={"PT Astra International\nTokopedia\nBank Mandiri"} />
-                </div>
-                {PostureSelect}
-                <Button disabled={!names.trim() || run.isPending} onClick={() => run.mutate({ kind: "bulk", names: names.split("\n") })}>
-                  {run.isPending ? "Memproses…" : "Cari (buat perusahaan)"}
-                </Button>
-              </TabsContent>
-
-              <TabsContent value="url" className="mt-4 space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">URL website company</Label>
-                  <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.perusahaan.co.id" />
-                </div>
-                {PostureSelect}
-                <Button disabled={!url.trim() || run.isPending} onClick={() => startCrawl(url)}>
-                  {run.isPending ? "Crawling…" : "Crawl sekarang"}
-                </Button>
-                <p className="text-[11px] text-muted-foreground">
-                  Crawl website <span className="font-medium">nyata</span> (server-side): ekstrak email, telepon, & sosmed dari halaman publik (homepage, /contact, /about). Situs full-JS mungkin perlu extension.
-                </p>
-              </TabsContent>
-
-              <TabsContent value="industry" className="mt-4 space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Bidang / industri (disaring ICP product)</Label>
-                  <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Logistik" />
-                </div>
-                {PostureSelect}
-                <Button disabled={!industry.trim() || run.isPending} onClick={() => run.mutate({ kind: "industry", industry })}>Antri crawl</Button>
-              </TabsContent>
-
-              <TabsContent value="auto" className="mt-4 space-y-3">
-                <p className="text-sm text-muted-foreground">AI nyari kandidat dari target market & ICP product.</p>
-                {PostureSelect}
-                <Button disabled={run.isPending} onClick={() => run.mutate({ kind: "auto" })}>Antri auto-discovery</Button>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="text-base">Riwayat crawl</CardTitle>
-            <p className="text-[11px] text-muted-foreground">Tiap job jalan langsung di server (tanpa antrian/cron). Klik baris untuk detail.</p>
-          </CardHeader>
-          <CardContent className="p-0">
-            {jobs.isLoading ? (
-              <div className="p-3"><ListSkeleton rows={5} avatar={false} /></div>
-            ) : (
-            <ul className="divide-y">
-              {(jobs.data ?? []).map((j) => {
-                const target =
-                  (j.input?.url as string) ||
-                  (Array.isArray(j.input?.names) ? `${(j.input!.names as string[]).length} nama` : "") ||
-                  (j.input?.industry as string) ||
-                  j.kind;
-                return (
-                  <li key={j.id}>
-                    <button onClick={() => setDetailJob(j)} className="flex w-full items-center gap-3 p-3 text-left text-sm transition-colors hover:bg-accent">
-                      <Badge variant="muted">{j.kind}</Badge>
-                      <span className="min-w-0 flex-1 truncate">
-                        <span className="font-medium text-foreground">{target}</span>
-                        <span className="text-muted-foreground">
-                          {typeof j.result?.contactsCreated === "number" ? ` · ${j.result.contactsCreated} kontak` : typeof j.result?.created === "number" ? ` · ${j.result.created} dibuat` : ""}
-                          {j.createdAt ? ` · ${relTime(j.createdAt)}` : ""}
-                        </span>
-                      </span>
-                      <Badge className={STATUS_CLS[j.status] ?? "bg-muted text-muted-foreground"}>{j.status}</Badge>
-                    </button>
-                  </li>
-                );
-              })}
-              {jobs.isError && <li className="p-3 text-xs text-destructive">Gagal memuat riwayat crawl.</li>}
-              {(jobs.data?.length ?? 0) === 0 && !jobs.isLoading && !jobs.isError && (
-                <li className="p-3 text-xs text-muted-foreground">Belum ada crawl. Mulai dari tab di atas.</li>
+        {/* ============ (4) RESULTS — Perusahaan → Orang graph ============ */}
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+          <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
+            <h3 className="text-sm font-semibold">Hasil — Perusahaan &amp; orangnya</h3>
+            <span className="text-[11px] text-muted-foreground">
+              <b className="text-foreground/80">{companies.length}</b> PT ·{" "}
+              <b className="text-foreground/80">{totalPeople}</b> orang
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {selectedCount > 0 && (
+                <span className="text-[11px] text-muted-foreground">
+                  <b className="text-foreground/80">{selectedCount}</b> dipilih
+                </span>
               )}
-            </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <Button
+                size="sm"
+                disabled={selectedCount === 0 || ingest.isPending}
+                onClick={saveSelected}
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+                {ingest.isPending ? "Menyimpan…" : "Simpan ke workspace"}
+              </Button>
+            </div>
+          </div>
 
-      {/* Job detail */}
-      <Dialog open={!!detailJob} onOpenChange={(v) => !v && setDetailJob(null)}>
-        <DialogContent className="max-h-[80vh] overflow-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Badge variant="muted">{detailJob?.kind}</Badge>
-              <Badge className={STATUS_CLS[detailJob?.status ?? ""] ?? ""}>{detailJob?.status}</Badge>
-            </DialogTitle>
-            <DialogDescription>
-              Mulai {detailJob ? new Date(detailJob.createdAt).toLocaleString("id-ID") : ""}
-              {detailJob?.finishedAt ? ` · selesai ${new Date(detailJob.finishedAt).toLocaleString("id-ID")}` : ""}
-            </DialogDescription>
-          </DialogHeader>
-          {detailJob && (
-            <div className="space-y-3 text-sm">
-              {detailJob.input && Object.keys(detailJob.input).length > 0 && (
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Input</p>
-                  <pre className="overflow-auto rounded bg-muted p-2 text-[11px]">{JSON.stringify(detailJob.input, null, 2)}</pre>
-                </div>
-              )}
-              {detailJob.result?.note && (
-                <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs">{detailJob.result.note}</p>
-              )}
-              {(typeof detailJob.result?.contactsCreated === "number" || typeof detailJob.result?.created === "number") && (
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    ["Perusahaan", detailJob.result?.created],
-                    ["Kontak", detailJob.result?.contactsCreated],
-                    ["Orang", detailJob.result?.peopleCreated],
-                  ].map(([label, val]) =>
-                    typeof val === "number" ? (
-                      <div key={label as string} className="rounded-md border p-2 text-center">
-                        <p className="text-lg font-semibold">{val as number}</p>
-                        <p className="text-[10px] text-muted-foreground">{label as string}</p>
-                      </div>
-                    ) : null,
-                  )}
-                </div>
-              )}
-              {detailJob.result?.crawled && detailJob.result.crawled.length > 0 && (
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Perusahaan di-crawl</p>
-                  <ul className="space-y-1">
-                    {detailJob.result.crawled.map((c, i) => (
-                      <li key={i} className="flex items-center justify-between rounded border px-2 py-1 text-xs">
-                        <span className="truncate">{c.name}{c.domain ? ` · ${c.domain}` : ""}</span>
-                        <b>{c.contacts} kontak</b>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {detailJob.result?.linkedinQueries && detailJob.result.linkedinQueries.length > 0 && (
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Query LinkedIn (pakai extension)</p>
-                  <div className="space-y-1">
-                    {detailJob.result.linkedinQueries.map((q) => (
-                      <div key={q} className="flex items-center gap-2 rounded border px-2 py-1 text-xs">
-                        <span className="min-w-0 flex-1 truncate">{q}</span>
-                        <a href={linkedinSearchUrl(q)} target="_blank" rel="noreferrer" className="text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" /></a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {detailJob.error && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{detailJob.error}</p>}
+          {companies.length === 0 ? (
+            <EmptyState
+              className="border-0"
+              icon={Radar}
+              title="Belum ada hasil"
+              description="Scrape sebuah URL di atas, atau jalankan channel Live lewat extension. Perusahaan + orang yang ditemukan muncul di sini sebagai graf — bukan data karangan."
+              action={
+                !extConnected ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/settings/extension">
+                      <Plug className="h-4 w-4" /> Hubungkan extension
+                    </Link>
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <div>
+              {companies.map((co) => (
+                <CompanyGroup
+                  key={co.id}
+                  company={co}
+                  companyChecked={selectedCompanies.has(co.id)}
+                  selectedPeople={selectedPeople}
+                  onToggleCompany={() => toggleCompany(co)}
+                  onTogglePerson={togglePerson}
+                />
+              ))}
+              <div className="border-t border-border bg-muted/30 px-5 py-2.5 text-[11px] text-muted-foreground">
+                Yang disimpan masuk ke{" "}
+                <Link href="/contacts" className="font-medium text-primary hover:underline">
+                  Kontak
+                </Link>{" "}
+                dengan status <i>&quot;belum di-enrich&quot;</i>; saat enrich, industri PT &amp; jabatan orang otomatis
+                diklasifikasi ke{" "}
+                <Link href="/master-data" className="font-medium text-primary hover:underline">
+                  Master Data
+                </Link>
+                .
+              </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      <CrawlProgressDialog
-        open={crawlModalOpen}
-        onOpenChange={setCrawlModalOpen}
-        status={crawlStatus}
-        target={crawlTarget}
-        result={crawlResult}
-        error={run.error instanceof Error ? run.error.message : null}
-      />
+// ───────────────────────── sub-components ─────────────────────────
+
+function ChannelPlanCard({ card, onCopy }: { card: ChannelCard; onCopy: (q: string) => void }) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3.5 transition-colors",
+        card.live ? "border-border hover:border-primary/40" : "border-dashed border-border opacity-90",
+      )}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CHANNEL_DOT[card.key] }} />
+        <span className="text-[13px] font-semibold">{card.title}</span>
+        <span
+          className={cn(
+            "ml-auto rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+            card.live ? "bg-success/15 text-success" : "bg-warning/15 text-warning",
+          )}
+        >
+          {card.live ? "Live" : "WIP"}
+        </span>
+      </div>
+      <p className="mb-2 text-[11px] text-muted-foreground">{card.subtitle}</p>
+      {card.queries.length > 0 ? (
+        <div className="space-y-1 text-[11px]">
+          {card.queries.map((q, i) => (
+            <div
+              key={`${q.text}-${i}`}
+              className={cn(
+                "flex items-center gap-1.5 rounded border px-2 py-1",
+                q.mono ? "border-transparent bg-muted font-mono text-[10px]" : "border-border",
+              )}
+            >
+              <span className="min-w-0 flex-1 truncate" title={q.text}>
+                {q.text}
+              </span>
+              {q.tag && (
+                <span className="shrink-0 rounded bg-highlight/15 px-1 text-[9px] font-semibold text-highlight">
+                  {q.tag}
+                </span>
+              )}
+              {q.href ? (
+                <a
+                  href={q.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex shrink-0 items-center gap-0.5 text-primary"
+                >
+                  Buka <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onCopy(q.text)}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  title="Salin"
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] italic text-muted-foreground">
+          Adapter extension menyusul — belum ada query untuk channel ini.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CompanyGroup({
+  company,
+  companyChecked,
+  selectedPeople,
+  onToggleCompany,
+  onTogglePerson,
+}: {
+  company: CompanyNode;
+  companyChecked: boolean;
+  selectedPeople: Set<string>;
+  onToggleCompany: () => void;
+  onTogglePerson: (p: PersonNode) => void;
+}) {
+  return (
+    <div className="border-b border-border last:border-b-0">
+      {/* company header */}
+      <div className="flex flex-wrap items-center gap-2.5 bg-muted/40 px-5 py-2.5">
+        <input
+          type="checkbox"
+          checked={companyChecked}
+          onChange={onToggleCompany}
+          className="h-4 w-4 rounded border-input accent-primary"
+        />
+        <Building2 className="h-4 w-4 text-tertiary" />
+        <span className="text-sm font-semibold">{company.name}</span>
+        {company.industry ? (
+          <span className="rounded-full bg-tertiary/[0.12] px-1.5 py-0.5 text-[10px] font-medium text-tertiary">
+            {company.industry}
+          </span>
+        ) : (
+          <span className="rounded-full border border-dashed border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            industri: belum
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="h-2 w-2 rounded-full" style={{ background: CHANNEL_DOT[company.channel] }} />
+          {company.channelLabel}
+        </span>
+        <div className="ml-auto flex items-center gap-1.5 text-[10px]">
+          {company.phone && (
+            <span className="inline-flex items-center gap-1 rounded bg-success/[0.12] px-1.5 py-0.5 font-medium text-success">
+              <Phone className="h-3 w-3" /> {company.phone}
+            </span>
+          )}
+          {company.email && (
+            <span
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
+              style={{ background: "#6366F118", color: "#4f46e5" }}
+            >
+              <Mail className="h-3 w-3" /> {company.email}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* people OR an honest "no people yet" note (server crawl = company-level) */}
+      {company.people.length === 0 ? (
+        <div className="px-5 py-2.5 pl-12 text-[11px] text-muted-foreground">
+          Kontak level-perusahaan tersimpan. Orang di dalamnya diisi lewat <b>extension</b> (LinkedIn/IG) atau enrich —
+          belum ada orang dari scrape ini.
+        </div>
+      ) : (
+        <table className="w-full text-left text-sm">
+          <tbody className="divide-y divide-border">
+            {company.people.map((p) => (
+              <tr key={p.id} className="hover:bg-muted/30">
+                <td className="w-9 py-2.5 pl-12 pr-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedPeople.has(p.id)}
+                    onChange={() => onTogglePerson(p)}
+                    className="h-4 w-4 rounded border-input accent-primary"
+                  />
+                </td>
+                <td className="px-2 py-2.5">
+                  <div className="font-medium">{p.fullName}</div>
+                  {p.title && <div className="text-[11px] text-muted-foreground">{p.title}</div>}
+                </td>
+                <td className="px-2 py-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span className="h-2 w-2 rounded-full" style={{ background: CHANNEL_DOT[p.channel] }} />
+                    {p.channelLabel}
+                  </span>
+                </td>
+                <td className="px-2 py-2.5">
+                  {p.profileHandle && (
+                    <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
+                      {p.profileHandle}
+                    </span>
+                  )}
+                </td>
+                <td className="px-2 py-2.5 text-[10px]">
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {(p.whatsapp || p.phone) && (
+                      <span className="inline-flex items-center gap-1 rounded bg-success/[0.12] px-1.5 py-0.5 font-medium text-success">
+                        <Phone className="h-3 w-3" /> {p.whatsapp || p.phone}
+                      </span>
+                    )}
+                    {p.email && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
+                        style={{ background: "#6366F118", color: "#4f46e5" }}
+                      >
+                        <Mail className="h-3 w-3" /> {p.email}
+                      </span>
+                    )}
+                    {!p.whatsapp && !p.phone && !p.email && <span className="text-muted-foreground">—</span>}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
