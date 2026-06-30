@@ -11,21 +11,30 @@ const text = (sel, root = document) => clean(root.querySelector(sel)?.textConten
 
 // ---------- Platform Detection ----------
 const PLATFORM_MATCHERS = {
+  // order matters: more-specific page types BEFORE the generic host match
+  linkedinpost: () =>
+    /linkedin\.com/.test(location.hostname) &&
+    (/\/posts\//.test(location.pathname) || /\/feed\/update\//.test(location.pathname)),
   linkedin: () => /linkedin\.com/.test(location.hostname),
   instagram: () => /instagram\.com/.test(location.hostname),
   facebook: () => /facebook\.com/.test(location.hostname),
   tiktok: () => /tiktok\.com/.test(location.hostname),
   shopee: () => /shopee\.co\.id/.test(location.hostname),
+  tokopedia: () => /tokopedia\.com/.test(location.hostname),
+  googlemaps: () => /maps\.google\./.test(location.hostname) || /google\.[a-z.]+\/maps/.test(location.href),
   google: () => /google\.(com|co\.id)/.test(location.hostname) && location.pathname.includes("/search"),
 };
 
 // ---------- Platform Labels ----------
 const PLATFORM_LABELS = {
+  linkedinpost: "LinkedIn Post",
   linkedin: "LinkedIn",
   instagram: "Instagram",
   facebook: "Facebook",
   tiktok: "TikTok",
   shopee: "Shopee",
+  tokopedia: "Tokopedia",
+  googlemaps: "Google Maps",
   google: "Google Search",
 };
 
@@ -207,6 +216,123 @@ const EXTRACTORS = {
         query: q,
         items: results.slice(0, 10),
         source: "google",
+        leadType: "b2b_partner",
+      };
+    },
+  },
+
+  // LinkedIn POST / komentar — intent-mining: yang nge-komen/react/di-mention di
+  // sebuah post = sinyal niat terpanas. Kumpulkan jadi `items` (best-effort; DOM
+  // LinkedIn berubah-ubah, beberapa selector bisa meleset → tetap capture yang ada).
+  linkedinpost: {
+    name: "LinkedIn Post",
+    color: "#0a66c2",
+    isProfile: () => /\/posts\//.test(location.pathname) || /\/feed\/update\//.test(location.pathname),
+    extract() {
+      const author =
+        text(".update-components-actor__title span[aria-hidden='true']") ||
+        text("article a[href*='/in/'] span[aria-hidden='true']") ||
+        text("article h1");
+      const items = [];
+      const seen = new Set();
+      document
+        .querySelectorAll(".comments-comment-entity, .comments-comment-item, [data-id*='comment']")
+        .forEach((c) => {
+          const nm = clean(
+            c.querySelector(
+              ".comments-comment-meta__description-title, a[href*='/in/'] span[aria-hidden='true'], span[class*='commenter'] span[aria-hidden='true']",
+            )?.textContent || "",
+          );
+          const headline = clean(
+            c.querySelector(".comments-comment-meta__description-subtitle, [class*='headline']")
+              ?.textContent || "",
+          );
+          const link = c.querySelector("a[href*='/in/']")?.href?.split("?")[0];
+          if (nm && !seen.has(nm)) {
+            seen.add(nm);
+            items.push({
+              fullName: nm,
+              title: headline || undefined,
+              linkedinUrl: link,
+              source: "linkedin",
+              capturedMode: "post_comment",
+              leadType: "b2b_partner",
+            });
+          }
+        });
+      return {
+        fullName: author ? `Post oleh ${author}` : "LinkedIn post",
+        about: `${items.length} komentator/reaktor (sinyal niat)`,
+        sourceUrl: location.href.split("?")[0],
+        items,
+        source: "linkedin",
+        capturedMode: "post_intent",
+        leadType: "b2b_partner",
+      };
+    },
+  },
+
+  tokopedia: {
+    name: "Tokopedia",
+    color: "#42b549",
+    isProfile: () => location.pathname.split("/").filter(Boolean).length >= 1,
+    extract() {
+      const storeName =
+        text("[data-testid='shopNameHeader']") ||
+        text("h1[data-testid='lblPDPDetailProductName']") ||
+        text("h1") ||
+        clean(document.title.replace(/\s*\|\s*Tokopedia.*$/i, ""));
+      if (!storeName) return null;
+      const loc =
+        text("[data-testid='shopLocationHeader']") ||
+        text("[data-testid='lblPDPFooterLocation']") ||
+        undefined;
+      const url = location.href.split("?")[0];
+      return {
+        fullName: storeName,
+        companyName: storeName,
+        about: loc ? `Lokasi: ${loc}` : undefined,
+        location: loc,
+        sourceUrl: url,
+        socials: { tokopedia: url },
+        source: "tokopedia",
+        leadType: "b2c_customer",
+      };
+    },
+  },
+
+  // Google Maps business panel — emas buat "PT + telp + alamat + kategori industri".
+  googlemaps: {
+    name: "Google Maps",
+    color: "#34a853",
+    isProfile: () => true,
+    extract() {
+      const name = text("h1.DUwDvf") || text("h1[class*='fontHeadlineLarge']") || text("h1");
+      if (!name) return null;
+      const category =
+        text("button[jsaction*='category']") || text("[jsaction*='category']") || undefined;
+      const address =
+        document
+          .querySelector("button[data-item-id='address']")
+          ?.getAttribute("aria-label")
+          ?.replace(/^(Alamat|Address):\s*/i, "") || undefined;
+      const phone =
+        document
+          .querySelector("button[data-item-id^='phone']")
+          ?.getAttribute("aria-label")
+          ?.replace(/^(Telepon|Phone):\s*/i, "") || undefined;
+      const website =
+        document.querySelector("a[data-item-id='authority']")?.getAttribute("href") || undefined;
+      return {
+        fullName: name,
+        companyName: name,
+        about: category ? `Kategori: ${category}` : undefined,
+        industry: category,
+        phone,
+        location: address,
+        website,
+        sourceUrl: location.href.split("?")[0],
+        source: "googlemaps",
         leadType: "b2b_partner",
       };
     },

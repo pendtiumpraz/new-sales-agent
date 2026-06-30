@@ -27,11 +27,16 @@
       "matches": [
         "https://*.linkedin.com/in/*",
         "https://*.linkedin.com/company/*",
+        "https://*.linkedin.com/posts/*",
+        "https://*.linkedin.com/feed/update/*",
         "https://*.instagram.com/*",
         "https://*.facebook.com/*",
         "https://*.tiktok.com/@*",
         "https://*.shopee.co.id/*",
-        "https://www.google.com/search?*"
+        "https://*.tokopedia.com/*",
+        "https://www.google.com/search?*",
+        "https://www.google.com/maps/*",
+        "https://maps.google.com/*"
       ],
       "js": ["discovery.js"],
       "run_at": "document_idle"
