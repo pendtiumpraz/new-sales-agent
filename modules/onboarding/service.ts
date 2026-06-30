@@ -145,6 +145,19 @@ export const onboardingService = {
     return this.getVertical(id);
   },
 
+  /** Permanently remove a vertical (real SQL DELETE). Irreversible. */
+  async hardDeleteVertical(id: string, actorUserId?: string): Promise<void> {
+    const ok = await onboardingRepo.hardDeleteVertical(id);
+    if (!ok) throw new ServiceError("Vertical tidak ditemukan", 404, "not_found");
+    await platformRepo.insertAudit({
+      tenantId: null,
+      actorUserId: actorUserId ?? null,
+      action: "onboarding.vertical.purge",
+      targetType: "vertical",
+      targetId: id,
+    });
+  },
+
   // ── module catalog (GLOBAL — superadmin-managed) ─────────────────
   async listModules(): Promise<ModuleCatalogRow[]> {
     return onboardingRepo.listModules();
@@ -212,6 +225,19 @@ export const onboardingService = {
       targetId: id,
     });
     return this.getModule(id);
+  },
+
+  /** Permanently remove a catalog module (real SQL DELETE). Irreversible. */
+  async hardDeleteModule(id: string, actorUserId?: string): Promise<void> {
+    const ok = await onboardingRepo.hardDeleteModule(id);
+    if (!ok) throw new ServiceError("Modul tidak ditemukan", 404, "not_found");
+    await platformRepo.insertAudit({
+      tenantId: null,
+      actorUserId: actorUserId ?? null,
+      action: "onboarding.module.purge",
+      targetType: "module_catalog",
+      targetId: id,
+    });
   },
 
   // ── onboarding state machine (TENANT) ────────────────────────────

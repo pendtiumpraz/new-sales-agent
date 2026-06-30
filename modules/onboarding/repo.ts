@@ -100,6 +100,15 @@ export const onboardingRepo = {
     return rows.length > 0;
   },
 
+  /** Real SQL DELETE (purge). Permanent — used by the trash "Hapus permanen" path. */
+  async hardDeleteVertical(id: string): Promise<boolean> {
+    const rows = await db
+      .delete(verticalTable)
+      .where(eq(verticalTable.id, id))
+      .returning({ id: verticalTable.id });
+    return rows.length > 0;
+  },
+
   // ── module_catalog (GLOBAL catalog, soft-delete) ─────────────────
   async listModules(): Promise<ModuleCatalogRow[]> {
     return db
@@ -154,6 +163,15 @@ export const onboardingRepo = {
       .update(moduleCatalogTable)
       .set({ deletedAt: null, updatedAt: new Date() })
       .where(and(eq(moduleCatalogTable.id, id), isNotNull(moduleCatalogTable.deletedAt)))
+      .returning({ id: moduleCatalogTable.id });
+    return rows.length > 0;
+  },
+
+  /** Real SQL DELETE (purge). Permanent — used by the trash "Hapus permanen" path. */
+  async hardDeleteModule(id: string): Promise<boolean> {
+    const rows = await db
+      .delete(moduleCatalogTable)
+      .where(eq(moduleCatalogTable.id, id))
       .returning({ id: moduleCatalogTable.id });
     return rows.length > 0;
   },

@@ -21,12 +21,51 @@ import { useSession } from "next-auth/react";
 interface ThemeResponse {
   ok: boolean;
   data?: {
-    theme: { customCss: string | null; faviconUrl: string | null; isDefault: boolean };
+    theme: {
+      brandName: string | null;
+      logoUrl: string | null;
+      customCss: string | null;
+      faviconUrl: string | null;
+      isDefault: boolean;
+    };
     vars: Record<string, string>;
   };
 }
 
 const STYLE_ID = "user-theme-custom-css";
+
+/** Default chrome wordmark when the user hasn't set a brand name. */
+export const DEFAULT_BRAND_NAME = "Maira Sales";
+
+export interface UserBrand {
+  /** User-set logo image URL (http/https/data/relative) or null → fall back to the mark. */
+  logoUrl: string | null;
+  /** User-set wordmark or null → fall back to {@link DEFAULT_BRAND_NAME}. */
+  brandName: string | null;
+}
+
+/**
+ * The signed-in user's logo + wordmark for the live app chrome (sidebar mark,
+ * mobile header). Shares the SAME `["user-theme"]` query as {@link UserThemeProvider},
+ * so TanStack Query dedupes the fetch and the chrome re-renders the instant the
+ * branding page invalidates that key — no extra request, no context plumbing, and
+ * it works wherever `BrandLogo` is mounted (incl. outside the provider tree).
+ */
+export function useUserBrand(): UserBrand {
+  const { status } = useSession();
+  const { data } = useQuery<ThemeResponse | null>({
+    queryKey: ["user-theme"],
+    enabled: status === "authenticated",
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const r = await fetch("/api/branding/theme");
+      if (!r.ok) return null;
+      return (await r.json()) as ThemeResponse;
+    },
+  });
+  const theme = data?.data?.theme;
+  return { logoUrl: theme?.logoUrl ?? null, brandName: theme?.brandName ?? null };
+}
 
 export function UserThemeProvider({ children }: { children: React.ReactNode }) {
   const { status } = useSession();

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 
 import { BrandLogo } from "@/components/shared/brand-logo";
+import { useUserBrand } from "@/components/layout/user-theme-provider";
 import { LanguageToggle } from "@/components/shared/language-toggle";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AiChat } from "@/components/ai/ai-chat";
@@ -240,6 +241,9 @@ export function SideNav() {
   const disabled = new Set(entQ.data?.disabled ?? []);
   const visible = (items: NavItem[]) =>
     items.filter((it) => (!it.managerOnly || !isRep) && !disabled.has(it.href));
+  // Per-user white-label mark for the collapsed rail (logo img, else brand initial).
+  const { logoUrl, brandName } = useUserBrand();
+  const collapsedInitial = (brandName ?? "Maira Sales").trim().charAt(0).toUpperCase() || "M";
 
   return (
     <aside
@@ -257,9 +261,20 @@ export function SideNav() {
       >
         <Link href="/dashboard" className="shrink-0">
           {collapsed ? (
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-              M
-            </span>
+            logoUrl ? (
+              <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoUrl}
+                  alt={brandName ?? "Maira Sales"}
+                  className="h-full w-full object-contain"
+                />
+              </span>
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
+                {collapsedInitial}
+              </span>
+            )
           ) : (
             <BrandLogo size="sm" />
           )}

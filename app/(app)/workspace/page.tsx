@@ -21,7 +21,6 @@ import {
   ArrowRight,
   Briefcase,
   Building2,
-  ChevronRight,
   Circle,
   Copy,
   Handshake,
@@ -373,6 +372,109 @@ export default function WorkspaceHubPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat workspace"),
   });
 
+  // ── Connect-product flow ────────────────────────────────────────────────────
+  // FIX: the product summary's "Hubungkan produk" button (shown when the active
+  // workspace has no product) used to <Link href="/workspaces">, which just
+  // redirect()s back to /workspace → a dead loop where the product never got
+  // connected. Replace it with a real dialog that lists existing products
+  // (GET /api/product, already loaded above) and connects the picked one via
+  // PATCH /api/workspace/[id] { productId } (validated in workspaceService.update).
+  // No products yet → an honest hint to /onboarding, where the rebuild creates the
+  // tenant's first product (1 workspace = 1 produk).
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectProductId, setConnectProductId] = useState("");
+  const connectProduct = useMutation({
+    mutationFn: async () => {
+      if (!wsId) throw new Error("Tidak ada workspace aktif");
+      if (!connectProductId) throw new Error("Pilih produk dulu");
+      const r = await fetch(`/api/workspace/${wsId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: connectProductId }),
+      });
+      const j = (await r.json()) as ApiEnvelope<WorkspaceRow>;
+      if (!r.ok || !j.ok || !j.data) throw new Error(j.error || "Gagal menghubungkan produk");
+      return j.data;
+    },
+    onSuccess: () => {
+      const picked = products.find((p) => p.id === connectProductId);
+      toast.success(picked ? `Produk "${picked.name}" terhubung` : "Produk terhubung");
+      // Re-render the hub connected: the workspace list now carries the productId,
+      // and the product/market-fit satellites should reflect the new product.
+      qc.invalidateQueries({ queryKey: ["m2", "workspace", "list"] });
+      qc.invalidateQueries({ queryKey: ["m2", "product", "list"] });
+      if (wsId) qc.invalidateQueries({ queryKey: ["m2", "workspace", wsId, "market-fit"] });
+      setConnectOpen(false);
+      setConnectProductId("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghubungkan produk"),
+  });
+
+  const connectDialog = (
+    <Dialog open={connectOpen} onOpenChange={(o) => !connectProduct.isPending && setConnectOpen(o)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Hubungkan produk</DialogTitle>
+          <DialogDescription>
+            1 workspace = 1 produk. Pilih produk yang dijual di workspace &ldquo;{activeWs?.name}
+            &rdquo; — market-fit &amp; sales-play menyesuaikan produk ini.
+          </DialogDescription>
+        </DialogHeader>
+        {products.length === 0 ? (
+          <div className="py-1">
+            <EmptyState
+              className="border-0 py-8"
+              icon={Package}
+              title="Belum ada produk"
+              description="Buat produk dulu di Onboarding (1 workspace = 1 produk), lalu kembali ke sini untuk menghubungkannya."
+              action={
+                <Button asChild size="sm">
+                  <Link href="/onboarding">
+                    <Plus className="h-4 w-4" /> Buat produk di Onboarding
+                  </Link>
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <div className="space-y-1.5 py-1">
+              <Label className="text-xs">Produk</Label>
+              <Select value={connectProductId} onValueChange={setConnectProductId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih produk…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.category ? ` — ${p.category}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setConnectOpen(false)}
+                disabled={connectProduct.isPending}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={() => connectProduct.mutate()}
+                disabled={!connectProductId || connectProduct.isPending}
+              >
+                {connectProduct.isPending ? "Menghubungkan…" : "Hubungkan produk"}
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+
   const createDialog = (
     <Dialog open={createOpen} onOpenChange={(o) => !createWs.isPending && setCreateOpen(o)}>
       <DialogContent className="sm:max-w-md">
@@ -562,15 +664,6 @@ export default function WorkspaceHubPage() {
   return (
     <div>
       <PageHeader
-        breadcrumb={
-          <span className="flex items-center gap-1">
-            <Link href="/workspaces" className="hover:text-foreground hover:underline">
-              Semua workspace
-            </Link>
-            <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
-            <span className="text-foreground/70">{activeWs.name}</span>
-          </span>
-        }
         title={activeWs.name}
         description="Hub workspace — semua aktivitas sales fokus di sini. 1 workspace = 1 produk."
       >
@@ -634,10 +727,16 @@ export default function WorkspaceHubPage() {
               </div>
             </div>
             {!product && (
-              <Button asChild size="sm" variant="outline" className="shrink-0">
-                <Link href="/workspaces">
-                  <Package className="h-4 w-4" /> Hubungkan produk
-                </Link>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => {
+                  setConnectProductId("");
+                  setConnectOpen(true);
+                }}
+              >
+                <Package className="h-4 w-4" /> Hubungkan produk
               </Button>
             )}
           </CardContent>
@@ -1072,7 +1171,7 @@ export default function WorkspaceHubPage() {
               </p>
             </div>
             <Button asChild size="sm" variant="outline" className="h-8">
-              <Link href="/workspaces">Atur Sales Play</Link>
+              <Link href="/use-case">Atur Sales Play</Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -1097,7 +1196,7 @@ export default function WorkspaceHubPage() {
                 description="Atur channel, tone, dan teknik closing untuk menyetir obrolan konsultatif value-first."
                 action={
                   <Button asChild size="sm">
-                    <Link href="/workspaces">
+                    <Link href="/use-case">
                       <Sparkles className="h-4 w-4" /> Atur Sales Play
                     </Link>
                   </Button>
@@ -1315,6 +1414,7 @@ export default function WorkspaceHubPage() {
         </p>
       </div>
       {createDialog}
+      {connectDialog}
     </div>
   );
 }

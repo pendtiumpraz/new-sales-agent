@@ -1255,63 +1255,240 @@ function EnrichmentPanel({
 
 // ═══════════════════════ HISTORY PANEL ═══════════════════════
 
+function jobLabel(j: DiscoveryJobRow): string {
+  return j.query?.trim() || `${j.channel} crawl`;
+}
+
 function HistoryPanel({ jobsQ }: { jobsQ: ReturnType<typeof useQuery<DiscoveryJobRow[]>> }) {
+  const qc = useQueryClient();
+  const [view, setView] = useState<DiscoveryView>("results");
   const jobs = jobsQ.data ?? [];
+
+  // ── trash query (lazy) ───────────────────────────────────────────────────
+  const trashedQ = useQuery({
+    queryKey: ["m5", "trashedJobs"],
+    enabled: view === "trash",
+    queryFn: async () => readJson<DiscoveryJobRow[]>(await fetch("/api/discovery/jobs/trashed")),
+    retry: false,
+  });
+  const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
+
+  function refreshJobs() {
+    qc.invalidateQueries({ queryKey: ["m5", "jobs"] });
+    qc.invalidateQueries({ queryKey: ["m5", "trashedJobs"] });
+    // Soft-delete/restore cascade to the job's results → keep those views fresh too.
+    qc.invalidateQueries({ queryKey: ["m5", "results"] });
+    qc.invalidateQueries({ queryKey: ["m5", "trashedResults"] });
+  }
+
+  // ── soft delete / restore / purge ────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<DiscoveryJobRow | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<DiscoveryJobRow | null>(null);
+
+  const softDelete = useMutation({
+    mutationFn: async (j: DiscoveryJobRow) =>
+      readJson(await fetch(`/api/discovery/jobs/${j.id}`, { method: "DELETE" })),
+    onSuccess: (_d, j) => {
+      toast.success(`Riwayat "${jobLabel(j)}" dipindah ke Sampah`);
+      setDeleteTarget(null);
+      refreshJobs();
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus riwayat");
+      setDeleteTarget(null);
+    },
+  });
+  const restore = useMutation({
+    mutationFn: async (j: DiscoveryJobRow) =>
+      readJson(await fetch(`/api/discovery/jobs/${j.id}/restore`, { method: "PATCH" })),
+    onSuccess: (_d, j) => {
+      toast.success(`Riwayat "${jobLabel(j)}" dipulihkan`);
+      refreshJobs();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memulihkan riwayat"),
+  });
+  const purge = useMutation({
+    mutationFn: async (j: DiscoveryJobRow) =>
+      readJson(await fetch(`/api/discovery/jobs/${j.id}?purge=1`, { method: "DELETE" })),
+    onSuccess: (_d, j) => {
+      toast.success(`Riwayat "${jobLabel(j)}" dihapus permanen`);
+      setPurgeTarget(null);
+      refreshJobs();
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen");
+      setPurgeTarget(null);
+    },
+  });
+
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
-      <div className="border-b border-border px-5 py-3.5">
-        <h2 className="text-sm font-semibold">Riwayat crawl &amp; enrich</h2>
-        <p className="text-[11px] text-muted-foreground">
-          Tiap job jalan langsung (tanpa antrian/cron). Klik untuk detail.
-        </p>
+    <section className="space-y-4">
+      {/* view switch: riwayat | sampah */}
+      <div className="flex items-center gap-1 text-sm">
+        <ViewPill active={view === "results"} onClick={() => setView("results")}>
+          <Radar className="h-3.5 w-3.5" /> Riwayat
+        </ViewPill>
+        <ViewPill active={view === "trash"} onClick={() => setView("trash")}>
+          <Trash2 className="h-3.5 w-3.5" /> Sampah job
+          {trashed.length > 0 && view === "trash" && <CountPill>{trashed.length}</CountPill>}
+        </ViewPill>
       </div>
-      {jobsQ.isLoading ? (
-        <TableLoading />
-      ) : jobsQ.isError ? (
-        <ErrorState
-          className="border-0"
-          title="Gagal memuat riwayat"
-          description="Tidak bisa mengambil riwayat discovery."
-          onRetry={() => jobsQ.refetch()}
-        />
-      ) : jobs.length === 0 ? (
-        <EmptyState
-          className="border-0"
-          icon={Radar}
-          title="Belum ada riwayat"
-          description="Setiap kali kamu menjalankan discovery, run-nya tercatat di sini beserta jumlah kandidat & statusnya."
-        />
-      ) : (
-        <ul className="divide-y divide-border text-sm">
-          {jobs.map((j) => {
-            const meta = JOB_STATUS_META[j.status] ?? JOB_STATUS_META.pending;
-            return (
-              <li
-                key={j.id}
-                className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
-              >
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                  {j.channel}
-                </span>
-                <span className="min-w-0 flex-1 truncate">
-                  <b>{j.query}</b>{" "}
-                  <span className="text-muted-foreground">
-                    · {j.resultsCount} kandidat · {fmtRelID(j.finishedAt ?? j.createdAt)}
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                    meta.cls,
-                  )}
-                >
-                  {meta.label}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+        {view === "results" ? (
+          <>
+            <div className="border-b border-border px-5 py-3.5">
+              <h2 className="text-sm font-semibold">Riwayat crawl &amp; enrich</h2>
+              <p className="text-[11px] text-muted-foreground">
+                Tiap job jalan langsung (tanpa antrian/cron). Hapus memindahkan job &amp; hasilnya ke
+                Sampah.
+              </p>
+            </div>
+            {jobsQ.isLoading ? (
+              <TableLoading />
+            ) : jobsQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat riwayat"
+                description="Tidak bisa mengambil riwayat discovery."
+                onRetry={() => jobsQ.refetch()}
+              />
+            ) : jobs.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Radar}
+                title="Belum ada riwayat"
+                description="Setiap kali kamu menjalankan discovery, run-nya tercatat di sini beserta jumlah kandidat & statusnya."
+              />
+            ) : (
+              <ul className="divide-y divide-border text-sm">
+                {jobs.map((j) => {
+                  const meta = JOB_STATUS_META[j.status] ?? JOB_STATUS_META.pending;
+                  return (
+                    <li
+                      key={j.id}
+                      className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
+                    >
+                      <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                        {j.channel}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        <b>{j.query}</b>{" "}
+                        <span className="text-muted-foreground">
+                          · {j.resultsCount} kandidat · {fmtRelID(j.finishedAt ?? j.createdAt)}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                          meta.cls,
+                        )}
+                      >
+                        {meta.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(j)}
+                        title="Hapus riwayat (ke Sampah)"
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
+        ) : (
+          /* ---- TRASH (jobs) ---- */
+          <>
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3.5 text-xs">
+              <span className="text-muted-foreground">
+                Riwayat crawl yang dihapus disimpan di sini. <b>Pulihkan</b> mengembalikan job &amp;
+                hasilnya, <b>Hapus permanen</b> menghapus selamanya.
+              </span>
+              <span className="ml-auto text-muted-foreground">{trashed.length} job</span>
+            </div>
+            {trashedQ.isLoading ? (
+              <TableLoading />
+            ) : trashedQ.isError ? (
+              <ErrorState
+                className="border-0"
+                title="Gagal memuat sampah"
+                description="Tidak bisa mengambil riwayat yang dihapus."
+                onRetry={() => trashedQ.refetch()}
+              />
+            ) : trashed.length === 0 ? (
+              <EmptyState
+                className="border-0"
+                icon={Trash2}
+                title="Sampah kosong"
+                description="Riwayat crawl yang kamu hapus akan muncul di sini dan bisa dipulihkan."
+              />
+            ) : (
+              <ul className="divide-y divide-border">
+                {trashed.map((j) => (
+                  <li key={j.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+                    <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                      {j.channel}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground/80">{jobLabel(j)}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {j.resultsCount} kandidat · dihapus {fmtRelID(j.deletedAt ?? null)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => restore.mutate(j)}
+                      disabled={restore.isPending}
+                      className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary disabled:opacity-60"
+                    >
+                      <RotateCcw className="h-3 w-3" /> Pulihkan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPurgeTarget(j)}
+                      className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3 w-3" /> Hapus permanen
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* confirms */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
+        title="Pindahkan ke Sampah?"
+        body={
+          <>
+            Riwayat crawl{" "}
+            <span className="font-medium text-foreground">
+              {deleteTarget && jobLabel(deleteTarget)}
+            </span>{" "}
+            beserta hasilnya akan dipindah ke <b>Sampah</b>. Kamu masih bisa memulihkannya nanti.
+          </>
+        }
+        confirmLabel="Ya, hapus"
+        confirmPending={softDelete.isPending}
+        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
+      />
+      <PurgeDialog
+        open={!!purgeTarget}
+        label={purgeTarget ? jobLabel(purgeTarget) : ""}
+        pending={purge.isPending}
+        onClose={() => setPurgeTarget(null)}
+        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+      />
     </section>
   );
 }

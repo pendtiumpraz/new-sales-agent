@@ -1,0 +1,35 @@
+gaps-verify — build verification for tasks A/B/C
+Run date: 2026-06-30
+Commands: `npx tsc --noEmit` then `npm run lint` (in D:/github/agentic-sales-ai)
+
+RESULT: PASS
+
+npx tsc --noEmit  -> exit 0, no errors.
+npm run lint      -> exit 0, no errors. Only pre-existing warnings (see below); NONE are in files touched by tasks A/B/C.
+
+Files modified by tasks A/B/C (git diff --name-only HEAD):
+  app/(app)/enrichment/page.tsx
+  app/(app)/workspace/page.tsx
+  app/api/onboarding/modules/[id]/route.ts
+  app/api/onboarding/verticals/[id]/route.ts
+  components/layout/side-nav.tsx
+  components/layout/user-theme-provider.tsx
+  components/shared/brand-logo.tsx
+  modules/onboarding/repo.ts
+  modules/onboarding/service.ts
+
+Errors introduced by tasks A/B/C: NONE.
+
+Pre-existing lint warnings (untouched by A/B/C — not introduced, listed for completeness):
+  app/(app)/ecommerce/page.tsx:21:10  Warning  'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
+  app/(app)/field/page.tsx:25:3       Warning  'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+  app/(app)/field/page.tsx:1591:10    Warning  'ConfirmModal' is defined but never used.  @typescript-eslint/no-unused-vars
+  app/(app)/settings/diagnostics/page.tsx:514:21  Warning  '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+  app/(app)/settings/knowledge-base/page.tsx:27:3 Warning  'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+  components/shared/table-pagination.tsx:65:45     Warning  'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+--- Fix-errors re-verification (2026-06-30) ---
+Re-ran in D:/github/agentic-sales-ai:
+  npx tsc --noEmit  -> exit 0, no errors.
+  npm run lint      -> exit 0, only the 6 pre-existing warnings above (none in A/B/C-touched files).
+No tsc/lint errors were introduced by tasks A/B/C — nothing to fix. Build is GREEN.
