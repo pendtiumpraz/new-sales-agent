@@ -348,7 +348,7 @@ function detectPlatform() {
 }
 
 // ---------- Floating Widget ----------
-let widget, platformSelect, platformLabel, analyzeBtn, saveBtn, statusEl, analysisEl;
+let widget, platformSelect, platformLabel, analyzeBtn, saveBtn, saveAllBtn, statusEl, analysisEl;
 let lastAnalysis = null;
 
 function setStatus(msg, kind) {
@@ -441,8 +441,11 @@ function mountWidget() {
   row.style.cssText = "display:flex;gap:5px;";
   analyzeBtn = mkBtn("🔍 Analisa", false);
   saveBtn = mkBtn("➕ Simpan", true);
+  saveAllBtn = mkBtn("➕ Simpan semua", true);
+  saveAllBtn.style.display = "none"; // shown only on pages that yield a PEOPLE list (e.g. post komentar)
   analyzeBtn.addEventListener("click", onAnalyze);
   saveBtn.addEventListener("click", onSave);
+  saveAllBtn.addEventListener("click", onSaveAll);
 
   // Set initial color
   const curEx = getCurrentExtractor();
@@ -453,7 +456,7 @@ function mountWidget() {
     platformLabel.textContent = `Platform: ${curEx.name}`;
   }
 
-  row.append(analyzeBtn, saveBtn);
+  row.append(analyzeBtn, saveBtn, saveAllBtn);
   widget.append(platformLabel, platformSelect, analysisEl, statusEl, row);
   document.body.appendChild(widget);
 }
@@ -535,6 +538,38 @@ async function onSave() {
   }
 }
 
+// Bulk-save a PEOPLE list (e.g. LinkedIn post commenters/reactors — intent-mining)
+// to the channel-agnostic Company→People graph sink (/api/discovery/ingest). Maps
+// the extractor's `items` → people[]. Best-effort: only items with a fullName.
+async function onSaveAll() {
+  const E = getCurrentExtractor();
+  const result = E?.extract();
+  const items = (result?.items || []).filter((it) => it && it.fullName);
+  if (!items.length) {
+    setStatus("Tidak ada daftar orang di halaman ini", "warn");
+    return;
+  }
+  saveAllBtn.disabled = true;
+  setStatus(`Menyimpan ${items.length} orang…`);
+  const people = items.map((p) => ({
+    fullName: p.fullName,
+    title: p.title || undefined,
+    channelProfileUrl: p.linkedinUrl || p.sourceUrl || undefined,
+  }));
+  const res = await sendBg("ingestGraph", {
+    channel: result.source || detectPlatform() || "web",
+    sourceUrl: result.sourceUrl || location.href,
+    people,
+  });
+  saveAllBtn.disabled = false;
+  if (res?.ok && res.json?.ok) {
+    const n = res.json.data?.peopleUpserted ?? people.length;
+    setStatus(`Tersimpan ✓ ${n} orang dari post`, "ok");
+  } else {
+    setStatus(`Gagal: ${res?.json?.error || res?.error || "cek token & workspace di Options"}`, "err");
+  }
+}
+
 // ---------- Auto-monitor ----------
 let lastPath = "";
 
@@ -543,6 +578,7 @@ function tick() {
   const onProfile = p !== null;
   if (widget) {
     widget.style.display = onProfile ? "flex" : "none";
+    if (saveAllBtn) saveAllBtn.style.display = p === "linkedinpost" ? "inline-block" : "none";
     // Update platform selector highlight
     if (p && platformSelect) {
       const ex = EXTRACTORS[p];

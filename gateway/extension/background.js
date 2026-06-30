@@ -87,6 +87,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }),
         );
       }
+      if (msg.type === "ingestGraph") {
+        // Discovery BULK: channel-agnostic Company→People GRAPH sink (post
+        // commenters/reactors, SERP, etc.). Same per-rep ingest token as single
+        // ingest; `channel` is required by /api/discovery/ingest.
+        if (!cfg.ingestToken) return sendResponse({ ok: false, error: "ingest token belum di-set (Options)" });
+        const body = {
+          origin: "extension",
+          channel: msg.channel || "web",
+          sourceUrl: msg.sourceUrl || null,
+          ...(cfg.discoveryWorkspaceId ? { workspaceId: cfg.discoveryWorkspaceId } : {}),
+          companies: msg.companies || [],
+          people: msg.people || [],
+        };
+        return sendResponse(
+          await api(`/api/discovery/ingest`, {
+            method: "POST",
+            headers: { "x-ingest-token": cfg.ingestToken },
+            body: JSON.stringify(body),
+          }),
+        );
+      }
       sendResponse({ ok: false, error: "unknown message type" });
     } catch (e) {
       sendResponse({ ok: false, error: String(e && e.message ? e.message : e) });
