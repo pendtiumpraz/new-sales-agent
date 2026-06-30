@@ -52,6 +52,7 @@ export interface CreateCompanyInput {
   name: string;
   domain?: string | null;
   industry?: string | null;
+  industryId?: string | null; // taxonomy soft ref (classify-on-enrich)
   size?: string | null;
   hqCountry?: string | null;
   hqCity?: string | null;
@@ -70,6 +71,7 @@ export interface CreateContactInput {
   companyId?: string | null;
   workspaceId?: string | null;
   title?: string | null;
+  occupationId?: string | null; // taxonomy soft ref (classify-on-enrich)
   department?: string | null;
   seniority?: string | null;
   email?: string | null;
@@ -194,6 +196,7 @@ export const crmService = {
       name,
       domain: input.domain ?? null,
       industry: input.industry ?? null,
+      industryId: input.industryId ?? null,
       size: input.size ?? null,
       hqCountry: input.hqCountry ?? null,
       hqCity: input.hqCity ?? null,
@@ -224,6 +227,7 @@ export const crmService = {
     for (const f of [
       "domain",
       "industry",
+      "industryId",
       "size",
       "hqCountry",
       "hqCity",
@@ -311,6 +315,7 @@ export const crmService = {
       workspaceId: input.workspaceId ?? null,
       fullName,
       title: input.title ?? null,
+      occupationId: input.occupationId ?? null,
       department: input.department ?? null,
       seniority: input.seniority ?? null,
       email: input.email ?? null,
@@ -363,6 +368,7 @@ export const crmService = {
     for (const f of [
       "workspaceId",
       "title",
+      "occupationId",
       "department",
       "seniority",
       "email",

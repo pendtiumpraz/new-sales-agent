@@ -125,6 +125,32 @@ export const crmRepo = {
     return row;
   },
 
+  /**
+   * Dedup lookup for channel-agnostic ingest: match a live company by normalized
+   * `domain` first (the strong key), else by exact `name`. Used to UPSERT the
+   * Company node of an ingested graph instead of creating a duplicate each crawl.
+   */
+  async findCompanyByDomainOrName(
+    ctx: TenantContext,
+    domain: string | null,
+    name: string,
+  ): Promise<CompanyRow | undefined> {
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(companyTable)
+        .where(
+          and(
+            eq(companyTable.tenantId, ctx.tenantId),
+            isNull(companyTable.deletedAt),
+            domain ? eq(companyTable.domain, domain) : eq(companyTable.name, name),
+          ),
+        )
+        .limit(1),
+    );
+    return row;
+  },
+
   async insertCompany(ctx: TenantContext, values: CompanyInsert): Promise<CompanyRow> {
     const [row] = await withTenant(ctx, (tx) =>
       tx.insert(companyTable).values({ ...values, tenantId: ctx.tenantId }).returning(),
@@ -293,6 +319,33 @@ export const crmRepo = {
           ),
         ),
     );
+  },
+
+  /**
+   * Dedup lookup for channel-agnostic ingest: a live contact with this exact
+   * `full_name` in the given company scope (companyId null = the tenant pool, no
+   * company). Lets the graph ingest UPSERT a Person node instead of duplicating.
+   */
+  async findContactByNameInCompany(
+    ctx: TenantContext,
+    fullName: string,
+    companyId: string | null,
+  ): Promise<ContactRow | undefined> {
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(contactTable)
+        .where(
+          and(
+            eq(contactTable.tenantId, ctx.tenantId),
+            isNull(contactTable.deletedAt),
+            eq(contactTable.fullName, fullName),
+            companyId ? eq(contactTable.companyId, companyId) : isNull(contactTable.companyId),
+          ),
+        )
+        .limit(1),
+    );
+    return row;
   },
 
   async insertContact(ctx: TenantContext, values: ContactInsert): Promise<ContactRow> {

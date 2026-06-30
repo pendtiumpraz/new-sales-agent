@@ -1,0 +1,101 @@
+Taxonomy + Discovery — Build Verification Report
+=================================================
+Date:     2026-06-30
+Branch:   new-main
+Command:  cd D:/github/agentic-sales-ai && npx tsc --noEmit  &&  npm run lint
+
+RESULT: PASS
+  - npx tsc --noEmit ... exit 0 (no type errors)
+  - npm run lint     ... exit 0 (no errors; only pre-existing warnings, none in Taxonomy/Discovery)
+
+-------------------------------------------------------------------------------
+SCOPE — files introduced/modified by the Taxonomy + Discovery work
+-------------------------------------------------------------------------------
+Modified:
+  app/(app)/contacts/discovery/page.tsx
+  app/api/discovery/plan/route.ts
+  modules/crm/repo.ts
+  modules/crm/schema.ts
+  modules/crm/service.ts
+  modules/enrichment/service.ts
+  modules/index.ts
+
+New (untracked):
+  app/api/discovery/ingest/route.ts
+  app/api/taxonomy/industries/route.ts
+  app/api/taxonomy/industries/[id]/route.ts
+  app/api/taxonomy/industries/[id]/restore/route.ts
+  app/api/taxonomy/industries/merge/route.ts
+  app/api/taxonomy/occupations/route.ts
+  app/api/taxonomy/occupations/[id]/route.ts
+  app/api/taxonomy/occupations/[id]/restore/route.ts
+  app/api/taxonomy/occupations/merge/route.ts
+  drizzle/migrations/0038_taxonomy_industry_occupation.sql
+  drizzle/migrations/0039_discovery_taxonomy_refs.sql
+  modules/enrichment/plan.ts
+  modules/taxonomy/repo.ts
+  modules/taxonomy/schema.ts
+  modules/taxonomy/service.ts
+  scripts/seed-taxonomy-base.mts
+
+-------------------------------------------------------------------------------
+1) npx tsc --noEmit
+-------------------------------------------------------------------------------
+Exit code: 0
+Output:    (none)
+Errors introduced by Taxonomy + Discovery work: NONE
+
+-------------------------------------------------------------------------------
+2) npm run lint   (next lint)
+-------------------------------------------------------------------------------
+Exit code: 0
+Errors: 0
+
+Warnings reported (ALL pre-existing — NONE in Taxonomy/Discovery/enrichment/crm files):
+  ./app/(app)/ecommerce/page.tsx
+    21:10  Warning: 'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/field/page.tsx
+    25:3    Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+    1591:10 Warning: 'ConfirmModal' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/settings/knowledge-base/page.tsx
+    27:3    Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./components/shared/table-pagination.tsx
+    65:45   Warning: 'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+A targeted grep of the lint output for taxonomy|discovery|enrichment|crm returned NO matches,
+confirming none of these warnings originate from the Taxonomy + Discovery work.
+
+-------------------------------------------------------------------------------
+CONCLUSION
+-------------------------------------------------------------------------------
+PASS — Both type-check and lint are GREEN. The Taxonomy + Discovery changes introduce
+zero TypeScript errors and zero lint errors/warnings. The build is clean.
+
+-------------------------------------------------------------------------------
+RE-VERIFICATION (fix pass)
+-------------------------------------------------------------------------------
+Date:    2026-06-30
+Branch:  new-main
+
+Re-ran the checks against the live working tree to confirm the report above and
+fix any tsc/lint error introduced by the Taxonomy + Discovery work:
+
+  - npx tsc --noEmit ............. exit 0 (no type errors)
+  - npm run lint (next lint) ..... exit 0 (0 errors; same 5 PRE-EXISTING warnings
+      in ecommerce / field / settings-diagnostics / settings-knowledge-base /
+      components-shared-table-pagination — NONE in taxonomy/discovery/enrichment/crm)
+
+Extra coverage (gap closed):
+  - scripts/seed-taxonomy-base.mts is a .mts file and is NOT matched by tsconfig
+    "include" ("**/*.ts" does not match .mts), so the project tsc never type-checks
+    it. Checked it standalone (strict, bundler resolution) -> exit 0. It imports only
+    node:* + @vercel/postgres (no @/* path aliases), so the standalone check is valid.
+
+  - All 23 scoped files (modified + new) confirmed present on disk and consistent
+    with `git status` (7 modified, untracked taxonomy/ + discovery/ingest/ + 0038/0039
+    migrations + plan.ts + seed script).
+
+FIXES APPLIED: NONE NEEDED — no tsc or lint error was introduced by the Taxonomy +
+Discovery work. Build is GREEN. (Migrations were NOT applied; operator runs db:push.)

@@ -28,6 +28,10 @@ export * from "./wa/schema";
 // Module 5 — enrichment / discovery (discovery_job / discovery_result / enrichment_record)
 export * from "./enrichment/schema";
 
+// Taxonomy — industri + pekerjaan master data the AI classifies crawled
+// companies/people into (industry / occupation; global base ∪ tenant-private).
+export * from "./taxonomy/schema";
+
 // Module 6 — sales / closing-flow (conversation_stage / closing_readiness / kb_technique)
 export * from "./sales/schema";
 

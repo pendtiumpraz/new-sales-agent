@@ -54,15 +54,40 @@ interface DiscoveryCompany {
   why: string;
   domainGuess?: string;
 }
+interface LinkedInChannelPlan {
+  searchQueries: string[];
+  profileHints: string[];
+  postSearch: string[];
+}
+interface GoogleMapsChannelPlan {
+  queries: string[];
+  categories: string[];
+  areas: string[];
+}
+interface SearchChannelPlan {
+  queries: string[];
+  note: string;
+}
+interface MarketplaceChannelPlan {
+  shopee: string[];
+  tokopedia: string[];
+  note: string;
+}
+// CROSS-CHANNEL plan (channel-neutral) — see modules/enrichment/plan.ts.
 interface DiscoveryPlan {
   field: string;
   location: string;
   roles: string[];
   industries: string[];
   companies: DiscoveryCompany[];
-  linkedinQueries: string[];
-  googleDorks: string[];
   keywords: string[];
+  linkedin: LinkedInChannelPlan;
+  googleMaps: GoogleMapsChannelPlan;
+  googleDorks: string[];
+  instagram: SearchChannelPlan;
+  facebook: SearchChannelPlan;
+  marketplace: MarketplaceChannelPlan;
+  tiktok: SearchChannelPlan;
   note: string;
 }
 
@@ -81,6 +106,43 @@ const STATUS_CLS: Record<string, string> = {
   pending: "bg-info/10 text-info",
   error: "bg-destructive/10 text-destructive",
 };
+
+// A labelled list of copyable query strings, each with an optional "open" link
+// (per-channel). Reused across every channel block of the cross-channel plan.
+function QueryList({
+  title,
+  hint,
+  items,
+  linkFor,
+  onCopy,
+}: {
+  title: string;
+  hint?: string;
+  items: string[];
+  linkFor?: (q: string) => string;
+  onCopy: (q: string) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <div className="space-y-1.5">
+        {items.map((q) => (
+          <div key={q} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
+            <span className="min-w-0 flex-1 truncate">{q}</span>
+            {linkFor && (
+              <a href={linkFor(q)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                Buka <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onCopy(q)}><Copy className="h-3.5 w-3.5" /></Button>
+          </div>
+        ))}
+      </div>
+      {hint && <p className="mt-1.5 text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
 
 export default function DiscoveryPage() {
   const qc = useQueryClient();
@@ -124,7 +186,7 @@ export default function DiscoveryPage() {
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
-      return j.plan as DiscoveryPlan;
+      return j.data as DiscoveryPlan;
     },
     onError: (e) => toast.error(`Gagal (${e instanceof Error ? e.message : e})`),
   });
@@ -135,6 +197,10 @@ export default function DiscoveryPage() {
   };
   const linkedinSearchUrl = (q: string) =>
     `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(q)}&origin=GLOBAL_SEARCH_HEADER`;
+  const linkedinContentUrl = (q: string) =>
+    `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(q)}`;
+  const googleUrl = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  const mapsUrl = (q: string) => `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
 
   const run = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
@@ -254,15 +320,19 @@ export default function DiscoveryPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3 p-4">
+            {/* Channel-NEUTRAL: discovery fills the Perusahaan→Orang graph from ANY
+                of these. "live" = ingest sink ready (backend channel-agnostic);
+                "segera" = per-channel browser scraper lands in the extension phase. */}
             <div className="flex flex-wrap gap-1.5">
               {[
                 ["LinkedIn", true],
+                ["Google Maps", false],
                 ["Google", false],
                 ["Instagram", false],
+                ["Facebook", false],
                 ["Shopee", false],
                 ["Tokopedia", false],
                 ["TikTok", false],
-                ["AI Websearch (DeepSeek)", false],
               ].map(([label, on]) => (
                 <span
                   key={label as string}
@@ -272,7 +342,7 @@ export default function DiscoveryPage() {
                   }
                 >
                   {label as string}
-                  {on ? "" : " · segera"}
+                  {on ? "" : " · scraper segera"}
                 </span>
               ))}
             </div>
@@ -302,8 +372,9 @@ export default function DiscoveryPage() {
 
               <TabsContent value="ai" className="mt-4 space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Cari <b>orang per-bidang</b> target Indonesia. AI menyusun rencana (titel jabatan, industri, kandidat PT,
-                  query LinkedIn) — <b>orang aslinya</b> diambil lewat extension LinkedIn / crawl, bukan dikarang AI.
+                  Cari <b>orang per-bidang</b> target Indonesia. AI menyusun rencana <b>lintas-kanal</b> (titel jabatan,
+                  industri, kandidat PT, query LinkedIn + intent-mining, Google Maps, dork, Instagram, Facebook,
+                  marketplace, TikTok) — <b>orang aslinya</b> diambil lewat extension / crawl per kanal, bukan dikarang AI.
                 </p>
                 <div className="grid gap-3 sm:grid-cols-[2fr_1.5fr_1fr]">
                   <div className="space-y-1">
@@ -332,25 +403,28 @@ export default function DiscoveryPage() {
                 </Button>
 
                 {plan.data && (
-                  <div className="space-y-4 rounded-lg border bg-card p-4">
-                    {/* LinkedIn queries — the money action: feed extension Stage 1 */}
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Query LinkedIn (Tahap 1 extension)</p>
-                      <div className="space-y-1.5">
-                        {plan.data.linkedinQueries.map((q) => (
-                          <div key={q} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
-                            <span className="min-w-0 flex-1 truncate">{q}</span>
-                            <a href={linkedinSearchUrl(q)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                              Buka LinkedIn <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copy(q)}><Copy className="h-3.5 w-3.5" /></Button>
+                  <div className="space-y-5 rounded-lg border bg-card p-4">
+                    {/* Channel-agnostic scaffolding: roles + industries + keywords. */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {plan.data.roles.length > 0 && (
+                        <div>
+                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Titel jabatan</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {plan.data.roles.map((r) => <Badge key={r} variant="muted" className="cursor-pointer" onClick={() => copy(r)}>{r}</Badge>)}
                           </div>
-                        ))}
-                      </div>
-                      <p className="mt-1.5 text-[11px] text-muted-foreground">Buka query → jalankan <b>Tahap 1</b> di popup extension untuk crawl semua orangnya.</p>
+                        </div>
+                      )}
+                      {plan.data.industries.length > 0 && (
+                        <div>
+                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Industri</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {plan.data.industries.map((i) => <Badge key={i} variant="muted">{i}</Badge>)}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Candidate companies — crawl to get real contacts */}
+                    {/* Candidate companies — crawl/ingest to get real contacts. */}
                     {plan.data.companies.length > 0 && (
                       <div>
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kandidat perusahaan (verifikasi dengan crawl)</p>
@@ -373,39 +447,88 @@ export default function DiscoveryPage() {
                       </div>
                     )}
 
-                    {/* Roles + keywords + dorks as copyable chips */}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {plan.data.roles.length > 0 && (
+                    {/* ── PER-CHANNEL guidance (no channel is the default) ── */}
+                    <div className="space-y-4 border-t pt-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Panduan per-kanal — pilih yang cocok dengan ICP</p>
+
+                      {/* LinkedIn: people-search + intent-mining post-search. */}
+                      <QueryList
+                        title="LinkedIn — query orang (Tahap 1 extension)"
+                        hint="Buka query → jalankan Tahap 1 di popup extension untuk crawl semua orangnya."
+                        items={plan.data.linkedin.searchQueries}
+                        linkFor={linkedinSearchUrl}
+                        onCopy={copy}
+                      />
+                      <QueryList
+                        title="LinkedIn — intent mining (komentator/reactor post = lead)"
+                        hint="Buka pencarian konten → scrape yang nge-comment/react di post relevan."
+                        items={plan.data.linkedin.postSearch}
+                        linkFor={linkedinContentUrl}
+                        onCopy={copy}
+                      />
+                      {plan.data.linkedin.profileHints.length > 0 && (
                         <div>
-                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Titel jabatan</p>
+                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">LinkedIn — ciri profil fit</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {plan.data.roles.map((r) => <Badge key={r} variant="muted" className="cursor-pointer" onClick={() => copy(r)}>{r}</Badge>)}
+                            {plan.data.linkedin.profileHints.map((h) => <Badge key={h} variant="muted">{h}</Badge>)}
                           </div>
                         </div>
                       )}
-                      {plan.data.industries.length > 0 && (
-                        <div>
-                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Industri</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {plan.data.industries.map((i) => <Badge key={i} variant="muted">{i}</Badge>)}
-                          </div>
-                        </div>
-                      )}
+
+                      {/* Google Maps: business-category + area → PT + telp + alamat. */}
+                      <QueryList
+                        title="Google Maps — kategori + area (PT + telepon + alamat)"
+                        hint="Buka Maps → ambil nama PT, telepon, alamat, kategori (scraper segera)."
+                        items={plan.data.googleMaps.queries}
+                        linkFor={mapsUrl}
+                        onCopy={copy}
+                      />
+
+                      {/* Google dorks. */}
+                      <QueryList
+                        title="Google dork"
+                        items={plan.data.googleDorks}
+                        linkFor={googleUrl}
+                        onCopy={copy}
+                      />
+
+                      {/* Instagram / Facebook / TikTok — generic search channels. */}
+                      <QueryList
+                        title="Instagram"
+                        hint={plan.data.instagram.note}
+                        items={plan.data.instagram.queries}
+                        linkFor={(q) => `https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/[^a-zA-Z0-9]/g, ""))}/`}
+                        onCopy={copy}
+                      />
+                      <QueryList
+                        title="Facebook"
+                        hint={plan.data.facebook.note}
+                        items={plan.data.facebook.queries}
+                        linkFor={(q) => `https://www.facebook.com/search/top?q=${encodeURIComponent(q)}`}
+                        onCopy={copy}
+                      />
+                      <QueryList
+                        title="Marketplace — Shopee"
+                        items={plan.data.marketplace.shopee}
+                        linkFor={(q) => `https://shopee.co.id/search?keyword=${encodeURIComponent(q)}`}
+                        onCopy={copy}
+                      />
+                      <QueryList
+                        title="Marketplace — Tokopedia"
+                        hint={plan.data.marketplace.note}
+                        items={plan.data.marketplace.tokopedia}
+                        linkFor={(q) => `https://www.tokopedia.com/search?st=product&q=${encodeURIComponent(q)}`}
+                        onCopy={copy}
+                      />
+                      <QueryList
+                        title="TikTok"
+                        hint={plan.data.tiktok.note}
+                        items={plan.data.tiktok.queries}
+                        linkFor={(q) => `https://www.tiktok.com/search?q=${encodeURIComponent(q)}`}
+                        onCopy={copy}
+                      />
                     </div>
-                    {plan.data.googleDorks.length > 0 && (
-                      <div>
-                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Google dork</p>
-                        <div className="space-y-1">
-                          {plan.data.googleDorks.map((d) => (
-                            <div key={d} className="flex items-center gap-2 rounded bg-muted px-2 py-1 font-mono text-[11px]">
-                              <span className="min-w-0 flex-1 truncate">{d}</span>
-                              <a href={`https://www.google.com/search?q=${encodeURIComponent(d)}`} target="_blank" rel="noreferrer" className="text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" /></a>
-                              <button onClick={() => copy(d)} className="text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+
                     <p className="text-[11px] italic text-muted-foreground">{plan.data.note}</p>
                   </div>
                 )}

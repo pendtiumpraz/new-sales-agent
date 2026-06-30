@@ -53,7 +53,8 @@ export const companyTable = pgTable(
     tenantId: text("tenant_id").notNull(),
     name: text("name").notNull(),
     domain: text("domain"), // dedup key (normalized)
-    industry: text("industry"),
+    industry: text("industry"), // free-text label (as captured)
+    industryId: text("industry_id"), // soft ref → industry.id (taxonomy classify-on-enrich)
     size: text("size"),
     hqCountry: text("hq_country"),
     hqCity: text("hq_city"),
@@ -71,6 +72,7 @@ export const companyTable = pgTable(
   (t) => ({
     tenantIdx: index("company_v2_tenant_idx").on(t.tenantId),
     domainIdx: index("company_v2_domain_idx").on(t.tenantId, t.domain),
+    industryIdx: index("company_v2_industry_idx").on(t.tenantId, t.industryId),
   }),
 );
 
@@ -87,6 +89,7 @@ export const contactTable = pgTable(
     workspaceId: text("workspace_id"), // soft ref → workspace_v2.id (scopes lead to a sales focus)
     fullName: text("full_name").notNull(),
     title: text("title"),
+    occupationId: text("occupation_id"), // soft ref → occupation.id (taxonomy classify-on-enrich)
     department: text("department"),
     seniority: text("seniority"),
     email: text("email"),
@@ -117,6 +120,7 @@ export const contactTable = pgTable(
   (t) => ({
     tenantIdx: index("contact_tenant_idx").on(t.tenantId),
     companyIdx: index("contact_company_idx").on(t.tenantId, t.companyId),
+    occupationIdx: index("contact_occupation_idx").on(t.tenantId, t.occupationId),
     workspaceIdx: index("contact_workspace_idx").on(t.tenantId, t.workspaceId),
     ownerIdx: index("contact_owner_idx").on(t.tenantId, t.ownerUserId),
     // Partial index matching the live-read shape (list/keyset paginate the

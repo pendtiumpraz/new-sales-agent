@@ -3,7 +3,11 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 import { crmService } from "@/modules/crm/service";
+import { crmRepo } from "@/modules/crm/repo";
+import { taxonomyService } from "@/modules/taxonomy/service";
+import type { CompanyRow, ContactRow } from "@/modules/crm/schema";
 import { enrichmentRepo } from "./repo";
+import { planDiscoveryChannels, type DiscoveryPlan, type PlanInput } from "./plan";
 import type {
   DiscoveryJobRow,
   DiscoveryResultRow,
@@ -40,7 +44,23 @@ import type {
  * additionally scoped by `workspace_id` in-app (no FK).
  */
 
-const CHANNELS = ["web", "linkedin", "instagram", "maps", "directory"] as const;
+// CHANNEL-NEUTRAL set: discovery can flow from ANY of these channels — none is
+// the default. `web`/`directory` are generic; the rest are named platforms the
+// extension RPA scrapes in a later phase (backend stays channel-agnostic now).
+const CHANNELS = [
+  "web",
+  "linkedin",
+  "google_maps",
+  "google",
+  "instagram",
+  "facebook",
+  "marketplace",
+  "shopee",
+  "tokopedia",
+  "tiktok",
+  "directory",
+  "manual",
+] as const;
 const POSTURES = ["compliant", "balanced", "aggressive"] as const;
 const ORIGINS = ["manual", "mcp", "extension"] as const;
 const JOB_STATUSES = ["pending", "running", "done", "error"] as const;
@@ -101,6 +121,63 @@ export interface ClassifyInput {
 export interface PushToContactInput {
   workspaceId?: string | null; // workspace the new/updated contact belongs to
   ownerUserId?: string | null; // assigned rep (defaults to the caller)
+}
+
+// ── channel-agnostic Company→People graph ingest ─────────────────────────────
+/**
+ * A Company node the extension extracted from ANY channel. `phone`/`email`/
+ * `address` are captured company-level handles — `company_v2` has no first-class
+ * columns for them, so they are persisted in the company `socials` jsonb under
+ * `phone`/`email`/`address` keys (real + queryable, no schema churn).
+ */
+export interface IngestCompanyInput {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  domain?: string | null;
+  address?: string | null;
+  industry?: string | null; // free-text label (as captured); classify resolves industry_id
+  summary?: string | null;
+}
+
+/** A Person node the extension extracted; `companyRef` links it to a graph company. */
+export interface IngestPersonInput {
+  fullName: string;
+  title?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  whatsapp?: string | null;
+  location?: string | null;
+  channelProfileUrl?: string | null; // the person's profile/handle URL on this channel
+  socials?: Record<string, string> | null;
+  /** Links to an IngestCompanyInput by `name` or `domain` (graph edge). */
+  companyRef?: { name?: string | null; domain?: string | null } | null;
+}
+
+/**
+ * One channel-agnostic ingest of a Company→People graph. `channel` + `sourceUrl`
+ * are stamped on EVERY node (provenance). `analyze` opts into taxonomy
+ * classify-on-ingest (industry for companies, occupation for people).
+ */
+export interface IngestGraphInput {
+  channel: string; // linkedin|google_maps|instagram|… (channel-neutral)
+  sourceUrl?: string | null;
+  workspaceId?: string | null;
+  ownerUserId?: string | null; // assigned rep (per-rep attribution)
+  origin?: string; // manual|mcp|extension
+  posture?: string;
+  companies?: IngestCompanyInput[];
+  people?: IngestPersonInput[];
+  /** When true, run taxonomy classify on each ingested company/person. */
+  analyze?: boolean;
+}
+
+export interface IngestGraphResult {
+  companiesUpserted: number;
+  peopleUpserted: number;
+  companiesClassified: number;
+  peopleClassified: number;
+  jobId: string;
 }
 
 // ── validation helpers ───────────────────────────────────────────────────────
@@ -495,6 +572,13 @@ export const enrichmentService = {
       await crmService
         .updateContact(ctx, record.contactId, { enrichmentStatus: "enriched" })
         .catch(() => {});
+      // CLASSIFY-ON-ENRICH: resolve the taxonomy occupation (person) + industry
+      // (its company) from the now-enriched fields and store the ids on CRM.
+      // Best-effort + non-throwing: a $0-credit / no-key tenant just skips this
+      // (taxonomy.classify already degrades to unclassified, never "token habis").
+      await this.classifyContactTaxonomy(ctx, record.contactId).catch((e) => {
+        console.error("[enrichment classify-on-enrich]", record.contactId, e);
+      });
     }
     await this.audit(ctx, "enrichment.record.run", "enrichment_record", id, {
       fields: Object.keys(merged),
@@ -640,6 +724,12 @@ export const enrichmentService = {
         .updateResult(ctx, record.resultId, { savedContactId: contactId })
         .catch(() => {});
     }
+    // CLASSIFY-ON-ENRICH: the contact (and its company) now exist in CRM — resolve
+    // + store the taxonomy occupation_id / industry_id. Best-effort, non-throwing.
+    await this.classifyContactTaxonomy(ctx, contactId).catch((e) => {
+      console.error("[enrichment classify-on-push]", contactId, e);
+    });
+
     await this.audit(ctx, "enrichment.record.push", "enrichment_record", id, {
       contactId,
       segment,
@@ -665,6 +755,266 @@ export const enrichmentService = {
     const ok = await enrichmentRepo.hardDeleteRecord(ctx, id);
     if (!ok) throw new ServiceError("Record enrichment tidak ditemukan", 404, "not_found");
     await this.audit(ctx, "enrichment.record.purge", "enrichment_record", id);
+  },
+
+  // ═══════════════════════ cross-channel plan ═══════════════════════
+  /**
+   * Build a CROSS-CHANNEL discovery plan (LinkedIn + Google Maps + dorks +
+   * Instagram/Facebook/marketplace/TikTok + channel-agnostic roles/industries/
+   * companies/keywords). Channel-NEUTRAL — no channel is the default. Metered AI
+   * with a JSON contract; degrades to a heuristic plan on any failure (so $0
+   * credit never surfaces "token habis"). The real people come from the extension
+   * / crawl + `ingestGraph`, not from this plan.
+   */
+  async planDiscoveryChannels(ctx: TenantContext, input: PlanInput): Promise<DiscoveryPlan> {
+    if (!input.field?.trim()) {
+      throw new ServiceError("Bidang/pekerjaan wajib diisi", 400, "validation");
+    }
+    return planDiscoveryChannels(ctx, input);
+  },
+
+  // ═══════════════ channel-agnostic Company→People graph ingest ═════════════
+  /**
+   * Ingest a Company→People GRAPH extracted by the extension from ANY channel.
+   * Upserts company nodes (`company_v2`) + person nodes (`contact`) into CRM via
+   * the OWNING module (`crmService` — modular-monolith rule, no cross-table reach),
+   * stamping `channel` + `sourceUrl` (provenance / `source`) on every node and
+   * linking each person to its `companyRef`. Idempotent: a node that already
+   * exists (company by domain/name, person by name-in-company) is UPDATED, not
+   * duplicated. Records the run as a `discovery_job` for history/audit.
+   *
+   * When `analyze` is on, each upserted company/person is run through taxonomy
+   * `classify()` (industry / occupation) and the resolved id stored. Classify is
+   * best-effort + non-throwing — a $0-credit tenant just gets unclassified nodes.
+   *
+   * NOTE (honesty): this is the channel-NEUTRAL ingest sink only. The per-channel
+   * browser scrapers (LinkedIn/Maps/IG/marketplace/TikTok extraction) are the
+   * EXTENSION phase — not built here. The backend accepts whatever channel the
+   * extension labels.
+   */
+  async ingestGraph(ctx: TenantContext, input: IngestGraphInput): Promise<IngestGraphResult> {
+    const channel = assertEnum(input.channel, CHANNELS, "channel");
+    const origin = input.origin ? assertEnum(input.origin, ORIGINS, "origin") : "extension";
+    const posture = input.posture ? assertEnum(input.posture, POSTURES, "posture") : "compliant";
+    const workspaceId = input.workspaceId ?? null;
+    const ownerUserId = input.ownerUserId ?? null;
+    const source = input.sourceUrl?.trim() || `discovery:${channel}`;
+    const companies = input.companies ?? [];
+    const people = input.people ?? [];
+    const norm = (s: string | null | undefined): string => (s ?? "").trim().toLowerCase();
+
+    // Record the run for history (channel-tagged) BEFORE the upserts.
+    const job = await enrichmentRepo.insertJob(ctx, {
+      id: "dsj_" + crypto.randomUUID(),
+      tenantId: ctx.tenantId,
+      workspaceId,
+      query: `ingest:${channel}`,
+      channel,
+      source,
+      status: "running",
+      posture,
+      origin,
+      startedAt: new Date(),
+    });
+
+    let companiesUpserted = 0;
+    let peopleUpserted = 0;
+    let companiesClassified = 0;
+    let peopleClassified = 0;
+    // Map a companyRef key (domain|name, lowercased) → the resolved company id, so
+    // people can attach to the company we just upserted in THIS batch.
+    const companyIdByKey = new Map<string, string>();
+
+    try {
+      // 1) Company nodes — upsert + (optionally) classify industry.
+      for (const c of companies) {
+        const name = c.name?.trim();
+        if (!name) continue;
+        const domain = c.domain?.trim() || null;
+        // company_v2 has no first-class phone/email/address columns; persist these
+        // captured company-level handles in the `socials` jsonb under explicit keys
+        // (real, queryable — no data lost, no schema churn).
+        const bag: Record<string, string> = {};
+        if (c.phone?.trim()) bag.phone = c.phone.trim();
+        if (c.email?.trim()) bag.email = c.email.trim();
+        if (c.address?.trim()) bag.address = c.address.trim();
+        const existing = await crmRepo.findCompanyByDomainOrName(ctx, domain, name);
+        let company: CompanyRow;
+        if (existing) {
+          company = await crmService.updateCompany(ctx, existing.id, {
+            name,
+            domain: domain ?? existing.domain ?? undefined,
+            industry: c.industry ?? existing.industry ?? undefined,
+            summary: c.summary ?? existing.summary ?? undefined,
+            socials: Object.keys(bag).length ? { ...(existing.socials ?? {}), ...bag } : undefined,
+            source: existing.source ?? source,
+          });
+        } else {
+          company = await crmService.createCompany(ctx, {
+            name,
+            domain,
+            industry: c.industry ?? null,
+            summary: c.summary ?? null,
+            socials: Object.keys(bag).length ? bag : null,
+            source,
+          });
+        }
+        companiesUpserted++;
+        if (domain) companyIdByKey.set(`domain:${norm(domain)}`, company.id);
+        companyIdByKey.set(`name:${norm(name)}`, company.id);
+
+        if (input.analyze) {
+          const tagged = await this.classifyCompanyTaxonomy(ctx, company);
+          if (tagged) companiesClassified++;
+        }
+      }
+
+      // 2) Person nodes — resolve company edge, upsert, (optionally) classify occupation.
+      for (const p of people) {
+        const fullName = p.fullName?.trim();
+        if (!fullName) continue;
+        // Resolve the company edge: prefer a company upserted in THIS batch, else
+        // look one up by the ref's domain/name (so a person-only ingest still links).
+        let companyId: string | null = null;
+        const ref = p.companyRef ?? null;
+        if (ref?.domain) companyId = companyIdByKey.get(`domain:${norm(ref.domain)}`) ?? null;
+        if (!companyId && ref?.name) companyId = companyIdByKey.get(`name:${norm(ref.name)}`) ?? null;
+        if (!companyId && (ref?.domain || ref?.name)) {
+          const found = await crmRepo.findCompanyByDomainOrName(
+            ctx,
+            ref.domain?.trim() || null,
+            ref.name?.trim() || "",
+          );
+          companyId = found?.id ?? null;
+        }
+
+        const socials: Record<string, string> = { ...(p.socials ?? {}) };
+        if (p.channelProfileUrl?.trim()) socials[channel] = p.channelProfileUrl.trim();
+
+        const existing = await crmRepo.findContactByNameInCompany(ctx, fullName, companyId);
+        let contact: ContactRow;
+        if (existing) {
+          contact = await crmService.updateContact(ctx, existing.id, {
+            companyId: companyId ?? existing.companyId ?? undefined,
+            workspaceId: workspaceId ?? existing.workspaceId ?? undefined,
+            title: p.title ?? existing.title ?? undefined,
+            email: p.email ?? existing.email ?? undefined,
+            phone: p.phone ?? existing.phone ?? undefined,
+            whatsapp: p.whatsapp ?? existing.whatsapp ?? undefined,
+            location: p.location ?? existing.location ?? undefined,
+            socials: Object.keys(socials).length ? { ...(existing.socials ?? {}), ...socials } : undefined,
+            ownerUserId: existing.ownerUserId ?? ownerUserId ?? undefined,
+            source: existing.source ?? source,
+          });
+        } else {
+          contact = await crmService.createContact(ctx, {
+            fullName,
+            companyId,
+            workspaceId,
+            title: p.title ?? null,
+            email: p.email ?? null,
+            phone: p.phone ?? null,
+            whatsapp: p.whatsapp ?? null,
+            location: p.location ?? null,
+            socials: Object.keys(socials).length ? socials : null,
+            ownerUserId,
+            source,
+          });
+        }
+        peopleUpserted++;
+
+        if (input.analyze) {
+          const tagged = await this.classifyContactOccupation(ctx, contact);
+          if (tagged) peopleClassified++;
+        }
+      }
+
+      await enrichmentRepo.updateJob(ctx, job.id, {
+        status: "done",
+        resultsCount: companiesUpserted + peopleUpserted,
+        finishedAt: new Date(),
+      });
+      await this.audit(ctx, "enrichment.ingest.graph", "discovery_job", job.id, {
+        channel,
+        companiesUpserted,
+        peopleUpserted,
+        companiesClassified,
+        peopleClassified,
+      });
+    } catch (err) {
+      await enrichmentRepo
+        .updateJob(ctx, job.id, { status: "error", error: String(err), finishedAt: new Date() })
+        .catch(() => {});
+      throw err;
+    }
+
+    return {
+      companiesUpserted,
+      peopleUpserted,
+      companiesClassified,
+      peopleClassified,
+      jobId: job.id,
+    };
+  },
+
+  // ═══════════════════════ taxonomy classify-on-enrich ══════════════
+  /**
+   * Resolve + store the taxonomy `industry_id` for a CRM company. Non-throwing:
+   * `taxonomyService.classify` already degrades to unclassified (null) on any AI
+   * failure, so a $0-credit / no-key tenant just leaves the cell empty. Returns
+   * true only when an id was actually resolved + written.
+   */
+  async classifyCompanyTaxonomy(ctx: TenantContext, company: CompanyRow): Promise<boolean> {
+    const res = await taxonomyService.classify(ctx, {
+      kind: "industry",
+      entity: {
+        name: company.name,
+        companyName: company.name,
+        website: company.website ?? company.domain ?? null,
+        description: company.summary ?? company.industry ?? null,
+      },
+    });
+    if (!res.id || res.id === company.industryId) return false; // unclassified or unchanged
+    await crmService.updateCompany(ctx, company.id, { industryId: res.id }).catch(() => {});
+    return true;
+  },
+
+  /**
+   * Resolve + store the taxonomy `occupation_id` for a CRM contact (using its
+   * title + its company name as context). Non-throwing, same degrade policy.
+   */
+  async classifyContactOccupation(ctx: TenantContext, contact: ContactRow): Promise<boolean> {
+    let companyName: string | null = null;
+    if (contact.companyId) {
+      const co = await crmRepo.getCompany(ctx, contact.companyId);
+      companyName = co?.name ?? null;
+    }
+    const res = await taxonomyService.classify(ctx, {
+      kind: "occupation",
+      entity: {
+        name: contact.fullName,
+        title: contact.title ?? null,
+        companyName,
+      },
+    });
+    if (!res.id || res.id === contact.occupationId) return false;
+    await crmService.updateContact(ctx, contact.id, { occupationId: res.id }).catch(() => {});
+    return true;
+  },
+
+  /**
+   * Classify-on-enrich for an existing CRM contact id: resolve its occupation AND
+   * its company's industry. Used by `runEnrichment` / `pushRecordToContact` once a
+   * contact exists. Best-effort; never throws.
+   */
+  async classifyContactTaxonomy(ctx: TenantContext, contactId: string): Promise<void> {
+    const contact = await crmRepo.getContact(ctx, contactId);
+    if (!contact) return;
+    await this.classifyContactOccupation(ctx, contact);
+    if (contact.companyId) {
+      const company = await crmRepo.getCompany(ctx, contact.companyId);
+      if (company) await this.classifyCompanyTaxonomy(ctx, company);
+    }
   },
 
   // ═══════════════════════ internal helpers ═════════════════════════
