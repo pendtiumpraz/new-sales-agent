@@ -94,29 +94,114 @@ try {
     `insert into app_user (id,name,email,password_hash,is_superadmin) values ('seed_superadmin','Super Admin','superadmin@demo.local',$1,true) on conflict (email) do nothing`,
     [superPw],
   );
-  const verticals: [string, string, string, string[]][] = [
-    ["seed_v_hr", "hr", "HR / Rekrutmen", ["crm", "inbox"]],
-    ["seed_v_sales", "sales", "Sales", ["crm", "inbox", "workspace", "enrichment", "pipeline"]],
-    ["seed_v_other", "other", "Lainnya", []],
+  // ── VERTICAL catalog (Indonesia-relevant industries) ──
+  // default_modules are HREF keys (matching module_catalog / lib/entitlements.ts
+  // MODULES / the sidebar NAV_GROUPS hrefs) so the vertical→entitlement→sidebar
+  // chain speaks ONE vocabulary. Core modules (dashboard/master-data/settings/
+  // documentation) are always-on and NOT listed in a bundle. Empty bundle =
+  // "pick-your-own". Idempotent + refreshing: on-conflict UPDATEs the bundle so
+  // re-running the seed reshapes existing verticals in place (hr/sales/other keep
+  // their ids/keys → the demo tenant's vertical_key='sales' stays valid).
+  // [id, key, name, description, default_modules(href), sort]
+  const verticals: [string, string, string, string, string[], number][] = [
+    ["seed_v_sales", "sales", "Sales B2B",
+      "Outbound & pipeline B2B — discovery, penawaran, closing WA-first.",
+      ["/workspace", "/contacts", "/enrichment", "/inbox", "/pipeline", "/penawaran", "/cadences", "/autopilot", "/escalations", "/reports"], 0],
+    ["seed_v_retail", "retail", "Retail / B2C",
+      "Jualan langsung ke konsumen — chat, toko online, retensi pelanggan.",
+      ["/contacts", "/inbox", "/ecommerce", "/marketplace", "/retention", "/content", "/cadences", "/reports"], 1],
+    ["seed_v_properti", "properti", "Properti / Real Estate",
+      "Lead properti — pipeline unit, follow-up, kunjungan lapangan.",
+      ["/contacts", "/workspace", "/pipeline", "/inbox", "/cadences", "/penawaran", "/autopilot", "/field", "/reports"], 2],
+    ["seed_v_otomotif", "otomotif", "Otomotif",
+      "Dealer & bengkel — test drive, penawaran unit, servis berkala.",
+      ["/contacts", "/inbox", "/pipeline", "/penawaran", "/retention", "/cadences", "/field", "/reports"], 3],
+    ["seed_v_pendidikan", "pendidikan", "Pendidikan / Kursus",
+      "Kursus & sekolah — pendaftaran, nurturing calon siswa, konten.",
+      ["/contacts", "/inbox", "/cadences", "/content", "/retention", "/autopilot", "/reports"], 4],
+    ["seed_v_kesehatan", "kesehatan", "Kesehatan / Klinik",
+      "Klinik & layanan kesehatan — janji temu, pengingat, retensi pasien.",
+      ["/contacts", "/inbox", "/cadences", "/retention", "/content", "/reports"], 5],
+    ["seed_v_keuangan", "keuangan", "Keuangan / Asuransi",
+      "Asuransi & jasa keuangan — prospek, ilustrasi, follow-up polis.",
+      ["/contacts", "/enrichment", "/inbox", "/pipeline", "/penawaran", "/cadences", "/autopilot", "/escalations", "/reports"], 6],
+    ["seed_v_fnb", "fnb", "F&B / Hospitality",
+      "Resto, kafe & hospitality — pesanan, promo, loyalitas pelanggan.",
+      ["/contacts", "/inbox", "/retention", "/content", "/ecommerce", "/cadences", "/reports"], 7],
+    ["seed_v_manufaktur", "manufaktur", "Manufaktur / Distributor",
+      "Distributor & manufaktur — akun B2B, penawaran, kunjungan sales.",
+      ["/workspace", "/contacts", "/enrichment", "/inbox", "/pipeline", "/penawaran", "/field", "/reports"], 8],
+    ["seed_v_agensi", "agensi", "Agensi / Jasa Profesional",
+      "Agensi & jasa profesional — proyek, proposal, retainer klien.",
+      ["/workspace", "/contacts", "/inbox", "/pipeline", "/penawaran", "/cadences", "/content", "/autopilot", "/reports"], 9],
+    ["seed_v_travel", "travel", "Travel / Tour",
+      "Travel, tour & tiket — paket wisata, penawaran, repeat booking.",
+      ["/contacts", "/inbox", "/cadences", "/content", "/retention", "/penawaran", "/reports"], 10],
+    ["seed_v_beauty", "beauty", "Beauty / Wellness",
+      "Salon, spa & wellness — booking, membership, promo produk.",
+      ["/contacts", "/inbox", "/retention", "/content", "/ecommerce", "/cadences", "/reports"], 11],
+    ["seed_v_hr", "hr", "HR / Rekrutmen",
+      "Rekrutmen & outreach kandidat — sourcing, pipeline hiring.",
+      ["/contacts", "/enrichment", "/inbox", "/cadences", "/pipeline", "/reports"], 12],
+    ["seed_v_ecommerce", "ecommerce", "E-Commerce / Marketplace",
+      "Toko online & marketplace — order, pemulihan keranjang, retensi.",
+      ["/contacts", "/inbox", "/ecommerce", "/marketplace", "/retention", "/content", "/cadences", "/autopilot", "/reports"], 13],
+    ["seed_v_other", "other", "Lainnya",
+      "Custom — pilih modul sendiri sesuai kebutuhan bisnismu.",
+      [], 99],
   ];
-  for (const [id, key, name, mods] of verticals) {
+  for (const [id, key, name, description, mods, sort] of verticals) {
     await client.query(
-      `insert into vertical (id,key,name,default_modules) values ($1,$2,$3,$4::jsonb) on conflict (key) do nothing`,
-      [id, key, name, JSON.stringify(mods)],
+      `insert into vertical (id,key,name,description,default_modules,sort)
+       values ($1,$2,$3,$4,$5::jsonb,$6)
+       on conflict (key) do update set
+         name=excluded.name, description=excluded.description,
+         default_modules=excluded.default_modules, sort=excluded.sort, updated_at=now()`,
+      [id, key, name, description, JSON.stringify(mods), sort],
     );
   }
-  const modules: [string, string, string, string][] = [
-    ["seed_m_dashboard", "dashboard", "Dashboard", "#3B82F6"],
-    ["seed_m_workspace", "workspace", "Workspace", "#0D9488"],
-    ["seed_m_crm", "crm", "Contacts / CRM", "#10B981"],
-    ["seed_m_enrichment", "enrichment", "Enrichment", "#F59E0B"],
-    ["seed_m_inbox", "inbox", "Inbox", "#25D366"],
-    ["seed_m_pipeline", "pipeline", "Pipeline", "#6366F1"],
+
+  // ── MODULE catalog (href-keyed — mirrors the sidebar + lib/entitlements.ts) ──
+  // Keys ARE the route hrefs so vertical bundles + the sidebar gate speak the same
+  // vocabulary. Earlier seeds used short keys (crm/dashboard/…) — drop those obsolete
+  // seed-owned rows so the catalog is clean (targeted to seed_m_* + non-href keys, so
+  // any hand-created module or the new href rows are untouched).
+  await client.query(
+    `delete from module_catalog where id like 'seed_m_%' and module_key not like '/%'`,
+  );
+  // [id, module_key(href), label, sidebar_color, is_core, sort]
+  const modules: [string, string, string, string, boolean, number][] = [
+    // core — always-on, not toggleable (is_core=true; resolveEntitlements forces enabled)
+    ["seed_m_dashboard", "/dashboard", "Dashboard", "#3B82F6", true, 0],
+    ["seed_m_master_data", "/master-data", "Master Data", "#0D9488", true, 90],
+    ["seed_m_settings", "/settings", "Pengaturan", "#6B7280", true, 91],
+    ["seed_m_documentation", "/documentation", "Dokumentasi", "#64748B", true, 92],
+    // toggleable — the full set the sidebar can hide (mirrors lib/entitlements.ts MODULES)
+    ["seed_m_workspace", "/workspace", "Workspace", "#10B981", false, 1],
+    ["seed_m_contacts", "/contacts", "Kontak & Lead", "#14B8A6", false, 10],
+    ["seed_m_enrichment", "/enrichment", "Enrichment", "#8B5CF6", false, 11],
+    ["seed_m_inbox", "/inbox", "Inbox", "#6366F1", false, 20],
+    ["seed_m_pipeline", "/pipeline", "Pipeline", "#F59E0B", false, 21],
+    ["seed_m_penawaran", "/penawaran", "Penawaran", "#A855F7", false, 22],
+    ["seed_m_cadences", "/cadences", "Cadence", "#7C3AED", false, 23],
+    ["seed_m_autopilot", "/autopilot", "Autopilot", "#F43F5E", false, 24],
+    ["seed_m_escalations", "/escalations", "Eskalasi AI", "#EF4444", false, 25],
+    ["seed_m_content", "/content", "Konten", "#EAB308", false, 30],
+    ["seed_m_retention", "/retention", "Retensi", "#EC4899", false, 31],
+    ["seed_m_ecommerce", "/ecommerce", "E-Commerce", "#F97316", false, 32],
+    ["seed_m_marketplace", "/marketplace", "Marketplace", "#3B82F6", false, 33],
+    ["seed_m_field", "/field", "Sales Lapangan", "#22C55E", false, 34],
+    ["seed_m_team", "/team", "Monitoring Sales", "#0891B2", false, 35],
+    ["seed_m_reports", "/reports", "Laporan", "#0EA5E9", false, 36],
   ];
-  for (const [id, key, label, color] of modules) {
+  for (const [id, key, label, color, isCore, sort] of modules) {
     await client.query(
-      `insert into module_catalog (id,module_key,label,sidebar_color) values ($1,$2,$3,$4) on conflict (module_key) do nothing`,
-      [id, key, label, color],
+      `insert into module_catalog (id,module_key,label,sidebar_color,is_core,sort)
+       values ($1,$2,$3,$4,$5,$6)
+       on conflict (module_key) do update set
+         label=excluded.label, sidebar_color=excluded.sidebar_color,
+         is_core=excluded.is_core, sort=excluded.sort, updated_at=now()`,
+      [id, key, label, color, isCore, sort],
     );
   }
 
@@ -366,7 +451,8 @@ try {
 
   console.log("SEEDED (all ids prefixed seed_ → '--unseed' to remove):");
   console.log("  superadmin login: superadmin@demo.local / demo1234");
-  console.log("  3 verticals (HR/Sales/Lainnya) + 6 modules in catalog");
+  console.log("  15 verticals (Sales B2B · Retail · Properti · Otomotif · Pendidikan · Kesehatan · Keuangan · F&B · Manufaktur · Agensi · Travel · Beauty · HR · E-Commerce · Lainnya)");
+  console.log("  + 20 href-keyed modules in catalog (16 toggleable + 4 core: dashboard/master-data/settings/documentation)");
   console.log("  ACTIVE tenant 'seed_t_demo' (Maira Demo) — generous quota, 10yr activation");
   console.log("  workspace 'seed_ws_demo' (market_fit=mix + consultative sales_play) on product 'Maira Autopilot'");
   console.log("  10 contacts (B2C/B2B), 3 companies, 6 deals across pipeline stages, 2 WA conversations");

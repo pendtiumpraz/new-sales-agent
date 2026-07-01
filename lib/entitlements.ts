@@ -15,6 +15,7 @@ export interface ModuleDef {
 // Toggleable modules (Dashboard / Panduan / Pengaturan are core — always on).
 export const MODULES: ModuleDef[] = [
   { key: "/contacts", label: "Kontak & Lead" },
+  { key: "/enrichment", label: "Enrichment" },
   { key: "/workspace", label: "Workspace" },
   { key: "/pipeline", label: "Riset Prospek" },
   { key: "/marketplace", label: "Marketplace" },
