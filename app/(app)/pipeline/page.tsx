@@ -25,7 +25,6 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -33,6 +32,7 @@ import { toast } from "sonner";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PurgeDialog } from "@/components/shared/purge-dialog";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import type { ApiResult, Page } from "@/modules/_shared/api";
 
 // ── API row shapes (mirror modules/crm/schema · selected fields) ─────────────
@@ -150,7 +150,10 @@ function normSegment(s: string | undefined): "b2c" | "b2b" | "unknown" {
 
 export default function PipelinePage() {
   const qc = useQueryClient();
-  const workspaceId = useSearchParams().get("workspace"); // optional ws scope (doc 44)
+  // Workspace scope from the active-workspace store (doc 44 workspace-first nav) —
+  // NOT useSearchParams(), which without a &lt;Suspense&gt; boundary throws a client-side
+  // "application error" in the production build.
+  const workspaceId = useWorkspaceStore((s) => s.active?.id ?? null);
   const [wsAll, setWsAll] = useState(false);
   const scope = workspaceId && !wsAll ? workspaceId : null;
 
