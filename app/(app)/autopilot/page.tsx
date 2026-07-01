@@ -19,7 +19,7 @@
 // lets an operator START one (records the lifecycle) + manage the trash. No log /
 // metric values are fabricated here.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -41,8 +41,11 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -298,15 +301,6 @@ export default function AutopilotRunsPage() {
   // ── drawer (run detail) ──────────────────────────────────────────────────────
   const [openId, setOpenId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!openId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [openId]);
-
   // Full run detail (log trace) — fetched fresh per open so the log is current
   // even after the orchestrator appends entries. Falls back to the list row.
   const detailQ = useQuery({
@@ -325,15 +319,6 @@ export default function AutopilotRunsPage() {
   const [startConvo, setStartConvo] = useState<string>(""); // "" = none
   const [startSummary, setStartSummary] = useState("");
 
-  useEffect(() => {
-    if (!startOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setStartOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [startOpen]);
-
   function openStart() {
     setStartMode("suggest");
     setStartConvo("");
@@ -345,7 +330,6 @@ export default function AutopilotRunsPage() {
   const [deleteTarget, setDeleteTarget] = useState<AutopilotRunRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<AutopilotRunRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<AutopilotRunRow | null>(null);
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshAll() {
@@ -422,7 +406,6 @@ export default function AutopilotRunsPage() {
       toast.success("Run dihapus permanen");
       refreshAll();
       setPurgeTarget(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -685,10 +668,7 @@ export default function AutopilotRunsPage() {
                         key={r.id}
                         run={r}
                         onRestore={() => setRestoreTarget(r)}
-                        onPurge={() => {
-                          setPurgeTarget(r);
-                          setPurgeConfirm("");
-                        }}
+                        onPurge={() => setPurgeTarget(r)}
                       />
                     ))}
                   </tbody>
@@ -721,18 +701,11 @@ export default function AutopilotRunsPage() {
       </div>
 
       {/* ===================== RIGHT DRAWER (run detail) ===================== */}
-      <div
-        onClick={() => setOpenId(null)}
-        className={cn(
-          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-          openId ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          openId ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={!!openId}
+        onClose={() => setOpenId(null)}
+        title={active ? "Autopilot run" : "Detail run"}
+        widthClassName="w-[420px] max-w-full"
       >
         {active && (
           <>
@@ -880,21 +853,14 @@ export default function AutopilotRunsPage() {
             </div>
           </>
         )}
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== START-RUN DRAWER ===================== */}
-      <div
-        onClick={() => setStartOpen(false)}
-        className={cn(
-          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-          startOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          startOpen ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={startOpen}
+        onClose={() => setStartOpen(false)}
+        title="Mulai autopilot run"
+        widthClassName="w-[420px] max-w-full"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex min-w-0 items-center gap-3">
@@ -1019,10 +985,10 @@ export default function AutopilotRunsPage() {
             )}
           </Button>
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== SOFT-DELETE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1040,7 +1006,7 @@ export default function AutopilotRunsPage() {
       />
 
       {/* ===================== RESTORE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreTarget}
         onClose={() => setRestoreTarget(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1053,72 +1019,19 @@ export default function AutopilotRunsPage() {
       />
 
       {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setPurgeTarget(null);
-            setPurgeConfirm("");
-          }
-        }}
-        className={cn(
-          "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-          purgeTarget ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
-        <div
-          className={cn(
-            "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
-            purgeTarget ? "scale-100 opacity-100" : "scale-95 opacity-0",
-          )}
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Tindakan ini <b>tidak bisa dibatalkan</b>. Run ini akan dihapus selamanya beserta
-                jejak log-nya.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="mb-1.5 block text-[12px] text-muted-foreground">
-              Ketik{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
-                HAPUS
-              </code>{" "}
-              untuk konfirmasi.
-            </label>
-            <input
-              type="text"
-              value={purgeConfirm}
-              onChange={(e) => setPurgeConfirm(e.target.value)}
-              placeholder="HAPUS"
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-            />
-          </div>
-          <div className="mt-5 flex items-center justify-end gap-2">
-            <button
-              onClick={() => {
-                setPurgeTarget(null);
-                setPurgeConfirm("");
-              }}
-              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              Batal
-            </button>
-            <button
-              onClick={() => purgeTarget && purge.mutate(purgeTarget)}
-              disabled={purge.isPending || purgeConfirm.trim().toUpperCase() !== "HAPUS"}
-              className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {purge.isPending ? "Menghapus…" : "Hapus permanen"}
-            </button>
-          </div>
-        </div>
-      </div>
+      <PurgeDialog
+        open={!!purgeTarget}
+        label="Run ini"
+        pending={purge.isPending}
+        onClose={() => setPurgeTarget(null)}
+        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+        body={
+          <>
+            Tindakan ini <b>tidak bisa dibatalkan</b>. Run ini akan dihapus selamanya beserta jejak
+            log-nya.
+          </>
+        }
+      />
     </div>
   );
 }
@@ -1327,84 +1240,6 @@ function MetaRow({ label, value }: { label: string; value: string | null }) {
     <div className="flex justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium text-foreground">{value || "—"}</span>
-    </div>
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive"
-                ? "bg-destructive text-white"
-                : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

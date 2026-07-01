@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
@@ -169,20 +171,12 @@ export default function TeamSettingsPage() {
   const [inviteRole, setInviteRole] = useState<Role>("member");
   const emailRef = useRef<HTMLInputElement | null>(null);
 
+  // AppDrawerRaw (Radix) owns Esc-close, scroll-lock, and the focus trap; we only
+  // nudge focus to the email field once the slide-in settles.
   useEffect(() => {
     if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDrawerOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const t = setTimeout(() => emailRef.current?.focus(), 320);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-      clearTimeout(t);
-    };
+    return () => clearTimeout(t);
   }, [drawerOpen]);
 
   // ── confirm targets ──────────────────────────────────────────────────────────
@@ -513,18 +507,11 @@ export default function TeamSettingsPage() {
       </div>
 
       {/* ===================== INVITE DRAWER ===================== */}
-      <div
-        onClick={() => setDrawerOpen(false)}
-        className={cn(
-          "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-          drawerOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[400px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          drawerOpen ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Undang anggota"
+        widthClassName="w-[400px] max-w-full"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -624,13 +611,14 @@ export default function TeamSettingsPage() {
             )}
           </button>
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== REMOVE MEMBER CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
         icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
         title="Keluarkan dari tim?"
         body={
           <>
@@ -645,10 +633,11 @@ export default function TeamSettingsPage() {
       />
 
       {/* ===================== REVOKE INVITE CONFIRM ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!revokeTarget}
         onClose={() => setRevokeTarget(null)}
         icon={<X className="h-5 w-5" />}
+        tone="destructive"
         title="Batalkan undangan?"
         body={
           <>
@@ -828,70 +817,6 @@ function MemberRow({
         )}
       </td>
     </tr>
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

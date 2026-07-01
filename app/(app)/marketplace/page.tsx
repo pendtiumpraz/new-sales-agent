@@ -25,10 +25,9 @@
 // strip, segmented filters + pills + search, list tables, a right drawer, and
 // confirm modals. Every band has loading + empty + error states.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   Boxes,
   Check,
   ChevronRight,
@@ -48,8 +47,11 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -385,24 +387,6 @@ export default function MarketplacePage() {
     setListForm((d) => ({ ...d, open: false }));
   }
 
-  const anyDrawerOpen = intForm.open || listForm.open;
-  useEffect(() => {
-    if (!anyDrawerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closeIntForm();
-        closeListForm();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [anyDrawerOpen]);
-
   // ── confirm targets ──────────────────────────────────────────────────────────
   const [deleteInt, setDeleteInt] = useState<IntegrationRow | null>(null);
   const [restoreInt, setRestoreInt] = useState<IntegrationRow | null>(null);
@@ -410,7 +394,6 @@ export default function MarketplacePage() {
   const [deleteList, setDeleteList] = useState<ListingRow | null>(null);
   const [restoreList, setRestoreList] = useState<ListingRow | null>(null);
   const [purgeList, setPurgeList] = useState<ListingRow | null>(null);
-  const [purgeConfirm, setPurgeConfirm] = useState("");
 
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshAll() {
@@ -552,7 +535,6 @@ export default function MarketplacePage() {
       toast.success(`"${i.storeName}" dihapus permanen`);
       refreshAll();
       setPurgeInt(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -598,7 +580,6 @@ export default function MarketplacePage() {
       toast.success(`Listing "${l.title}" dihapus permanen`);
       refreshAll();
       setPurgeList(null);
-      setPurgeConfirm("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen"),
   });
@@ -1019,10 +1000,7 @@ export default function MarketplacePage() {
                           <td className="px-3 py-3 text-right">
                             <TrashedActions
                               onRestore={() => setRestoreInt(i)}
-                              onPurge={() => {
-                                setPurgeInt(i);
-                                setPurgeConfirm("");
-                              }}
+                              onPurge={() => setPurgeInt(i)}
                             />
                           </td>
                         </tr>
@@ -1083,10 +1061,7 @@ export default function MarketplacePage() {
                           <td className="px-3 py-3 text-right">
                             <TrashedActions
                               onRestore={() => setRestoreList(l)}
-                              onPurge={() => {
-                                setPurgeList(l);
-                                setPurgeConfirm("");
-                              }}
+                              onPurge={() => setPurgeList(l)}
                             />
                           </td>
                         </tr>
@@ -1108,12 +1083,11 @@ export default function MarketplacePage() {
       </div>
 
       {/* ===================== CONNECT / MANAGE INTEGRATION DRAWER ===================== */}
-      <DrawerBackdrop open={intForm.open} onClose={closeIntForm} />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          intForm.open ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={intForm.open}
+        onClose={closeIntForm}
+        title={intForm.mode === "create" ? "Hubungkan toko" : "Kelola integrasi"}
+        widthClassName="w-[420px] max-w-full"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -1236,15 +1210,14 @@ export default function MarketplacePage() {
                 : "Simpan perubahan"}
           </Button>
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== PUBLISH LISTING DRAWER ===================== */}
-      <DrawerBackdrop open={listForm.open} onClose={closeListForm} />
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l border-border bg-card shadow-soft transition-transform duration-300",
-          listForm.open ? "translate-x-0" : "translate-x-full",
-        )}
+      <AppDrawerRaw
+        open={listForm.open}
+        onClose={closeListForm}
+        title="Publikasikan listing"
+        widthClassName="w-[420px] max-w-full"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -1401,10 +1374,10 @@ export default function MarketplacePage() {
             {publish.isPending ? "Memproses…" : "Publikasikan"}
           </Button>
         </div>
-      </aside>
+      </AppDrawerRaw>
 
       {/* ===================== SOFT-DELETE CONFIRMS ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteInt}
         onClose={() => setDeleteInt(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1421,7 +1394,7 @@ export default function MarketplacePage() {
         confirmPending={softDeleteInt.isPending}
         onConfirm={() => deleteInt && softDeleteInt.mutate(deleteInt)}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={!!deleteList}
         onClose={() => setDeleteList(null)}
         icon={<Trash2 className="h-5 w-5" />}
@@ -1439,7 +1412,7 @@ export default function MarketplacePage() {
       />
 
       {/* ===================== RESTORE CONFIRMS ===================== */}
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreInt}
         onClose={() => setRestoreInt(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1455,7 +1428,7 @@ export default function MarketplacePage() {
         confirmPending={restoreIntM.isPending}
         onConfirm={() => restoreInt && restoreIntM.mutate(restoreInt)}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={!!restoreList}
         onClose={() => setRestoreList(null)}
         icon={<RotateCcw className="h-5 w-5" />}
@@ -1473,22 +1446,27 @@ export default function MarketplacePage() {
       />
 
       {/* ===================== HARD-DELETE (PURGE) CONFIRM — strong ===================== */}
-      <PurgeModal
+      <PurgeDialog
         open={!!purgeInt || !!purgeList}
-        targetLabel={purgeInt?.storeName ?? purgeList?.title ?? ""}
-        isIntegration={!!purgeInt}
-        value={purgeConfirm}
-        onChange={setPurgeConfirm}
+        label={purgeInt?.storeName ?? purgeList?.title ?? ""}
         pending={purgeIntM.isPending || purgeListM.isPending}
         onClose={() => {
           setPurgeInt(null);
           setPurgeList(null);
-          setPurgeConfirm("");
         }}
         onConfirm={() => {
           if (purgeInt) purgeIntM.mutate(purgeInt);
           else if (purgeList) purgeListM.mutate(purgeList);
         }}
+        body={
+          <>
+            Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
+            <span className="font-medium text-foreground">
+              {purgeInt?.storeName ?? purgeList?.title}
+            </span>{" "}
+            akan dihapus selamanya{purgeInt ? " beserta seluruh listing-nya" : ""}.
+          </>
+        }
       />
     </div>
   );
@@ -1765,180 +1743,6 @@ function TrashedActions({
       >
         <Trash2 className="h-3 w-3" /> Hapus permanen
       </button>
-    </div>
-  );
-}
-
-function DrawerBackdrop({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <div
-      onClick={onClose}
-      className={cn(
-        "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    />
-  );
-}
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive"
-                ? "bg-destructive text-white"
-                : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PurgeModal({
-  open,
-  targetLabel,
-  isIntegration,
-  value,
-  onChange,
-  pending,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean;
-  targetLabel: string;
-  isIntegration: boolean;
-  value: string;
-  onChange: (v: string) => void;
-  pending: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-destructive/30 bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/[0.12] text-destructive">
-            <AlertTriangle className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-destructive">Hapus permanen?</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Tindakan ini <b>tidak bisa dibatalkan</b>.{" "}
-              <span className="font-medium text-foreground">{targetLabel}</span> akan dihapus selamanya
-              {isIntegration ? " beserta seluruh listing-nya" : ""}.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4">
-          <label className="mb-1.5 block text-[12px] text-muted-foreground">
-            Ketik{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold text-foreground">
-              HAPUS
-            </code>{" "}
-            untuk konfirmasi.
-          </label>
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="HAPUS"
-            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
-          />
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={pending || value.trim().toUpperCase() !== "HAPUS"}
-            className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? "Menghapus…" : "Hapus permanen"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

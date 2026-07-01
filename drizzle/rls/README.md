@@ -93,7 +93,12 @@ queries in `withTenant` (they do, in the rebuild).
 - **`audit_log_v2`** has a NULLABLE `tenant_id` for platform events: tenant rows
   follow the standard pin; `tenant_id IS NULL` rows are superadmin-only (AUDIT
   #29/#41).
+- **AI meter/registry** (#27): the tenant-scoped half of the AI catalog —
+  `ai_credential`, `tenant_active_model`, `ai_usage` — IS RLS'd (standard tenant
+  pin). Their global siblings `ai_provider` / `ai_model` are a superadmin-managed
+  catalog with no `tenant_id`, so they are app-gated, not RLS'd.
 - **Not RLS'd** (no `tenant_id`): `app_user`, `tenant`, `platform_setting_v2`,
-  `vertical`, `module_catalog` (global, gated at the app layer via the RLS'd
-  `membership` table) and `auth_session` / `password_reset` / `user_theme`
-  (user-scoped, resolved by `user_id` before a tenant context exists).
+  `vertical`, `module_catalog`, `ai_provider`, `ai_model` (global, gated at the
+  app layer via the RLS'd `membership` table) and `auth_session` /
+  `password_reset` / `user_theme` (user-scoped, resolved by `user_id` before a
+  tenant context exists).

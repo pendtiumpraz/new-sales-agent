@@ -75,7 +75,11 @@ BEGIN
     -- wa transport
     'wa_session_v2','wa_outbox_v2',
     -- workspace
-    'workspace_v2','market_fit','sales_play'
+    'workspace_v2','market_fit','sales_play',
+    -- ai meter/registry (AUDIT #27) — the tenant-scoped half of the AI catalog.
+    -- ai_provider / ai_model are a GLOBAL catalog (no tenant_id, app-gated) and are
+    -- intentionally NOT here; these three carry a tenant_id and need the pin.
+    'ai_credential','tenant_active_model','ai_usage'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
@@ -138,7 +142,9 @@ CREATE POLICY tenant_isolation ON audit_log_v2
 -- ── Intentionally NOT tenant-RLS'd (no tenant_id column) ─────────────────────
 -- GLOBAL catalogs / identity, gated at the app layer (a user sees a tenant only
 -- via a membership row, which IS RLS'd above):
---   app_user, tenant, platform_setting_v2, vertical, module_catalog
+--   app_user, tenant, platform_setting_v2, vertical, module_catalog,
+--   ai_provider, ai_model (superadmin-managed AI catalog; their tenant-scoped
+--   siblings ai_credential/tenant_active_model/ai_usage ARE RLS'd above — #27)
 -- USER-scoped pre-tenant tables (login/session/reset/theme resolve by user_id
 -- before a tenant context exists), gated in the service layer:
 --   auth_session, password_reset, user_theme

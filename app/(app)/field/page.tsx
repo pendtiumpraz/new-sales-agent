@@ -22,7 +22,6 @@
 import { useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   Building2,
   CalendarClock,
   Check,
@@ -1582,86 +1581,6 @@ function SelectInput({
         ))}
       </select>
       <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-muted-foreground" />
-    </div>
-  );
-}
-
-// ── confirm modal ──────────────────────────────────────────────────────────────
-
-function ConfirmModal({
-  open,
-  onClose,
-  icon,
-  tone,
-  title,
-  body,
-  confirmLabel,
-  confirmPending,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  icon: React.ReactNode;
-  tone: "destructive" | "tertiary";
-  title: string;
-  body: React.ReactNode;
-  confirmLabel: string;
-  confirmPending: boolean;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className={cn(
-        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
-        open ? "opacity-100" : "pointer-events-none opacity-0",
-      )}
-    >
-      <div
-        className={cn(
-          "w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-soft transition-all duration-200",
-          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              tone === "destructive"
-                ? "bg-destructive/[0.12] text-destructive"
-                : "bg-tertiary/[0.12] text-tertiary",
-            )}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold">{title}</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{body}</p>
-          </div>
-        </div>
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirmPending}
-            className={cn(
-              "h-9 rounded-lg px-4 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60",
-              tone === "destructive"
-                ? "bg-destructive text-white"
-                : "bg-tertiary text-tertiary-foreground",
-            )}
-          >
-            {confirmPending ? "Memproses…" : confirmLabel}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

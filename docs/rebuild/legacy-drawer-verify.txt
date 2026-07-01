@@ -1,0 +1,27 @@
+legacy-drawer-verify — build verification
+Date: 2026-07-01
+Branch: new-main
+
+== npx tsc --noEmit ==
+Exit: 0 (no output). PASS — zero type errors.
+
+== npm run lint (next lint) ==
+Exit: 0. PASS — no errors. Only 4 pre-existing warnings (no-unused-vars),
+none in changed files, none introduced:
+
+  ./app/(app)/ecommerce/page.tsx
+    21:10  Warning: 'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/settings/diagnostics/page.tsx
+    514:21  Warning: '_body' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./app/(app)/settings/knowledge-base/page.tsx
+    27:3  Warning: 'AlertTriangle' is defined but never used.  @typescript-eslint/no-unused-vars
+  ./components/shared/table-pagination.tsx
+    65:45  Warning: 'pageSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+== Result ==
+PASS — no errors introduced. tsc clean; lint clean (warnings only, all pre-existing).
+
+== Fix-errors re-verify (2026-07-01) ==
+Re-ran `npx tsc --noEmit` → Exit 0 (no output). No errors introduced; nothing to fix.
+Re-ran `npm run lint` → Exit 0. Same 4 pre-existing no-unused-vars warnings only.
+Final status: PASS — tsc clean (exit 0), lint clean (exit 0).
