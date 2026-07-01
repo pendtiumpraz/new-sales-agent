@@ -3,7 +3,7 @@
   "name": "Maira WA + Discovery Bridge",
   "version": "0.3.0",
   "description": "Multi-platform bridge untuk Maira Sales: WhatsApp Web gateway + Discovery dari LinkedIn, Instagram, Facebook, TikTok, Shopee, Google Search.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://*.linkedin.com/*",

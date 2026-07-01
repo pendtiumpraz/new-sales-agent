@@ -38,6 +38,46 @@ async function api(path, init) {
   return { ok: r.ok, status: r.status, json };
 }
 
+// ── Heartbeat / connection status ────────────────────────────────────────────
+// The app's "Terhubung" state (GET /api/rep/account → connected) is true ONLY when
+// the rep's last_seen_at was refreshed within 10 min. Nothing refreshes it unless
+// we POST /api/extension/heartbeat with the ingest token — so send one on startup,
+// on a periodic alarm, and whenever the popup opens. (MV3 service workers sleep, so
+// chrome.alarms wakes us, not a setInterval.)
+async function sendHeartbeat() {
+  try {
+    const cfg = await getConfig();
+    if (!cfg.ingestToken) return { ok: false, error: "ingest token belum di-set (Options)" };
+    const url = `${cfg.baseUrl.replace(/\/$/, "")}/api/extension/heartbeat`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ingest-token": cfg.ingestToken },
+      body: JSON.stringify({ version: chrome.runtime.getManifest().version }),
+    });
+    let json;
+    try { json = JSON.parse(await r.text()); } catch { json = {}; }
+    await chrome.storage.local.set({
+      lastHeartbeatAt: Date.now(),
+      connected: !!(r.ok && json && json.connected),
+      ...(json && Array.isArray(json.workspaces) ? { repWorkspaces: json.workspaces } : {}),
+    });
+    return { ok: r.ok && !!(json && json.ok), status: r.status, json };
+  } catch (e) {
+    await chrome.storage.local.set({ connected: false });
+    return { ok: false, error: String(e && e.message ? e.message : e) };
+  }
+}
+
+function ensureHeartbeatAlarm() {
+  try { chrome.alarms.create("maira-heartbeat", { periodInMinutes: 4, delayInMinutes: 1 }); } catch (e) {}
+}
+if (chrome.alarms && chrome.alarms.onAlarm) {
+  chrome.alarms.onAlarm.addListener((a) => { if (a && a.name === "maira-heartbeat") sendHeartbeat(); });
+}
+if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => { ensureHeartbeatAlarm(); sendHeartbeat(); });
+if (chrome.runtime.onInstalled) chrome.runtime.onInstalled.addListener(() => { ensureHeartbeatAlarm(); sendHeartbeat(); });
+ensureHeartbeatAlarm();
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
@@ -107,6 +147,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             body: JSON.stringify(body),
           }),
         );
+      }
+      if (msg.type === "heartbeat") {
+        return sendResponse(await sendHeartbeat());
       }
       sendResponse({ ok: false, error: "unknown message type" });
     } catch (e) {

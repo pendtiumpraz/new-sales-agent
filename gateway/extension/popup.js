@@ -19,6 +19,20 @@ function render(cfg) {
 async function load() {
   const cfg = await chrome.runtime.sendMessage({ type: "getConfig" });
   render(cfg);
+  // Actively ping the backend so the app's "Terhubung" status refreshes, and show
+  // the REAL connection state here. The key persists in chrome.storage across
+  // restarts; being "connected" depends on a fresh heartbeat, not just the token.
+  if (cfg.ingestToken) {
+    $("status").textContent = "Mengecek koneksi…";
+    const hb = await chrome.runtime.sendMessage({ type: "heartbeat" });
+    if (hb && hb.json && hb.json.connected) {
+      $("status").textContent = "✅ Terhubung ke server — heartbeat terkirim.";
+    } else {
+      $("status").textContent = `⚠️ Belum konek: ${(hb && (hb.json?.error || hb.error)) || "cek base URL & ingest token di Pengaturan"}`;
+    }
+  } else {
+    $("status").textContent = "⚠️ Set ingest token di Pengaturan dulu.";
+  }
 }
 
 $("enabled").addEventListener("change", async (e) => {
