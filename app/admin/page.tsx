@@ -86,6 +86,14 @@ interface SecretsResponse {
 }
 
 const AI_TOKENS_METRIC = "ai_tokens_max";
+const PLAN_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "— tanpa paket —" },
+  { value: "free", label: "Free" },
+  { value: "starter", label: "Starter" },
+  { value: "growth", label: "Growth" },
+  { value: "enterprise", label: "Enterprise" },
+  { value: "unlimited", label: "Unlimited" },
+];
 
 type StatusFilter = "all" | "pending" | "active" | "suspended";
 type ConsoleTab = "aktif" | "sampah" | "secrets" | "docs";
@@ -178,7 +186,11 @@ interface DrawerState {
   email: string;
   vertical: string;
   until: string; // yyyy-mm-dd, "" = no expiry
-  quota: number; // ai tokens ceiling
+  quota: number; // ai_tokens_max override
+  plan: string; // plan key ("" = tanpa paket)
+  seats: number; // seats_max override (0 = ikut paket)
+  contacts: number; // contacts_max override (0 = ikut paket)
+  messages: number; // messages_max / WA override (0 = ikut paket)
   note: string;
 }
 
@@ -191,6 +203,10 @@ const EMPTY_DRAWER: DrawerState = {
   vertical: "",
   until: untilFromMonths(12),
   quota: 500_000,
+  plan: "growth",
+  seats: 0,
+  contacts: 0,
+  messages: 0,
   note: "",
 };
 
@@ -325,6 +341,10 @@ export default function SuperadminConsole() {
       vertical: t.verticalKey ?? "",
       until: untilFromMonths(12),
       quota: 500_000,
+      plan: t.planKey ?? "",
+      seats: 0,
+      contacts: 0,
+      messages: 0,
       note: "",
     });
   }
@@ -363,7 +383,13 @@ export default function SuperadminConsole() {
         },
         activate: true,
         activeUntil: d.until ? new Date(d.until).toISOString() : null,
-        quotas: { [AI_TOKENS_METRIC]: d.quota || null },
+        planKey: d.plan || undefined,
+        quotas: {
+          [AI_TOKENS_METRIC]: d.quota || null,
+          messages_max: d.messages || null,
+          seats_max: d.seats || null,
+          contacts_max: d.contacts || null,
+        },
       };
       return readJson<{ tenant: TenantRow }>(
         await fetch("/api/superadmin/provision", {
@@ -386,7 +412,13 @@ export default function SuperadminConsole() {
       if (!d.tenantId) throw new Error("Tenant tidak valid");
       const body = {
         activeUntil: d.until ? new Date(d.until).toISOString() : null,
-        quotas: { [AI_TOKENS_METRIC]: d.quota || null },
+        planKey: d.plan || undefined,
+        quotas: {
+          [AI_TOKENS_METRIC]: d.quota || null,
+          messages_max: d.messages || null,
+          seats_max: d.seats || null,
+          contacts_max: d.contacts || null,
+        },
       };
       return readJson<TenantRow>(
         await fetch(`/api/superadmin/tenants/${d.tenantId}/activation`, {
@@ -983,6 +1015,28 @@ export default function SuperadminConsole() {
             </p>
           </div>
 
+          {/* Paket / Plan */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Paket langganan</label>
+            <div className="relative">
+              <select
+                value={drawer.plan}
+                onChange={(e) => setDrawer((d) => ({ ...d, plan: e.target.value }))}
+                className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"
+              >
+                {PLAN_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Kuota dasar (seats/kontak/token/WA) ikut paket ini. Tanpa paket = tak terbatas, kecuali di-override di bawah.
+            </p>
+          </div>
+
           {/* Durasi */}
           <div>
             <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Durasi Aktif</label>
@@ -1017,9 +1071,11 @@ export default function SuperadminConsole() {
             </p>
           </div>
 
-          {/* Kuota */}
+          {/* Kuota — override per-metrik (kosong = ikut paket) */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">Kuota Token AI</label>
+            <label className="mb-1.5 block text-[13px] font-medium text-foreground/80">
+              Kuota / override <span className="font-normal text-muted-foreground">(kosong = ikut paket)</span>
+            </label>
             <div className="mb-2 flex flex-wrap gap-2">
               {QUOTA_CHIPS.map((q) => {
                 const on = drawer.quota === q;
@@ -1039,18 +1095,14 @@ export default function SuperadminConsole() {
                 );
               })}
             </div>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={drawer.quota ? fmtInt(drawer.quota) : ""}
-              onChange={(e) => {
-                const n = parseInt(e.target.value.replace(/\D/g, ""), 10) || 0;
-                setDrawer((d) => ({ ...d, quota: n }));
-              }}
-              className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <QuotaInput label="Token AI" value={drawer.quota} onChange={(n) => setDrawer((d) => ({ ...d, quota: n }))} />
+              <QuotaInput label="Pesan WA" value={drawer.messages} onChange={(n) => setDrawer((d) => ({ ...d, messages: n }))} />
+              <QuotaInput label="Kursi (seats)" value={drawer.seats} onChange={(n) => setDrawer((d) => ({ ...d, seats: n }))} />
+              <QuotaInput label="Kontak" value={drawer.contacts} onChange={(n) => setDrawer((d) => ({ ...d, contacts: n }))} />
+            </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Batas pemakaian token AI per periode (grain = tenant). Bisa ditambah lewat &ldquo;+ Kredit&rdquo;.
+              Override per-metrik (grain = tenant). Kosong/0 = pakai kuota paket. Bisa ditambah lewat &ldquo;+ Kredit&rdquo;.
             </p>
           </div>
 
@@ -1075,8 +1127,13 @@ export default function SuperadminConsole() {
               Ringkasan entitlement
             </p>
             <SummaryRow label="Vertical" value={drawer.vertical || "—"} />
+            <SummaryRow label="Paket" value={PLAN_OPTIONS.find((p) => p.value === drawer.plan)?.label ?? "—"} />
             <SummaryRow label="Aktif s/d" value={fmtDateID(drawer.until ? new Date(drawer.until).toISOString() : null)} />
-            <SummaryRow label="Kuota token" value={drawer.quota ? fmtInt(drawer.quota) : "—"} />
+            <SummaryRow label="Token AI" value={drawer.quota ? fmtInt(drawer.quota) : "ikut paket"} />
+            <SummaryRow
+              label="Seats / Kontak / WA"
+              value={`${drawer.seats || "∞"} / ${drawer.contacts || "∞"} / ${drawer.messages || "∞"}`}
+            />
           </div>
         </div>
 
@@ -1704,6 +1761,30 @@ function SourceBadge({ source }: { source: "DB" | "env" | "kosong" }) {
 // ───────────────────────── Dokumentasi panel ─────────────────────────
 
 /** Operator reference — subsystem summary + the FULL embedded docs (HLA / Features). */
+function QuotaInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</label>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value ? fmtInt(value) : ""}
+        onChange={(e) => onChange(parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)}
+        placeholder="ikut paket"
+        className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+      />
+    </div>
+  );
+}
+
 function DocsPanel() {
   const [doc, setDoc] = useState<"HLA" | "FEATURES">("HLA");
   const docQ = useQuery({
