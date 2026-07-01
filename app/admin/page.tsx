@@ -300,7 +300,11 @@ export default function SuperadminConsole() {
           const rows = await readJson<UsageCounterRow[]>(
             await fetch(`/api/tenant/${t.id}/quota`),
           );
-          return rows.find((r) => r.metric === AI_TOKENS_METRIC) ?? null;
+          // ai_tokens_max is a MONTHLY metric — prefer the canonical YYYY-MM row
+          // (what setQuota now writes + evalQuota reads), ignoring any stale
+          // "lifetime" row left by an older "+ Kredit" so the shown quota is real.
+          const ai = rows.filter((r) => r.metric === AI_TOKENS_METRIC);
+          return ai.find((r) => /^\d{4}-\d{2}$/.test(r.period)) ?? ai[0] ?? null;
         } catch {
           return null;
         }
@@ -479,13 +483,20 @@ export default function SuperadminConsole() {
   const credit = useMutation({
     mutationFn: async (t: TenantRow) => {
       const current = quotaByTenant[t.id];
+      // Unlimited plan (an existing row whose limit is null) → +Kredit is meaningless
+      // and would wrongly CAP it to a finite number. Refuse with a clear message.
+      if (current && current.quotaLimit == null) {
+        throw new Error("Tenant ini sudah unlimited — “+ Kredit” tidak berlaku");
+      }
       const base = current?.quotaLimit ?? 0;
       const next = base + 1_000_000;
+      // period is resolved server-side (setQuota writes at the metric's canonical
+      // period); sending it would be ignored, so we omit it.
       return readJson<UsageCounterRow>(
         await fetch(`/api/tenant/${t.id}/quota`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ metric: AI_TOKENS_METRIC, limit: next, period: "lifetime" }),
+          body: JSON.stringify({ metric: AI_TOKENS_METRIC, limit: next }),
         }),
       );
     },

@@ -319,14 +319,22 @@ export const tenantService = {
     if (limit !== null && (!Number.isFinite(limit) || limit < 0)) {
       throw new ServiceError("Limit tidak valid", 400, "validation");
     }
-    const row = await tenantRepo.upsertUsage(ctx, metric, period, { quotaLimit: limit });
+    // A known quota metric is enforced (evalQuota) + displayed at its CANONICAL
+    // period (monthly for ai_tokens/messages, lifetime for counts). Write there —
+    // ignoring the caller's period — so "+ Kredit" / the drawer update the SAME row
+    // the console + evalQuota read. This was a silent period mismatch: a "lifetime"
+    // write vs a metricPeriod read meant the shown quota never changed.
+    const effectivePeriod = (QUOTA_METRICS as readonly string[]).includes(metric)
+      ? metricPeriod(metric as QuotaMetric)
+      : period;
+    const row = await tenantRepo.upsertUsage(ctx, metric, effectivePeriod, { quotaLimit: limit });
     await platformRepo.insertAudit({
       tenantId: ctx.tenantId,
       actorUserId: actorUserId ?? ctx.userId,
       action: "tenant.quota.update",
       targetType: "usage_counter",
       targetId: row.id,
-      meta: { metric, period, limit },
+      meta: { metric, period: effectivePeriod, limit },
     });
     return row;
   },
