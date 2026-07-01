@@ -5,7 +5,7 @@ import { hasDb } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { extensionConnectionTable } from "@/lib/db/schema";
 import { touchRepHeartbeat } from "@/lib/team/rep-account";
-import { listWorkspaces } from "@/lib/workspace/store";
+import { workspaceService } from "@/modules/workspace/service";
 import { tenantService } from "@/modules/tenant/service";
 
 export const runtime = "nodejs";
@@ -31,7 +31,11 @@ export async function POST(req: Request) {
       const repCtx = { tenantId: rep.tenantId, userId: rep.userId, role: "member" as const };
       let workspaces: { id: string; name: string; type: string }[] = [];
       try {
-        const ws = await listWorkspaces(repCtx);
+        // Use the REBUILD workspace domain (workspace_v2) — the same source /api/workspace
+        // + the whole app read. The old lib/workspace/store reads a LEGACY table, so this
+        // returned EMPTY even when the tenant has workspaces (dropdown stayed blank).
+        // Grain = tenant, so a member ctx still gets every tenant workspace.
+        const ws = await workspaceService.list(repCtx);
         workspaces = ws.filter((w) => w.status !== "archived").map((w) => ({ id: w.id, name: w.name, type: w.type }));
       } catch (err) {
         console.error("[heartbeat workspaces]", err);
@@ -78,7 +82,17 @@ export async function POST(req: Request) {
           set: { version, userAgent, lastSeenAt: now },
         }),
     );
-    return NextResponse.json({ ok: true, connected: true, tenant: ctx.tenantId, serverTime: now.toISOString(), deepseekKey, source: "db" });
+    // Tenant-level token → list ALL the tenant's active workspaces for the picker.
+    // This path returned NO workspaces at all before, so even a valid tenant token
+    // left the dropdown empty.
+    let workspaces: { id: string; name: string; type: string }[] = [];
+    try {
+      const ws = await workspaceService.list(ctx);
+      workspaces = ws.filter((w) => w.status !== "archived").map((w) => ({ id: w.id, name: w.name, type: w.type }));
+    } catch (err) {
+      console.error("[heartbeat workspaces tenant]", err);
+    }
+    return NextResponse.json({ ok: true, connected: true, tenant: ctx.tenantId, serverTime: now.toISOString(), deepseekKey, workspaces, source: "db" });
   } catch (err) {
     console.error("[api/extension/heartbeat POST]", err);
     return NextResponse.json({ ok: false, connected: false, error: "Internal error" }, { status: 500 });
