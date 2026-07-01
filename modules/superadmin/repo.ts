@@ -1,6 +1,7 @@
 import { count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { withTenant } from "@/lib/db/tenant-context";
 import {
   auditLogTable,
   platformSettingTable,
@@ -27,7 +28,7 @@ export const platformRepo = {
     targetId?: string | null;
     meta?: Record<string, unknown> | null;
   }): Promise<void> {
-    await db.insert(auditLogTable).values({
+    const row = {
       id: "aud_" + crypto.randomUUID(),
       tenantId: values.tenantId ?? null,
       actorUserId: values.actorUserId ?? null,
@@ -35,6 +36,17 @@ export const platformRepo = {
       targetType: values.targetType ?? null,
       targetId: values.targetId ?? null,
       meta: values.meta ?? null,
+    };
+    // audit_log_v2 is RLS'd (FORCE). The WITH CHECK needs app.tenant_id set for a
+    // tenant-attributed row, or a superadmin context for a platform (tenant_id NULL)
+    // row — otherwise the INSERT fails under the NOBYPASSRLS app_user role and takes
+    // the whole (audited) mutation down. Set the matching context.
+    const uid = values.actorUserId ?? "";
+    const ctx = values.tenantId
+      ? { tenantId: values.tenantId, userId: uid, role: "member" }
+      : { tenantId: "", userId: uid, role: "superadmin" };
+    await withTenant(ctx, async (tx) => {
+      await tx.insert(auditLogTable).values(row);
     });
   },
 
