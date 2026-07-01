@@ -206,6 +206,52 @@ export const tenantRepo = {
   },
 
   /**
+   * Patch a membership's role and/or seat status. Scoped to the ctx tenant (id +
+   * tenant_id both match) so a superadmin's cross-tenant context can never touch a
+   * row outside the target tenant. Skips soft-deleted rows. Returns the updated
+   * row, or undefined when nothing matched (→ 404 in the service).
+   */
+  async updateMembership(
+    ctx: TenantContext,
+    membershipId: string,
+    patch: { role?: string; status?: string },
+  ): Promise<MembershipRow | undefined> {
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .update(membershipTable)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(
+          and(
+            eq(membershipTable.id, membershipId),
+            eq(membershipTable.tenantId, ctx.tenantId),
+            isNull(membershipTable.deletedAt),
+          ),
+        )
+        .returning(),
+    );
+    return row;
+  },
+
+  /**
+   * Remove a membership (real SQL DELETE — matches the tenant member-management
+   * route's hard-remove semantics). A hard delete (not a `deleted_at` stamp) so
+   * the same user can be re-added later without colliding with the
+   * `membership_tenant_user_uq` (tenant_id, user_id) unique index, which has no
+   * `deleted_at` predicate. Scoped to the ctx tenant. Returns true if a row went.
+   */
+  async deleteMembership(ctx: TenantContext, membershipId: string): Promise<boolean> {
+    const rows = await withTenant(ctx, (tx) =>
+      tx
+        .delete(membershipTable)
+        .where(
+          and(eq(membershipTable.id, membershipId), eq(membershipTable.tenantId, ctx.tenantId)),
+        )
+        .returning({ id: membershipTable.id }),
+    );
+    return rows.length > 0;
+  },
+
+  /**
    * Resolve a user's primary membership across ALL tenants (no tenant scope).
    * Login needs this to discover which tenant + role a credential maps to before
    * a TenantContext exists, so it deliberately runs unscoped on the global `db`.

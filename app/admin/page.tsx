@@ -69,6 +69,30 @@ interface Overview {
   auditEvents: number;
 }
 
+// A tenant member as assembled by the superadmin member endpoints (membership +
+// resolved app_user fields). Mirrors superadminService.TenantMemberView.
+interface TenantMember {
+  id: string; // membership id
+  userId: string;
+  role: string;
+  status: string;
+  name: string;
+  email: string | null;
+  avatarColor: string;
+}
+
+// Tenant membership roles a superadmin may assign (labels in Bahasa Indonesia).
+// `superadmin` is platform staff, never a tenant role — deliberately absent.
+const MEMBER_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "member", label: "Anggota" },
+  { value: "tenant_admin", label: "Admin" },
+  { value: "tenant_owner", label: "Pemilik" },
+];
+
+function memberRoleLabel(role: string): string {
+  return MEMBER_ROLE_OPTIONS.find((r) => r.value === role)?.label ?? role;
+}
+
 // Secrets & Config — mirrors lib/config/secrets.ts SecretStatus (never carries a
 // full secret value; `preview` is a masked/truncated view only).
 interface SecretStatus {
@@ -365,6 +389,8 @@ export default function SuperadminConsole() {
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<TenantRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<TenantRow | null>(null);
+  // ── member manager (cross-tenant) ────────────────────────────────
+  const [memberTarget, setMemberTarget] = useState<TenantRow | null>(null);
 
   // ── mutations ────────────────────────────────────────────────────
   function refreshAll() {
@@ -807,6 +833,7 @@ export default function SuperadminConsole() {
                               onSuspend={() => setSuspendTarget(t)}
                               onCredit={() => credit.mutate(t)}
                               onDelete={() => setDeleteTarget(t)}
+                              onMembers={() => setMemberTarget(t)}
                               creditPending={credit.isPending}
                             />
                           ))}
@@ -1229,6 +1256,9 @@ export default function SuperadminConsole() {
           </>
         }
       />
+
+      {/* ===================== MEMBER MANAGER (cross-tenant) ===================== */}
+      <MemberManagerModal tenant={memberTarget} onClose={() => setMemberTarget(null)} />
     </div>
   );
 }
@@ -1387,6 +1417,7 @@ function TenantTableRow({
   onSuspend,
   onCredit,
   onDelete,
+  onMembers,
   creditPending,
 }: {
   tenant: TenantRow;
@@ -1395,6 +1426,7 @@ function TenantTableRow({
   onSuspend: () => void;
   onCredit: () => void;
   onDelete: () => void;
+  onMembers: () => void;
   creditPending: boolean;
 }) {
   const pending = t.status === "pending";
@@ -1495,6 +1527,15 @@ function TenantTableRow({
             </button>
           )}
           <button
+            onClick={onMembers}
+            title="Kelola anggota tenant"
+            aria-label="Kelola anggota"
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-foreground/70 transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            <UsersIcon className="h-4 w-4" />
+            Member
+          </button>
+          <button
             onClick={onDelete}
             title="Hapus (pindah ke Sampah)"
             aria-label="Hapus tenant"
@@ -1581,6 +1622,343 @@ function TrashedTableRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+// ───────────────────────── Member manager (cross-tenant) ─────────────────────────
+
+/**
+ * MemberManagerModal — superadmin cross-tenant member console for ONE tenant.
+ * Lists members (change role, toggle seat active/nonaktif, remove), and adds a
+ * new member. On add, the backend creates the app_user + membership and returns a
+ * one-time password, which we surface inline so the operator can copy & share it
+ * (the DB only ever stores the hash). Reuses the AppDrawerRaw right-panel shell +
+ * Coral Sunset styling of the provisioning drawer.
+ */
+function MemberManagerModal({ tenant, onClose }: { tenant: TenantRow | null; onClose: () => void }) {
+  const qc = useQueryClient();
+  const tenantId = tenant?.id ?? "";
+  const [form, setForm] = useState<{ name: string; email: string; role: string }>({
+    name: "",
+    email: "",
+    role: "member",
+  });
+  // One-time credential surfaced after a successful add (email + generated pass).
+  const [newCred, setNewCred] = useState<{ email: string; password: string } | null>(null);
+
+  // Reset the add-form + surfaced credential whenever a different tenant opens.
+  useEffect(() => {
+    setForm({ name: "", email: "", role: "member" });
+    setNewCred(null);
+  }, [tenantId]);
+
+  const membersQ = useQuery({
+    queryKey: ["superadmin", "members", tenantId],
+    enabled: !!tenant,
+    queryFn: async () =>
+      readJson<TenantMember[]>(await fetch(`/api/superadmin/tenants/${tenantId}/members`)),
+  });
+
+  const members = membersQ.data ?? [];
+
+  function refresh() {
+    qc.invalidateQueries({ queryKey: ["superadmin", "members", tenantId] });
+    // Also refresh the platform-wide counts (overview total pengguna, etc.).
+    qc.invalidateQueries({ queryKey: ["superadmin"] });
+  }
+
+  const addMut = useMutation({
+    mutationFn: async () =>
+      readJson<{ member: TenantMember; password: string }>(
+        await fetch(`/api/superadmin/tenants/${tenantId}/members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            email: form.email.trim().toLowerCase(),
+            role: form.role,
+          }),
+        }),
+      ),
+    onSuccess: (res) => {
+      toast.success(`${res.member.name} ditambahkan sebagai ${memberRoleLabel(res.member.role)}`);
+      setNewCred({ email: res.member.email ?? form.email.trim().toLowerCase(), password: res.password });
+      setForm({ name: "", email: "", role: "member" });
+      refresh();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menambah anggota"),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: async (v: { id: string; patch: { role?: string; status?: string } }) =>
+      readJson<TenantMember>(
+        await fetch(`/api/superadmin/tenants/${tenantId}/members/${v.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(v.patch),
+        }),
+      ),
+    onSuccess: () => {
+      toast.success("Anggota diperbarui");
+      refresh();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memperbarui anggota"),
+  });
+
+  const removeMut = useMutation({
+    mutationFn: async (id: string) =>
+      readJson<{ removed: boolean }>(
+        await fetch(`/api/superadmin/tenants/${tenantId}/members/${id}`, { method: "DELETE" }),
+      ),
+    onSuccess: () => {
+      toast.success("Anggota dihapus");
+      refresh();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus anggota"),
+  });
+
+  const removingId = removeMut.isPending ? (removeMut.variables as string) : null;
+  const updatingId =
+    updateMut.isPending && updateMut.variables ? (updateMut.variables as { id: string }).id : null;
+
+  function submitAdd() {
+    if (!form.name.trim()) {
+      toast.error("Nama anggota wajib diisi");
+      return;
+    }
+    if (!form.email.trim()) {
+      toast.error("Email anggota wajib diisi");
+      return;
+    }
+    addMut.mutate();
+  }
+
+  async function copyCred() {
+    if (!newCred) return;
+    try {
+      await navigator.clipboard.writeText(`${newCred.email} / ${newCred.password}`);
+      toast.success("Kredensial disalin");
+    } catch {
+      toast.error("Gagal menyalin — salin manual");
+    }
+  }
+
+  return (
+    <AppDrawerRaw
+      open={!!tenant}
+      onClose={onClose}
+      title="Kelola anggota tenant"
+      widthClassName="w-full max-w-[460px]"
+    >
+      {/* header */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <UsersIcon className="h-[18px] w-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold">Kelola anggota</h2>
+            <p className="truncate text-[11px] text-muted-foreground">{tenant?.name ?? "—"}</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+
+      <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+        {/* ── Add member form ── */}
+        <section className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground/80">
+            <PlusIcon className="h-3.5 w-3.5 text-primary" />
+            Tambah anggota
+          </p>
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Nama lengkap"
+              className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="email@perusahaan.com"
+              className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                  className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  {MEMBER_ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <button
+                onClick={submitAdd}
+                disabled={addMut.isPending}
+                className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {addMut.isPending ? "Menambah…" : "Tambah"}
+              </button>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Akun dibuat dengan sandi acak yang ditampilkan sekali di bawah — bagikan ke anggota.
+          </p>
+        </section>
+
+        {/* ── One-time credential (surfaced after add) ── */}
+        {newCred && (
+          <div className="space-y-2 rounded-lg border border-tertiary/40 bg-tertiary/[0.06] p-3">
+            <p className="flex items-center gap-1.5 text-[12px] font-semibold text-tertiary">
+              <CheckBadgeIcon className="h-3.5 w-3.5" />
+              Kredensial login (tampil sekali)
+            </p>
+            <div className="grid gap-1 text-[12px]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Email</span>
+                <code className="truncate rounded bg-muted px-1.5 py-0.5 font-mono">{newCred.email}</code>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Sandi</span>
+                <code className="truncate rounded bg-muted px-1.5 py-0.5 font-mono">{newCred.password}</code>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={copyCred}
+                className="h-8 rounded-lg border border-border px-3 text-xs font-medium transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                Salin
+              </button>
+              <button
+                onClick={() => setNewCred(null)}
+                className="h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Member list ── */}
+        <section className="space-y-2">
+          <p className="text-[13px] font-semibold text-foreground/80">
+            Anggota{" "}
+            <span className="font-normal text-muted-foreground">
+              ({membersQ.isLoading ? "…" : members.length})
+            </span>
+          </p>
+
+          {membersQ.isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+              ))}
+            </div>
+          ) : membersQ.isError ? (
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-border py-8 text-center">
+              <p className="text-sm font-medium">Gagal memuat anggota</p>
+              <button
+                onClick={() => membersQ.refetch()}
+                className="h-8 rounded-lg border border-border px-3 text-xs font-medium transition-colors hover:bg-muted"
+              >
+                Coba lagi
+              </button>
+            </div>
+          ) : members.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+              Belum ada anggota. Tambah lewat formulir di atas.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {members.map((m) => {
+                const disabled = m.status === "disabled";
+                const busy = updatingId === m.id || removingId === m.id;
+                return (
+                  <div
+                    key={m.id}
+                    className={`rounded-lg border border-border p-3 transition-colors ${
+                      disabled ? "bg-muted/40" : "bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                        style={{ background: m.avatarColor }}
+                      >
+                        {initialsOf(m.name)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate text-sm font-medium ${disabled ? "text-foreground/55" : ""}`}>
+                          {m.name}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">{m.email ?? "—"}</p>
+                      </div>
+                      <button
+                        onClick={() => removeMut.mutate(m.id)}
+                        disabled={busy}
+                        title="Hapus anggota"
+                        aria-label="Hapus anggota"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-foreground/60 transition-colors hover:border-destructive/50 hover:bg-destructive/5 hover:text-destructive disabled:opacity-50"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <select
+                          value={m.role}
+                          disabled={busy}
+                          onChange={(e) => updateMut.mutate({ id: m.id, patch: { role: e.target.value } })}
+                          className="h-8 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-2.5 pr-8 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-60"
+                        >
+                          {MEMBER_ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronIcon className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                      <button
+                        onClick={() =>
+                          updateMut.mutate({
+                            id: m.id,
+                            patch: { status: disabled ? "active" : "disabled" },
+                          })
+                        }
+                        disabled={busy}
+                        className={`h-8 shrink-0 rounded-lg border px-3 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                          disabled
+                            ? "border-border text-muted-foreground hover:border-success/50 hover:text-success"
+                            : "border-success/30 bg-success/[0.08] text-success hover:bg-success/[0.14]"
+                        }`}
+                      >
+                        {disabled ? "Nonaktif" : "Aktif"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </AppDrawerRaw>
   );
 }
 
@@ -2009,6 +2387,16 @@ function RestoreIcon({ className = "h-4 w-4" }: IconProps) {
     <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
       <path d="M3 7v6h6" />
       <path d="M3.51 13a9 9 0 1 0 2.13-9.36L3 7" />
+    </svg>
+  );
+}
+function UsersIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
 }

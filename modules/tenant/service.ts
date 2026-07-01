@@ -279,6 +279,26 @@ export const tenantService = {
     return tenantRepo.listMemberships(ctx);
   },
 
+  /** Change a member's role and/or seat status (tenant-scoped). 404s when the
+   *  membership isn't found in this tenant. Role/status VALIDATION is the caller's
+   *  job (the tenant + superadmin routes each enforce their own allow-list). */
+  async updateMembership(
+    ctx: TenantContext,
+    membershipId: string,
+    patch: { role?: string; status?: string },
+  ): Promise<MembershipRow> {
+    const row = await tenantRepo.updateMembership(ctx, membershipId, patch);
+    if (!row) throw new ServiceError("Anggota tidak ditemukan", 404, "not_found");
+    return row;
+  },
+
+  /** Remove a member from the tenant (hard delete of the membership row). 404s
+   *  when nothing matched in this tenant. */
+  async removeMembership(ctx: TenantContext, membershipId: string): Promise<void> {
+    const removed = await tenantRepo.deleteMembership(ctx, membershipId);
+    if (!removed) throw new ServiceError("Anggota tidak ditemukan", 404, "not_found");
+  },
+
   // ── Quota (grain = tenant) ───────────────────────────────────────
   async listQuota(ctx: TenantContext): Promise<UsageCounterRow[]> {
     return tenantRepo.listUsage(ctx);

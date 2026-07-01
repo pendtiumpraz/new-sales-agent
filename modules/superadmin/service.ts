@@ -3,7 +3,7 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 import { ServiceError } from "@/modules/_shared/api";
 import { hashPassword } from "@/modules/auth/password";
 import { tenantService } from "@/modules/tenant/service";
-import type { AppUserRow, TenantRow, UsageCounterRow } from "@/modules/tenant/schema";
+import type { AppUserRow, MembershipRow, TenantRow, UsageCounterRow } from "@/modules/tenant/schema";
 import { platformRepo } from "./repo";
 import type { AuditLogRow, PlatformSettingRow } from "./schema";
 
@@ -94,7 +94,50 @@ export interface CreateOperatorInput {
   password: string;
 }
 
+// ── cross-tenant member management (superadmin console) ──────────────
+// TENANT membership roles a superadmin may ASSIGN to a member. `superadmin` is a
+// PLATFORM-staff flag on `app_user`, never a tenant role, so it is deliberately
+// NOT assignable here (mirrors the tenant route's ASSIGNABLE_ROLES allow-list).
+// The role CEILING that constrains a tenant admin does NOT apply — a superadmin
+// outranks every tenant role and may set any of these.
+const ASSIGNABLE_MEMBER_ROLES = ["member", "tenant_admin", "tenant_owner"] as const;
+type MemberRole = (typeof ASSIGNABLE_MEMBER_ROLES)[number];
+const MEMBER_STATUSES = ["active", "disabled"] as const;
+type MemberStatus = (typeof MEMBER_STATUSES)[number];
+
+/** A member row assembled for the console: membership + resolved app_user fields. */
+export interface TenantMemberView {
+  id: string; // membership id (mbr_…)
+  userId: string;
+  role: string;
+  status: string;
+  name: string;
+  email: string | null;
+  avatarColor: string;
+}
+
+export interface AddTenantMemberInput {
+  name: string;
+  email: string;
+  role: string;
+  /** Optional plaintext password; when absent the service generates a strong one
+   *  and returns it in the result so the operator can share it once. */
+  password?: string;
+}
+
+export interface AddTenantMemberResult {
+  member: TenantMemberView;
+  /** The effective password for the freshly-created user, surfaced ONCE (this is
+   *  the only time it is ever returned — the DB only stores the scrypt hash). */
+  password: string;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Disposable strong password for a console-provisioned member. */
+function genMemberPassword(): string {
+  return `Aa1!${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+}
 
 export const superadminService = {
   /** Cross-tenant rollup for the platform console. Superadmin-only (audit #9). */
@@ -285,6 +328,155 @@ export const superadminService = {
       { until: input.activeUntil ?? null, planKey: input.planKey },
       operatorUserId,
     );
+  },
+
+  // ── cross-tenant member management ──────────────────────────────────
+  // The console manages the MEMBERS of any tenant, not just its lifecycle. Each
+  // method proves superadmin (assertSuperadmin + targetCtx), then delegates the
+  // membership/app_user writes to the owning tenant service (modular-monolith
+  // ownership rule — the superadmin domain writes only audit_log_v2).
+
+  /** List a target tenant's live members with resolved name/email/avatar. */
+  async listTenantMembers(ctx: TenantContext, tenantId: string): Promise<TenantMemberView[]> {
+    assertSuperadmin(ctx);
+    const tctx = targetCtx(ctx, tenantId, ctx.userId);
+    const rows = await tenantService.listMemberships(tctx);
+    return Promise.all(
+      rows.map(async (m): Promise<TenantMemberView> => {
+        const u = await tenantService.getUserById(m.userId);
+        return {
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          status: m.status,
+          name: u?.name ?? m.userId,
+          email: u?.email ?? null,
+          avatarColor: u?.avatarColor ?? "#94a3b8",
+        };
+      }),
+    );
+  },
+
+  /**
+   * Add a member to a target tenant. Creates the app_user (409 if the email is
+   * already taken), attaches an active membership with the requested role, and
+   * surfaces the generated password ONCE. The tenant service's `addMembership`
+   * seat-quota check is preserved (throws 402 at the seat ceiling).
+   */
+  async addTenantMember(
+    ctx: TenantContext,
+    tenantId: string,
+    input: AddTenantMemberInput,
+    operatorUserId: string,
+  ): Promise<AddTenantMemberResult> {
+    assertSuperadmin(ctx);
+    const name = input.name?.trim();
+    const email = input.email?.trim().toLowerCase();
+    const role = input.role?.trim();
+    if (!name) throw new ServiceError("Nama wajib diisi", 400, "validation");
+    if (!email || !EMAIL_RE.test(email)) throw new ServiceError("Email tidak valid", 400, "validation");
+    if (!ASSIGNABLE_MEMBER_ROLES.includes(role as MemberRole)) {
+      throw new ServiceError("Role tidak valid", 400, "invalid_role");
+    }
+    if (await tenantService.getUserByEmail(email)) {
+      throw new ServiceError("Email sudah terdaftar", 409, "email_taken");
+    }
+
+    // targetCtx proves superadmin BEFORE we create anything.
+    const tctx = targetCtx(ctx, tenantId, operatorUserId);
+    const password =
+      input.password && input.password.length >= 6 ? input.password : genMemberPassword();
+    const passwordHash = await hashPassword(password);
+    const user = await tenantService.createUser({ name, email, passwordHash });
+    // addMembership keeps the seat-quota guard; may throw 402 (leaves the user with
+    // no membership — same shape as provisionTenant's create-then-attach flow).
+    const membership = await tenantService.addMembership(tctx, user.id, role!, "active");
+
+    await platformRepo.insertAudit({
+      tenantId,
+      actorUserId: operatorUserId,
+      action: "platform.member.add",
+      targetType: "membership",
+      targetId: membership.id,
+      meta: { email, role },
+    });
+
+    return {
+      member: {
+        id: membership.id,
+        userId: user.id,
+        role: membership.role,
+        status: membership.status,
+        name: user.name,
+        email: user.email,
+        avatarColor: user.avatarColor ?? "#94a3b8",
+      },
+      password,
+    };
+  },
+
+  /**
+   * Change a target tenant member's role and/or seat status. Validates role ∈
+   * {member,tenant_admin,tenant_owner} and status ∈ {active,disabled}. No role
+   * ceiling — a superadmin outranks every tenant role.
+   */
+  async updateTenantMember(
+    ctx: TenantContext,
+    tenantId: string,
+    membershipId: string,
+    patch: { role?: string; status?: string },
+    operatorUserId: string,
+  ): Promise<MembershipRow> {
+    assertSuperadmin(ctx);
+    const clean: { role?: string; status?: string } = {};
+    if (patch.role !== undefined) {
+      if (!ASSIGNABLE_MEMBER_ROLES.includes(patch.role as MemberRole)) {
+        throw new ServiceError("Role tidak valid", 400, "invalid_role");
+      }
+      clean.role = patch.role;
+    }
+    if (patch.status !== undefined) {
+      if (!MEMBER_STATUSES.includes(patch.status as MemberStatus)) {
+        throw new ServiceError("Status tidak valid", 400, "validation");
+      }
+      clean.status = patch.status;
+    }
+    if (clean.role === undefined && clean.status === undefined) {
+      throw new ServiceError("Role atau status wajib diisi", 400, "validation");
+    }
+
+    const tctx = targetCtx(ctx, tenantId, operatorUserId);
+    const row = await tenantService.updateMembership(tctx, membershipId, clean);
+
+    await platformRepo.insertAudit({
+      tenantId,
+      actorUserId: operatorUserId,
+      action: "platform.member.update",
+      targetType: "membership",
+      targetId: membershipId,
+      meta: clean,
+    });
+    return row;
+  },
+
+  /** Remove a member from a target tenant (hard delete of the membership). */
+  async removeTenantMember(
+    ctx: TenantContext,
+    tenantId: string,
+    membershipId: string,
+    operatorUserId: string,
+  ): Promise<void> {
+    assertSuperadmin(ctx);
+    const tctx = targetCtx(ctx, tenantId, operatorUserId);
+    await tenantService.removeMembership(tctx, membershipId);
+
+    await platformRepo.insertAudit({
+      tenantId,
+      actorUserId: operatorUserId,
+      action: "platform.member.remove",
+      targetType: "membership",
+      targetId: membershipId,
+    });
   },
 
   /** Create a platform-staff (superadmin) account. Superadmin-only (audit #9):
