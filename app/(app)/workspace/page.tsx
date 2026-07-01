@@ -338,6 +338,15 @@ export default function WorkspaceHubPage() {
     "produk" | "marketfit" | "funnel" | "kontak" | "salesplay" | "teknik" | "lainnya"
   >("produk");
 
+  // ── Sales-Play editor (inline) ──────────────────────────────────────────────
+  // FIX: the Sales Play + Teknik Closing sections used to <Link href="/use-case">
+  // to configure the play, bouncing the user off the workspace hub. Edit it in
+  // place instead → PUT /api/workspace/[id]/sales-play { channel, tone, techniques }.
+  const [salesPlayOpen, setSalesPlayOpen] = useState(false);
+  const [spChannel, setSpChannel] = useState("whatsapp");
+  const [spTone, setSpTone] = useState("consultative");
+  const [spTechniques, setSpTechniques] = useState<string[]>([]);
+
   // ── Create-workspace flow ──────────────────────────────────────────────────
   // FIX: the empty state used to <Link href="/workspaces">, but /workspaces just
   // redirect()s back to /workspace → an infinite loop where no workspace ever got
@@ -479,6 +488,38 @@ export default function WorkspaceHubPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Analisis market-fit gagal"),
   });
+
+  // Save the sales-play INLINE (channel / tone / techniques) instead of navigating
+  // to /use-case: PUT /api/workspace/[id]/sales-play → the Sales Play + Teknik
+  // Closing displays refresh from playQ. 1 workspace = 1 produk = 1 sales-play.
+  const saveSalesPlay = useMutation({
+    mutationFn: async () => {
+      if (!wsId) throw new Error("Tidak ada workspace aktif");
+      const r = await fetch(`/api/workspace/${wsId}/sales-play`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: spChannel, tone: spTone, techniques: spTechniques }),
+      });
+      const j = (await r.json()) as ApiEnvelope<SalesPlayRow>;
+      if (!r.ok || !j.ok || !j.data) throw new Error(j.error || "Gagal menyimpan sales-play");
+      return j.data;
+    },
+    onSuccess: () => {
+      toast.success("Sales Play disimpan");
+      if (wsId) qc.invalidateQueries({ queryKey: ["m2", "workspace", wsId, "sales-play"] });
+      setSalesPlayOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan sales-play"),
+  });
+
+  // Seed the editor from the current sales-play (or sane defaults) then open it.
+  // Defined AFTER `salesPlay` is in scope so we read the live config.
+  function openSalesPlayDialog() {
+    setSpChannel(salesPlay?.channel || "whatsapp");
+    setSpTone(salesPlay?.tone || "consultative");
+    setSpTechniques(salesPlay?.techniques ?? []);
+    setSalesPlayOpen(true);
+  }
 
   const connectDialog = (
     <Dialog open={connectOpen} onOpenChange={(o) => !connectProduct.isPending && setConnectOpen(o)}>
@@ -625,6 +666,108 @@ export default function WorkspaceHubPage() {
           </Button>
           <Button onClick={() => createWs.mutate()} disabled={!newName.trim() || createWs.isPending}>
             {createWs.isPending ? "Membuat…" : "Buat workspace"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const salesPlayDialog = (
+    <Dialog
+      open={salesPlayOpen}
+      onOpenChange={(o) => !saveSalesPlay.isPending && setSalesPlayOpen(o)}
+    >
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Atur Sales Play</DialogTitle>
+          <DialogDescription>
+            Channel, tone, &amp; teknik closing untuk menyetir orkestrator obrolan konsultatif
+            value-first di workspace &ldquo;{activeWs?.name}&rdquo;.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-1">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Channel</Label>
+              <Select value={spChannel} onValueChange={setSpChannel}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="instagram">Instagram</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tone</Label>
+              <Select value={spTone} onValueChange={setSpTone}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="consultative">Konsultatif</SelectItem>
+                  <SelectItem value="direct">Langsung</SelectItem>
+                  <SelectItem value="friendly">Ramah</SelectItem>
+                  <SelectItem value="formal">Formal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              Teknik closing{spTechniques.length ? ` (${spTechniques.length} dipilih)` : ""}
+            </Label>
+            {allTechniques.length === 0 ? (
+              <p className="rounded-lg border bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
+                Katalog teknik belum tersedia
+              </p>
+            ) : (
+              <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border p-2">
+                {allTechniques.map((t) => {
+                  const checked = spTechniques.includes(t.key);
+                  return (
+                    <label
+                      key={t.id}
+                      className="flex cursor-pointer items-start gap-2 rounded-md p-2 text-xs transition hover:bg-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setSpTechniques((prev) =>
+                            prev.includes(t.key)
+                              ? prev.filter((k) => k !== t.key)
+                              : [...prev, t.key],
+                          )
+                        }
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground/90">{t.name}</span>
+                        <span className="block text-[11px] leading-relaxed text-muted-foreground">
+                          {t.inti}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setSalesPlayOpen(false)}
+            disabled={saveSalesPlay.isPending}
+          >
+            Batal
+          </Button>
+          <Button onClick={() => saveSalesPlay.mutate()} disabled={saveSalesPlay.isPending}>
+            {saveSalesPlay.isPending ? "Menyimpan…" : "Simpan Sales Play"}
           </Button>
         </div>
       </DialogContent>
@@ -1301,8 +1444,8 @@ export default function WorkspaceHubPage() {
                 Alur · adab · teknik closing · channel · tone — nyetir orkestrator obrolan.
               </p>
             </div>
-            <Button asChild size="sm" variant="outline" className="h-8">
-              <Link href="/use-case">Atur Sales Play</Link>
+            <Button size="sm" variant="outline" className="h-8" onClick={openSalesPlayDialog}>
+              Atur Sales Play
             </Button>
           </CardHeader>
           <CardContent>
@@ -1326,10 +1469,8 @@ export default function WorkspaceHubPage() {
                 title="Sales Play belum diatur"
                 description="Atur channel, tone, dan teknik closing untuk menyetir obrolan konsultatif value-first."
                 action={
-                  <Button asChild size="sm">
-                    <Link href="/use-case">
-                      <Sparkles className="h-4 w-4" /> Atur Sales Play
-                    </Link>
+                  <Button size="sm" onClick={openSalesPlayDialog}>
+                    <Sparkles className="h-4 w-4" /> Atur Sales Play
                   </Button>
                 }
               />
@@ -1394,10 +1535,8 @@ export default function WorkspaceHubPage() {
                   : "Market-fit belum B2B/B2C — menampilkan seluruh katalog. Analisis market-fit untuk mempersempit."}
               </p>
             </div>
-            <Button asChild size="sm" variant="outline" className="h-8">
-              <Link href="/use-case">
-                <Lightbulb className="h-3.5 w-3.5" /> Atur teknik
-              </Link>
+            <Button size="sm" variant="outline" className="h-8" onClick={openSalesPlayDialog}>
+              <Lightbulb className="h-3.5 w-3.5" /> Atur teknik
             </Button>
           </CardHeader>
           <CardContent>
@@ -1421,10 +1560,8 @@ export default function WorkspaceHubPage() {
                 title="Katalog teknik closing belum diisi"
                 description="Seed 17 Teknik Closing (Dewa Eka Prayoga) untuk mulai — teknik konsultatif kebuka untuk B2B, yang agresif/scarcity di-gate untuk B2C."
                 action={
-                  <Button asChild size="sm">
-                    <Link href="/use-case">
-                      <Sparkles className="h-4 w-4" /> Siapkan teknik closing
-                    </Link>
+                  <Button size="sm" onClick={openSalesPlayDialog}>
+                    <Sparkles className="h-4 w-4" /> Siapkan teknik closing
                   </Button>
                 }
               />
@@ -1553,6 +1690,7 @@ export default function WorkspaceHubPage() {
       </div>
       {createDialog}
       {connectDialog}
+      {salesPlayDialog}
     </div>
   );
 }
