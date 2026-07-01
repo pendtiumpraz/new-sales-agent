@@ -20,6 +20,7 @@ const DEFAULTS = {
   autoEnrich: true, // Stage 1 → auto-continue to Stage 2 (enrichment)
   deepseekKey: "", // for AI analysis/websearch (runs in the browser, not the platform)
   workspaceId: "", // doc 44 — tag crawled leads to the workspace the rep picked in the popup
+  autoDownloadCsv: true, // also drop a local CSV (B2B / B2C / perusahaan) on every crawl
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -302,6 +303,7 @@ async function runAiSearch(query) {
     await addLeads(people, []);
     await flush();
     await setStatus(`AI websearch: ${people.length} kandidat (terverifikasi) → dikirim ke app.`);
+    await maybeAutoDownloadCsv();
   } catch (e) {
     await setStatus("AI websearch error: " + String(e));
   }
@@ -397,6 +399,7 @@ async function runWebSearch(query) {
   if (people.length && c.deepseekKey) people = await verifyLeads(c.deepseekKey, q, people);
   await ingest({ origin: "extension", companies, people });
   await setStatus(`Internet search: ${companies.length} situs${people.length ? ` + ${people.length} orang (terverifikasi)` : ""} → dikirim ke app.`);
+  await maybeAutoDownloadCsv();
 }
 
 // ── Per-platform RPA search (Google/Tokopedia/Shopee/IG/TikTok) ───────────────
@@ -427,6 +430,7 @@ async function runPlatformSearch(platform, query) {
   await setStatus(`${platform}: ${(res.people || []).length} orang + ${(res.companies || []).length} toko/situs → dikirim. (buffer ${n})`);
   // Auto-continue to Stage 2 enrich (mirror LinkedIn runSearch → runEnrich).
   if (c.autoEnrich !== false && c.deepseekKey && n > 0) await runEnrichPlatform(platform);
+  else await maybeAutoDownloadCsv();
 }
 
 // ── Multi-platform Stage 2: enrich + in-extension DeepSeek analysis (doc 45) ──
@@ -573,6 +577,7 @@ async function runEnrichPlatform(platform) {
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`${platform} enrich selesai — ${done} di-enrich${analyzed ? ` (${analyzed} dianalisa AI)` : ""} + dikirim.`);
+  await maybeAutoDownloadCsv();
 }
 
 // ── RPA navigation helper ───────────────────────────────────────────────────
@@ -659,6 +664,7 @@ async function runSearch() {
   } else {
     await chrome.storage.local.set({ running: false });
     await setStatus(`Stage 1 selesai — ${total} lead di buffer. Klik "Enrich profil" untuk track record.`);
+    await maybeAutoDownloadCsv();
   }
 }
 
@@ -737,6 +743,7 @@ async function runEnrich() {
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`Stage 2 selesai — ${done} profil di-enrich${analyzed ? ` (${analyzed} dianalisa AI)` : ""} + dikirim ke aplikasi.`);
+  await maybeAutoDownloadCsv();
 }
 
 // ── Flush buffered leads (Stage 1 list) to the app ──────────────────────────
@@ -765,6 +772,86 @@ async function flush() {
     // Skip re-enriching profiles the platform already has enriched (no redundancy).
     await markEnrichedLocally(resp.existingEnriched || []);
   }
+}
+
+// ── CSV export (local download) ──────────────────────────────────────────────
+// Besides sending to the app, drop a local CSV so the rep has an Excel-ready copy.
+// People are split by segment (leadType) into B2B / B2C (+ "lainnya"); companies
+// get their own file. Filenames carry the crawl query + date. Runs in the SW via a
+// data: URL (no DOM / Blob URL available in MV3).
+function csvCell(v) {
+  const s = v == null ? "" : String(v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function toCsv(headers, rows) {
+  const head = headers.map((h) => csvCell(h.label)).join(",");
+  const body = rows.map((r) => headers.map((h) => csvCell(h.get(r))).join(",")).join("\r\n");
+  return "﻿" + head + "\r\n" + body; // BOM → Excel reads UTF-8 (karakter Indonesia)
+}
+function slugify(s) {
+  return (String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)) || "hasil";
+}
+function segmentOf(leadType) {
+  if (leadType === "b2c_customer") return "b2c";
+  if (leadType === "b2b_partner" || leadType === "b2b_client") return "b2b";
+  return "lainnya";
+}
+function downloadCsv(csv, filename) {
+  const url = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  try {
+    chrome.downloads.download({ url, filename, saveAs: false }, () => void chrome.runtime.lastError);
+  } catch (e) { /* downloads permission missing / SW quirk — ignore */ }
+}
+async function downloadCsvExports() {
+  const c = await cfg();
+  const st = await state();
+  const date = today();
+  const stamp = `${slugify(c.query)}-${date}`;
+  const meta = (cols) => [...cols, { label: "Query", get: () => c.query || "" }, { label: "Tanggal", get: () => date }];
+  const PERSON = meta([
+    { label: "Nama", get: (p) => p.fullName },
+    { label: "Jabatan", get: (p) => p.title },
+    { label: "Perusahaan", get: (p) => p.companyName },
+    { label: "Lokasi", get: (p) => p.location },
+    { label: "Segmen", get: (p) => segmentOf(p.leadType).toUpperCase() },
+    { label: "Channel", get: (p) => String(p.source || "").split("+")[0] },
+    { label: "Skor Fit", get: (p) => (p.leadScore != null ? Math.round(p.leadScore * 100) : "") },
+    { label: "URL", get: (p) => p.linkedinUrl || p.sourceUrl || "" },
+    { label: "Ringkasan", get: (p) => p.profileSummary || p.about || "" },
+  ]);
+  const COMPANY = meta([
+    { label: "Nama", get: (x) => x.name },
+    { label: "Domain", get: (x) => x.domain },
+    { label: "Industri", get: (x) => x.industry },
+    { label: "Channel", get: (x) => String(x.source || "").split("+")[0] },
+    { label: "URL", get: (x) => x.sourceUrl || "" },
+    { label: "Ringkasan", get: (x) => x.summary || "" },
+  ]);
+  const people = st.buffer || [];
+  const groups = { b2b: [], b2c: [], lainnya: [] };
+  for (const p of people) groups[segmentOf(p.leadType)].push(p);
+  let files = 0;
+  for (const seg of ["b2b", "b2c", "lainnya"]) {
+    if (groups[seg].length) { downloadCsv(toCsv(PERSON, groups[seg]), `maira-${seg}-${stamp}.csv`); files++; }
+  }
+  if ((st.companies || []).length) { downloadCsv(toCsv(COMPANY, st.companies), `maira-perusahaan-${stamp}.csv`); files++; }
+  await setStatus(
+    files
+      ? `CSV diunduh: ${files} file (B2B ${groups.b2b.length} · B2C ${groups.b2c.length}${groups.lainnya.length ? ` · lainnya ${groups.lainnya.length}` : ""}${(st.companies || []).length ? ` · perusahaan ${st.companies.length}` : ""}).`
+      : "Belum ada data untuk diunduh.",
+  );
+  return files;
+}
+// Auto-download at the end of a crawl, debounced so a search→enrich chain fires once.
+async function maybeAutoDownloadCsv() {
+  const c = await cfg();
+  if (c.autoDownloadCsv === false) return;
+  const st = await state();
+  if (!(st.buffer || []).length && !(st.companies || []).length) return;
+  const last = (await chrome.storage.local.get("lastCsvAt")).lastCsvAt || 0;
+  if (Date.now() - last < 8000) return; // debounce double-fire
+  await chrome.storage.local.set({ lastCsvAt: Date.now() });
+  await downloadCsvExports();
 }
 
 function scheduleNext() {
@@ -820,6 +907,9 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
       case "PLATFORM_ENRICH":
         runEnrichPlatform(msg.platform);
         return sendResponse({ ok: true });
+      // Manual "⬇ Unduh CSV" (B2B / B2C / perusahaan) from the popup.
+      case "DOWNLOAD_CSV":
+        return sendResponse({ ok: true, files: await downloadCsvExports() });
       // Manual scan from a search page (legacy popup button).
       case "BUFFER_LEADS":
         return sendResponse({ ok: true, buffered: await addLeads(msg.people || [], msg.companies || []) });

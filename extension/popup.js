@@ -1,4 +1,4 @@
-const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform"];
+const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform", "autoDownloadCsv"];
 const $ = (id) => document.getElementById(id);
 
 async function load() {
@@ -13,6 +13,7 @@ async function load() {
   $("autoEnrich").checked = cfg.autoEnrich !== false;
   $("deepseekKey").value = cfg.deepseekKey ?? "";
   $("searchPlatform").value = cfg.searchPlatform ?? "linkedin";
+  $("autoDownloadCsv").checked = cfg.autoDownloadCsv !== false;
   await loadWorkspaces();
   toggleConsent();
   refreshStatus();
@@ -49,6 +50,7 @@ async function save() {
     autoEnrich: $("autoEnrich").checked,
     deepseekKey: $("deepseekKey").value.trim(),
     searchPlatform: $("searchPlatform").value,
+    autoDownloadCsv: $("autoDownloadCsv").checked,
   });
 }
 
@@ -100,6 +102,14 @@ $("startEnrich").addEventListener("click", async () => {
   await save();
   $("status").textContent = "Enrich profil LinkedIn…";
   chrome.runtime.sendMessage({ type: "START_ENRICH" }, () => setTimeout(refreshStatus, 800));
+});
+
+$("downloadCsv").addEventListener("click", async () => {
+  await save();
+  $("status").textContent = "Menyiapkan CSV…";
+  chrome.runtime.sendMessage({ type: "DOWNLOAD_CSV" }, (r) => {
+    $("status").textContent = r && r.files ? `CSV diunduh: ${r.files} file (cek folder Download).` : "Belum ada data untuk diunduh.";
+  });
 });
 
 $("flush").addEventListener("click", async () => {
