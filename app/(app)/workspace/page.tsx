@@ -14,13 +14,12 @@
 // minimal product-setup affordance shows when there's no workspace/product yet.
 // NO DB mutations — read-only page.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   Briefcase,
-  Building2,
   Circle,
   Copy,
   Handshake,
@@ -31,6 +30,7 @@ import {
   Radar,
   RefreshCw,
   Search,
+  Settings2,
   Sparkles,
   Target,
   TrendingUp,
@@ -65,6 +65,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ContactsMiniTable } from "@/components/contacts/contacts-mini-table";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { cn } from "@/lib/utils";
 
@@ -158,7 +159,15 @@ interface ContactRow {
   socials: Record<string, string> | null;
   segment: string; // b2c | b2b | unknown
   enrichmentStatus: string; // none | pending | enriched | failed
+  fitScore: number | null; // 0..1 (product-fit)
   source: string | null;
+}
+
+/** Row from GET /api/companies (modules/crm · company_v2) — resolves a contact's
+ *  companyId → name for the Kontak mini-table (contacts only carry the id). */
+interface CompanyRow {
+  id: string;
+  name: string;
 }
 
 // ── Display metadata ────────────────────────────────────────────────────────
@@ -177,26 +186,9 @@ const MARKET_META: Record<string, { label: string; cls: string }> = {
   mix: { label: "Mix (B2B + B2C)", cls: "bg-highlight/15 text-highlight-foreground" },
 };
 
-// Contact-segment badge styling — faithful to mockups/workspace.html (Coral
-// Sunset): B2B = primary tint, B2C = tertiary tint, unknown = neutral.
-const SEGMENT_BADGE: Record<string, { label: string; cls: string }> = {
-  b2b: { label: "B2B", cls: "bg-primary/10 text-primary" },
-  b2c: { label: "B2C", cls: "bg-tertiary/15 text-tertiary" },
-  unknown: { label: "?", cls: "bg-muted text-muted-foreground" },
-};
-
-// Enrichment-status pill — Lengkap (enriched) = success, Sebagian (pending) =
-// highlight, Belum (none) = neutral, Gagal (failed) = destructive.
-const ENRICHMENT_META: Record<string, { label: string; dot: string; cls: string }> = {
-  enriched: { label: "Lengkap", dot: "bg-success", cls: "bg-success/10 text-success" },
-  pending: {
-    label: "Sebagian",
-    dot: "bg-highlight",
-    cls: "bg-highlight/15 text-highlight-foreground",
-  },
-  none: { label: "Belum", dot: "bg-muted-foreground", cls: "bg-muted text-muted-foreground" },
-  failed: { label: "Gagal", dot: "bg-destructive", cls: "bg-destructive/10 text-destructive" },
-};
+// Contact-segment badges + enrichment/source cells now come from the shared
+// components/contacts/contact-cells (via ContactsMiniTable) so the Kontak tab
+// renders IDENTICALLY to the full Contacts page.
 
 // Discovery playbook query chips — channel-aware default scaffolding shown when
 // the workspace has no analyzed segments yet. Click-to-copy → run in the channel.
@@ -319,6 +311,20 @@ export default function WorkspaceHubPage() {
       )?.items ?? [],
     retry: false,
   });
+
+  // Companies — resolve a contact's companyId → name in the Kontak mini-table (same
+  // join the full Contacts page does). Cheap, read-only; only fetched with a ws.
+  const companiesQ = useQuery({
+    queryKey: ["m3", "companies", "list"],
+    enabled: !!wsId,
+    queryFn: () => getEnvelope<CompanyRow[]>("/api/companies"),
+    retry: false,
+  });
+  const companyNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of companiesQ.data ?? []) m.set(c.id, c.name);
+    return m;
+  }, [companiesQ.data]);
 
   // 5) Closing techniques — the tenant's live 17 Teknik Closing catalog (Module 6
   //    / sales · kb_technique). Not workspace-scoped on the backend, so we fetch
@@ -510,13 +516,22 @@ export default function WorkspaceHubPage() {
   // Save the sales-play INLINE (channel / tone / techniques) instead of navigating
   // to /use-case: PUT /api/workspace/[id]/sales-play → the Sales Play + Teknik
   // Closing displays refresh from playQ. 1 workspace = 1 produk = 1 sales-play.
+  // Accepts an OPTIONAL explicit payload so both surfaces can save: the dialog
+  // calls it with no args (reads the editor state), while the Teknik Closing tab
+  // toggles a single technique and passes { channel, tone, techniques } directly
+  // (channel/tone kept as-is from the live sales-play) — no async-state races.
   const saveSalesPlay = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (vars?: { channel?: string; tone?: string; techniques?: string[] }) => {
       if (!wsId) throw new Error("Tidak ada workspace aktif");
+      const payload = {
+        channel: vars?.channel ?? spChannel,
+        tone: vars?.tone ?? spTone,
+        techniques: vars?.techniques ?? spTechniques,
+      };
       const r = await fetch(`/api/workspace/${wsId}/sales-play`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel: spChannel, tone: spTone, techniques: spTechniques }),
+        body: JSON.stringify(payload),
       });
       const j = (await r.json()) as ApiEnvelope<SalesPlayRow>;
       if (!r.ok || !j.ok || !j.data) throw new Error(j.error || "Gagal menyimpan sales-play");
@@ -530,6 +545,19 @@ export default function WorkspaceHubPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan sales-play"),
   });
 
+  // Toggle a single closing technique straight from the Teknik Closing tab (checkbox)
+  // — reuse saveSalesPlay, keeping the live channel/tone. Works even with no sales-play
+  // yet (PUT upserts one). Selection state reads back from playQ after invalidation.
+  function toggleTechnique(key: string) {
+    const cur = salesPlay?.techniques ?? [];
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+    saveSalesPlay.mutate({
+      channel: salesPlay?.channel ?? "whatsapp",
+      tone: salesPlay?.tone ?? "consultative",
+      techniques: next,
+    });
+  }
+
   // Seed the editor from the current sales-play (or sane defaults) then open it.
   // Defined AFTER `salesPlay` is in scope so we read the live config.
   function openSalesPlayDialog() {
@@ -537,6 +565,59 @@ export default function WorkspaceHubPage() {
     setSpTone(salesPlay?.tone || "consultative");
     setSpTechniques(salesPlay?.techniques ?? []);
     setSalesPlayOpen(true);
+  }
+
+  // ── Workspace settings (Lainnya → Pengaturan tab) ───────────────────────────
+  // The backend has always accepted name / type / targetSegment / status on PATCH
+  // /api/workspace/[id], but the UI never surfaced them. Editable here now.
+  const [setName_, setSetName] = useState("");
+  const [setType_, setSetType] = useState("lead_gen");
+  const [setTarget_, setSetTarget] = useState("");
+  const [setStatus_, setSetStatus] = useState("active");
+  // Keep the settings form in sync with the active workspace (and after a save).
+  useEffect(() => {
+    if (!activeWs) return;
+    setSetName(activeWs.name);
+    setSetType(activeWs.type);
+    setSetTarget(activeWs.targetSegment ?? "");
+    setSetStatus(activeWs.status);
+  }, [activeWs]);
+  const settingsDirty =
+    !!activeWs &&
+    (setName_.trim() !== activeWs.name ||
+      setType_ !== activeWs.type ||
+      (setTarget_.trim() || "") !== (activeWs.targetSegment ?? "") ||
+      setStatus_ !== activeWs.status);
+  const saveSettings = useMutation({
+    mutationFn: async () => {
+      if (!wsId) throw new Error("Tidak ada workspace aktif");
+      const r = await fetch(`/api/workspace/${wsId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: setName_.trim(),
+          type: setType_,
+          targetSegment: setTarget_.trim() || null,
+          status: setStatus_,
+        }),
+      });
+      const j = (await r.json()) as ApiEnvelope<WorkspaceRow>;
+      if (!r.ok || !j.ok || !j.data) throw new Error(j.error || "Gagal menyimpan pengaturan");
+      return j.data;
+    },
+    onSuccess: (ws) => {
+      toast.success("Pengaturan workspace disimpan");
+      setActiveWs({ id: ws.id, name: ws.name, type: ws.type });
+      qc.invalidateQueries({ queryKey: ["m2", "workspace", "list"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan pengaturan"),
+  });
+  function resetSettings() {
+    if (!activeWs) return;
+    setSetName(activeWs.name);
+    setSetType(activeWs.type);
+    setSetTarget(activeWs.targetSegment ?? "");
+    setSetStatus(activeWs.status);
   }
 
   const connectDialog = (
@@ -810,7 +891,7 @@ export default function WorkspaceHubPage() {
           >
             Batal
           </Button>
-          <Button onClick={() => saveSalesPlay.mutate()} disabled={saveSalesPlay.isPending}>
+          <Button onClick={() => saveSalesPlay.mutate(undefined)} disabled={saveSalesPlay.isPending}>
             {saveSalesPlay.isPending ? "Menyimpan…" : "Simpan Sales Play"}
           </Button>
         </div>
@@ -955,7 +1036,7 @@ export default function WorkspaceHubPage() {
           { key: "kontak", label: "Kontak" },
           { key: "salesplay", label: "Sales Play" },
           { key: "teknik", label: "Teknik Closing" },
-          { key: "lainnya", label: "Lainnya" },
+          { key: "lainnya", label: "Pengaturan" },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -1376,88 +1457,14 @@ export default function WorkspaceHubPage() {
                 }
               />
             ) : (
-              /* compact table — Segment badge + enrichment status (mockup-faithful) */
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-2.5 font-medium">Nama</th>
-                      <th className="px-4 py-2.5 font-medium">Segment</th>
-                      <th className="px-4 py-2.5 font-medium">Profil</th>
-                      <th className="hidden px-4 py-2.5 font-medium md:table-cell">
-                        Kontak (email · HP)
-                      </th>
-                      <th className="px-4 py-2.5 font-medium">Status enrichment</th>
-                      <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Sumber</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {visibleContacts.map((c) => {
-                      const segBadge = SEGMENT_BADGE[c.segment] ?? SEGMENT_BADGE.unknown;
-                      const enr = ENRICHMENT_META[c.enrichmentStatus] ?? ENRICHMENT_META.none;
-                      const emailPhone = [c.email, c.phone ?? c.whatsapp]
-                        .map((v) => v || "—")
-                        .join(" · ");
-                      const hasContact = !!(c.email || c.phone || c.whatsapp);
-                      return (
-                        <tr key={c.id} className="transition hover:bg-muted/30">
-                          <td className="px-4 py-3 font-medium text-foreground">{c.fullName}</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={cn(
-                                "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                segBadge.cls,
-                              )}
-                            >
-                              {segBadge.label}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-foreground/80">
-                            {c.title ? (
-                              <span className="inline-flex items-center gap-1">
-                                <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                {c.title}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="hidden px-4 py-3 text-xs md:table-cell">
-                            {hasContact ? (
-                              <span className="text-foreground/70">{emailPhone}</span>
-                            ) : (
-                              <span className="italic text-muted-foreground">— belum ada —</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {c.enrichmentStatus === "none" ? (
-                              <Link
-                                href="/contacts/discovery"
-                                className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary transition hover:bg-primary/10"
-                              >
-                                <Sparkles className="h-2.5 w-2.5" /> Belum · Enrich
-                              </Link>
-                            ) : (
-                              <span
-                                className={cn(
-                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                                  enr.cls,
-                                )}
-                              >
-                                <span className={cn("h-1.5 w-1.5 rounded-full", enr.dot)} />
-                                {enr.label}
-                              </span>
-                            )}
-                          </td>
-                          <td className="hidden px-4 py-3 text-xs text-muted-foreground sm:table-cell">
-                            {c.source || "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              /* Read-only mini-table — SAME cells as the full Contacts page
+                 (avatar+name, company, segment badge, fit score, enrichment,
+                 source) via the shared ContactsMiniTable, so the two feel
+                 consistent. Full management lives at /contacts. */
+              <ContactsMiniTable
+                contacts={visibleContacts}
+                companyName={(id) => (id ? companyNameById.get(id) ?? null : null)}
+              />
             )}
           </CardContent>
 
@@ -1489,8 +1496,8 @@ export default function WorkspaceHubPage() {
                 Alur · adab · teknik closing · channel · tone — nyetir orkestrator obrolan.
               </p>
             </div>
-            <Button size="sm" variant="outline" className="h-8" onClick={openSalesPlayDialog}>
-              Atur Sales Play
+            <Button size="sm" className="h-8" onClick={openSalesPlayDialog}>
+              <Settings2 className="h-4 w-4" /> Atur Sales Play
             </Button>
           </CardHeader>
           <CardContent>
@@ -1579,9 +1586,12 @@ export default function WorkspaceHubPage() {
                     }.`
                   : "Market-fit belum B2B/B2C — menampilkan seluruh katalog. Analisis market-fit untuk mempersempit."}
               </p>
+              <p className="mt-0.5 text-[11px] text-primary/90">
+                Centang teknik untuk memakainya — langsung tersimpan ke Sales Play.
+              </p>
             </div>
             <Button size="sm" variant="outline" className="h-8" onClick={openSalesPlayDialog}>
-              <Lightbulb className="h-3.5 w-3.5" /> Atur teknik
+              <Lightbulb className="h-3.5 w-3.5" /> Atur channel &amp; tone
             </Button>
           </CardHeader>
           <CardContent>
@@ -1647,7 +1657,18 @@ export default function WorkspaceHubPage() {
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <p className="font-semibold leading-tight text-foreground/90">{t.name}</p>
+                          <label className="flex min-w-0 cursor-pointer items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={inPlay}
+                              disabled={saveSalesPlay.isPending}
+                              onChange={() => toggleTechnique(t.key)}
+                              className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-primary disabled:opacity-60"
+                            />
+                            <span className="font-semibold leading-tight text-foreground/90">
+                              {t.name}
+                            </span>
+                          </label>
                           {inPlay && (
                             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
                               <Zap className="h-2.5 w-2.5" /> dipakai
@@ -1695,12 +1716,90 @@ export default function WorkspaceHubPage() {
         </Card>
         )}
 
-        {/* ============ (6) RELATED MODULES ============ */}
+        {/* ============ (6) WORKSPACE SETTINGS + RELATED MODULES ============ */}
         {wsTab === "lainnya" && (
         <>
+        {/* Editable workspace settings — name / goal / target segment / status.
+            The backend (PATCH /api/workspace/[id]) always accepted these; the UI
+            never surfaced targetSegment or status until now. */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              <Settings2 className="h-4 w-4 text-primary" /> Pengaturan workspace
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              Ubah nama, tujuan, target segmen, dan status workspace ini. 1 workspace = 1 produk.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nama workspace</Label>
+                <Input
+                  value={setName_}
+                  onChange={(e) => setSetName(e.target.value)}
+                  placeholder="Nama workspace"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tujuan workspace</Label>
+                <Select value={setType_} onValueChange={setSetType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lead_gen">Cari lead</SelectItem>
+                    <SelectItem value="partner">Cari partner</SelectItem>
+                    <SelectItem value="offering">Penawaran</SelectItem>
+                    <SelectItem value="retention">Follow-up retensi</SelectItem>
+                    <SelectItem value="custom">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Target segmen (opsional)</Label>
+                <Input
+                  value={setTarget_}
+                  onChange={(e) => setSetTarget(e.target.value)}
+                  placeholder="mis. UMKM F&B Jakarta"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <Select value={setStatus_} onValueChange={setSetStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="archived">Diarsipkan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetSettings}
+                disabled={saveSettings.isPending || !settingsDirty}
+              >
+                Reset
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => saveSettings.mutate()}
+                disabled={saveSettings.isPending || !setName_.trim() || !settingsDirty}
+              >
+                {saveSettings.isPending ? "Menyimpan…" : "Simpan pengaturan"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <section>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Lainnya (modul terkait workspace)
+            Modul terkait workspace
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
