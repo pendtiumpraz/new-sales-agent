@@ -1,7 +1,7 @@
 import { and, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
+import { withTenant, withUserContext, type TenantContext } from "@/lib/db/tenant-context";
 import {
   tenantTable,
   appUserTable,
@@ -208,12 +208,16 @@ export const tenantRepo = {
    * a TenantContext exists, so it deliberately runs unscoped on the global `db`.
    */
   async firstMembershipForUser(userId: string): Promise<MembershipRow | undefined> {
-    const [row] = await db
-      .select()
-      .from(membershipTable)
-      .where(and(eq(membershipTable.userId, userId), isNull(membershipTable.deletedAt)))
-      .orderBy(desc(membershipTable.createdAt))
-      .limit(1);
+    // Pre-tenant (login) read: set app.user_id so the membership RLS policy
+    // (user_id = app.user_id) resolves the user's tenant under the app_user role.
+    const [row] = await withUserContext(userId, (tx) =>
+      tx
+        .select()
+        .from(membershipTable)
+        .where(and(eq(membershipTable.userId, userId), isNull(membershipTable.deletedAt)))
+        .orderBy(desc(membershipTable.createdAt))
+        .limit(1),
+    );
     return row;
   },
 
