@@ -563,6 +563,19 @@ async function patchBufferByUrl(url, patch, collKey = "buffer") {
   await chrome.storage.local.set({ [collKey]: coll });
 }
 
+// Same as patchBufferByUrl but for the COMPANY buffer, matched by name (Maps
+// companies carry no URL key). Only non-empty patch values overwrite.
+async function patchCompanyByName(name, patch) {
+  if (!name) return;
+  const clean = {};
+  for (const [k, v] of Object.entries(patch)) if (v !== undefined && v !== null && v !== "") clean[k] = v;
+  if (!Object.keys(clean).length) return;
+  const key = String(name).toLowerCase();
+  const st = await state();
+  const companies = (st.companies || []).map((x) => (String(x.name || "").toLowerCase() === key ? { ...x, ...clean } : x));
+  await chrome.storage.local.set({ companies });
+}
+
 async function runEnrichPlatform(platform) {
   const c = await cfg();
   if (!PLATFORM_SCHEMAS[platform]) return setStatus("Platform tak didukung untuk enrich: " + platform);
@@ -786,6 +799,213 @@ async function runDeepEnrich() {
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`Deep enrich selesai — ${done} lead, ${hit} dapat kontak. Run lagi untuk sisa buffer.`);
+  await maybeAutoDownloadCsv();
+}
+
+// ── Google Maps channel (Level-1 discovery of B2B companies / PT) ─────────────
+// WIP — Google Maps' DOM is heavily obfuscated + A/B-tested, so the selectors here
+// are BEST-EFFORT and will likely need tuning on the first real run (the popup
+// status flags this). Flow: open the Maps results page → scroll the results FEED
+// to the "end of list" sentinel (Google caps ~120 results/query — expected) →
+// scrape name/address/phone/website per card → keep only Indonesian MOBILE (HP)
+// numbers → map to companies[] + company contactPoints[] → buffer + ingest → feed
+// each website into a Maps email-hunt (email is never on Maps → scrape the site).
+
+// Keep Indonesian MOBILE (HP) numbers; DROP landlines (0 + area code, 2nd digit≠8
+// like 021/022/031/0274/061…). Mobile matches ^(\+?62|0)8\d{7,11}$. Returns the
+// number normalized to "+628…", or "" if it's a landline / unrecognized.
+function normalizeMobileId(raw) {
+  if (!raw) return "";
+  const d = String(raw).replace(/[^\d+]/g, ""); // keep digits + a leading +
+  let local;
+  if (d.startsWith("+62")) local = "0" + d.slice(3);
+  else if (d.startsWith("62")) local = "0" + d.slice(2);
+  else if (d.startsWith("0")) local = d;
+  else return "";
+  if (!/^08\d{7,11}$/.test(local)) return ""; // 08 + 7..11 digits = HP; 021/0274/… dropped
+  return "+62" + local.slice(1);
+}
+
+// Injected into the Maps tab (isolated world) — MUST be fully self-contained (no
+// outer refs). Scrolls div[role="feed"] to the end, then extracts one record per
+// result card. Degrades gracefully: never throws, returns whatever it got.
+async function scrapeMapsInPage() {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
+  const feed = document.querySelector('div[role="feed"]');
+  const END_RE = /(telah mencapai akhir daftar|reached the end of the list|akhir daftar|end of the list)/i;
+  let reachedEnd = false, scrolls = 0;
+  if (feed) {
+    let stagnant = 0, last = 0;
+    for (let i = 0; i < 80 && stagnant < 6; i++) {
+      scrolls++;
+      feed.scrollTo(0, feed.scrollHeight);
+      const kids = feed.children; // Maps virtualizes — nudge the last child into view too
+      if (kids.length) { try { kids[kids.length - 1].scrollIntoView({ block: "end" }); } catch (e) {} }
+      await sleep(800 + Math.random() * 700);
+      if (END_RE.test(feed.innerText || "") || END_RE.test(document.body.innerText || "")) { reachedEnd = true; break; }
+      const n = feed.querySelectorAll('a[href*="/maps/place/"]').length;
+      if (n <= last) stagnant++; else stagnant = 0; // no new items after several tries → stop
+      last = n;
+      if (n >= 150) break; // safety cap (Google itself caps ~120/query)
+    }
+  }
+  const scope = feed || document;
+  const links = Array.from(scope.querySelectorAll('a[href^="https://www.google.com/maps/place"], a[href*="/maps/place/"]'));
+  const listings = [];
+  const seen = new Set();
+  for (const link of links) {
+    const mapUrl = (link.href || "").split("?")[0];
+    const name = clean(link.getAttribute("aria-label") || link.textContent);
+    if (!name || !mapUrl || seen.has(mapUrl)) continue;
+    seen.add(mapUrl);
+    const card = link.closest('[role="article"]') || link.parentElement || link;
+    const cardText = card ? clean(card.innerText) : "";
+    // website: explicit "Website"/"Situs"/authority action, else first external (non-google) anchor.
+    let website = "";
+    if (card) {
+      const wa = card.querySelector('a[data-item-id="authority"], a[data-value="Website"], a[aria-label*="ebsite"], a[aria-label*="Situs"]');
+      if (wa && wa.href) website = wa.href;
+      if (!website) {
+        const ext = Array.from(card.querySelectorAll('a[href^="http"]')).find((a) => {
+          try { const h = new URL(a.href).hostname; return h && !/(^|\.)google\.|gstatic\.|schema\.org|ggpht\./i.test(h); } catch (e) { return false; }
+        });
+        if (ext) website = ext.href;
+      }
+    }
+    // phone: tel: link / data-item-id (detail panel), else regex over the card text.
+    let phone = "";
+    if (card) {
+      const tp = card.querySelector('a[href^="tel:"], button[data-item-id^="phone"], a[data-item-id^="phone"]');
+      if (tp) phone = (tp.getAttribute("href") || tp.getAttribute("data-item-id") || tp.textContent || "").replace(/^tel:/i, "").replace(/^phone:tel:/i, "");
+    }
+    if (!phone && cardText) {
+      const pm = cardText.match(/(?:\+?62|0)[\s-]?8[1-9][0-9\s-]{6,13}/);
+      if (pm) phone = pm[0];
+    }
+    // address: best-effort — a card-text segment that looks like an Indonesian address.
+    let address = "";
+    if (cardText) {
+      const parts = cardText.split(/·|\n/).map((s) => s.trim()).filter(Boolean);
+      address = parts.find((s) => /\b(Jl\.?|Jalan|No\.?\s?\d|Kec\.|Kel\.|Kota|Kab\.|Ruko|Blok|Komplek|Gg\.?|RT|RW)\b/i.test(s)) || "";
+    }
+    listings.push({ name, mapUrl, website, phone, address });
+    if (listings.length >= 150) break;
+  }
+  return { listings, reachedEnd, scrolls, count: listings.length };
+}
+
+async function runMapsSearch(query) {
+  const c = await cfg();
+  const q = (query || c.query || "").trim();
+  if (!q) return setStatus("Isi query dulu (mis. 'distributor kabel Surabaya').");
+  const tab = await activeLinkedInTab();
+  if (!tab) return setStatus("Buka 1 tab browser lalu mulai — Maps akan dibuka otomatis.");
+  const url = "https://www.google.com/maps/search/" + encodeURIComponent(q);
+  await setStatus(`Google Maps: "${q}" — buka + scroll daftar hasil (bisa lama)…`);
+  await chrome.tabs.update(tab.id, { url });
+  await waitForComplete(tab.id);
+  await sleep(jitter(3500, 6500)); // Maps SPA render before scraping
+  let out = null;
+  try {
+    const r = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: scrapeMapsInPage });
+    out = r && r[0] && r[0].result ? r[0].result : null;
+  } catch (e) {
+    return setStatus("Maps gagal di-scrape (" + String(e && e.message ? e.message : e) + ") — selector mungkin perlu disesuaikan.");
+  }
+  const listings = (out && out.listings) || [];
+  if (!listings.length) return setStatus("Maps: 0 listing ke-ambil — selector mungkin perlu disesuaikan (DOM Maps berubah).");
+
+  const companies = [];
+  const contactPoints = [];
+  const deepTargets = [];
+  const seenName = new Set();
+  let hp = 0;
+  for (const L of listings) {
+    const name = clean(L.name);
+    if (!name || seenName.has(name.toLowerCase())) continue;
+    seenName.add(name.toLowerCase());
+    let domain = "";
+    if (L.website) { try { domain = new URL(L.website).hostname.replace(/^www\./, ""); } catch (e) {} }
+    companies.push({
+      name,
+      domain: domain || undefined,
+      summary: L.address || undefined, // address → company summary/location
+      source: "maps",
+      capturedMode: "maps",
+      sourceUrl: L.website || L.mapUrl || undefined,
+    });
+    const mob = normalizeMobileId(L.phone); // MOBILE (HP) only — landlines dropped
+    if (mob) { hp++; contactPoints.push({ ownerType: "company", companyName: name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps" }); }
+    if (L.website) deepTargets.push({ name, website: L.website });
+  }
+
+  await addLeads([], companies); // buffer for local CSV + dedup
+  // One POST: the route inserts companies BEFORE contactPoints in the same tx, so
+  // each mobile HP links to its PT by dedup-key. ingest() auto-tags the picked
+  // workspace (doc 44). (A later alarm flush() re-sends the buffer — idempotent upsert.)
+  await ingest({ origin: "extension", companies, contactPoints });
+
+  // Queue each company website for the Maps email hunt (email is never on Maps).
+  if (deepTargets.length) {
+    const { mapsDeepQueue = [] } = await chrome.storage.local.get("mapsDeepQueue");
+    const seenW = new Set(mapsDeepQueue.map((t) => t.website));
+    for (const t of deepTargets) if (!seenW.has(t.website)) { seenW.add(t.website); mapsDeepQueue.push(t); }
+    await chrome.storage.local.set({ mapsDeepQueue });
+  }
+
+  const endNote = out && out.reachedEnd ? "akhir daftar" : `${out ? out.scrolls : 0}x scroll`;
+  await setStatus(`Maps: ${companies.length} listing (${endNote}) → dikirim · ${hp} HP mobile · ${deepTargets.length} situs utk email (selector mungkin perlu disesuaikan).`);
+  await maybeAutoDownloadCsv();
+
+  // Auto-hunt emails from each company website (reuses the Deep-Enrich crawler).
+  if (c.autoEnrich !== false && deepTargets.length) await runMapsDeepEnrich();
+}
+
+// Scrape email/HP from each queued company WEBSITE, reusing the Deep-Enrich path
+// (navAndExtract → extractContactsInPage + deepAnalyzeContacts). COMPANY-scoped:
+// results are ownerType:"company" contactPoints (Maps unit = the PT/business).
+// Without a DeepSeek key it still works — falls back to the first plausible email.
+async function runMapsDeepEnrich() {
+  const c = await cfg();
+  if (c.postureMode === "aggressive" && !c.consent) return setStatus("Posture aggressive butuh consent (centang di popup).");
+  const tab = await activeLinkedInTab();
+  if (!tab) return setStatus("Buka 1 tab browser lalu mulai Maps email hunt.");
+  const { mapsDeepQueue = [] } = await chrome.storage.local.get("mapsDeepQueue");
+  const pending = mapsDeepQueue.filter((t) => t && t.website && !t.done);
+  if (!pending.length) return setStatus("Maps email: tak ada situs untuk discan.");
+  await chrome.storage.local.set({ running: true });
+  const batch = pending.slice(0, Math.min(c.maxPages || 5, 15));
+  let done = 0, hit = 0;
+  for (const t of batch) {
+    if (!(await state()).running) break;
+    await setStatus(`Maps email ${done + 1}/${batch.length}: ${t.name}…`);
+    const r = await navAndExtract(tab.id, t.website); // reuses extractContactsInPage
+    let email = "", phoneRaw = "";
+    if (r.ok) {
+      if (c.deepseekKey) {
+        const resolved = await deepAnalyzeContacts(c.deepseekKey, { name: t.name, company: t.name }, [{ source: "website", url: r.url, text: r.text, emails: r.emails, phones: r.phones }]);
+        email = resolved.email || ""; phoneRaw = resolved.phone || resolved.whatsapp || "";
+      }
+      if (!email && (r.emails || []).length) email = r.emails.find((e) => !/^(no-?reply|postmaster|mailer|abuse)/i.test(e)) || r.emails[0];
+      if (!phoneRaw && (r.phones || []).length) phoneRaw = r.phones[0];
+    }
+    const cps = [];
+    if (email) cps.push({ ownerType: "company", companyName: t.name, channel: "email", value: email, consentStatus: "unknown", source: "maps-website" });
+    const mob = normalizeMobileId(phoneRaw);
+    if (mob) cps.push({ ownerType: "company", companyName: t.name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps-website" });
+    if (cps.length) {
+      hit++;
+      await ingest({ origin: "extension", companies: [{ name: t.name, source: "maps", capturedMode: "maps" }], contactPoints: cps });
+      await patchCompanyByName(t.name, { email, phone: mob || undefined }); // fold onto the CSV row
+    }
+    t.done = true;
+    await chrome.storage.local.set({ mapsDeepQueue });
+    done++;
+    await sleep(jitter(3000, 6000)); // gentle pacing (a company's own site → low ToS risk)
+  }
+  await chrome.storage.local.set({ running: false });
+  await setStatus(`Maps email selesai — ${done} situs discan, ${hit} dapat email/HP. Run lagi untuk sisa.`);
   await maybeAutoDownloadCsv();
 }
 
@@ -1097,6 +1317,13 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
         return sendResponse({ ok: true });
       case "PLATFORM_ENRICH":
         runEnrichPlatform(msg.platform);
+        return sendResponse({ ok: true });
+      // Google Maps channel — find B2B companies/PT, then hunt emails from their sites.
+      case "MAPS_SEARCH":
+        runMapsSearch(msg.query);
+        return sendResponse({ ok: true });
+      case "MAPS_ENRICH":
+        runMapsDeepEnrich();
         return sendResponse({ ok: true });
       // Manual "⬇ Unduh CSV" (B2B / B2C / perusahaan) from the popup.
       case "DOWNLOAD_CSV":

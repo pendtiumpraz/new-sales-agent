@@ -139,6 +139,7 @@ export interface IngestCompanyInput {
   domain?: string | null;
   address?: string | null;
   industry?: string | null; // free-text label (as captured); classify resolves industry_id
+  size?: string | null; // headcount band (as captured)
   summary?: string | null;
 }
 
@@ -146,14 +147,33 @@ export interface IngestCompanyInput {
 export interface IngestPersonInput {
   fullName: string;
   title?: string | null;
+  department?: string | null;
+  seniority?: string | null;
   phone?: string | null;
   email?: string | null;
   whatsapp?: string | null;
   location?: string | null;
+  summary?: string | null; // profile summary / about (crawled/enriched)
   channelProfileUrl?: string | null; // the person's profile/handle URL on this channel
   socials?: Record<string, string> | null;
   /** Links to an IngestCompanyInput by `name` or `domain` (graph edge). */
   companyRef?: { name?: string | null; domain?: string | null } | null;
+  // Pre-classification carried by the caller (the extension is the primary
+  // analyzer). Only set when actually classified — an unclassified person leaves
+  // these undefined so a re-crawl never clobbers a prior analysis.
+  segment?: string | null; // b2c|b2b|unknown
+  fitScore?: number | null; // 0..1
+  fitReason?: string | null;
+  /** Per-person provenance override (else the batch source is stamped). */
+  source?: string | null;
+  /**
+   * Enrichment stage for merge semantics:
+   *   true  (Stage 2 enriched) → the payload OVERWRITES existing fields.
+   *   false (Stage 1 pending)  → the payload only FILLS NULLS (never clobbers).
+   *   undefined                → default OVERWRITE (web-discovery re-ingest).
+   * Also drives the contact's `enrichment_status` (enriched/pending) on create.
+   */
+  enriched?: boolean;
 }
 
 /**
@@ -208,7 +228,7 @@ function clamp01(n: number): number {
 // implied by a business identity (a company + a job title / business email /
 // professional social); b2c by a bare personal handle. fit_score rewards how much
 // actionable, on-channel signal the profile carries.
-interface ClassifySignals {
+export interface ClassifySignals {
   companyName?: string | null;
   title?: string | null;
   email?: string | null;
@@ -219,7 +239,13 @@ interface ClassifySignals {
 
 const FREE_EMAIL = /@(gmail|yahoo|ymail|hotmail|outlook|icloud|proton(mail)?|aol)\./i;
 
-function classifySignals(s: ClassifySignals): {
+/**
+ * Offline B2C/B2B + fit_score heuristic (no AI, deterministic). Exported so the
+ * extension-crawl ingest route can reuse THIS rebuild classifier as its server-side
+ * FALLBACK for enriched-but-unclassified leads (replacing the legacy `classifyLead`
+ * that wrote the orphaned `person` table).
+ */
+export function classifySignals(s: ClassifySignals): {
   classification: (typeof CLASSIFICATIONS)[number];
   fitScore: number;
   fitReason: string;
@@ -854,6 +880,7 @@ export const enrichmentService = {
             name,
             domain: domain ?? existing.domain ?? undefined,
             industry: c.industry ?? existing.industry ?? undefined,
+            size: c.size ?? existing.size ?? undefined,
             summary: c.summary ?? existing.summary ?? undefined,
             socials: Object.keys(bag).length ? { ...(existing.socials ?? {}), ...bag } : undefined,
             source: existing.source ?? source,
@@ -863,6 +890,7 @@ export const enrichmentService = {
             name,
             domain,
             industry: c.industry ?? null,
+            size: c.size ?? null,
             summary: c.summary ?? null,
             socials: Object.keys(bag).length ? bag : null,
             source,
@@ -901,34 +929,61 @@ export const enrichmentService = {
         const socials: Record<string, string> = { ...(p.socials ?? {}) };
         if (p.channelProfileUrl?.trim()) socials[channel] = p.channelProfileUrl.trim();
 
+        // Merge direction: enriched (Stage 2) OVERWRITES with the new value when
+        // present; pending (Stage 1) only FILLS NULLS (existing wins). undefined =
+        // the current web-discovery behaviour (overwrite-if-present).
+        const merge = <T>(nv: T | null | undefined, ev: T | null | undefined): T | undefined =>
+          p.enriched === false ? (ev ?? nv ?? undefined) : (nv ?? ev ?? undefined);
+
         const existing = await crmRepo.findContactByNameInCompany(ctx, fullName, companyId);
         let contact: ContactRow;
         if (existing) {
-          contact = await crmService.updateContact(ctx, existing.id, {
+          const patch: Parameters<typeof crmService.updateContact>[2] = {
             companyId: companyId ?? existing.companyId ?? undefined,
             workspaceId: workspaceId ?? existing.workspaceId ?? undefined,
-            title: p.title ?? existing.title ?? undefined,
-            email: p.email ?? existing.email ?? undefined,
-            phone: p.phone ?? existing.phone ?? undefined,
-            whatsapp: p.whatsapp ?? existing.whatsapp ?? undefined,
-            location: p.location ?? existing.location ?? undefined,
+            title: merge(p.title, existing.title),
+            department: merge(p.department, existing.department),
+            seniority: merge(p.seniority, existing.seniority),
+            email: merge(p.email, existing.email),
+            phone: merge(p.phone, existing.phone),
+            whatsapp: merge(p.whatsapp, existing.whatsapp),
+            location: merge(p.location, existing.location),
+            summary: merge(p.summary, existing.summary),
             socials: Object.keys(socials).length ? { ...(existing.socials ?? {}), ...socials } : undefined,
             ownerUserId: existing.ownerUserId ?? ownerUserId ?? undefined,
-            source: existing.source ?? source,
-          });
+            source: existing.source ?? p.source ?? source,
+          };
+          // AI classification only overwrites when the caller actually classified
+          // this person (don't null out a prior analysis on a bare re-crawl).
+          if (p.segment) patch.segment = p.segment;
+          if (typeof p.fitScore === "number") patch.fitScore = p.fitScore;
+          if (p.fitReason) patch.fitReason = p.fitReason;
+          // Never downgrade an enriched contact back to pending.
+          if (p.enriched === true) patch.enrichmentStatus = "enriched";
+          contact = await crmService.updateContact(ctx, existing.id, patch);
         } else {
           contact = await crmService.createContact(ctx, {
             fullName,
             companyId,
             workspaceId,
             title: p.title ?? null,
+            department: p.department ?? null,
+            seniority: p.seniority ?? null,
             email: p.email ?? null,
             phone: p.phone ?? null,
             whatsapp: p.whatsapp ?? null,
             location: p.location ?? null,
+            summary: p.summary ?? null,
             socials: Object.keys(socials).length ? socials : null,
+            // Default to "unknown" (not the enum's first value "b2c") when the
+            // caller didn't classify — a bare crawl shouldn't assert a segment.
+            segment: p.segment ?? "unknown",
+            fitScore: p.fitScore ?? null,
+            fitReason: p.fitReason ?? null,
+            enrichmentStatus:
+              p.enriched === true ? "enriched" : p.enriched === false ? "pending" : undefined,
             ownerUserId,
-            source,
+            source: p.source ?? source,
           });
           peopleCreated++;
         }

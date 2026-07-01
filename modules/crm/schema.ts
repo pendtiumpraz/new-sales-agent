@@ -97,6 +97,9 @@ export const contactTable = pgTable(
     whatsapp: text("whatsapp"),
     city: text("city"),
     location: text("location"),
+    // Free-text profile summary (crawled/enriched — e.g. LinkedIn "about" or the
+    // extension's in-page AI profileSummary). Added by 0047 (additive, nullable).
+    summary: text("summary"),
     channelPreference: text("channel_preference"),
     socials: jsonb("socials").$type<Record<string, string>>(),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),

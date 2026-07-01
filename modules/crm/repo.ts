@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, type AnyColumn } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, sql, type AnyColumn } from "drizzle-orm";
 
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import {
@@ -381,6 +381,32 @@ export const crmRepo = {
         .limit(1),
     );
     return row;
+  },
+
+  /**
+   * Of a set of profile/source URLs, return the subset that is stored as a
+   * `socials` value on an ENRICHED live contact in this tenant. Set-based via a
+   * LATERAL `jsonb_each_text` so the URL filter runs in the DB (not row-by-row in
+   * app code). Powers the extension's `existingEnriched` skip-signal after ingest.
+   */
+  async findEnrichedProfileUrls(ctx: TenantContext, urls: string[]): Promise<string[]> {
+    const clean = Array.from(
+      new Set(urls.map((u) => u?.trim()).filter((u): u is string => !!u)),
+    );
+    if (clean.length === 0) return [];
+    const res = await withTenant(ctx, (tx) =>
+      tx.execute(sql`
+        select distinct s.value as url
+        from ${contactTable} c
+        cross join lateral jsonb_each_text(c.socials) as s(key, value)
+        where c.tenant_id = ${ctx.tenantId}
+          and c.deleted_at is null
+          and c.enrichment_status = 'enriched'
+          and c.socials is not null
+          and s.value = any(${clean}::text[])
+      `),
+    );
+    return (res.rows as { url: string }[]).map((r) => r.url).filter(Boolean);
   },
 
   async insertContact(ctx: TenantContext, values: ContactInsert): Promise<ContactRow> {

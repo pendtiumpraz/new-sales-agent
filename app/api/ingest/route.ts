@@ -1,26 +1,31 @@
 import { NextResponse } from "next/server";
-import { sql, eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
-import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
+import { type TenantContext } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { companyTable, personTable, contactPointTable, ingestBatchTable } from "@/lib/db/schema";
-import {
-  stableId,
-  companyDedupKey,
-  personDedupKey,
-  contactPointDedupKey,
-} from "@/lib/profiling/dedup";
 import { resolveRepByToken } from "@/lib/team/rep-account";
-import { classifyLead } from "@/lib/engagement/classify";
-import { salutationFor } from "@/lib/profiling/salutation";
+import { ServiceError } from "@/modules/_shared/api";
+import { crmService } from "@/modules/crm/service";
+import {
+  enrichmentService,
+  classifySignals,
+  type IngestCompanyInput,
+  type IngestPersonInput,
+} from "@/modules/enrichment/service";
 
 export const runtime = "nodejs";
 
-// Ingest sink for crawled / extension-synced data (doc 21). Idempotent: ids are
-// derived from per-tenant dedup keys, so re-ingest upserts instead of duplicating.
+// Ingest sink for crawled / extension-synced data (doc 21). REROUTED to the REBUILD
+// graph: this endpoint used to write the orphaned legacy `company`/`person`/
+// `contact_point` tables; it now persists into the SAME channel-agnostic sink the
+// web discovery uses (`enrichmentService.ingestGraph` → `company_v2` / `contact`),
+// so extension-crawled leads show up in Kontak + the workspace. Idempotent: the sink
+// upserts (company by domain/name, person by name-in-company), so a re-crawl updates
+// instead of duplicating. Enriched (Stage 2) payloads overwrite; pending (Stage 1)
+// re-crawls only fill nulls. The auth + response contract the extension relies on is
+// preserved verbatim ({ ok, count, analyzed, existingEnriched, source }).
 const Body = z.object({
   origin: z.enum(["mcp", "extension", "manual"]).default("manual"),
   // Workspace scope (doc 44): when the crawl is run for a specific workspace, every
@@ -90,6 +95,60 @@ const Body = z.object({
     .optional(),
 });
 
+const norm = (s?: string | null): string => (s ?? "").trim().toLowerCase();
+
+// Legacy free-text `source` label → the rebuild sink's channel enum (CHANNELS).
+function toChannel(src?: string | null): string {
+  const s = norm(src);
+  if (s.includes("linkedin")) return "linkedin";
+  if (s.includes("googlemaps") || s.includes("google_maps") || s.includes("maps")) return "google_maps";
+  if (s.includes("google")) return "google";
+  if (s.includes("instagram") || s === "ig") return "instagram";
+  if (s.includes("facebook") || s === "fb") return "facebook";
+  if (s.includes("tiktok")) return "tiktok";
+  if (s.includes("shopee")) return "shopee";
+  if (s.includes("tokopedia")) return "tokopedia";
+  if (s.includes("marketplace")) return "marketplace";
+  if (s === "manual" || s === "directory" || s === "web") return s;
+  return "web";
+}
+
+// Which rebuild `contact` field a contact-point channel maps to.
+function channelKind(ch: string): "whatsapp" | "email" | "phone" | "social" {
+  const c = norm(ch);
+  if (c === "whatsapp" || c === "wa") return "whatsapp";
+  if (c === "email" || c === "mail" || c === "e-mail") return "email";
+  if (["phone", "telp", "telepon", "telephone", "mobile", "hp", "tel"].includes(c)) return "phone";
+  return "social";
+}
+
+// leadScore (0..1 confidence, or occasionally a 0..100 scale) → fit_score (0..1).
+function normalizeScore(n?: number | null): number | null {
+  if (typeof n !== "number" || !Number.isFinite(n)) return null;
+  const v = n > 1 ? n / 100 : n;
+  return Math.max(0, Math.min(1, Number(v.toFixed(4))));
+}
+
+// leadType (b2b_partner|b2c_customer|unknown) → contact.segment (b2b|b2c|unknown).
+function segmentFromLeadType(lt?: string | null): "b2b" | "b2c" | "unknown" | undefined {
+  if (!lt) return undefined;
+  const s = norm(lt);
+  if (s.startsWith("b2b")) return "b2b";
+  if (s.startsWith("b2c")) return "b2c";
+  if (s === "unknown") return "unknown";
+  return undefined;
+}
+
+interface PersonBag {
+  name: string;
+  companyName?: string;
+  companyDomain?: string;
+  whatsapp?: string;
+  email?: string;
+  phone?: string;
+  socials: Record<string, string>;
+}
+
 export async function POST(req: Request) {
   // Auth: an ingest token (Chrome extension / MCP — no session) OR a logged-in
   // session with data.write. The token maps to a configured tenant (doc 21).
@@ -121,195 +180,181 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
   }
   const b = parsed.data;
-  const T = ctx.tenantId;
-  const wsId = b.workspaceId ?? null; // doc 44 — workspace tag for this whole batch
-  const coId = (name: string, domain?: string) => stableId("co", companyDedupKey({ tenantId: T, name, domain: domain ?? null }));
 
-  // FALLBACK classify only: people with a track record but NO extension-provided
-  // classification. The extension (which can actually read LinkedIn) is the primary
-  // analyzer; the server can't log in, so it only fills gaps (doc 40).
-  const needsServerClassify: { id: string; fullName: string; title?: string | null; companyName?: string | null; experience?: { title?: string; company?: string; period?: string }[] }[] = [];
-
-  try {
-    let count = 0;
-    await withTenant(ctx, async (tx) => {
-      for (const c of b.companies ?? []) {
-        await tx
-          .insert(companyTable)
-          .values({
-            id: coId(c.name, c.domain),
-            tenantId: T,
-            name: c.name,
-            domain: c.domain ?? null,
-            industry: c.industry ?? null,
-            size: c.size ?? null,
-            summary: c.summary ?? null,
-            source: c.source ?? b.origin,
-            sourceUrl: c.sourceUrl ?? null,
-            capturedMode: c.capturedMode ?? null,
-            updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: companyTable.id,
-            set: { name: c.name, industry: c.industry ?? null, summary: c.summary ?? null, updatedAt: new Date() },
-          });
-        count++;
+  // 1) Fold contact-points into the person/company they belong to. The rebuild
+  //    `contact` carries whatsapp/email/phone as first-class columns (+ socials for
+  //    other channels), so a separate contact_point table is no longer written.
+  const personBags = new Map<string, PersonBag>();
+  const companyBags = new Map<string, { phone?: string; email?: string; address?: string }>();
+  for (const cp of b.contactPoints ?? []) {
+    const kind = channelKind(cp.channel);
+    if (cp.ownerType === "person") {
+      const key = norm(cp.personName);
+      if (!key) continue;
+      let bag = personBags.get(key);
+      if (!bag) {
+        bag = { name: cp.personName ?? key, socials: {} };
+        personBags.set(key, bag);
       }
-
-      for (const p of b.people ?? []) {
-        const companyId = p.companyName || p.companyDomain ? coId(p.companyName ?? "", p.companyDomain) : null;
-        const id = stableId("pe", personDedupKey({ tenantId: T, companyId, fullName: p.fullName }));
-        const hasExp = !!(p.experience && p.experience.length);
-        const isEnriched = p.enriched === true || p.status === "enriched" || hasExp;
-        const status = p.status ?? (isEnriched ? "enriched" : "pending");
-        // extension already classified → don't queue server fallback (saves AI + the
-        // server can't see LinkedIn anyway). Queue only enriched-but-unclassified.
-        if (hasExp && !p.leadType) {
-          needsServerClassify.push({ id, fullName: p.fullName, title: p.title, companyName: p.companyName, experience: p.experience });
-        }
-        // Only set AI fields the extension actually sent (don't null out a prior analysis).
-        const aiSet = {
-          ...(p.leadType ? { leadType: p.leadType } : {}),
-          ...(typeof p.leadScore === "number" ? { leadScore: p.leadScore } : {}),
-          ...(p.leadReason ? { leadReason: p.leadReason } : {}),
-          ...(p.profileSummary ? { profileSummary: p.profileSummary } : {}),
-          ...(typeof p.profileConfidence === "number" ? { profileConfidence: p.profileConfidence } : {}),
-          ...(p.socials ? { socials: p.socials } : {}),
-        };
-        await tx
-          .insert(personTable)
-          .values({
-            id,
-            tenantId: T,
-            companyId,
-            fullName: p.fullName,
-            title: p.title ?? null,
-            department: p.department ?? null,
-            seniority: p.seniority ?? null,
-            location: p.location ?? null,
-            linkedinUrl: p.linkedinUrl ?? null,
-            about: p.about ?? null,
-            experience: p.experience ?? [],
-            status,
-            ...(wsId ? { workspaceId: wsId } : {}), // doc 44 — workspace tag
-            ...aiSet,
-            ...(assignTo ? { assignedTo: assignTo } : {}), // per-rep attribution (doc 41)
-            source: p.source ?? b.origin,
-            sourceUrl: p.linkedinUrl ?? p.sourceUrl ?? null, // contactable link for any platform
-            capturedAt: new Date(), // crawl date (doc 40) — drives the >1yr stale warning
-            updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: personTable.id,
-            set: {
-              // Enriched payload (Stage 2) overwrites with better data; a pending
-              // re-crawl (Stage 1) only fills nulls so it never clobbers enrichment.
-              title: isEnriched ? p.title ?? null : sql`coalesce(${personTable.title}, ${p.title ?? null})`,
-              department: isEnriched ? p.department ?? null : sql`coalesce(${personTable.department}, ${p.department ?? null})`,
-              location: isEnriched ? p.location ?? null : sql`coalesce(${personTable.location}, ${p.location ?? null})`,
-              linkedinUrl: sql`coalesce(${personTable.linkedinUrl}, ${p.linkedinUrl ?? null})`,
-              sourceUrl: sql`coalesce(${personTable.sourceUrl}, ${p.linkedinUrl ?? p.sourceUrl ?? null})`,
-              about: isEnriched ? p.about ?? null : sql`coalesce(${personTable.about}, ${p.about ?? null})`,
-              // never downgrade an enriched row back to pending
-              ...(isEnriched ? { status: "enriched" } : {}),
-              // only overwrite experience when the new payload actually has it
-              ...(hasExp ? { experience: p.experience } : {}),
-              ...(wsId ? { workspaceId: wsId } : {}),
-              ...aiSet,
-              // claim ownership only if the lead is still unassigned (don't steal)
-              ...(assignTo ? { assignedTo: sql`coalesce(${personTable.assignedTo}, ${assignTo})` } : {}),
-              capturedAt: new Date(), // refresh crawl date on re-crawl
-              updatedAt: new Date(),
-            },
-          });
-        count++;
+      if (cp.companyName && !bag.companyName) bag.companyName = cp.companyName;
+      if (cp.companyDomain && !bag.companyDomain) bag.companyDomain = cp.companyDomain;
+      if (kind === "whatsapp") bag.whatsapp ??= cp.value;
+      else if (kind === "email") bag.email ??= cp.value;
+      else if (kind === "phone") bag.phone ??= cp.value;
+      else bag.socials[cp.channel] = cp.value;
+    } else {
+      const key = norm(cp.companyDomain) || norm(cp.companyName);
+      if (!key) continue;
+      let bag = companyBags.get(key);
+      if (!bag) {
+        bag = {};
+        companyBags.set(key, bag);
       }
+      if (kind === "email") bag.email ??= cp.value;
+      else if (kind === "whatsapp" || kind === "phone") bag.phone ??= cp.value;
+    }
+  }
 
-      for (const cp of b.contactPoints ?? []) {
-        const companyId = cp.companyName || cp.companyDomain ? coId(cp.companyName ?? "", cp.companyDomain) : "";
-        const ownerId =
-          cp.ownerType === "company"
-            ? companyId
-            : stableId("pe", personDedupKey({ tenantId: T, companyId: companyId || null, fullName: cp.personName ?? "" }));
-        if (!ownerId) continue;
-        const id = stableId(
-          "cp",
-          contactPointDedupKey({ tenantId: T, ownerType: cp.ownerType, ownerId, channel: cp.channel, value: cp.value }),
-        );
-        await tx
-          .insert(contactPointTable)
-          .values({
-            id,
-            tenantId: T,
-            ownerType: cp.ownerType,
-            ownerId,
-            channel: cp.channel,
-            value: cp.value,
-            consentStatus: cp.consentStatus ?? "unknown",
-            source: cp.source ?? b.origin,
-            updatedAt: new Date(),
-          })
-          .onConflictDoNothing();
-        count++;
-      }
+  // 2) Companies → company_v2 (name/domain/industry/size/summary + phone/email from
+  //    company contact-points; the sink stores those in the company `socials` bag).
+  const companies: IngestCompanyInput[] = (b.companies ?? []).map((c) => {
+    const cbag = companyBags.get(norm(c.domain)) || companyBags.get(norm(c.name)) || {};
+    return {
+      name: c.name,
+      domain: c.domain ?? null,
+      industry: c.industry ?? null,
+      size: c.size ?? null,
+      summary: c.summary ?? null,
+      phone: cbag.phone ?? null,
+      email: cbag.email ?? null,
+      address: cbag.address ?? null,
+    };
+  });
 
-      await tx.insert(ingestBatchTable).values({
-        id: "ing_" + crypto.randomUUID(),
-        tenantId: T,
-        origin: b.origin,
-        count,
-      });
+  // 3) People → contact. Map the extension's AI classification onto rebuild columns
+  //    (leadType→segment, leadScore→fitScore, leadReason→fitReason, profileSummary/
+  //    about→summary). FALLBACK: only for ENRICHED-but-unclassified leads, reuse the
+  //    rebuild `classifySignals` heuristic (no legacy classifyLead, no legacy tables).
+  let analyzed = 0;
+  const people: IngestPersonInput[] = [];
+  const seenPersonKeys = new Set<string>();
+  for (const p of b.people ?? []) {
+    const key = norm(p.fullName);
+    seenPersonKeys.add(key);
+    const bag = personBags.get(key);
+    const socials: Record<string, string> = { ...(p.socials ?? {}), ...(bag?.socials ?? {}) };
+    const email = bag?.email ?? null;
+    const phone = bag?.phone ?? null;
+    const whatsapp = bag?.whatsapp ?? null;
+
+    const hasExp = !!(p.experience && p.experience.length);
+    const isEnriched = p.enriched === true || p.status === "enriched" || hasExp;
+
+    // Extension classification wins; else fall back to the rebuild heuristic ONLY
+    // for enriched-but-unclassified leads (the extension is the primary analyzer —
+    // it can read LinkedIn; the server can't, so it just fills the gap).
+    let segment = segmentFromLeadType(p.leadType);
+    let fitScore = normalizeScore(p.leadScore);
+    let fitReason = p.leadReason ?? null;
+    if (!p.leadType && isEnriched) {
+      const sig = classifySignals({ companyName: p.companyName, title: p.title, email, phone, whatsapp, socials });
+      segment = sig.classification;
+      fitScore = sig.fitScore;
+      fitReason = sig.fitReason;
+      analyzed++;
+    }
+
+    people.push({
+      fullName: p.fullName,
+      title: p.title ?? null,
+      department: p.department ?? null,
+      seniority: p.seniority ?? null,
+      location: p.location ?? null,
+      summary: p.profileSummary ?? p.about ?? null,
+      email,
+      phone,
+      whatsapp,
+      channelProfileUrl: p.linkedinUrl ?? p.sourceUrl ?? null,
+      socials: Object.keys(socials).length ? socials : null,
+      companyRef:
+        p.companyName || p.companyDomain
+          ? { name: p.companyName ?? null, domain: p.companyDomain ?? null }
+          : null,
+      segment: segment ?? undefined,
+      fitScore: fitScore ?? undefined,
+      fitReason: fitReason ?? undefined,
+      source: p.source ?? null,
+      enriched: isEnriched,
     });
+  }
 
-    // FALLBACK server-side classify (doc 40): only for enriched leads the extension
-    // did NOT already classify. The extension is the primary analyzer (it can read
-    // LinkedIn); this just fills gaps and always sets the rule-based salutation.
-    // Capped per request to stay within the serverless budget.
-    let analyzed = 0;
-    for (const e of needsServerClassify.slice(0, 8)) {
-      try {
-        const cls = await classifyLead(ctx, { fullName: e.fullName, title: e.title, company: e.companyName, experience: e.experience });
-        const sal = salutationFor(e.fullName);
-        await withTenant(ctx, (tx) =>
-          tx
-            .update(personTable)
-            .set({ leadType: cls.leadType, leadReason: cls.reason, leadScore: cls.score, gender: sal.gender, honorific: sal.honorific, updatedAt: new Date() })
-            .where(and(eq(personTable.id, e.id), eq(personTable.tenantId, T))),
-        );
-        analyzed++;
-      } catch (err) {
-        console.error("[ingest auto-analyze]", e.id, err);
-      }
-    }
+  // Orphan person contact-points (a WA/email for someone not in people[]) — create a
+  // minimal pending contact so the number isn't lost (mirrors the legacy stub).
+  for (const [key, bag] of personBags) {
+    if (seenPersonKeys.has(key)) continue;
+    people.push({
+      fullName: bag.name,
+      email: bag.email ?? null,
+      phone: bag.phone ?? null,
+      whatsapp: bag.whatsapp ?? null,
+      socials: Object.keys(bag.socials).length ? bag.socials : null,
+      companyRef:
+        bag.companyName || bag.companyDomain
+          ? { name: bag.companyName ?? null, domain: bag.companyDomain ?? null }
+          : null,
+      enriched: false,
+    });
+  }
 
-    // Dedup signal for the extension: of the URLs just submitted, which are ALREADY
-    // enriched in the DB? The extension marks these locally and SKIPS re-enriching
-    // them (no redundant re-crawl) — "kalau data udah ada di hasil, gak usah diulang".
-    let existingEnriched: string[] = [];
-    const submittedUrls = (b.people ?? []).map((p) => p.linkedinUrl).filter((u): u is string => !!u);
-    if (submittedUrls.length) {
-      try {
-        await withTenant(ctx, async (tx) => {
-          const rows = await tx
-            .select({ url: personTable.linkedinUrl })
-            .from(personTable)
-            .where(
-              and(
-                eq(personTable.tenantId, T),
-                inArray(personTable.linkedinUrl, submittedUrls),
-                sql`(${personTable.status} = 'enriched' or jsonb_array_length(coalesce(${personTable.experience}, '[]'::jsonb)) > 0)`,
-              ),
-            );
-          existingEnriched = rows.map((r) => r.url).filter((u): u is string => !!u);
-        });
-      } catch (err) {
-        console.error("[ingest existingEnriched]", err);
-      }
-    }
+  // Batch channel: derive from the crawled source labels (per-person source is kept
+  // on each contact); default "web".
+  const firstSrc =
+    (b.people ?? []).find((p) => p.source)?.source ??
+    (b.companies ?? []).find((c) => c.source)?.source ??
+    null;
+  const channel = toChannel(firstSrc);
 
-    return NextResponse.json({ ok: true, count, analyzed, existingEnriched, source: "db" });
+  let result;
+  try {
+    result = await enrichmentService.ingestGraph(ctx, {
+      channel,
+      sourceUrl: null,
+      workspaceId: b.workspaceId ?? null,
+      ownerUserId: assignTo, // per-rep attribution (doc 41)
+      origin: b.origin,
+      posture: "compliant",
+      companies,
+      people,
+      analyze: false,
+    });
   } catch (err) {
+    if (err instanceof ServiceError) {
+      return NextResponse.json({ ok: false, error: err.message, code: err.code }, { status: err.status });
+    }
     console.error("[api/ingest POST]", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
+
+  // Dedup signal for the extension: of the URLs just submitted, which are ALREADY
+  // enriched in the rebuild `contact` (matched by profile URL stored in socials)?
+  // The extension marks these locally and SKIPS re-enriching them.
+  let existingEnriched: string[] = [];
+  const submittedUrls = (b.people ?? [])
+    .map((p) => p.linkedinUrl ?? p.sourceUrl)
+    .filter((u): u is string => !!u);
+  if (submittedUrls.length) {
+    try {
+      existingEnriched = await crmService.findEnrichedProfileUrls(ctx, submittedUrls);
+    } catch (err) {
+      console.error("[ingest existingEnriched]", err);
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    count: result.companiesUpserted + result.peopleUpserted,
+    analyzed,
+    existingEnriched,
+    source: "db",
+  });
 }

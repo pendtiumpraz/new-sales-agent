@@ -82,6 +82,7 @@ export interface CreateContactInput {
   whatsapp?: string | null;
   city?: string | null;
   location?: string | null;
+  summary?: string | null; // free-text profile summary (crawled/enriched)
   channelPreference?: string | null;
   socials?: Record<string, string> | null;
   tags?: string[];
@@ -314,6 +315,17 @@ export const crmService = {
     return (await crmRepo.findContactByPhoneOrEmail(ctx, keys)) ?? null;
   },
 
+  /**
+   * existingEnriched recompute for the extension crawl ingest: of the given
+   * profile/source URLs, which already belong to an ENRICHED live contact in this
+   * tenant? Matched against any value stored in `contact.socials` (where the graph
+   * ingest stamps each person's channel profile URL). The extension marks these to
+   * SKIP re-enriching. Returns the matched subset (possibly empty) — never throws.
+   */
+  async findEnrichedProfileUrls(ctx: TenantContext, urls: string[]): Promise<string[]> {
+    return crmRepo.findEnrichedProfileUrls(ctx, urls);
+  },
+
   async createContact(ctx: TenantContext, input: CreateContactInput): Promise<ContactRow> {
     const fullName = input.fullName?.trim();
     if (!fullName) throw new ServiceError("Nama kontak wajib diisi", 400, "validation");
@@ -340,6 +352,7 @@ export const crmService = {
       whatsapp: input.whatsapp ?? null,
       city: input.city ?? null,
       location: input.location ?? null,
+      summary: input.summary ?? null,
       channelPreference: input.channelPreference ?? null,
       socials: input.socials ?? null,
       tags: input.tags ?? [],
@@ -396,6 +409,7 @@ export const crmService = {
       "whatsapp",
       "city",
       "location",
+      "summary",
       "channelPreference",
       "socials",
       "fitReason",

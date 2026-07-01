@@ -111,7 +111,7 @@ $("startSearch").addEventListener("click", async () => {
   const p = $("searchPlatform").value;
   const query = $("query").value.trim();
   const LABEL = {
-    linkedin: "LinkedIn", google: "Google", tokopedia: "Tokopedia", shopee: "Shopee",
+    linkedin: "LinkedIn", google: "Google", maps: "Google Maps", tokopedia: "Tokopedia", shopee: "Shopee",
     instagram: "Instagram", tiktok: "TikTok", duckduckgo: "internet (DuckDuckGo)", ai: "AI Websearch",
   };
   $("status").textContent = `Cari di ${LABEL[p] || p}…`;
@@ -119,6 +119,7 @@ $("startSearch").addEventListener("click", async () => {
   if (p === "linkedin") msg = { type: "START_SEARCH" };
   else if (p === "ai") msg = { type: "AI_SEARCH", query };
   else if (p === "duckduckgo") msg = { type: "WEB_SEARCH", query };
+  else if (p === "maps") msg = { type: "MAPS_SEARCH", query };
   else msg = { type: "PLATFORM_SEARCH", platform: p, query };
   chrome.runtime.sendMessage(msg, () => setTimeout(refreshStatus, 1000));
 });

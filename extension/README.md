@@ -48,6 +48,28 @@ jadi status hidup/mati terdeteksi otomatis.
 2. **Tahap 2:** **"Enrich profil (Tahap 2)"** → kunjungi tiap profil (jeda 4–9 dtk), ambil track record → kirim ke app.
 3. **Stop** kapan saja. **Kirim buffer** = flush manual.
 
+## Google Maps — cari PT/bisnis B2B (channel Level-1)
+
+Pilih channel **Google Maps (cari PT/bisnis)** → isi query (mis. `distributor kabel Surabaya`)
+→ **Cari**. Extension buka tab Maps otomatis, **scroll daftar hasil sampai habis**
+(sampai teks *"Anda telah mencapai akhir daftar"* / *"You've reached the end of the list"*,
+atau tak ada item baru, atau batas aman ~150), lalu per listing ambil **nama, alamat,
+telepon, website**.
+
+- **Batas Google:** Maps membatasi **±120 hasil/query** — itu normal. Untuk lebih banyak,
+  sempitkan query per sub-area (kecamatan/kota). *(Auto-tiling belum diimplementasi — TODO.)*
+- **HP mobile saja:** nomor yang disimpan hanya HP Indonesia (`^(\+?62|0)8\d{7,11}$`),
+  dinormalisasi ke `+62…`. **Landline** (021/022/031/0274/061…) **dibuang**.
+- **Email:** tidak ada di Maps → tiap **website** listing otomatis di-crawl (jalur Deep-Enrich:
+  `extractContactsInPage` + verifikasi DeepSeek) untuk ambil email/HP → disimpan sebagai
+  `contactPoint` **milik perusahaan** (ownerType `company`).
+- Hasil dikirim ke `/api/ingest` sebagai `companies[]` (`source:"maps"`, `capturedMode:"maps"`)
+  + `contactPoints[]`, ditandai ke workspace yang dipilih.
+
+> **WIP — tuning selector.** DOM Maps sangat di-obfuscate + sering A/B-test. Selector di
+> `scrapeMapsInPage()` (`background.js`) **best-effort** dan kemungkinan perlu disesuaikan
+> saat run pertama di Maps live. Status popup menandai ini ("selector mungkin perlu disesuaikan").
+
 ## B) Userscript Tampermonkey
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/).
