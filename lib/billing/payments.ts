@@ -2,10 +2,15 @@
 //
 // The active gateway is a platform setting (`payment_provider`) the superadmin picks:
 //   none    → self-serve INSTANT grant (demo / no real payment) — fully working.
-//   stripe | xendit | tripay | midtrans → real checkout — SCAFFOLDED: each needs its
-//   own API key(s) + a webhook (/api/billing/webhook/<provider>) that flips a pending
-//   quota_grant to active on payment success. Until those are wired, createCheckout
-//   throws a clear 501 so callers can fall back to instant/superadmin.
+//   midtrans → WIRED: Snap checkout (redirect) + webhook confirmation (below).
+//   stripe | xendit | tripay → SCAFFOLDED: createCheckout throws a clear 501 until
+//   each gateway's checkout + webhook is wired.
+//
+// Midtrans env (server-side only): MIDTRANS_SERVER_KEY (required), MIDTRANS_IS_PRODUCTION
+// ("true" → production, else sandbox). We use the Snap `redirect_url` so no client key
+// is needed on the frontend.
+import { createHash } from "node:crypto";
+
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 
@@ -30,6 +35,7 @@ export interface CheckoutInput {
   packKey: string;
   amountIdr: number;
   label: string;
+  orderId?: string; // required for gateway checkouts (ties the tx to a pending grant)
 }
 export interface CheckoutResult {
   mode: "instant" | "redirect";
@@ -40,20 +46,84 @@ export interface CheckoutResult {
 
 /**
  * Start a checkout for a pack. `none` → instant (the caller grants the pack right
- * away). Real gateways are scaffolded — wiring one means: create a checkout via its
- * SDK/HTTP API here (returning {mode:"redirect", url, ref}), record a PENDING
- * quota_grant, then confirm it in a webhook. Throws 501 until that exists.
+ * away). `midtrans` → a Snap transaction (redirect_url). Others are scaffolded (501).
  */
 export async function createCheckout(provider: PaymentProvider, input: CheckoutInput): Promise<CheckoutResult> {
   if (provider === "none") return { mode: "instant", provider };
-  // TODO(payments): implement per-gateway checkout + webhook confirmation.
-  //   stripe   → Checkout Session (stripe.checkout.sessions.create)
-  //   xendit   → Invoice API
-  //   tripay   → Transaction/Create (signed)
-  //   midtrans → Snap transaction token
+  if (provider === "midtrans") return midtransCheckout(input);
+  // TODO(payments): stripe (Checkout Session) · xendit (Invoice) · tripay (signed tx).
   throw new ServiceError(
     `Gateway ${provider} belum dikonfigurasi (butuh API key + webhook). Sementara pakai mode instan atau minta superadmin top-up.`,
     501,
     "provider_not_configured",
   );
+}
+
+// ── Midtrans (Snap) ──────────────────────────────────────────────────────────
+function midtransBase(): string {
+  return /^true$/i.test(process.env.MIDTRANS_IS_PRODUCTION ?? "")
+    ? "https://app.midtrans.com"
+    : "https://app.sandbox.midtrans.com";
+}
+
+async function midtransCheckout(input: CheckoutInput): Promise<CheckoutResult> {
+  const serverKey = process.env.MIDTRANS_SERVER_KEY;
+  if (!serverKey) {
+    throw new ServiceError(
+      "Midtrans belum dikonfigurasi — set MIDTRANS_SERVER_KEY (+ MIDTRANS_IS_PRODUCTION) di env.",
+      501,
+      "provider_not_configured",
+    );
+  }
+  if (!input.orderId) throw new ServiceError("orderId wajib untuk checkout gateway", 400, "validation");
+  const amount = Math.round(input.amountIdr);
+  const auth = Buffer.from(serverKey + ":").toString("base64");
+  const res = await fetch(midtransBase() + "/snap/v1/transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: "Basic " + auth },
+    body: JSON.stringify({
+      transaction_details: { order_id: input.orderId, gross_amount: amount },
+      item_details: [{ id: input.packKey, price: amount, quantity: 1, name: input.label.slice(0, 50) }],
+      credit_card: { secure: true },
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    redirect_url?: string;
+    token?: string;
+    error_messages?: string[];
+  };
+  if (!res.ok || !data.redirect_url) {
+    throw new ServiceError(
+      `Midtrans gagal membuat transaksi: ${data.error_messages?.join(", ") || "HTTP " + res.status}`,
+      502,
+      "gateway_error",
+    );
+  }
+  return { mode: "redirect", provider: "midtrans", url: data.redirect_url, ref: input.orderId };
+}
+
+// Webhook helpers — verify Midtrans notification authenticity + read paid state.
+export interface MidtransNotification {
+  order_id?: string;
+  status_code?: string;
+  gross_amount?: string;
+  signature_key?: string;
+  transaction_status?: string;
+  fraud_status?: string;
+}
+
+/** Midtrans signature = sha512(order_id + status_code + gross_amount + serverKey). */
+export function verifyMidtransSignature(n: MidtransNotification): boolean {
+  const serverKey = process.env.MIDTRANS_SERVER_KEY ?? "";
+  if (!serverKey || !n.order_id || !n.signature_key) return false;
+  const expected = createHash("sha512")
+    .update(`${n.order_id}${n.status_code ?? ""}${n.gross_amount ?? ""}${serverKey}`)
+    .digest("hex");
+  return expected === n.signature_key;
+}
+
+/** Paid = settlement, or capture that wasn't flagged as fraud. */
+export function midtransIsPaid(n: MidtransNotification): boolean {
+  if (n.transaction_status === "capture") return n.fraud_status !== "deny";
+  return n.transaction_status === "settlement";
 }

@@ -10,6 +10,7 @@ import {
   dayPeriod,
   type QuotaMetric,
 } from "@/lib/billing/plans";
+import { packByKey } from "@/lib/billing/quota-packs";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
@@ -448,12 +449,18 @@ export const tenantService = {
       provider?: string | null;
       externalRef?: string | null;
       note?: string | null;
+      status?: string; // "active" (default) | "pending" (gateway checkout awaiting payment)
     },
     actorUserId?: string,
   ): Promise<QuotaGrantRow> {
     if (!QUOTA_METRICS.includes(input.metric)) throw new ServiceError("Metric tidak valid", 400, "validation");
     if (!Number.isFinite(input.amount) || input.amount <= 0) throw new ServiceError("Jumlah harus > 0", 400, "validation");
-    const expiresAt = input.days && input.days > 0 ? new Date(Date.now() + input.days * 86_400_000) : null;
+    // A pending (unpaid) grant has NO expiry yet — the webhook sets it on activation.
+    const status = input.status ?? "active";
+    const expiresAt =
+      status !== "pending" && input.days && input.days > 0
+        ? new Date(Date.now() + input.days * 86_400_000)
+        : null;
     const row = await tenantRepo.insertQuotaGrant(ctx, {
       id: "qg_" + crypto.randomUUID(),
       tenantId: ctx.tenantId,
@@ -462,7 +469,7 @@ export const tenantService = {
       source: input.source ?? "superadmin",
       provider: input.provider ?? null,
       externalRef: input.externalRef ?? null,
-      status: "active",
+      status,
       note: input.note ?? null,
       expiresAt,
     });
@@ -479,6 +486,27 @@ export const tenantService = {
 
   async listQuotaGrants(ctx: TenantContext): Promise<QuotaGrantRow[]> {
     return tenantRepo.listActiveGrants(ctx);
+  },
+
+  /** Webhook: activate a pending purchase grant by its gateway order id. Idempotent
+   *  (gateways retry) — a second call on an already-active grant is a no-op. The
+   *  30-day (or pack) validity starts NOW, at payment, not at checkout creation. */
+  async activatePurchase(orderId: string): Promise<QuotaGrantRow | null> {
+    const grant = await tenantRepo.findGrantByExternalRef(orderId);
+    if (!grant) return null;
+    if (grant.status === "active") return grant;
+    const days = (grant.note ? packByKey(grant.note)?.days : undefined) ?? 30;
+    const expiresAt = new Date(Date.now() + days * 86_400_000);
+    await tenantRepo.activateGrant(grant.id, expiresAt);
+    await platformRepo.insertAudit({
+      tenantId: grant.tenantId,
+      actorUserId: "system",
+      action: "tenant.quota.purchase.activate",
+      targetType: "quota_grant",
+      targetId: grant.id,
+      meta: { orderId, metric: grant.metric, amount: grant.amount, provider: grant.provider },
+    });
+    return { ...grant, status: "active", expiresAt };
   },
 
   // ── Soft delete + restore ────────────────────────────────────────

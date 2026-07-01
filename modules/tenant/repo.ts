@@ -333,6 +333,24 @@ export const tenantRepo = {
     );
   },
 
+  /** Find a grant by its gateway order/invoice id — for webhooks, which run WITHOUT a
+   *  tenant session, so we read under a superadmin RLS context (policy allows it). */
+  async findGrantByExternalRef(externalRef: string): Promise<QuotaGrantRow | undefined> {
+    const sys: TenantContext = { tenantId: "", userId: "system", role: "superadmin" };
+    const [row] = await withTenant(sys, (tx) =>
+      tx.select().from(quotaGrantTable).where(eq(quotaGrantTable.externalRef, externalRef)).limit(1),
+    );
+    return row;
+  },
+
+  /** Flip a pending grant to active with its resolved expiry (webhook — superadmin ctx). */
+  async activateGrant(id: string, expiresAt: Date): Promise<void> {
+    const sys: TenantContext = { tenantId: "", userId: "system", role: "superadmin" };
+    await withTenant(sys, (tx) =>
+      tx.update(quotaGrantTable).set({ status: "active", expiresAt }).where(eq(quotaGrantTable.id, id)),
+    );
+  },
+
   /** Upsert a quota row (used when superadmin sets/overrides a tenant's limit). */
   async upsertUsage(
     ctx: TenantContext,

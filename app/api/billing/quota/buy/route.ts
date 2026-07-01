@@ -21,29 +21,32 @@ export async function POST(req: Request) {
     if (!pack) return fail("Pack tidak ditemukan", 400, "validation");
 
     const provider = await getPaymentProvider();
+
+    // Provider "none" → instant grant (demo), active immediately.
+    if (provider === "none") {
+      const grant = await tenantService.grantQuota(
+        g.ctx,
+        { metric: pack.metric, amount: pack.amount, days: pack.days, source: "purchase", provider: "none", status: "active", note: pack.key },
+        g.ctx.userId,
+      );
+      return ok({ mode: "instant", grant });
+    }
+
+    // Gateway: start checkout FIRST (throws 501/502 on config/gateway error → no
+    // orphan grant), then record a PENDING grant the webhook activates on payment.
+    const orderId = "ord_" + crypto.randomUUID();
     const checkout = await createCheckout(provider, {
       tenantId: g.ctx.tenantId,
       packKey: pack.key,
       amountIdr: pack.priceIdr,
       label: pack.label,
+      orderId,
     });
-
-    if (checkout.mode === "instant") {
-      const grant = await tenantService.grantQuota(
-        g.ctx,
-        {
-          metric: pack.metric,
-          amount: pack.amount,
-          days: pack.days,
-          source: "purchase",
-          provider: "none",
-          note: `Beli pack ${pack.key} (instan)`,
-        },
-        g.ctx.userId,
-      );
-      return ok({ mode: "instant", grant });
-    }
-    // Gateway checkout (redirect) — the pack is granted by the provider's webhook.
-    return ok({ mode: "redirect", provider, url: checkout.url, ref: checkout.ref });
+    await tenantService.grantQuota(
+      g.ctx,
+      { metric: pack.metric, amount: pack.amount, days: pack.days, source: "purchase", provider, externalRef: orderId, status: "pending", note: pack.key },
+      g.ctx.userId,
+    );
+    return ok({ mode: "redirect", provider, url: checkout.url, ref: orderId });
   }, "api/billing/quota/buy POST");
 }
