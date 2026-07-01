@@ -334,6 +334,9 @@ export default function WorkspaceHubPage() {
   const allTechniques = useMemo<KbTechniqueRow[]>(() => techQ.data ?? [], [techQ.data]);
 
   const [seg, setSeg] = useState<"all" | "b2c" | "b2b">("all");
+  const [wsTab, setWsTab] = useState<
+    "produk" | "marketfit" | "funnel" | "kontak" | "salesplay" | "teknik" | "lainnya"
+  >("produk");
 
   // ── Create-workspace flow ──────────────────────────────────────────────────
   // FIX: the empty state used to <Link href="/workspaces">, but /workspaces just
@@ -702,8 +705,37 @@ export default function WorkspaceHubPage() {
         </Button>
       </PageHeader>
 
+      {/* Tab bar — underline-style, matching the app's other tab bars. Renders
+          only the active section's content below (converted from a vertical stack). */}
+      <div className="flex gap-1 overflow-x-auto border-b border-border px-6">
+        {([
+          { key: "produk", label: "Produk" },
+          { key: "marketfit", label: "Market-Fit" },
+          { key: "funnel", label: "Funnel" },
+          { key: "kontak", label: "Kontak" },
+          { key: "salesplay", label: "Sales Play" },
+          { key: "teknik", label: "Teknik Closing" },
+          { key: "lainnya", label: "Lainnya" },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setWsTab(t.key)}
+            className={cn(
+              "-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition",
+              wsTab === t.key
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="space-y-5 p-6">
         {/* ============ (1) PRODUCT SUMMARY ============ */}
+        {wsTab === "produk" && (
         <Card>
           <CardContent className="flex flex-wrap items-center gap-4 p-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-tertiary/15 text-tertiary">
@@ -766,8 +798,10 @@ export default function WorkspaceHubPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ============ (2) MARKET-FIT ANALYZER (B2B / B2C / mix + ICP) ============ */}
+        {wsTab === "marketfit" && (
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="flex items-center gap-1.5 text-sm">
@@ -941,8 +975,10 @@ export default function WorkspaceHubPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ============ (3) FUNNEL SUMMARY ============ */}
+        {wsTab === "funnel" && (
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm">Funnel workspace</CardTitle>
@@ -984,8 +1020,10 @@ export default function WorkspaceHubPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
         {/* ============ (4) ACQUIRED CONTACTS — B2C / B2B segmentation ============ */}
+        {wsTab === "kontak" && (
         <Card className="overflow-hidden">
           <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-3">
             <div>
@@ -1182,8 +1220,10 @@ export default function WorkspaceHubPage() {
             </Link>
           </div>
         </Card>
+        )}
 
         {/* ============ (5) SALES PLAY SUMMARY ============ */}
+        {wsTab === "salesplay" && (
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <div>
@@ -1255,12 +1295,14 @@ export default function WorkspaceHubPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ============ (5b) CLOSING TECHNIQUES — matched to market-fit ============ */}
         {/* Module 6 / sales · the differentiator. Wired to GET /api/sales/techniques
             (the tenant's live 17 Teknik Closing catalog), filtered B2B/B2C by this
             workspace's market-fit. Techniques already chosen in the Sales Play above
             are highlighted as "dipakai". Own loading / empty / error states. */}
+        {wsTab === "teknik" && (
         <Card>
           <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-3">
             <div>
@@ -1403,8 +1445,11 @@ export default function WorkspaceHubPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ============ (6) RELATED MODULES ============ */}
+        {wsTab === "lainnya" && (
+        <>
         <section>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Lainnya (modul terkait workspace)
@@ -1437,6 +1482,8 @@ export default function WorkspaceHubPage() {
           <b className="text-foreground/70">Sales Script</b> →{" "}
           <b className="text-foreground/70">Eksekusi obrolan</b> → Pipeline.
         </p>
+        </>
+        )}
       </div>
       {createDialog}
       {connectDialog}
