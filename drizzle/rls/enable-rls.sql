@@ -139,6 +139,56 @@ CREATE POLICY tenant_isolation ON audit_log_v2
     OR current_setting('app.role', true) = 'superadmin'
   );
 
+-- ── data_listing / data_purchase (special: CROSS-TENANT public shelf) ────────
+-- The inter-tenant company-data marketplace (modules/data-market). These tables
+-- DELIBERATELY have no plain `tenant_id`: BROWSE is cross-tenant (you see OTHER
+-- tenants' ACTIVE listings), so the standard tenant-pin loop above CANNOT apply.
+-- Bespoke policies instead:
+--   • data_listing — TWO permissive policies (OR'd for SELECT):
+--       - `data_listing_shelf` (FOR SELECT): any ACTIVE, live row is public — this
+--         is the shelf a buyer browses. Read-only; grants NO write.
+--       - `data_listing_owner` (FOR ALL): the SELLER's full access to its own rows
+--         (any status), and the ONLY write path — INSERT/UPDATE/DELETE are pinned
+--         to seller_tenant_id = app.tenant_id (superadmin bypass as elsewhere).
+--     Net: a buyer can READ others' active listings but can only WRITE its own.
+--   • data_purchase — buyer OR seller may READ a ledger row; only the BUYER writes
+--     it (WITH CHECK pins buyer_tenant_id = app.tenant_id).
+-- NOTE: the app ALSO enforces these with explicit WHERE clauses in
+-- modules/data-market/repo.ts (belt-and-suspenders) — under the owner/BYPASSRLS
+-- fallback (APP_POSTGRES_URL unset) those WHEREs are the SOLE control; these
+-- policies engage once the NOBYPASSRLS app_user role is live.
+ALTER TABLE data_listing ENABLE ROW LEVEL SECURITY;
+ALTER TABLE data_listing FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS data_listing_shelf ON data_listing;
+DROP POLICY IF EXISTS data_listing_owner ON data_listing;
+CREATE POLICY data_listing_shelf ON data_listing
+  FOR SELECT
+  USING (status = 'active' AND deleted_at IS NULL);
+CREATE POLICY data_listing_owner ON data_listing
+  FOR ALL
+  USING (
+    seller_tenant_id = current_setting('app.tenant_id', true)
+    OR current_setting('app.role', true) = 'superadmin'
+  )
+  WITH CHECK (
+    seller_tenant_id = current_setting('app.tenant_id', true)
+    OR current_setting('app.role', true) = 'superadmin'
+  );
+
+ALTER TABLE data_purchase ENABLE ROW LEVEL SECURITY;
+ALTER TABLE data_purchase FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS data_purchase_isolation ON data_purchase;
+CREATE POLICY data_purchase_isolation ON data_purchase
+  USING (
+    buyer_tenant_id = current_setting('app.tenant_id', true)
+    OR seller_tenant_id = current_setting('app.tenant_id', true)
+    OR current_setting('app.role', true) = 'superadmin'
+  )
+  WITH CHECK (
+    buyer_tenant_id = current_setting('app.tenant_id', true)
+    OR current_setting('app.role', true) = 'superadmin'
+  );
+
 -- ── Intentionally NOT tenant-RLS'd (no tenant_id column) ─────────────────────
 -- GLOBAL catalogs / identity, gated at the app layer (a user sees a tenant only
 -- via a membership row, which IS RLS'd above):

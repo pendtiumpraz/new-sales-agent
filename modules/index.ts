@@ -55,3 +55,9 @@ export * from "./ecommerce/schema";
 export * from "./marketplace/schema";
 export * from "./field/schema";
 export * from "./reports/schema";
+
+// Inter-tenant company-data marketplace ("Jual-beli data perusahaan antar-tenant")
+// — a tenant sells the firmographic company data it crawled; a buyer imports it
+// into its own CRM. Owns: data_listing, data_purchase. This is a SEPARATE concept
+// from Module 9's `marketplace_*` (channel-integration lead source → /ecommerce).
+export * from "./data-market/schema";
