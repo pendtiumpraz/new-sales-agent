@@ -1,6 +1,15 @@
 const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform", "autoDownloadCsv", "deepGoogle", "deepLinkedin", "deepSocial", "deepMarketplace"];
 const $ = (id) => document.getElementById(id);
 
+const fmtNum = (n) => (n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0) + "rb" : String(n));
+function renderQuota(quota, plan) {
+  const box = $("quotaBox");
+  if (!Array.isArray(quota) || !quota.length) { box.style.display = "none"; return; }
+  const lines = quota.map((q) => `${q.label}: ${fmtNum(q.used)}/${q.limit == null ? "∞" : fmtNum(q.limit)}`);
+  box.innerHTML = `<b>Kuota${plan ? " · " + plan : ""}</b><br>${lines.join(" · ")}`;
+  box.style.display = "block";
+}
+
 async function load() {
   const cfg = await chrome.storage.local.get(FIELDS);
   $("apiBase").value = cfg.apiBase ?? "";
@@ -21,6 +30,13 @@ async function load() {
   await loadWorkspaces();
   toggleConsent();
   refreshStatus();
+  // Show cached quota immediately, then refresh from the platform (silent — no
+  // connStatus churn) so the numbers stay in sync with what the server enforces.
+  const cached = await chrome.storage.local.get(["quota", "plan"]);
+  renderQuota(cached.quota, cached.plan);
+  if (cfg.apiBase && cfg.token) {
+    chrome.runtime.sendMessage({ type: "CONNECT" }, (r) => { if (r) renderQuota(r.quota, r.plan); });
+  }
 }
 
 const WS_TYPE_LABEL = { lead_gen: "Lead", partner: "Partner", offering: "Penawaran", retention: "Retensi", custom: "Custom" };
@@ -80,6 +96,7 @@ $("connect").addEventListener("click", async () => {
     if (r && r.connected) {
       const wsN = Array.isArray(r.workspaces) ? r.workspaces.length : 0;
       $("connStatus").textContent = `✅ Terhubung${r.tenant ? ` (tenant: ${r.tenant})` : ""}.${r.aiKey ? " AI key dari platform." : ""}${wsN ? ` ${wsN} workspace.` : ""} Hasil crawl akan terkirim.`;
+      renderQuota(r.quota, r.plan);
       load(); // refresh fields + workspace picker — heartbeat stored the key & workspaces
     } else {
       $("connStatus").textContent = `❌ Gagal: ${(r && r.error) || "cek URL aplikasi & token"}`;

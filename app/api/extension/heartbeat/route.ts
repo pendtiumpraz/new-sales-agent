@@ -5,6 +5,7 @@ import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { extensionConnectionTable } from "@/lib/db/schema";
 import { touchRepHeartbeat } from "@/lib/team/rep-account";
 import { listWorkspaces } from "@/lib/workspace/store";
+import { tenantService } from "@/modules/tenant/service";
 
 export const runtime = "nodejs";
 
@@ -26,14 +27,25 @@ export async function POST(req: Request) {
     if (rep) {
       // Send the rep's workspaces so the popup can offer a "crawl untuk workspace"
       // picker (doc 44). The chosen id is tagged onto every ingested lead.
+      const repCtx = { tenantId: rep.tenantId, userId: rep.userId, role: "member" as const };
       let workspaces: { id: string; name: string; type: string }[] = [];
       try {
-        const ws = await listWorkspaces({ tenantId: rep.tenantId, userId: rep.userId, role: "member" });
+        const ws = await listWorkspaces(repCtx);
         workspaces = ws.filter((w) => w.status !== "archived").map((w) => ({ id: w.id, name: w.name, type: w.type }));
       } catch (err) {
         console.error("[heartbeat workspaces]", err);
       }
-      return NextResponse.json({ ok: true, connected: true, tenant: rep.tenantId, scope: "rep", deepseekKey, workspaces, source: "db" });
+      // Send the tenant's live quota (used/limit per metric) + plan so the extension
+      // shows the same numbers the platform enforces — the per-rep token is the sync key.
+      let quota: Awaited<ReturnType<typeof tenantService.quotaSummary>> = [];
+      let plan: string | null = null;
+      try {
+        plan = (await tenantService.get(rep.tenantId)).planKey ?? null;
+        quota = await tenantService.quotaSummary(repCtx);
+      } catch (err) {
+        console.error("[heartbeat quota]", err);
+      }
+      return NextResponse.json({ ok: true, connected: true, tenant: rep.tenantId, scope: "rep", deepseekKey, workspaces, quota, plan, source: "db" });
     }
   }
 

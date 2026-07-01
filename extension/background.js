@@ -248,11 +248,13 @@ async function heartbeat() {
     if (data.connected && data.deepseekKey) await chrome.storage.local.set({ deepseekKey: data.deepseekKey });
     // Cache the rep's workspaces so the popup can offer a "crawl untuk workspace" picker (doc 44).
     const workspaces = Array.isArray(data.workspaces) ? data.workspaces : [];
-    await chrome.storage.local.set({ workspaces });
+    // Cache the tenant's quota (used/limit per metric) + plan so the popup can show it
+    // — kept in sync with the platform every heartbeat (per-rep token = the sync key).
+    await chrome.storage.local.set({ workspaces, quota: Array.isArray(data.quota) ? data.quota : [], plan: data.plan ?? null });
     // If the previously selected workspace no longer exists, clear it.
     const cur = (await chrome.storage.local.get("workspaceId")).workspaceId;
     if (cur && !workspaces.some((w) => w.id === cur)) await chrome.storage.local.set({ workspaceId: "" });
-    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error, aiKey: !!data.deepseekKey, workspaces };
+    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error, aiKey: !!data.deepseekKey, workspaces, quota: Array.isArray(data.quota) ? data.quota : [], plan: data.plan ?? null };
   } catch (e) {
     return { ok: false, connected: false, error: String(e) };
   }

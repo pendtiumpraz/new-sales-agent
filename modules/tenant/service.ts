@@ -348,6 +348,30 @@ export const tenantService = {
     }
   },
 
+  /**
+   * Resolved used/limit per metric (limit from the PLAN, used from usage_counter's
+   * current period). Drives the quota UI + the extension heartbeat so the rep sees
+   * the same numbers the platform enforces. Seats `used` is the live member count.
+   */
+  async quotaSummary(
+    ctx: TenantContext,
+  ): Promise<{ metric: QuotaMetric; used: number; limit: number | null; label: string }[]> {
+    const tenant = await tenantRepo.getTenant(ctx.tenantId);
+    const limits = resolvePlanLimits(tenant?.planKey ?? null);
+    const out: { metric: QuotaMetric; used: number; limit: number | null; label: string }[] = [];
+    for (const metric of QUOTA_METRICS) {
+      let used: number;
+      if (metric === "seats_max") {
+        used = await tenantRepo.countActiveMembers(ctx);
+      } else {
+        const row = await tenantRepo.getUsage(ctx, metric, metricPeriod(metric));
+        used = row?.used ?? 0;
+      }
+      out.push({ metric, used, limit: limits[metric], label: METRIC_LABEL[metric] });
+    }
+    return out;
+  },
+
   // ── Soft delete + restore ────────────────────────────────────────
   async softDelete(id: string, actorUserId?: string): Promise<void> {
     const ok = await tenantRepo.softDeleteTenant(id);
