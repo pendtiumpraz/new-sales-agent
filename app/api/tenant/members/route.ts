@@ -5,8 +5,8 @@ import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { getTenantContext } from "@/lib/auth/session-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { membershipsTable, invitesTable } from "@/lib/db/schema";
-import { DEMO_ACCOUNTS } from "@/lib/auth/demo-accounts";
+import { invitesTable } from "@/lib/db/schema";
+import { tenantService } from "@/modules/tenant/service";
 import type { Role } from "@/lib/rbac/permissions";
 
 export const runtime = "nodejs";
@@ -20,27 +20,32 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasDb()) return NextResponse.json({ members: [], invites: [], source: "mock" });
   try {
-    const data = await withTenant(ctx, async (tx) => {
-      const members = await tx.select().from(membershipsTable).where(eq(membershipsTable.tenantId, ctx.tenantId));
-      const invites = await tx
+    // Members come from the REBUILD `membership` table (what the seeds + real signups
+    // write). Names/emails resolve from `app_user`, not the old hardcoded DEMO_ACCOUNTS.
+    const rows = await tenantService.listMemberships(ctx);
+    const members = await Promise.all(
+      rows.map(async (m) => {
+        const u = await tenantService.getUserById(m.userId);
+        return {
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          status: m.status,
+          name: u?.name ?? m.userId,
+          email: u?.email ?? null,
+          avatarColor: u?.avatarColor ?? "#94a3b8",
+        };
+      }),
+    );
+    // Pending invites still come from the legacy invites table (empty until someone
+    // is invited — correct to show none).
+    const invites = await withTenant(ctx, (tx) =>
+      tx
         .select()
         .from(invitesTable)
-        .where(and(eq(invitesTable.tenantId, ctx.tenantId), eq(invitesTable.status, "pending")));
-      return { members, invites };
-    });
-    const members = data.members.map((m) => {
-      const acc = DEMO_ACCOUNTS.find((a) => a.id === m.userId);
-      return {
-        id: m.id,
-        userId: m.userId,
-        role: m.role,
-        status: m.status,
-        name: acc?.name ?? m.userId,
-        email: acc?.email ?? null,
-        avatarColor: acc?.avatarColor ?? "#94a3b8",
-      };
-    });
-    return NextResponse.json({ members, invites: data.invites, source: "db" });
+        .where(and(eq(invitesTable.tenantId, ctx.tenantId), eq(invitesTable.status, "pending"))),
+    );
+    return NextResponse.json({ members, invites, source: "db" });
   } catch (err) {
     console.error("[api/tenant/members GET]", err);
     return NextResponse.json({ members: [], invites: [], source: "error" });
