@@ -66,6 +66,13 @@ export interface ResolvedPrincipal {
   revoked: boolean;
 }
 
+// Short-lived cache for the per-request principal re-resolve (audit #7). On a warm
+// serverless instance this skips ~6 DB round-trips on EVERY authenticated request; a
+// role / superadmin change reflects within the TTL. It only ever DOWNGRADES, so brief
+// staleness is safe (this was a big chunk of the per-page latency on Vercel).
+const principalCache = new Map<string, { value: ResolvedPrincipal | null; at: number }>();
+const PRINCIPAL_TTL_MS = 30_000;
+
 export const authService = {
   /**
    * Self-serve signup (doc §4.2 `POST /api/auth/register`). Creates a tenant in
@@ -228,8 +235,15 @@ export const authService = {
    * yet) it stays false, so normal sessions keep working.
    */
   async resolvePrincipal(userId: string): Promise<ResolvedPrincipal | null> {
+    const now = Date.now();
+    const cached = principalCache.get(userId);
+    if (cached && now - cached.at < PRINCIPAL_TTL_MS) return cached.value;
+
     const user = await tenantService.getUserById(userId);
-    if (!user) return null; // unknown/deleted user → caller falls back to JWT
+    if (!user) {
+      principalCache.set(userId, { value: null, at: now });
+      return null; // unknown/deleted user → caller falls back to JWT
+    }
 
     const membership = await tenantService.firstMembership(userId);
     const role = membershipRole(membership?.role ?? "member", user.isSuperadmin);
@@ -240,7 +254,9 @@ export const authService = {
       revoked = !(await authRepo.hasActiveSession(userId));
     }
 
-    return { role, isSuperadmin: user.isSuperadmin, revoked };
+    const value = { role, isSuperadmin: user.isSuperadmin, revoked };
+    principalCache.set(userId, { value, at: now });
+    return value;
   },
 
   // ── Revocable sessions (augment the JWT) ─────────────────────────

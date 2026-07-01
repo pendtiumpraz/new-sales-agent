@@ -37,20 +37,14 @@ export default function AppLayout({
     }
   }, [status, pathname, router]);
 
-  // Superadmin is INDEPENDENT (no tenant) — home is the /admin console, not the
-  // tenant app shell. Bounce them so they never land on a tenant-scoped page with
-  // no workspace/tenant.
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "superadmin") {
-      router.replace("/admin");
-    }
-  }, [status, session, router]);
+  const isSuperadmin = session?.user?.role === "superadmin";
 
   // Activation gate (doc 38): a pending / expired / suspended tenant can't use
   // the app — bounce to /pending. Fails open (errors → ignore) so a glitch never
   // locks a real tenant out.
   useEffect(() => {
     if (status !== "authenticated") return;
+    if (isSuperadmin) return; // independent superadmin has no tenant → no status gate
     let cancelled = false;
     fetch("/api/tenant/status")
       .then((r) => (r.ok ? r.json() : null))
@@ -64,7 +58,7 @@ export default function AppLayout({
     // Once per authenticated session — NOT per navigation. Tenant status rarely
     // changes mid-session, and re-fetching on every route hop added a DB round-trip
     // to every page load (perf: "semua page lambat" di Vercel).
-  }, [status, router]);
+  }, [status, router, isSuperadmin]);
 
   // Hydrate the Knowledge Base from Postgres once per session. The store
   // guards itself with a `hydrated` flag, so this is a safe no-op on repeat

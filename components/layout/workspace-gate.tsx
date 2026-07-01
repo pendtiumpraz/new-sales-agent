@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { LayoutGrid, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,12 @@ interface WsRow {
 export function WorkspaceGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
+  const isSuper = session?.user?.role === "superadmin";
   const active = useWorkspaceStore((s) => s.active);
   const setActive = useWorkspaceStore((s) => s.setActive);
-  const scoped = isScopedRoute(pathname);
+  // Independent superadmin has no tenant/workspace — bypass the gate entirely.
+  const scoped = isScopedRoute(pathname) && !isSuper;
 
   const q = useQuery({
     queryKey: ["workspace", "list"],
