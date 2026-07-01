@@ -223,14 +223,19 @@ export default function PipelinePage() {
   // ── (4) contacts → resolve kontak name + SEGMENT + channel per deal ──
   const contactsQ = useQuery({
     queryKey: ["crm", "contacts", scope],
+    // /api/contacts returns a PAGE ({ items, nextCursor }), NOT a raw array — read
+    // .items (same as /api/deals above). Reading it as an array made the for..of
+    // below throw "object is not iterable" and crashed the whole board.
     queryFn: async () =>
-      readJson<ContactRow[]>(
-        await fetch(`/api/contacts${scope ? `?workspaceId=${encodeURIComponent(scope)}` : ""}`),
-      ),
+      (
+        await readJson<Page<ContactRow>>(
+          await fetch(`/api/contacts${scope ? `?workspaceId=${encodeURIComponent(scope)}` : ""}`),
+        )
+      ).items,
   });
   const contactById = useMemo(() => {
     const m = new Map<string, ContactRow>();
-    for (const c of contactsQ.data ?? []) m.set(c.id, c);
+    for (const c of Array.isArray(contactsQ.data) ? contactsQ.data : []) m.set(c.id, c);
     return m;
   }, [contactsQ.data]);
 
