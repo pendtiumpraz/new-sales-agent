@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SimpleMarkdown } from "@/components/shared/simple-markdown";
+import { SimpleMarkdown, extractHeadings } from "@/components/shared/simple-markdown";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -155,12 +155,15 @@ function genPassword(): string {
   return `Aa1!${a.slice(0, 16)}`;
 }
 
-const VERTICALS = [
+// Fallback vertical options — only used when the DB catalog fetch fails/empty.
+// Keys are lowercase to match the real `vertical.key` values (the drawer sends
+// `verticalKey` straight to provision/activation, which stores it on the tenant).
+const VERTICALS_FALLBACK = [
   { value: "", label: "Pilih vertical…" },
-  { value: "Sales", label: "Sales — outbound & pipeline" },
-  { value: "HR", label: "HR — rekrutmen & talent" },
-  { value: "Marketing", label: "Marketing — campaign & lead-gen" },
-  { value: "Lainnya", label: "Lainnya / custom" },
+  { value: "sales", label: "Sales B2B" },
+  { value: "retail", label: "Retail / B2C" },
+  { value: "hr", label: "HR / Rekrutmen" },
+  { value: "other", label: "Lainnya / custom" },
 ];
 
 const DUR_CHIPS = [1, 3, 6, 12];
@@ -210,6 +213,26 @@ export default function SuperadminConsole() {
   });
 
   const tenants = useMemo(() => tenantsQ.data ?? [], [tenantsQ.data]);
+
+  // Vertical catalog (superadmin-managed, DB-backed) — feeds the provisioning
+  // drawer dropdown so it lists EVERY industry, not a hardcoded 3+other. Values
+  // are real `vertical.key`s. Degrades to VERTICALS_FALLBACK on failure/empty.
+  const verticalsQ = useQuery({
+    queryKey: ["superadmin", "verticals"],
+    enabled: isSuper,
+    staleTime: 5 * 60_000,
+    queryFn: async () =>
+      readJson<{ key: string; name: string }[]>(await fetch("/api/onboarding/verticals")),
+  });
+
+  const verticalOptions = useMemo(() => {
+    const rows = verticalsQ.data ?? [];
+    if (rows.length === 0) return VERTICALS_FALLBACK;
+    return [
+      { value: "", label: "Pilih vertical…" },
+      ...rows.map((v) => ({ value: v.key, label: v.name })),
+    ];
+  }, [verticalsQ.data]);
 
   // Soft-deleted tenants — the "Sampah" (trash) tab. Lazy: only fetched once the
   // operator opens that tab, but kept warm afterwards so soft-delete/restore feel
@@ -947,7 +970,7 @@ export default function SuperadminConsole() {
                 onChange={(e) => setDrawer((d) => ({ ...d, vertical: e.target.value }))}
                 className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-input bg-card pl-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring/40"
               >
-                {VERTICALS.map((v) => (
+                {verticalOptions.map((v) => (
                   <option key={v.value} value={v.value}>
                     {v.label}
                   </option>
@@ -1689,104 +1712,78 @@ function DocsPanel() {
       readJson<{ title: string; content: string }>(await fetch(`/api/superadmin/docs?doc=${doc}`)),
     retry: false,
   });
-  const subsystems: { title: string; body: string }[] = [
-    {
-      title: "Multi-tenant + RLS",
-      body: "Isolasi data per-tenant lewat withTenant/TenantContext + Postgres RLS (belt-and-suspenders). Grain = tenant/akun, bukan per-user.",
-    },
-    {
-      title: "Auth & RBAC",
-      body: "next-auth + role guards (lib/rbac). Superadmin = permission platform.manage; konsol ini di luar shell white-label per-tenant.",
-    },
-    {
-      title: "AI metered + BYOK",
-      body: "Setiap call live lewat meteredGenerateText: kill-switch, cek kredit tenant, satu model aktif per tenant (BYOK atau env fallback), log token+biaya ke ai_usage. Multi-provider (deepseek/anthropic/openai/google).",
-    },
-    {
-      title: "Kuota / subscription + packs + Midtrans",
-      body: "Batas token AI per tenant (ai_tokens_max), paket langganan + top-up pack, pembayaran via Midtrans (+ Stripe).",
-    },
-    {
-      title: "WhatsApp gateway + extension",
-      body: "Transport gateway-agnostic (WAHA server-gateway + Chrome MV3 extension). Brain (orchestrator/humanizer/stage-machine) tetap server-side; transport hanya poll outbox + push inbound.",
-    },
-    {
-      title: "Discovery / enrichment",
-      body: "RPA per-channel (LinkedIn/Maps/IG/marketplace) mengisi graph Company→People; AI mengklasifikasi taksonomi + memfilter product-fit + merekomendasikan.",
-    },
-    {
-      title: "Secrets console",
-      body: "Konfigurasi & secret platform (DB-first terenkripsi AES-256-GCM, fallback env) dikelola di tab Secrets & Config.",
-    },
-  ];
+  const content = docQ.data?.content ?? "";
+  const toc = useMemo(() => extractHeadings(content), [content]);
+  const jump = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-lg border border-border bg-card p-5 shadow-soft">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <BookIcon className="h-[18px] w-[18px]" />
-          </span>
-          <div>
-            <h2 className="text-base font-bold">Arsitektur Platform</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Modular monolith (Next.js App Router + Postgres multi-tenant). Referensi operator
-              ringkas — dokumentasi lengkap di{" "}
-              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">docs/HLA.md</code>{" "}
-              &amp;{" "}
-              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">docs/FEATURES.md</code>.
-            </p>
-          </div>
+    <div className="space-y-4">
+      {/* Header + doc toggle */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <BookIcon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-bold">Dokumentasi</h2>
+          <p className="truncate text-xs text-muted-foreground">
+            Arsitektur & katalog fitur platform — sumber <code className="font-mono">docs/*.md</code>
+          </p>
         </div>
-      </section>
-
-      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
-        <div className="border-b border-border bg-muted/50 px-5 py-2.5">
-          <h3 className="text-sm font-semibold">Subsistem utama</h3>
-        </div>
-        <ul className="divide-y divide-border">
-          {subsystems.map((sub) => (
-            <li key={sub.title} className="px-5 py-3.5">
-              <div className="flex items-start gap-2.5">
-                <CheckBadgeIcon className="mt-0.5 h-4 w-4 shrink-0 text-tertiary" />
-                <div>
-                  <p className="text-sm font-semibold">{sub.title}</p>
-                  <p className="mt-0.5 text-[13px] text-muted-foreground">{sub.body}</p>
-                </div>
-              </div>
-            </li>
+        <div className="ml-auto inline-flex rounded-lg border border-border bg-card p-0.5">
+          {(["HLA", "FEATURES"] as const).map((k) => (
+            <button
+              key={k}
+              onClick={() => setDoc(k)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                doc === k
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {k === "HLA" ? "Arsitektur (HLA)" : "Katalog Fitur"}
+            </button>
           ))}
-        </ul>
-      </section>
+        </div>
+      </div>
 
-      {/* Full embedded docs, rendered inline (react-markdown + GFM). */}
-      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-5 py-2.5">
-          <h3 className="text-sm font-semibold">Dokumen lengkap</h3>
-          <div className="ml-auto flex gap-1">
-            {(["HLA", "FEATURES"] as const).map((k) => (
-              <button
-                key={k}
-                onClick={() => setDoc(k)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  doc === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {k === "HLA" ? "Arsitektur (HLA)" : "Katalog Fitur"}
-              </button>
-            ))}
+      {docQ.isLoading ? (
+        <p className="p-6 text-sm text-muted-foreground">Memuat dokumen…</p>
+      ) : docQ.isError ? (
+        <p className="p-6 text-sm text-destructive">Gagal memuat dokumen.</p>
+      ) : (
+        <div className="flex gap-5">
+          {/* Table of contents — jump to a section instead of scrolling the wall */}
+          <nav className="hidden w-56 shrink-0 lg:block">
+            <div className="sticky top-4 max-h-[82vh] overflow-y-auto rounded-lg border border-border bg-card p-2.5">
+              <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Daftar isi
+              </p>
+              <div className="space-y-0.5">
+                {toc.map((h) => (
+                  <button
+                    key={h.id}
+                    onClick={() => jump(h.id)}
+                    title={h.text}
+                    className={`block w-full truncate rounded px-2 py-1 text-left text-[12px] transition-colors hover:bg-accent ${
+                      h.level === 3 ? "pl-4 text-muted-foreground" : "font-medium text-foreground/80"
+                    }`}
+                  >
+                    {h.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </nav>
+
+          {/* Content — capped width for a readable line length (not a full-bleed wall) */}
+          <div className="min-w-0 flex-1 rounded-lg border border-border bg-card p-5 shadow-soft sm:p-7">
+            <article className="mx-auto max-w-3xl">
+              <SimpleMarkdown text={content} />
+            </article>
           </div>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto p-5">
-          {docQ.isLoading ? (
-            <p className="text-sm text-muted-foreground">Memuat dokumen…</p>
-          ) : docQ.isError ? (
-            <p className="text-sm text-destructive">Gagal memuat dokumen.</p>
-          ) : (
-            <SimpleMarkdown text={docQ.data?.content ?? ""} />
-          )}
-        </div>
-      </section>
+      )}
     </div>
   );
 }

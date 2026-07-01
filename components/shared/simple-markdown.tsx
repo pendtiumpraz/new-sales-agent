@@ -9,6 +9,34 @@ import { cn } from "@/lib/utils";
 // diagrams), lists, GFM tables, blockquotes, hr, and links. Unknown syntax falls
 // back to plain text — it never throws.
 
+export function slugify(s: string): string {
+  return (s ?? "")
+    .toLowerCase()
+    .replace(/`/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+// Pull h2/h3 headings for a table of contents (skips headings inside code fences).
+export function extractHeadings(text: string): { level: number; text: string; id: string }[] {
+  const out: { level: number; text: string; id: string }[] = [];
+  let fenced = false;
+  for (const line of (text ?? "").split("\n")) {
+    if (line.trimStart().startsWith("```")) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const m = /^(#{2,3})\s+(.*)$/.exec(line);
+    if (m) {
+      const t = m[2].trim();
+      out.push({ level: m[1].length, text: t, id: slugify(t) });
+    }
+  }
+  return out;
+}
+
 function inline(text: string, keyBase = 0): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))/g;
@@ -131,7 +159,7 @@ export function SimpleMarkdown({ text, className }: { text: string; className?: 
               ? "mt-4 text-sm font-semibold"
               : "mt-3 text-sm font-semibold";
       blocks.push(
-        <div key={key++} className={cls}>
+        <div key={key++} id={slugify(h[2])} className={cn("scroll-mt-4", cls)}>
           {inline(h[2])}
         </div>,
       );
