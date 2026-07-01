@@ -428,6 +428,58 @@ export default function WorkspaceHubPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghubungkan produk"),
   });
 
+  // Analyse market-fit INLINE (in the Market-Fit tab) instead of navigating away to
+  // /use-case: POST /api/market-fit (uses the connected product) → PUT save → the
+  // Market-Fit display refreshes from its query. 1 workspace = 1 produk.
+  const analyzeMarketFit = useMutation({
+    mutationFn: async () => {
+      if (!product) throw new Error("Hubungkan produk dulu");
+      const r = await fetch("/api/market-fit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: product.name,
+          productDescription:
+            [product.category, ...(product.valueProps ?? []), product.pricingNotes]
+              .filter((v): v is string => Boolean(v && v.trim()))
+              .join(". ") || product.name,
+          segments: [],
+        }),
+      });
+      const j = (await r.json()) as {
+        result?: {
+          marketType: string;
+          confidence: number;
+          icp: Record<string, unknown>;
+          segmentFit: { label: string }[];
+          rationale: string;
+          source: string;
+        };
+        error?: string;
+      };
+      if (!r.ok || !j.result) throw new Error(j.error || "Analisis gagal");
+      const save = {
+        marketType: String(j.result.marketType).toLowerCase(),
+        confidence: Math.max(0, Math.min(1, (j.result.confidence ?? 0) / 100)),
+        icp: j.result.icp ?? null,
+        segments: (j.result.segmentFit ?? []).map((s) => s.label),
+        rationale: j.result.rationale ?? null,
+        source: j.result.source ?? "ai",
+      };
+      const put = await fetch(`/api/workspace/${wsId}/market-fit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(save),
+      });
+      if (!put.ok) throw new Error("Gagal menyimpan hasil market-fit");
+    },
+    onSuccess: () => {
+      toast.success("Market-fit dianalisis & disimpan");
+      if (wsId) qc.invalidateQueries({ queryKey: ["m2", "workspace", wsId, "market-fit"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Analisis market-fit gagal"),
+  });
+
   const connectDialog = (
     <Dialog open={connectOpen} onOpenChange={(o) => !connectProduct.isPending && setConnectOpen(o)}>
       <DialogContent className="sm:max-w-md">
@@ -808,10 +860,15 @@ export default function WorkspaceHubPage() {
               <Sparkles className="h-4 w-4 text-primary" />
               Market-Fit Analyzer (B2B / B2C / mix)
             </CardTitle>
-            <Button asChild size="sm" variant="outline" className="h-8">
-              <Link href="/use-case">
-                <RefreshCw className="h-3.5 w-3.5" /> Analisis ulang
-              </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={!product || analyzeMarketFit.isPending}
+              onClick={() => analyzeMarketFit.mutate()}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {analyzeMarketFit.isPending ? "Menganalisis…" : "Analisis ulang"}
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -838,11 +895,20 @@ export default function WorkspaceHubPage() {
                 title="Market-fit belum dianalisis"
                 description="Jalankan Market-Fit Analyzer untuk menentukan tipe pasar (B2B / B2C / mix), ICP, dan teknik closing yang cocok."
                 action={
-                  <Button asChild size="sm">
-                    <Link href="/use-case">
-                      <Sparkles className="h-4 w-4" /> Analisis market-fit
-                    </Link>
-                  </Button>
+                  !product ? (
+                    <Button size="sm" variant="outline" onClick={() => setConnectOpen(true)}>
+                      <Package className="h-4 w-4" /> Hubungkan produk dulu
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={analyzeMarketFit.isPending}
+                      onClick={() => analyzeMarketFit.mutate()}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {analyzeMarketFit.isPending ? "Menganalisis…" : "Analisis market-fit"}
+                    </Button>
+                  )
                 }
               />
             ) : (
