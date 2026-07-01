@@ -1,4 +1,5 @@
 import type { TenantContext } from "@/lib/db/tenant-context";
+import { resolvePlanLimits, metricPeriod, QUOTA_METRICS, METRIC_LABEL, type QuotaMetric } from "@/lib/billing/plans";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
@@ -112,6 +113,10 @@ export const tenantService = {
     });
     if (!row) throw new ServiceError("Tenant not found", 404, "not_found");
 
+    // Mirror the (new) plan's quota ceilings into usage_counter so the quota UI +
+    // extension heartbeat show the right limits (enforcement itself reads the plan).
+    await this.applyPlanQuotas({ tenantId: id, userId: actorUserId, role: "superadmin" }, row.planKey ?? null);
+
     await platformRepo.insertAudit({
       tenantId: id,
       actorUserId,
@@ -218,6 +223,20 @@ export const tenantService = {
   ): Promise<MembershipRow> {
     const existing = await tenantRepo.getMembership(ctx, userId);
     if (existing) return existing;
+    // Seat quota — count-derived (no drift on member removal). Block a NEW member
+    // if the tenant is at its plan's seat ceiling. null seats = unlimited.
+    const tenant = await tenantRepo.getTenant(ctx.tenantId);
+    const seatLimit = resolvePlanLimits(tenant?.planKey ?? null).seats_max;
+    if (seatLimit !== null) {
+      const current = await tenantRepo.countActiveMembers(ctx);
+      if (current >= seatLimit) {
+        throw new ServiceError(
+          `Kuota ${METRIC_LABEL.seats_max} tercapai (${current}/${seatLimit}). Upgrade paket atau hubungi admin.`,
+          402,
+          "quota_exceeded",
+        );
+      }
+    }
     return tenantRepo.insertMembership(ctx, {
       id: "mbr_" + crypto.randomUUID(),
       tenantId: ctx.tenantId,
@@ -286,6 +305,47 @@ export const tenantService = {
     const limit = row?.quotaLimit ?? null;
     const allowed = limit === null || used + delta <= limit;
     return { allowed, used, limit };
+  },
+
+  /**
+   * Enforce a quota metric BEFORE an action. Resolves the ceiling from the
+   * tenant's PLAN (source of truth; null = unlimited) and compares against the
+   * per-period `used` counter. Throws 402 `quota_exceeded` when the action would
+   * exceed it. Unknown/unset plan → unlimited (fail-open) so unplanned tenants
+   * never block. Callers that hold their own key (BYOK) skip the AI metric.
+   */
+  async enforceQuota(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {
+    const tenant = await tenantRepo.getTenant(ctx.tenantId);
+    const limit = resolvePlanLimits(tenant?.planKey ?? null)[metric];
+    if (limit === null) return; // unlimited plan / metric
+    const period = metricPeriod(metric);
+    const row = await tenantRepo.getUsage(ctx, metric, period);
+    const used = row?.used ?? 0;
+    if (used + delta > limit) {
+      throw new ServiceError(
+        `Kuota ${METRIC_LABEL[metric]} tercapai (${used}/${limit}). Upgrade paket atau hubungi admin.`,
+        402,
+        "quota_exceeded",
+      );
+    }
+  },
+
+  /** Record consumption of a metric (call AFTER the action succeeds). */
+  async bumpUsage(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {
+    if (!delta) return;
+    await tenantRepo.incrementUsage(ctx, metric, metricPeriod(metric), delta);
+  },
+
+  /**
+   * Mirror the tenant's plan ceilings into usage_counter.quota_limit per metric
+   * (unlimited → null). Enforcement reads the plan directly; this cache is for the
+   * quota UI + the extension heartbeat to show used/limit. Called on activation.
+   */
+  async applyPlanQuotas(ctx: TenantContext, planKey: string | null): Promise<void> {
+    const limits = resolvePlanLimits(planKey);
+    for (const metric of QUOTA_METRICS) {
+      await tenantRepo.upsertUsage(ctx, metric, metricPeriod(metric), { quotaLimit: limits[metric] });
+    }
   },
 
   // ── Soft delete + restore ────────────────────────────────────────

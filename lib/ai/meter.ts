@@ -4,6 +4,7 @@ import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { aiUsageTable } from "@/lib/db/schema";
 import { isTenantActive } from "@/lib/admin/kill-switch";
 import { creditEnforced, tenantCreditBalance } from "@/lib/billing/credit";
+import { tenantService } from "@/modules/tenant/service";
 import { resolveActiveModel } from "./registry";
 
 /** Block when credit enforcement is on and the tenant's balance is exhausted. */
@@ -52,6 +53,12 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
     throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");
   }
 
+  // BYOK rule: only the PLATFORM key is metered against the AI-token quota. When the
+  // tenant brings its own key (keySource === "tenant"), it pays its own provider →
+  // no platform limit. Block up-front if the monthly platform quota is already hit.
+  const metered = resolved.keySource === "platform";
+  if (metered) await tenantService.enforceQuota(ctx, "ai_tokens_max", 1);
+
   // Reasoning models (deepseek-v4-flash/pro, *-reasoner, *-r1, *-thinking) spend
   // output tokens on hidden reasoning BEFORE emitting content — a small
   // maxOutputTokens is consumed entirely by reasoning and returns EMPTY text
@@ -96,6 +103,9 @@ export async function meteredGenerateText(ctx: TenantContext, opts: MeterOpts) {
     }),
   );
 
+  // Count platform-key tokens against the monthly AI quota (BYOK is uncounted).
+  if (metered) await tenantService.bumpUsage(ctx, "ai_tokens_max", tokensIn + tokensOut);
+
   return {
     text: result.text,
     model: resolved.modelString,
@@ -133,6 +143,11 @@ export async function meteredStreamText(ctx: TenantContext, opts: MeterStreamOpt
     throw new Error("No active AI model or usable key for this tenant (configure in Settings → AI)");
   }
 
+  // BYOK rule (see meteredGenerateText): platform key → metered + quota-gated;
+  // tenant's own key → unlimited.
+  const metered = resolved.keySource === "platform";
+  if (metered) await tenantService.enforceQuota(ctx, "ai_tokens_max", 1);
+
   // Reasoning models burn output tokens on hidden reasoning before emitting
   // text, so floor their cap (like meteredGenerateText) to avoid empty replies.
   const isReasoning = /v4-flash|v4-pro|reasoner|reasoning|[-_]r1\b|think/i.test(resolved.modelString);
@@ -166,6 +181,7 @@ export async function meteredStreamText(ctx: TenantContext, opts: MeterStreamOpt
             latencyMs: Date.now() - start,
           }),
         );
+        if (metered) await tenantService.bumpUsage(ctx, "ai_tokens_max", tokensIn + tokensOut);
       } catch (err) {
         console.error("[meter] stream usage record failed:", err);
       }

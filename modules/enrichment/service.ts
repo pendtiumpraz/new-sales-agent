@@ -4,6 +4,7 @@ import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 import { crmService } from "@/modules/crm/service";
 import { crmRepo } from "@/modules/crm/repo";
+import { tenantService } from "@/modules/tenant/service";
 import { taxonomyService } from "@/modules/taxonomy/service";
 import type { CompanyRow, ContactRow } from "@/modules/crm/schema";
 import { enrichmentRepo } from "./repo";
@@ -802,6 +803,12 @@ export const enrichmentService = {
     const people = input.people ?? [];
     const norm = (s: string | null | undefined): string => (s ?? "").trim().toLowerCase();
 
+    // Quota gate — block ingest when the tenant is already at its plan's contact/
+    // company ceiling (unlimited plans + BYOK pass). Soft: a batch may overshoot by
+    // one; the next ingest is blocked. Only NEW nodes consume quota (below).
+    if (companies.length) await tenantService.enforceQuota(ctx, "companies_max", 1);
+    if (people.length) await tenantService.enforceQuota(ctx, "contacts_max", 1);
+
     // Record the run for history (channel-tagged) BEFORE the upserts.
     const job = await enrichmentRepo.insertJob(ctx, {
       id: "dsj_" + crypto.randomUUID(),
@@ -820,6 +827,8 @@ export const enrichmentService = {
     let peopleUpserted = 0;
     let companiesClassified = 0;
     let peopleClassified = 0;
+    let companiesCreated = 0; // NEW nodes only — drives quota consumption
+    let peopleCreated = 0;
     // Map a companyRef key (domain|name, lowercased) → the resolved company id, so
     // people can attach to the company we just upserted in THIS batch.
     const companyIdByKey = new Map<string, string>();
@@ -857,6 +866,7 @@ export const enrichmentService = {
             socials: Object.keys(bag).length ? bag : null,
             source,
           });
+          companiesCreated++;
         }
         companiesUpserted++;
         if (domain) companyIdByKey.set(`domain:${norm(domain)}`, company.id);
@@ -919,6 +929,7 @@ export const enrichmentService = {
             ownerUserId,
             source,
           });
+          peopleCreated++;
         }
         peopleUpserted++;
 
@@ -946,6 +957,10 @@ export const enrichmentService = {
         .catch(() => {});
       throw err;
     }
+
+    // Consume quota for the NEW nodes only (updates / re-crawls are free).
+    if (companiesCreated) await tenantService.bumpUsage(ctx, "companies_max", companiesCreated);
+    if (peopleCreated) await tenantService.bumpUsage(ctx, "contacts_max", peopleCreated);
 
     return {
       companiesUpserted,

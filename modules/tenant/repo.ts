@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { withTenant, withUserContext, type TenantContext } from "@/lib/db/tenant-context";
@@ -258,6 +258,30 @@ export const tenantRepo = {
         .limit(1),
     );
     return row;
+  },
+
+  /**
+   * Atomically add `delta` to a metric's `used` counter (creating the row if
+   * absent). Preserves the cached `quota_limit` on an existing row (only `used`
+   * is touched). New rows start with `quota_limit = null` (unlimited) — the real
+   * ceiling comes from the tenant's plan at enforcement time.
+   */
+  async incrementUsage(
+    ctx: TenantContext,
+    metric: string,
+    period: string,
+    delta: number,
+  ): Promise<void> {
+    const id = `usg_${ctx.tenantId}_${metric}_${period}`;
+    await withTenant(ctx, (tx) =>
+      tx
+        .insert(usageCounterTable)
+        .values({ id, tenantId: ctx.tenantId, metric, period, used: Math.max(0, delta), quotaLimit: null })
+        .onConflictDoUpdate({
+          target: [usageCounterTable.tenantId, usageCounterTable.metric, usageCounterTable.period],
+          set: { used: sql`${usageCounterTable.used} + ${delta}`, updatedAt: new Date() },
+        }),
+    );
   },
 
   /** Upsert a quota row (used when superadmin sets/overrides a tenant's limit). */
