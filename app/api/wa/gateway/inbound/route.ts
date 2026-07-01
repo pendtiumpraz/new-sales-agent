@@ -190,13 +190,15 @@ export async function POST(req: Request) {
         let seq = 0;
         for (const bubble of result.bubbles) {
           // Gateway honors delayMs + typing to pace the send like a human.
-          await enqueue(owner.tenantId, b.sessionId, "send", {
+          const sent = await enqueue(owner.tenantId, b.sessionId, "send", {
             to: b.from,
             body: bubble.text,
             delayMs: bubble.delayMs,
             typing: true,
             seq: seq++,
           });
+          // WA message quota hit → stop sending further bubbles (don't record them).
+          if (!sent) break;
           await withTenant(ctx, (tx) =>
             tx.insert(messagesTable).values({
               id: "msg_" + crypto.randomUUID(),

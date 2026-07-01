@@ -3,6 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { platformSettingTable, waSessionTable, waOutboxTable } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant-context";
+import { tenantService } from "@/modules/tenant/service";
 
 // WhatsApp scaffold store (doc 41). The gateway (Baileys/openclaw on a VPS) is
 // outbound-only: it POLLS the outbox and PUSHes qr/status/inbound here, so the
@@ -90,7 +91,24 @@ export async function enqueue(
   sessionId: string,
   action: "start_session" | "send" | "logout",
   payload?: Record<string, unknown>,
-): Promise<void> {
+): Promise<boolean> {
+  // Message quota — only real outbound messages (action "send") consume it; control
+  // actions (start_session/logout) are free. Non-throwing so the WA flow degrades
+  // gracefully: over-quota → skip the enqueue + return false (auto-reply stops mid-
+  // reply, the manual draft send surfaces a 402). Unlimited plan / null limit passes.
+  if (action === "send") {
+    const ctx = { tenantId, userId: "wa", role: "member" as const };
+    if (!(await tenantService.canConsume(ctx, "messages_max", 1))) return false;
+    await db.insert(waOutboxTable).values({
+      id: "wo_" + crypto.randomUUID(),
+      tenantId,
+      sessionId,
+      action,
+      payload: payload ?? null,
+    });
+    await tenantService.bumpUsage(ctx, "messages_max", 1);
+    return true;
+  }
   await db.insert(waOutboxTable).values({
     id: "wo_" + crypto.randomUUID(),
     tenantId,
@@ -98,6 +116,7 @@ export async function enqueue(
     action,
     payload: payload ?? null,
   });
+  return true;
 }
 
 export type WaOutboxRow = typeof waOutboxTable.$inferSelect;

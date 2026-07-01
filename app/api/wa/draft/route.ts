@@ -7,6 +7,7 @@ import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { conversationsTable, messagesTable } from "@/lib/db/schema";
 import { enqueue } from "@/lib/wa/store";
 import { loadDraft, clearDraft } from "@/lib/wa/draft-store";
+import { tenantService } from "@/modules/tenant/service";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,11 @@ export async function POST(req: Request) {
   if (body.action === "discard") {
     await clearDraft(body.conversationId);
     return NextResponse.json({ ok: true, action: "discard" });
+  }
+
+  // WA message quota — all-or-nothing for a manual send. Unlimited plan passes.
+  if (!(await tenantService.canConsume(ctx, "messages_max", draft.bubbles.length))) {
+    return NextResponse.json({ error: "Kuota pesan bulan ini habis — upgrade paket." }, { status: 402 });
   }
 
   let seq = 0;

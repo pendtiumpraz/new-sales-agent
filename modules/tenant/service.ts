@@ -330,6 +330,19 @@ export const tenantService = {
     }
   },
 
+  /**
+   * Non-throwing sibling of enforceQuota — returns whether `delta` more is allowed.
+   * For paths that must degrade gracefully instead of erroring (e.g. WA auto-reply,
+   * which must not crash the inbound webhook when a tenant is out of message quota).
+   */
+  async canConsume(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<boolean> {
+    const tenant = await tenantRepo.getTenant(ctx.tenantId);
+    const limit = resolvePlanLimits(tenant?.planKey ?? null)[metric];
+    if (limit === null) return true;
+    const row = await tenantRepo.getUsage(ctx, metric, metricPeriod(metric));
+    return (row?.used ?? 0) + delta <= limit;
+  },
+
   /** Record consumption of a metric (call AFTER the action succeeds). */
   async bumpUsage(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {
     if (!delta) return;
