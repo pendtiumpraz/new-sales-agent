@@ -6,9 +6,12 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  Code2,
   Eye,
+  Fingerprint,
   Info,
   Loader2,
+  Palette,
   RotateCcw,
   Save,
   Sparkles,
@@ -82,6 +85,9 @@ const GROUP_LABEL: Record<TokenGroup, string> = {
   status: "Status",
 };
 
+// Editor is split into tabs; the preview + save/reset stay outside them.
+type EditorTab = "identitas" | "warna" | "css";
+
 export default function BrandingPage() {
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -106,6 +112,8 @@ export default function BrandingPage() {
   const [draft, setDraft] = useState<BrandingDraft | null>(null);
   const [dirty, setDirty] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  // Editor sections are tabbed; preview + actions stay outside the tabs.
+  const [tab, setTab] = useState<EditorTab>("identitas");
   // Invalid-hex cue per token (don't push junk into the preview).
   const [badHex, setBadHex] = useState<Partial<Record<TokenKey, boolean>>>({});
 
@@ -214,68 +222,92 @@ export default function BrandingPage() {
           <BrandingSkeleton />
         ) : (
           <div className="grid items-start gap-5 lg:grid-cols-3">
-            {/* ============ EDITOR COLUMN (2/3) ============ */}
+            {/* ============ EDITOR COLUMN (2/3) — tabbed ============ */}
             <div className="space-y-5 lg:col-span-2">
-              <IdentitySection
-                draft={draft}
-                onBrandName={(v) => patchDraft({ brandName: v })}
-                onLogo={(f) =>
-                  f
-                    ? readAsDataUrl(f, (url) => patchDraft({ logoUrl: url }))
-                    : patchDraft({ logoUrl: null })
-                }
-                onFavicon={(f) => f && readAsDataUrl(f, (url) => patchDraft({ faviconUrl: url }))}
-                onFaviconClear={() => patchDraft({ faviconUrl: null })}
-              />
+              {/* Tab bar — mirrors reports/page.tsx (TabButton + border-b gating) */}
+              <div className="flex items-center gap-1 border-b border-border">
+                <TabButton active={tab === "identitas"} onClick={() => setTab("identitas")}>
+                  <Fingerprint className="h-4 w-4" />
+                  Identitas
+                </TabButton>
+                <TabButton active={tab === "warna"} onClick={() => setTab("warna")}>
+                  <Palette className="h-4 w-4" />
+                  Skema Warna
+                </TabButton>
+                <TabButton active={tab === "css"} onClick={() => setTab("css")}>
+                  <Code2 className="h-4 w-4" />
+                  Custom CSS
+                </TabButton>
+              </div>
 
-              <ColorSchemeSection
-                draft={draft}
-                badHex={badHex}
-                onPreset={loadPreset}
-                onColor={(key, hex) => {
-                  setBadHex((b) => ({ ...b, [key]: false }));
-                  setToken(key, hex);
-                }}
-                onHex={(key, raw) => {
-                  let v = raw.trim();
-                  if (v && v[0] !== "#") v = "#" + v;
-                  if (HEX_RE.test(v)) {
-                    setBadHex((b) => ({ ...b, [key]: false }));
-                    setToken(key, v.toUpperCase());
-                  } else {
-                    setBadHex((b) => ({ ...b, [key]: true }));
+              {/* (1) IDENTITAS */}
+              {tab === "identitas" && (
+                <IdentitySection
+                  draft={draft}
+                  onBrandName={(v) => patchDraft({ brandName: v })}
+                  onLogo={(f) =>
+                    f
+                      ? readAsDataUrl(f, (url) => patchDraft({ logoUrl: url }))
+                      : patchDraft({ logoUrl: null })
                   }
-                }}
-              />
+                  onFavicon={(f) => f && readAsDataUrl(f, (url) => patchDraft({ faviconUrl: url }))}
+                  onFaviconClear={() => patchDraft({ faviconUrl: null })}
+                />
+              )}
+
+              {/* (2) SKEMA WARNA */}
+              {tab === "warna" && (
+                <ColorSchemeSection
+                  draft={draft}
+                  badHex={badHex}
+                  onPreset={loadPreset}
+                  onColor={(key, hex) => {
+                    setBadHex((b) => ({ ...b, [key]: false }));
+                    setToken(key, hex);
+                  }}
+                  onHex={(key, raw) => {
+                    let v = raw.trim();
+                    if (v && v[0] !== "#") v = "#" + v;
+                    if (HEX_RE.test(v)) {
+                      setBadHex((b) => ({ ...b, [key]: false }));
+                      setToken(key, v.toUpperCase());
+                    } else {
+                      setBadHex((b) => ({ ...b, [key]: true }));
+                    }
+                  }}
+                />
+              )}
 
               {/* (3) Advanced — Custom CSS */}
-              <section className="overflow-hidden rounded-lg border border-border bg-card shadow-md">
-                <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-xs font-bold text-primary">
-                    3
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-semibold">Advanced — Custom CSS</h2>
+              {tab === "css" && (
+                <section className="overflow-hidden rounded-lg border border-border bg-card shadow-md">
+                  <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-xs font-bold text-primary">
+                      <Code2 className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <h2 className="text-sm font-semibold">Advanced — Custom CSS</h2>
+                      <p className="text-[11px] text-muted-foreground">
+                        Override penuh lewat CSS mentah. Untuk pengguna lanjutan.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 p-5">
+                    <textarea
+                      rows={6}
+                      spellCheck={false}
+                      value={draft.customCss}
+                      onChange={(e) => patchDraft({ customCss: e.target.value })}
+                      placeholder={"/* contoh */\n:root { --radius: 0.75rem; }"}
+                      className="w-full resize-y rounded-lg border border-border bg-[#1B1A19] px-3 py-2.5 font-mono text-[12px] leading-relaxed text-[#e8e2dd] focus:outline-none focus:ring-2 focus:ring-ring/40"
+                    />
                     <p className="text-[11px] text-muted-foreground">
-                      Override penuh lewat CSS mentah. Untuk pengguna lanjutan.
+                      Disuntik setelah token warna, jadi mengalahkan skema di atas. Salah CSS hanya
+                      merusak tampilan-mu sendiri. CSS disanitasi di server sebelum disimpan.
                     </p>
                   </div>
-                </div>
-                <div className="space-y-2 p-5">
-                  <textarea
-                    rows={6}
-                    spellCheck={false}
-                    value={draft.customCss}
-                    onChange={(e) => patchDraft({ customCss: e.target.value })}
-                    placeholder={"/* contoh */\n:root { --radius: 0.75rem; }"}
-                    className="w-full resize-y rounded-lg border border-border bg-[#1B1A19] px-3 py-2.5 font-mono text-[12px] leading-relaxed text-[#e8e2dd] focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Disuntik setelah token warna, jadi mengalahkan skema di atas. Salah CSS hanya
-                    merusak tampilan-mu sendiri. CSS disanitasi di server sebelum disimpan.
-                  </p>
-                </div>
-              </section>
+                </section>
+              )}
             </div>
 
             {/* ============ PREVIEW + ACTIONS (1/3, sticky) ============ */}
@@ -427,8 +459,8 @@ function IdentitySection({
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-card shadow-md">
       <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-xs font-bold text-primary">
-          1
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+          <Fingerprint className="h-4 w-4" />
         </span>
         <div>
           <h2 className="text-sm font-semibold">Identitas</h2>
@@ -586,8 +618,8 @@ function ColorSchemeSection({
     <section className="overflow-hidden rounded-lg border border-border bg-card shadow-md">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-xs font-bold text-primary">
-            2
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+            <Palette className="h-4 w-4" />
           </span>
           <div>
             <h2 className="text-sm font-semibold">Skema Warna</h2>
@@ -682,8 +714,8 @@ function LivePreview({ draft }: { draft: BrandingDraft }) {
     <section className="overflow-hidden rounded-lg border border-border bg-card shadow-md">
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-xs font-bold text-primary">
-            4
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+            <Eye className="h-4 w-4" />
           </span>
           <h2 className="text-sm font-semibold">Live Preview</h2>
         </div>
@@ -822,6 +854,32 @@ function LivePreview({ draft }: { draft: BrandingDraft }) {
         </p>
       </div>
     </section>
+  );
+}
+
+// ── tab bar button — mirrors reports/page.tsx (Coral Sunset underline tab) ──
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

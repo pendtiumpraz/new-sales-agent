@@ -136,6 +136,8 @@ function shortTokens(n: number): string {
 
 // ── page ─────────────────────────────────────────────────────────────────────
 
+type BillingTab = "kredit" | "paket" | "pemakaian" | "beli" | "langganan";
+
 export default function BillingSettingsPage() {
   const { data: session } = useSession();
   // Session role may be the canonical RBAC role (real auth) or a demo display role;
@@ -149,6 +151,9 @@ export default function BillingSettingsPage() {
     return mapDemoRole(raw);
   }, [session?.user?.role]);
   const canManage = can(role, "tenant.billing");
+
+  // Only the active panel renders (stacked panels → tab bar).
+  const [tab, setTab] = useState<BillingTab>("kredit");
 
   // NEW facade — the credit balance + Stripe flags (the headline of this page).
   const summaryQ = useQuery({
@@ -195,35 +200,65 @@ export default function BillingSettingsPage() {
       <BillingHeader credit={credit} loading={summaryQ.isLoading} />
 
       <div className="space-y-5 p-6">
+        {/* ============ TABS ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "kredit"} onClick={() => setTab("kredit")}>
+            <Wallet className="h-4 w-4" />
+            Kredit AI
+          </TabButton>
+          <TabButton active={tab === "paket"} onClick={() => setTab("paket")}>
+            <CreditCard className="h-4 w-4" />
+            Paket
+          </TabButton>
+          <TabButton active={tab === "pemakaian"} onClick={() => setTab("pemakaian")}>
+            <Gauge className="h-4 w-4" />
+            Pemakaian
+          </TabButton>
+          <TabButton active={tab === "beli"} onClick={() => setTab("beli")}>
+            <Sparkles className="h-4 w-4" />
+            Beli Kuota
+          </TabButton>
+          <TabButton active={tab === "langganan"} onClick={() => setTab("langganan")}>
+            <ExternalLink className="h-4 w-4" />
+            Langganan
+          </TabButton>
+        </div>
+
         {/* ============ CREDIT BALANCE (from the NEW facade) ============ */}
-        <CreditCardPanel credit={credit} loading={summaryQ.isLoading} />
+        {tab === "kredit" && <CreditCardPanel credit={credit} loading={summaryQ.isLoading} />}
 
         {/* ============ CURRENT PLAN (existing infra) ============ */}
-        <PlanPanel
-          tenant={tenant}
-          loading={tenantQ.isLoading}
-          error={tenantQ.isError}
-          onRetry={() => tenantQ.refetch()}
-        />
+        {tab === "paket" && (
+          <PlanPanel
+            tenant={tenant}
+            loading={tenantQ.isLoading}
+            error={tenantQ.isError}
+            onRetry={() => tenantQ.refetch()}
+          />
+        )}
 
         {/* ============ USAGE vs QUOTA (existing infra) ============ */}
-        <UsagePanel
-          tenant={tenant}
-          loading={tenantQ.isLoading}
-          error={tenantQ.isError}
-          onRetry={() => tenantQ.refetch()}
-        />
+        {tab === "pemakaian" && (
+          <UsagePanel
+            tenant={tenant}
+            loading={tenantQ.isLoading}
+            error={tenantQ.isError}
+            onRetry={() => tenantQ.refetch()}
+          />
+        )}
 
         {/* ============ BUY QUOTA PACKS (top-up, 30-day) ============ */}
-        <QuotaPacksPanel canManage={canManage} />
+        {tab === "beli" && <QuotaPacksPanel canManage={canManage} />}
 
         {/* ============ STRIPE CTA (reuse lib/billing) ============ */}
-        <StripePanel
-          summary={summary}
-          tenant={tenant}
-          canManage={canManage}
-          loading={summaryQ.isLoading}
-        />
+        {tab === "langganan" && (
+          <StripePanel
+            summary={summary}
+            tenant={tenant}
+            canManage={canManage}
+            loading={summaryQ.isLoading}
+          />
+        )}
 
         <p className="max-w-3xl text-[11px] text-muted-foreground">
           Grain: <b>billing = per-tenant</b>. Saldo kredit ={" "}
@@ -242,6 +277,31 @@ export default function BillingSettingsPage() {
 }
 
 // ───────────────────────── sub-components ─────────────────────────
+
+/** Tab in the billing sub-nav bar (mirrors the reports page tab pattern). */
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 function BillingHeader({
   credit,

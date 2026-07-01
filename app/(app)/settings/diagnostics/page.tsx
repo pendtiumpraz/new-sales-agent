@@ -20,13 +20,11 @@
 // amber = warning, coral = primary.
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { RequireSuperadmin } from "@/components/auth/require-superadmin";
 import {
   Activity,
   AlertCircle,
-  ArrowLeft,
   CheckCircle2,
   Cpu,
   Database,
@@ -43,7 +41,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { seedKnowledgeBase } from "@/lib/api-mock/kb";
+
+// Static probe payload — a tiny KB snapshot string used only to exercise the AI
+// diagnostics endpoints. Intentionally inline (not sourced from mock fixtures).
+const KB_PROBE = "Produk demo untuk uji diagnostik AI.";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,6 @@ export default function DiagnosticsPage() {
 }
 
 function DiagnosticsPageInner() {
-  const router = useRouter();
   const [status, setStatus] = useState<DiagnosticsStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
@@ -160,12 +160,7 @@ function DiagnosticsPageInner() {
       <PageHeader
         title="Status sistem"
         description="Verifikasi koneksi Deepseek API, database, dan endpoint runtime di lingkungan terdeploy."
-      >
-        <Button variant="outline" onClick={() => router.push("/settings")}>
-          <ArrowLeft className="h-4 w-4" />
-          Kembali ke Pengaturan
-        </Button>
-      </PageHeader>
+      />
 
       <div className="space-y-6 p-6">
         <SystemStatusCard status={status} error={statusError} />
@@ -501,7 +496,7 @@ const PROBES: EndpointProbe[] = [
             parts: [{ type: "text", text: "Test" }],
           },
         ],
-        kbSnapshot: seedKnowledgeBase,
+        kbSnapshot: KB_PROBE,
       },
     }),
     // Chat is a streaming UI-message response — we read x-ai-source from headers.
@@ -523,7 +518,7 @@ const PROBES: EndpointProbe[] = [
           "Pelanggan: Halo, saya ingin tanya soal paket Growth.",
         contactName: "Diagnostics Tester",
         company: "Diagnostics Co",
-        kbSnapshot: seedKnowledgeBase,
+        kbSnapshot: KB_PROBE,
       },
     }),
     extractSource: (body) => readSourceField(body),
@@ -536,7 +531,7 @@ const PROBES: EndpointProbe[] = [
     build: () => ({
       body: {
         prompt: "Sebutkan satu fitur utama Paket Growth.",
-        kbSnapshot: seedKnowledgeBase,
+        kbSnapshot: KB_PROBE,
       },
     }),
     extractSource: (body) => readSourceField(body),
@@ -556,7 +551,7 @@ const PROBES: EndpointProbe[] = [
           segment: "Menengah",
           industry: "SaaS",
         },
-        kbSnapshot: seedKnowledgeBase,
+        kbSnapshot: KB_PROBE,
       },
     }),
     extractSource: (body) => readSourceField(body),

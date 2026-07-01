@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   AlarmClock,
   BookOpen,
-  ChevronLeft,
+  History,
   Plus,
+  SlidersHorizontal,
   Sparkles,
   X,
 } from "lucide-react";
@@ -15,28 +15,17 @@ import { toast } from "sonner";
 import { RequireSuperadmin } from "@/components/auth/require-superadmin";
 import { SentimentMap } from "@/components/inbox/sentiment-map";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { handoffEvents } from "@/lib/api-mock/handoff";
 import { useHandoffStore } from "@/lib/stores/handoff-store";
-import { formatRelativeID } from "@/lib/utils/format-date-id";
 import { cn } from "@/lib/utils";
 
-const TRIGGER_LABEL: Record<string, string> = {
-  sentiment: "Sentimen",
-  timeout: "Tanpa respons",
-  complexity: "Topik kompleks",
-};
-
-const TRIGGER_STYLE: Record<string, string> = {
-  sentiment: "border-primary/30 bg-primary/10 text-primary",
-  timeout: "border-warning/30 bg-warning/15 text-warning",
-  complexity: "border-tertiary/30 bg-tertiary/10 text-tertiary",
-};
+type HandoffTab = "config" | "history";
 
 export default function HandoffSettingsPage() {
   return (
@@ -55,6 +44,7 @@ function HandoffSettingsPageInner() {
   const setAutoReplyEnabled = useHandoffStore((s) => s.setAutoReplyEnabled);
 
   const [newTopic, setNewTopic] = useState("");
+  const [tab, setTab] = useState<HandoffTab>("config");
 
   // Load the tenant's saved config from the DB so settings survive reload.
   useEffect(() => {
@@ -74,14 +64,7 @@ function HandoffSettingsPageInner() {
       <PageHeader
         title="Alihkan ke Manusia"
         description="Atur kapan AI harus mengalihkan percakapan ke agen manusia."
-      >
-        <Button variant="outline" asChild>
-          <Link href="/settings">
-            <ChevronLeft className="h-4 w-4" />
-            Kembali ke Pengaturan
-          </Link>
-        </Button>
-      </PageHeader>
+      />
 
       {/* Hero strip — teal+coral gradient banner */}
       <div className="relative overflow-hidden border-b bg-gradient-to-r from-tertiary/15 via-primary/8 to-transparent px-6 py-4">
@@ -112,6 +95,37 @@ function HandoffSettingsPageInner() {
       </div>
 
       <div className="space-y-6 p-6">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <button
+            type="button"
+            onClick={() => setTab("config")}
+            className={cn(
+              "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              tab === "config"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Konfigurasi
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("history")}
+            className={cn(
+              "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              tab === "history"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <History className="h-4 w-4" />
+            Riwayat Eskalasi
+          </button>
+        </div>
+
+        {tab === "config" && (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           {/* Triggers */}
           <div className="space-y-4">
@@ -331,55 +345,31 @@ function HandoffSettingsPageInner() {
             </div>
           </div>
 
-          {/* Right column: market mapping + recent events */}
+          {/* Right column: market mapping */}
           <div className="space-y-6">
             <SentimentMap />
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Eskalasi terbaru</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Riwayat handoff dari AI ke agen.
-                </p>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ul className="divide-y">
-                  {handoffEvents.map((e) => (
-                    <li key={e.id} className="space-y-1 px-5 py-3 even:bg-muted/30">
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                            TRIGGER_STYLE[e.trigger] ?? "border-muted text-muted-foreground",
-                          )}
-                        >
-                          {TRIGGER_LABEL[e.trigger]}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {formatRelativeID(e.triggeredAt)}
-                        </span>
-                      </div>
-                      {e.note && (
-                        <p className="text-xs text-foreground">{e.note}</p>
-                      )}
-                      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                        <Link
-                          href="/inbox"
-                          className="hover:text-foreground hover:underline"
-                        >
-                          Lihat percakapan ({e.conversationId})
-                        </Link>
-                        {e.assignedTo && (
-                          <span>Ditugaskan ke {e.assignedTo}</span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
           </div>
         </div>
+        )}
+
+        {tab === "history" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Eskalasi terbaru</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Riwayat handoff dari AI ke agen.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <EmptyState
+                icon={History}
+                title="Belum ada eskalasi terbaru."
+                description="Saat AI mengalihkan percakapan ke agen manusia, riwayat eskalasi akan muncul di sini."
+                className="border-0"
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

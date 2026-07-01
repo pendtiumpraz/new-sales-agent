@@ -315,7 +315,7 @@ const CATEGORIES: DocCategory[] = [
       {
         title: "Kepatuhan & DSAR",
         icon: ShieldCheck,
-        href: "/settings/compliance/dsar",
+        href: "/settings/compliance",
         summary: "Penuhi permintaan subjek data (UU PDP/GDPR): ekspor atau hapus seluruh data seseorang lintas tabel, dengan jejak audit.",
         steps: [
           "Buka Pengaturan → Kepatuhan/DSAR.",

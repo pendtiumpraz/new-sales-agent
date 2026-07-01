@@ -174,6 +174,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/inbox", icon: IconInbox, color: "#6366F1", label: "Inbox", desc: "Semua percakapan omni-channel (WA, email, IG)" },
       { href: "/pipeline", icon: IconPipeline, color: "#F59E0B", label: "Pipeline", desc: "Board kanban deal per tahap + skor AI" },
+      { href: "/penawaran", icon: IconContent, color: "#8B5CF6", label: "Penawaran", desc: "Quote/penawaran ke pelanggan" },
       { href: "/cadences", icon: IconCadence, color: "#7C3AED", label: "Cadence", desc: "Urutan pesan otomatis lintas channel" },
       { href: "/autopilot", icon: IconAutopilot, color: "#F43F5E", label: "Autopilot", desc: "Orkestrasi obrolan AI otomatis", badge: "AI" },
       { href: "/escalations", icon: IconEscalations, color: "#EF4444", label: "Eskalasi", desc: "Balasan AI yang perlu ditinjau manusia" },

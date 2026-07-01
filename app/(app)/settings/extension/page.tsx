@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, Download, Globe, Puzzle } from "lucide-react";
+import { BookOpen, Copy, Download, Globe, KeyRound, MessageCircle, Puzzle } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { WaConnectCard } from "@/components/wa/wa-connect-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+type ExtTab = "status" | "akun" | "whatsapp" | "panduan";
 
 interface ExtStatus {
   connected: boolean;
@@ -74,6 +77,7 @@ interface RepAccount {
 export default function ExtensionPage() {
   const qc = useQueryClient();
   const [appUrl] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
+  const [tab, setTab] = useState<ExtTab>("status");
 
   // The rep's OWN account: per-rep ingest token + LinkedIn/IG + heartbeat (doc 41).
   const repQ = useQuery({
@@ -170,6 +174,29 @@ export default function ExtensionPage() {
         description="Satu extension: gateway WhatsApp (balas otomatis) + collector lead MULTI-CHANNEL (LinkedIn, Google, Tokopedia, Shopee, Instagram, TikTok) langsung ke workspace ini."
       />
       <div className="space-y-4 p-6">
+        {/* ============ TABS ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "status"} onClick={() => setTab("status")}>
+            <Download className="h-4 w-4" />
+            Status &amp; Unduh
+          </TabButton>
+          <TabButton active={tab === "akun"} onClick={() => setTab("akun")}>
+            <KeyRound className="h-4 w-4" />
+            Akun &amp; Token
+          </TabButton>
+          <TabButton active={tab === "whatsapp"} onClick={() => setTab("whatsapp")}>
+            <MessageCircle className="h-4 w-4" />
+            WhatsApp
+          </TabButton>
+          <TabButton active={tab === "panduan"} onClick={() => setTab("panduan")}>
+            <BookOpen className="h-4 w-4" />
+            Panduan Pasang
+          </TabButton>
+        </div>
+
+        {/* ============ STATUS & UNDUH TAB ============ */}
+        {tab === "status" && (
+        <div className="space-y-4">
         {/* Connection status */}
         <div
           className={
@@ -245,7 +272,12 @@ export default function ExtensionPage() {
             </a>
           </CardContent>
         </Card>
+        </div>
+        )}
 
+        {/* ============ AKUN & TOKEN TAB ============ */}
+        {tab === "akun" && (
+        <div className="space-y-4">
         {/* Sales account — register LinkedIn/IG + your per-rep token (doc 41) */}
         <Card>
           <CardHeader className="border-b">
@@ -281,9 +313,6 @@ export default function ExtensionPage() {
           </CardContent>
         </Card>
 
-        {/* WhatsApp — connect by QR (doc 41) */}
-        <WaConnectCard />
-
         {/* Config to paste */}
         <Card>
           <CardHeader className="border-b">
@@ -300,7 +329,20 @@ export default function ExtensionPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
+        )}
 
+        {/* ============ WHATSAPP TAB ============ */}
+        {tab === "whatsapp" && (
+        <div className="space-y-4">
+          {/* WhatsApp — connect by QR (doc 41) */}
+          <WaConnectCard />
+        </div>
+        )}
+
+        {/* ============ PANDUAN PASANG TAB ============ */}
+        {tab === "panduan" && (
+        <div className="space-y-4">
         {/* Install — extension */}
         <Card>
           <CardHeader className="border-b">
@@ -336,7 +378,33 @@ export default function ExtensionPage() {
         <p className="text-center text-[11px] text-muted-foreground">
           Pakai akun LinkedIn sendiri, pelan & dijeda (anti-ban). Hormati ToS LinkedIn & UU PDP.
         </p>
+        </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }

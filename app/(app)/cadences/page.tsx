@@ -257,6 +257,9 @@ export default function CadencesPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const active = useMemo(() => cadences.find((c) => c.id === openId) ?? null, [cadences, openId]);
 
+  // ── create ───────────────────────────────────────────────────────────────────
+  const [createOpen, setCreateOpen] = useState(false);
+
   // ── confirm targets ──────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<CadenceRow | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<CadenceRow | null>(null);
@@ -267,6 +270,30 @@ export default function CadencesPage() {
     qc.invalidateQueries({ queryKey: ["outreach", "cadences"] });
     qc.invalidateQueries({ queryKey: ["outreach", "enrollments"] });
   }
+
+  // CREATE — POST /api/cadences, then open the fresh cadence in the drawer to add steps.
+  const createCadence = useMutation({
+    mutationFn: async (vars: { name: string; description: string | null }) =>
+      readJson<CadenceRow>(
+        await fetch("/api/cadences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: vars.name, description: vars.description, status: "active" }),
+        }),
+      ),
+    onSuccess: async (row) => {
+      toast.success(`Cadence "${row.name}" dibuat — tambahkan step-nya`);
+      setCreateOpen(false);
+      // Seed the list cache so the drawer (which reads from `cadences`) can open
+      // immediately, then refetch to reconcile.
+      qc.setQueryData<CadenceRow[]>(["outreach", "cadences", "list"], (prev) =>
+        prev ? [row, ...prev] : [row],
+      );
+      refreshAll();
+      setOpenId(row.id);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat cadence"),
+  });
 
   // SOFT delete — moves an active cadence into "Sampah" (cascades to steps + enrollments).
   const softDelete = useMutation({
@@ -326,10 +353,8 @@ export default function CadencesPage() {
         title="Cadence"
         description="Urutan follow-up otomatis lintas channel (WhatsApp · Email · Telepon). Tiap step menunggu jeda lalu mengirim template. Klik baris untuk lihat & edit step + daftarkan kontak."
       >
-        <Button asChild size="sm">
-          <a href="/cadences/new">
-            <Plus className="h-4 w-4" /> Cadence baru
-          </a>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4" /> Cadence baru
         </Button>
       </PageHeader>
 
@@ -445,10 +470,8 @@ export default function CadencesPage() {
                 title="Belum ada cadence"
                 description="Cadence adalah urutan follow-up otomatis. Buat satu, tambahkan step (WA / Email / Telepon + jeda + template), lalu daftarkan kontak."
                 action={
-                  <Button asChild size="sm">
-                    <a href="/cadences/new">
-                      <Plus className="h-4 w-4" /> Cadence baru
-                    </a>
+                  <Button size="sm" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4" /> Cadence baru
                   </Button>
                 }
               />
@@ -555,6 +578,14 @@ export default function CadencesPage() {
           berurutan + daftarkan kontak).
         </p>
       </div>
+
+      {/* ===================== CREATE CADENCE ===================== */}
+      <CreateCadenceModal
+        open={createOpen}
+        pending={createCadence.isPending}
+        onClose={() => setCreateOpen(false)}
+        onCreate={(vars) => createCadence.mutate(vars)}
+      />
 
       {/* ===================== RIGHT DRAWER ===================== */}
       <AppDrawerRaw
@@ -1462,6 +1493,127 @@ function EnrollModal({
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────── create cadence modal ───────────────────────────────
+
+function CreateCadenceModal({
+  open,
+  pending,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onCreate: (vars: { name: string; description: string | null }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Reset the form each time the modal closes.
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setDescription("");
+    }
+  }, [open]);
+
+  const canSubmit = name.trim().length > 0 && !pending;
+
+  function submit() {
+    if (!canSubmit) return;
+    onCreate({ name: name.trim(), description: description.trim() || null });
+  }
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex w-full max-w-md flex-col rounded-lg border border-border bg-card shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+              <Workflow className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Cadence baru</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Beri nama dulu — step (WA / Email / Telepon) ditambahkan di panel berikutnya.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* body */}
+        <div className="space-y-3 px-5 py-4">
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Nama
+            </label>
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+              placeholder="mis. Follow-up demo → closing"
+              className="h-9 w-full rounded-lg border border-border bg-card px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Deskripsi <span className="font-normal normal-case text-muted-foreground/70">(opsional)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tujuan cadence ini…"
+              className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+        </div>
+
+        {/* footer */}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={pending}
+            className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <Button size="sm" className="h-9" disabled={!canSubmit} onClick={submit}>
+            <Plus className="h-4 w-4" /> {pending ? "Membuat…" : "Buat cadence"}
+          </Button>
+        </div>
       </div>
     </div>
   );

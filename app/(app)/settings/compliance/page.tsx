@@ -20,7 +20,6 @@
 // gated to tenant.settings.manage.
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -36,14 +35,22 @@ import {
   Save,
   Server,
   ShieldCheck,
+  Trash2,
   UserCog,
   type LucideIcon,
 } from "lucide-react";
 
 import { RequireRole } from "@/components/auth/require-role";
 import { PageHeader } from "@/components/layout/page-header";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ErrorState } from "@/components/shared/error-state";
+import { ListSkeleton } from "@/components/shared/skeletons";
+import { PoolOptOutCard } from "@/components/compliance/pool-optout-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -65,6 +72,15 @@ type ApiResult<T> = ApiOk<T> | ApiErr;
  *  prefix already stripped by the service). Values are JSON blobs — for our
  *  controls they're booleans or short strings. */
 type ComplianceSettings = Record<string, unknown>;
+
+/** One row of the tenant audit trail (GET /api/tenant/compliance → `.audit`). */
+interface AuditRow {
+  id: string;
+  action: string;
+  target: string | null;
+  actorUserId: string | null;
+  at: string;
+}
 
 /** Read the NEW M8 envelope. 403 → "forbidden" sentinel for the access state. */
 async function readJson<T>(r: Response): Promise<T> {
@@ -377,22 +393,118 @@ function CompliancePageInner() {
     [draft],
   );
 
+  // ── tabs: settings form ("Pengaturan") vs the ported DSAR & Audit surface ──
+  const [tab, setTab] = useState<"settings" | "dsar">("settings");
+
+  // ── DSAR & Audit (ported from the retired /settings/compliance/dsar route) ──
+  // Flaw-fixes on port: (1) the role comes from the mapDemoRole-resolved `role`
+  // above (not a naive cast); (2) the delete confirm() is now the shared,
+  // accessible ConfirmDialog. `canPurge` === `canManage` (tenant.settings.manage).
+  const canExport = can(role, "data.export");
+
+  const audit = useQuery({
+    queryKey: ["audit"],
+    queryFn: async () => {
+      const r = await fetch("/api/tenant/compliance");
+      if (!r.ok) throw new Error();
+      return ((await r.json()).audit ?? []) as AuditRow[];
+    },
+    enabled: canExport,
+  });
+
+  const [dsarEmail, setDsarEmail] = useState("");
+  const [retentionDays, setRetentionDays] = useState(90);
+  const [dsarBusy, setDsarBusy] = useState(false);
+  const [dsarDeleteOpen, setDsarDeleteOpen] = useState(false);
+
+  async function dsarCall(op: string, payload: Record<string, unknown>) {
+    setDsarBusy(true);
+    try {
+      const r = await fetch("/api/tenant/compliance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op, ...payload }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j?.error ?? "failed");
+      return j;
+    } finally {
+      setDsarBusy(false);
+      qc.invalidateQueries({ queryKey: ["audit"] });
+    }
+  }
+
+  async function exportSubject() {
+    try {
+      const j = await dsarCall("dsar-export", { email: dsarEmail });
+      const blob = new Blob([JSON.stringify(j.bundle, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dsar-${dsarEmail}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const b = j.bundle;
+      toast.success(
+        `Export: ${b.persons.length} orang, ${b.contactPoints.length} kontak, ${b.contacts.length} legacy`,
+      );
+    } catch (e) {
+      toast.error(`Gagal export (${e instanceof Error ? e.message : e})`);
+    }
+  }
+
+  // Runs after the ConfirmDialog is accepted (native confirm() removed).
+  async function deleteSubject() {
+    setDsarDeleteOpen(false);
+    try {
+      const j = await dsarCall("dsar-delete", { email: dsarEmail });
+      toast.success(
+        `Dihapus: ${j.deleted.persons} orang, ${j.deleted.contactPoints} kontak, ${j.deleted.contacts} legacy`,
+      );
+    } catch (e) {
+      toast.error(`Gagal hapus (${e instanceof Error ? e.message : e})`);
+    }
+  }
+
+  async function purgeRetention() {
+    try {
+      const j = await dsarCall("retention-purge", { days: retentionDays });
+      toast.success(
+        `Purge >${retentionDays}h: usage ${j.purged.aiUsage}, sends ${j.purged.sendJobs}, crawls ${j.purged.crawlJobs}`,
+      );
+    } catch (e) {
+      toast.error(`Gagal purge (${e instanceof Error ? e.message : e})`);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Kepatuhan UU PDP"
         description="Atur kontrol kepatuhan UU PDP No. 27/2022 — persetujuan, hak subjek data, keamanan, & tata kelola. Pengaturan tersimpan per-tenant; skor dihitung dari kontrol yang aktif."
       >
-        <Button asChild variant="outline" size="sm">
-          <Link href="/settings/compliance/dsar">
-            <Download className="h-4 w-4" /> Export data (DSAR)
-          </Link>
+        <Button variant="outline" size="sm" onClick={() => setTab("dsar")}>
+          <Download className="h-4 w-4" /> Export data (DSAR)
         </Button>
       </PageHeader>
 
       <div className="space-y-5 p-6">
-        {settingsQ.isError ? (
-          <ErrorState
+        {/* ============ TAB BAR ============ */}
+        <div className="flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "settings"} onClick={() => setTab("settings")}>
+            <ShieldCheck className="h-4 w-4" />
+            Pengaturan
+          </TabButton>
+          <TabButton active={tab === "dsar"} onClick={() => setTab("dsar")}>
+            <Database className="h-4 w-4" />
+            DSAR & Audit
+          </TabButton>
+        </div>
+
+        {/* ============ PENGATURAN TAB ============ */}
+        {tab === "settings" &&
+          (settingsQ.isError ? (
+            <ErrorState
             title={forbidden ? "Tidak punya akses" : "Gagal memuat kepatuhan"}
             description={
               forbidden
@@ -497,8 +609,140 @@ function CompliancePageInner() {
               )}
             </div>
           </div>
-        )}
+          ))}
+
+        {/* ============ DSAR & AUDIT TAB ============ */}
+        {tab === "dsar" &&
+          (!canExport ? (
+            <Card className="border-dashed">
+              <CardContent className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
+                <ShieldCheck className="h-5 w-5" /> Hanya Owner/Admin yang bisa akses DSAR & audit.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {canManage && <PoolOptOutCard />}
+
+              <Card>
+                <CardHeader className="border-b">
+                  <CardTitle className="text-base">DSAR — Data Subject Request</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 p-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Email subjek</Label>
+                    <Input
+                      type="email"
+                      value={dsarEmail}
+                      onChange={(e) => setDsarEmail(e.target.value)}
+                      placeholder="orang@perusahaan.co.id"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={!dsarEmail || dsarBusy}
+                      onClick={exportSubject}
+                      className="gap-1.5"
+                    >
+                      <Download className="h-4 w-4" /> Export (JSON)
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={!dsarEmail || dsarBusy}
+                      onClick={() => setDsarDeleteOpen(true)}
+                      className="gap-1.5 text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" /> Hapus permanen
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Hapus = erase lintas tabel (orang/kontak/legacy), opt-out tetap disimpan agar tak
+                    dihubungi lagi.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {canManage && (
+                <Card>
+                  <CardHeader className="border-b">
+                    <CardTitle className="text-base">Retensi</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex items-end gap-2 p-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Hapus data operasional lebih tua dari (hari)</Label>
+                      <Input
+                        type="number"
+                        value={retentionDays}
+                        onChange={(e) => setRetentionDays(Number(e.target.value))}
+                        className="w-40"
+                      />
+                    </div>
+                    <Button variant="outline" disabled={dsarBusy} onClick={purgeRetention}>
+                      Purge
+                    </Button>
+                    <span className="pb-2 text-[11px] text-muted-foreground">
+                      ai_usage · send_job · crawl_job
+                    </span>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader className="border-b">
+                  <CardTitle className="text-base">Jejak audit</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {audit.isLoading ? (
+                    <div className="p-3">
+                      <ListSkeleton rows={6} avatar={false} />
+                    </div>
+                  ) : (
+                    <ul className="divide-y">
+                      {(audit.data ?? []).slice(0, 20).map((a) => (
+                        <li key={a.id} className="flex items-center gap-3 p-3 text-sm">
+                          <Badge variant="muted" className="font-mono">
+                            {a.action}
+                          </Badge>
+                          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                            {a.target ?? "—"}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            {new Date(a.at).toLocaleString("id-ID")}
+                          </span>
+                        </li>
+                      ))}
+                      {(audit.data?.length ?? 0) === 0 && (
+                        <li className="p-3 text-xs text-muted-foreground">
+                          Belum ada aktivitas audit.
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ))}
       </div>
+
+      {/* ===================== DSAR DELETE CONFIRM ===================== */}
+      <ConfirmDialog
+        open={dsarDeleteOpen}
+        onClose={() => setDsarDeleteOpen(false)}
+        icon={<Trash2 className="h-5 w-5" />}
+        tone="destructive"
+        title="Hapus semua data subjek?"
+        body={
+          <>
+            Semua data untuk{" "}
+            <span className="font-medium text-foreground">{dsarEmail || "subjek ini"}</span> akan
+            dihapus permanen lintas tabel (orang/kontak/legacy). <b>Tidak bisa dibatalkan</b> —
+            opt-out tetap disimpan agar tak dihubungi lagi.
+          </>
+        }
+        confirmLabel="Ya, hapus permanen"
+        confirmPending={dsarBusy}
+        onConfirm={deleteSubject}
+      />
     </div>
   );
 }
@@ -702,6 +946,30 @@ function TrustRow({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
         <p className="truncate text-[12px] font-medium text-foreground/80">{value}</p>
       </div>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

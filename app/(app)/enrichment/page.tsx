@@ -1,24 +1,21 @@
 "use client";
 
-// Pengayaan Data & Discovery — Module 5 FRONTEND (Sainskerta Loop Phase 04). Wired
-// to the NEW M5 enrichment/discovery backend (NO mock data). Faithful to
-// mockups/enrichment.html (Coral Sunset): a two-step rail (Discovery → Enrichment)
-// + three JS-switched section tabs.
+// Pengayaan Data (Enrichment) — Module 5 FRONTEND (Sainskerta Loop Phase 04). Wired
+// to the NEW M5 enrichment backend (NO mock data). Two JS-switched section tabs.
+// Discovery (finding leads) now lives at /contacts/discovery — from there, saved
+// leads land in this page's Enrichment queue.
 //
-//   (1) DISCOVERY — search leads. Run a discovery job
-//       (POST /api/discovery/jobs) and list the raw results it found
-//       (GET /api/discovery/results); pick rows → "Simpan ke workspace"
-//       (POST /api/discovery/results/[id]/save) which queues an enrichment record.
-//   (2) ENRICHMENT — the queue of raw contacts (GET /api/enrichment). Run enrich
+//   (1) ENRICHMENT — the queue of raw contacts (GET /api/enrichment). Run enrich
 //       (POST /api/enrichment/[id]/run · before/after fields), AUTO classify
 //       B2C/B2B + fit score (POST /api/enrichment/[id]/classify → badge + score),
 //       and "Push ke Contacts" (POST /api/enrichment/[id]/push). A right drawer
 //       shows the before/after enrich diff + classification override.
-//   (3) RIWAYAT — the discovery run history (GET /api/discovery/jobs).
+//   (2) RIWAYAT — the discovery run history (GET /api/discovery/jobs) with
+//       soft-delete/restore/purge of past runs.
 //
-// Soft-delete / restore / purge for BOTH discovery results and enrichment records
-// (a Sampah / trash view per tab). Every band has loading + empty + error states.
-// Lives in the (app) shell. NO DB mutations beyond calling the existing endpoints.
+// Soft-delete / restore / purge for enrichment records (a Sampah / trash view per
+// tab). Every band has loading + empty + error states. Lives in the (app) shell.
+// NO DB mutations beyond calling the existing endpoints.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -26,15 +23,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   Check,
-  ChevronRight,
   Loader2,
-  Plug,
   Radar,
   RotateCcw,
   Search,
   Sparkles,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,29 +56,6 @@ interface ApiErr {
   code?: string;
 }
 type ApiResult<T> = ApiOk<T> | ApiErr;
-
-/** Row from GET /api/discovery/results (modules/enrichment · discovery_result). */
-interface DiscoveryResultRow {
-  id: string;
-  jobId: string;
-  workspaceId: string | null;
-  fullName: string | null;
-  companyName: string | null;
-  title: string | null;
-  email: string | null;
-  phone: string | null;
-  whatsapp: string | null;
-  location: string | null;
-  website: string | null;
-  socials: Record<string, string> | null;
-  snippet: string | null;
-  sourceUrl: string | null;
-  savedAt: string | null;
-  savedContactId: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt?: string | null;
-}
 
 /** Row from GET /api/discovery/jobs (modules/enrichment · discovery_job). */
 interface DiscoveryJobRow {
@@ -129,7 +100,7 @@ interface EnrichmentRecordRow {
 
 // ── enums / display metadata ─────────────────────────────────────────────────
 
-type SectionTab = "discovery" | "enrichment" | "history";
+type SectionTab = "enrichment" | "history";
 type DiscoveryView = "results" | "trash";
 type EnrichView = "queue" | "trash";
 type StatusFilter = "all" | "queued" | "running" | "enriched" | "failed";
@@ -216,17 +187,6 @@ function recordOrigin(rec: EnrichmentRecordRow): string {
   return rec.source || "manual";
 }
 
-function resultName(r: DiscoveryResultRow): string {
-  return r.fullName?.trim() || r.companyName?.trim() || "Lead tanpa nama";
-}
-
-function resultSub(r: DiscoveryResultRow): string {
-  if (r.fullName && (r.title || r.companyName)) {
-    return [r.title, r.companyName].filter(Boolean).join(" · ");
-  }
-  return r.website || r.sourceUrl || "—";
-}
-
 function fmtRelID(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -254,14 +214,9 @@ export default function EnrichmentPage() {
   const activeWs = useWorkspaceStore((s) => s.active);
   const wsName = activeWs?.name ?? "Workspace";
 
-  const [tab, setTab] = useState<SectionTab>("discovery");
+  const [tab, setTab] = useState<SectionTab>("enrichment");
 
   // ── live data ──────────────────────────────────────────────────────────────
-  const resultsQ = useQuery({
-    queryKey: ["m5", "results"],
-    queryFn: async () => readJson<DiscoveryResultRow[]>(await fetch("/api/discovery/results")),
-    retry: false,
-  });
   const recordsQ = useQuery({
     queryKey: ["m5", "records"],
     queryFn: async () => readJson<EnrichmentRecordRow[]>(await fetch("/api/enrichment")),
@@ -274,12 +229,10 @@ export default function EnrichmentPage() {
     retry: false,
   });
 
-  const results = useMemo(() => resultsQ.data ?? [], [resultsQ.data]);
   const records = useMemo(() => recordsQ.data ?? [], [recordsQ.data]);
 
   const forbidden =
-    (resultsQ.error instanceof Error && resultsQ.error.message === "forbidden") ||
-    (recordsQ.error instanceof Error && recordsQ.error.message === "forbidden");
+    recordsQ.error instanceof Error && recordsQ.error.message === "forbidden";
 
   // ── enrichment stat strip ────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -294,10 +247,6 @@ export default function EnrichmentPage() {
     return { queued: records.length, b2c, b2b, ready };
   }, [records]);
 
-  function refreshResults() {
-    qc.invalidateQueries({ queryKey: ["m5", "results"] });
-    qc.invalidateQueries({ queryKey: ["m5", "trashedResults"] });
-  }
   function refreshRecords() {
     qc.invalidateQueries({ queryKey: ["m5", "records"] });
     qc.invalidateQueries({ queryKey: ["m5", "trashedRecords"] });
@@ -306,8 +255,8 @@ export default function EnrichmentPage() {
   return (
     <div>
       <PageHeader
-        title="Pengayaan Data & Discovery"
-        description={`Cari lead baru lalu lengkapi datanya · Workspace: ${wsName}`}
+        title="Pengayaan Data"
+        description={`Lengkapi & klasifikasi lead, lalu push ke Contacts · Workspace: ${wsName}`}
       >
         <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium">
           <span className="h-2 w-2 rounded-full bg-warning" />
@@ -316,33 +265,28 @@ export default function EnrichmentPage() {
       </PageHeader>
 
       <div className="space-y-5 p-6">
-        {/* ============ TWO-STEP RAIL (Discovery → Enrichment) ============ */}
-        <div className="flex flex-col items-stretch overflow-hidden rounded-lg border border-border shadow-soft sm:flex-row">
-          <RailStep
-            num={1}
-            active={tab === "discovery"}
-            title="Discovery — cari lead"
-            hint="Per channel / SERP → daftar hasil → Simpan ke workspace"
-            onClick={() => setTab("discovery")}
-          />
-          <div className="hidden items-center bg-card px-1 text-muted-foreground/50 sm:flex">
-            <ChevronRight className="h-5 w-5" />
+        {/* ============ DISCOVERY MOVED → /contacts/discovery ============ */}
+        <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-primary/30 bg-card p-4 shadow-soft">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Radar className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Cari lead baru?</p>
+            <p className="text-[11px] text-muted-foreground">
+              Discovery pindah ke <b className="text-foreground/70">Kontak → Discovery</b>. Lead yang
+              kamu simpan dari sana otomatis masuk ke antrian Enrichment di bawah.
+            </p>
           </div>
-          <RailStep
-            num={2}
-            active={tab === "enrichment"}
-            title="Enrichment — lengkapi & klasifikasi"
-            hint="Enrich profil/PT/kontak → B2C/B2B + skor fit → Push ke Contacts"
-            onClick={() => setTab("enrichment")}
-            className="border-t border-border sm:border-l sm:border-t-0"
-          />
+          <Link
+            href="/contacts/discovery"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90"
+          >
+            Buka Discovery <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
         {/* ============ SECTION TABS (JS switch) ============ */}
         <div className="flex items-center gap-1 border-b border-border text-sm">
-          <SectionTabButton active={tab === "discovery"} onClick={() => setTab("discovery")}>
-            Discovery
-          </SectionTabButton>
           <SectionTabButton active={tab === "enrichment"} onClick={() => setTab("enrichment")}>
             Antrian Enrichment
             <CountPill>{recordsQ.isLoading ? "…" : records.length}</CountPill>
@@ -352,19 +296,7 @@ export default function EnrichmentPage() {
           </SectionTabButton>
         </div>
 
-        {/* ===================== PANEL 1 — DISCOVERY ===================== */}
-        {tab === "discovery" && (
-          <DiscoveryPanel
-            resultsQ={resultsQ}
-            results={results}
-            forbidden={forbidden}
-            workspaceId={activeWs?.id ?? null}
-            onRefreshResults={refreshResults}
-            onRefreshRecords={refreshRecords}
-          />
-        )}
-
-        {/* ===================== PANEL 2 — ENRICHMENT ===================== */}
+        {/* ===================== PANEL 1 — ENRICHMENT ===================== */}
         {tab === "enrichment" && (
           <EnrichmentPanel
             recordsQ={recordsQ}
@@ -376,477 +308,10 @@ export default function EnrichmentPage() {
           />
         )}
 
-        {/* ===================== PANEL 3 — RIWAYAT ===================== */}
+        {/* ===================== PANEL 2 — RIWAYAT ===================== */}
         {tab === "history" && <HistoryPanel jobsQ={jobsQ} />}
       </div>
     </div>
-  );
-}
-
-// ═══════════════════════ DISCOVERY PANEL ═══════════════════════
-
-function DiscoveryPanel({
-  resultsQ,
-  results,
-  forbidden,
-  workspaceId,
-  onRefreshResults,
-  onRefreshRecords,
-}: {
-  resultsQ: ReturnType<typeof useQuery<DiscoveryResultRow[]>>;
-  results: DiscoveryResultRow[];
-  forbidden: boolean;
-  workspaceId: string | null;
-  onRefreshResults: () => void;
-  onRefreshRecords: () => void;
-}) {
-  const qc = useQueryClient();
-  const [view, setView] = useState<DiscoveryView>("results");
-
-  // ── search form ──────────────────────────────────────────────────────────
-  const [query, setQuery] = useState("logistik & supply chain");
-  const [channel, setChannel] = useState<string>("web");
-  const [location, setLocation] = useState("Indonesia");
-  const [posture, setPosture] = useState("compliant");
-
-  // ── selection ────────────────────────────────────────────────────────────
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const visibleResults = useMemo(() => results.filter((r) => !r.savedAt), [results]);
-  useEffect(() => {
-    // prune selection of rows no longer visible
-    setSelected((prev) => {
-      const next = new Set<string>();
-      for (const r of visibleResults) if (prev.has(r.id)) next.add(r.id);
-      return next;
-    });
-  }, [visibleResults]);
-
-  // ── trash query (lazy) ───────────────────────────────────────────────────
-  const trashedQ = useQuery({
-    queryKey: ["m5", "trashedResults"],
-    enabled: view === "trash",
-    queryFn: async () =>
-      readJson<DiscoveryResultRow[]>(await fetch("/api/discovery/results/trashed")),
-    retry: false,
-  });
-  const trashed = useMemo(() => trashedQ.data ?? [], [trashedQ.data]);
-
-  // ── run discovery ────────────────────────────────────────────────────────
-  const runDiscovery = useMutation({
-    mutationFn: async () =>
-      readJson<{ job: DiscoveryJobRow; results: DiscoveryResultRow[] }>(
-        await fetch("/api/discovery/jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: query.trim(),
-            channel,
-            workspaceId,
-            posture,
-            source: location,
-            origin: "manual",
-          }),
-        }),
-      ),
-    onSuccess: (res) => {
-      toast.success(
-        res.results.length > 0
-          ? `Discovery selesai · ${res.results.length} kandidat ditemukan`
-          : "Discovery selesai · belum ada kandidat (hubungkan extension untuk crawl)",
-      );
-      onRefreshResults();
-      qc.invalidateQueries({ queryKey: ["m5", "jobs"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menjalankan discovery"),
-  });
-
-  // ── save selected ────────────────────────────────────────────────────────
-  const save = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        await readJson(
-          await fetch(`/api/discovery/results/${id}/save`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ workspaceId }),
-          }),
-        );
-      }
-      return ids.length;
-    },
-    onSuccess: (n) => {
-      toast.success(`${n} lead disimpan ke workspace → masuk antrian Enrichment`);
-      setSelected(new Set());
-      onRefreshResults();
-      onRefreshRecords();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan lead"),
-  });
-
-  // ── soft delete / restore / purge ────────────────────────────────────────
-  const [deleteTarget, setDeleteTarget] = useState<DiscoveryResultRow | null>(null);
-  const [purgeTarget, setPurgeTarget] = useState<DiscoveryResultRow | null>(null);
-
-  const softDelete = useMutation({
-    mutationFn: async (r: DiscoveryResultRow) =>
-      readJson(await fetch(`/api/discovery/results/${r.id}`, { method: "DELETE" })),
-    onSuccess: (_d, r) => {
-      toast.success(`"${resultName(r)}" dipindah ke Sampah`);
-      setDeleteTarget(null);
-      onRefreshResults();
-    },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus hasil");
-      setDeleteTarget(null);
-    },
-  });
-  const restore = useMutation({
-    mutationFn: async (r: DiscoveryResultRow) =>
-      readJson(await fetch(`/api/discovery/results/${r.id}/restore`, { method: "PATCH" })),
-    onSuccess: (_d, r) => {
-      toast.success(`"${resultName(r)}" dipulihkan`);
-      onRefreshResults();
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memulihkan hasil"),
-  });
-  const purge = useMutation({
-    mutationFn: async (r: DiscoveryResultRow) =>
-      readJson(await fetch(`/api/discovery/results/${r.id}?purge=1`, { method: "DELETE" })),
-    onSuccess: (_d, r) => {
-      toast.success(`"${resultName(r)}" dihapus permanen`);
-      setPurgeTarget(null);
-      onRefreshResults();
-    },
-    onError: (e) => {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus permanen");
-      setPurgeTarget(null);
-    },
-  });
-
-  const allChecked = visibleResults.length > 0 && selected.size === visibleResults.length;
-
-  return (
-    <section className="space-y-5">
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[380px_1fr]">
-        {/* ---- KIRI: form pencarian ---- */}
-        <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-soft">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <h2 className="text-sm font-semibold">Cari lead baru</h2>
-              <span className="rounded bg-tertiary/[0.12] px-1.5 py-0.5 text-[10px] font-medium text-tertiary">
-                RPA + AI
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              AI menyusun rencana &amp; query; orang aslinya diambil via crawl/extension — bukan
-              dikarang AI.
-            </p>
-          </div>
-
-          {/* channel chips */}
-          <div>
-            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Channel / sumber
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {CHANNELS.map((c) => (
-                <button
-                  key={c.v}
-                  type="button"
-                  onClick={() => setChannel(c.v)}
-                  className={cn(
-                    "rounded-full px-2.5 py-1.5 text-[11px] transition-colors",
-                    channel === c.v
-                      ? "bg-primary font-semibold text-primary-foreground"
-                      : "border border-border bg-card font-medium text-foreground/70 hover:border-primary/40",
-                  )}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-1.5 text-[10px] text-muted-foreground">
-              LinkedIn · Instagram · Maps · Direktori via Extension (data diambil di browser kamu).
-            </p>
-          </div>
-
-          <hr className="border-border" />
-
-          {/* query / params */}
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-[12px] font-medium text-foreground/70">
-                Bidang / pekerjaan (query)
-              </label>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="mis. logistik, dokter gigi, HRD manufaktur…"
-                className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="mb-1 block text-[12px] font-medium text-foreground/70">
-                  Lokasi target
-                </label>
-                <SelectBox value={location} onChange={setLocation} options={["Indonesia", "Jakarta", "Surabaya", "Bandung"]} />
-              </div>
-              <div>
-                <label className="mb-1 block text-[12px] font-medium text-foreground/70">
-                  Posture
-                </label>
-                <SelectBox value={posture} onChange={setPosture} options={["compliant", "balanced", "aggressive"]} />
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!query.trim()) {
-                toast.error("Isi bidang / pekerjaan dulu");
-                return;
-              }
-              runDiscovery.mutate();
-            }}
-            disabled={runDiscovery.isPending}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {runDiscovery.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Menyusun rencana…
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" /> Buat rencana &amp; cari lead
-              </>
-            )}
-          </button>
-          <p className="text-center text-[10px] text-muted-foreground">
-            Hasil muncul di kanan → centang → <b className="text-foreground/70">Simpan ke workspace</b>.
-          </p>
-        </div>
-
-        {/* ---- KANAN: hasil ---- */}
-        <div className="space-y-4">
-          {/* view switch: hasil | sampah */}
-          <div className="flex items-center gap-1 text-sm">
-            <ViewPill active={view === "results"} onClick={() => setView("results")}>
-              <Radar className="h-3.5 w-3.5" /> Hasil
-            </ViewPill>
-            <ViewPill active={view === "trash"} onClick={() => setView("trash")}>
-              <Trash2 className="h-3.5 w-3.5" /> Sampah
-              {trashed.length > 0 && view === "trash" && (
-                <CountPill>{trashed.length}</CountPill>
-              )}
-            </ViewPill>
-          </div>
-
-          {view === "results" ? (
-            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
-              <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
-                <h3 className="text-sm font-semibold">Hasil pencarian</h3>
-                <span className="text-[11px] text-muted-foreground">
-                  <b className="text-foreground/80">{resultsQ.isLoading ? "…" : visibleResults.length}</b>{" "}
-                  kandidat ditemukan
-                </span>
-                <div className="ml-auto flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">
-                    <b className="text-foreground/80">{selected.size}</b> dipilih
-                  </span>
-                  <button
-                    type="button"
-                    disabled={selected.size === 0 || save.isPending}
-                    onClick={() => save.mutate([...selected])}
-                    className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                    Simpan ke workspace
-                  </button>
-                </div>
-              </div>
-
-              {resultsQ.isLoading ? (
-                <TableLoading />
-              ) : resultsQ.isError ? (
-                <ErrorState
-                  className="border-0"
-                  title={forbidden ? "Tidak punya akses" : "Gagal memuat hasil"}
-                  description={
-                    forbidden
-                      ? "Akun kamu tidak punya izin baca data (data.read). Hubungi admin workspace."
-                      : "Tidak bisa mengambil hasil discovery. Pastikan login & database tersedia."
-                  }
-                  onRetry={() => resultsQ.refetch()}
-                />
-              ) : visibleResults.length === 0 ? (
-                <EmptyState
-                  className="border-0"
-                  icon={Radar}
-                  title="Belum ada hasil discovery"
-                  description="Jalankan pencarian di kiri. Lead yang ditemukan (via crawl/extension) muncul di sini untuk disimpan ke workspace."
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left text-sm">
-                    <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
-                      <tr>
-                        <th className="w-9 px-4 py-2.5">
-                          <input
-                            type="checkbox"
-                            checked={allChecked}
-                            ref={(el) => {
-                              if (el) el.indeterminate = selected.size > 0 && !allChecked;
-                            }}
-                            onChange={(e) =>
-                              setSelected(
-                                e.target.checked ? new Set(visibleResults.map((r) => r.id)) : new Set(),
-                              )
-                            }
-                            className="h-4 w-4 rounded border-input accent-primary"
-                          />
-                        </th>
-                        <th className="px-4 py-2.5 font-semibold">Nama / Perusahaan</th>
-                        <th className="px-4 py-2.5 font-semibold">Channel</th>
-                        <th className="px-4 py-2.5 font-semibold">Sinyal kontak</th>
-                        <th className="px-4 py-2.5 text-right font-semibold">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {visibleResults.map((r) => (
-                        <ResultRow
-                          key={r.id}
-                          row={r}
-                          checked={selected.has(r.id)}
-                          onToggle={() =>
-                            setSelected((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(r.id)) next.delete(r.id);
-                              else next.add(r.id);
-                              return next;
-                            })
-                          }
-                          onSave={() => save.mutate([r.id])}
-                          saving={save.isPending}
-                          onDelete={() => setDeleteTarget(r)}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <div className="border-t border-border bg-muted/30 px-5 py-2.5 text-[11px] text-muted-foreground">
-                Lead yang disimpan masuk antrian <b className="text-foreground/70">Enrichment</b> dengan
-                status <i>&quot;belum di-enrich&quot;</i> &amp; ditandai ke workspace ini.
-              </div>
-            </div>
-          ) : (
-            /* ---- TRASH (results) ---- */
-            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
-              <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3.5 text-xs">
-                <span className="text-muted-foreground">
-                  Hasil yang dihapus disimpan di sini. <b>Pulihkan</b> mengembalikannya, <b>Hapus
-                  permanen</b> menghapus selamanya.
-                </span>
-                <span className="ml-auto text-muted-foreground">{trashed.length} hasil</span>
-              </div>
-              {trashedQ.isLoading ? (
-                <TableLoading />
-              ) : trashedQ.isError ? (
-                <ErrorState
-                  className="border-0"
-                  title="Gagal memuat sampah"
-                  description="Tidak bisa mengambil hasil yang dihapus."
-                  onRetry={() => trashedQ.refetch()}
-                />
-              ) : trashed.length === 0 ? (
-                <EmptyState
-                  className="border-0"
-                  icon={Trash2}
-                  title="Sampah kosong"
-                  description="Hasil discovery yang kamu hapus akan muncul di sini dan bisa dipulihkan."
-                />
-              ) : (
-                <ul className="divide-y divide-border">
-                  {trashed.map((r) => (
-                    <li key={r.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-foreground/80">{resultName(r)}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          dihapus {fmtRelID(r.deletedAt ?? null)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => restore.mutate(r)}
-                        disabled={restore.isPending}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary disabled:opacity-60"
-                      >
-                        <RotateCcw className="h-3 w-3" /> Pulihkan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPurgeTarget(r)}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 bg-card px-2.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-3 w-3" /> Hapus permanen
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Extension card */}
-      <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-primary/30 bg-card p-4 shadow-soft">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Plug className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            Crawl via Extension (utama)
-            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">
-              Belum terhubung
-            </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Data diambil di browser kamu (RPA scrape + AI websearch) → buffer → kirim ke platform.
-            Serverless tidak bisa crawl sosmed sendiri.
-          </p>
-        </div>
-      </div>
-
-      {/* confirms */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        icon={<Trash2 className="h-5 w-5" />}
-        tone="destructive"
-        title="Pindahkan ke Sampah?"
-        body={
-          <>
-            <span className="font-medium text-foreground">{deleteTarget && resultName(deleteTarget)}</span>{" "}
-            akan dihapus dan dipindah ke <b>Sampah</b>. Kamu masih bisa memulihkannya nanti.
-          </>
-        }
-        confirmLabel="Ya, hapus"
-        confirmPending={softDelete.isPending}
-        onConfirm={() => deleteTarget && softDelete.mutate(deleteTarget)}
-      />
-      <PurgeDialog
-        open={!!purgeTarget}
-        label={purgeTarget ? resultName(purgeTarget) : ""}
-        pending={purge.isPending}
-        onClose={() => setPurgeTarget(null)}
-        onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
-      />
-    </section>
   );
 }
 
@@ -1106,7 +571,7 @@ function EnrichmentPanel({
               className="border-0"
               icon={Sparkles}
               title="Antrian enrichment kosong"
-              description="Simpan lead dari tab Discovery untuk mengantrekannya di sini. Tiap lead bisa di-enrich, diklasifikasi B2C/B2B, lalu di-push ke Contacts."
+              description="Simpan lead dari Kontak → Discovery untuk mengantrekannya di sini. Tiap lead bisa di-enrich, diklasifikasi B2C/B2B, lalu di-push ke Contacts."
             />
           ) : visible.length === 0 ? (
             <EmptyState
@@ -1495,88 +960,6 @@ function HistoryPanel({ jobsQ }: { jobsQ: ReturnType<typeof useQuery<DiscoveryJo
 
 // ───────────────────────── rows ─────────────────────────
 
-function ResultRow({
-  row,
-  checked,
-  onToggle,
-  onSave,
-  saving,
-  onDelete,
-}: {
-  row: DiscoveryResultRow;
-  checked: boolean;
-  onToggle: () => void;
-  onSave: () => void;
-  saving: boolean;
-  onDelete: () => void;
-}) {
-  const signals: { label: string; style: React.CSSProperties }[] = [];
-  if (row.email) signals.push({ label: "✉ email", style: { background: "#6366F11f", color: "#4f46e5" } });
-  if (row.phone) signals.push({ label: "☎ telp", style: { background: "hsl(142 71% 45% / .12)", color: "#10B981" } });
-  if (row.whatsapp) signals.push({ label: "☎ WA", style: { background: "#25D36626", color: "#1faa52" } });
-  if (row.socials?.linkedin) signals.push({ label: "in", style: { background: "#0A66C21f", color: "#0A66C2" } });
-
-  return (
-    <tr className="transition-colors hover:bg-muted/40">
-      <td className="px-4 py-3">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          className="h-4 w-4 rounded border-input accent-primary"
-        />
-      </td>
-      <td className="px-4 py-3">
-        <div className="font-medium">{resultName(row)}</div>
-        <div className="truncate text-[11px] text-muted-foreground">{resultSub(row)}</div>
-      </td>
-      <td className="px-4 py-3">
-        <span className="inline-flex items-center gap-1.5 text-xs capitalize">
-          <span className="h-2 w-2 rounded-full bg-info" />
-          {row.socials?.linkedin ? "LinkedIn" : "SERP"}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        {signals.length === 0 ? (
-          <span className="text-[11px] text-muted-foreground">—</span>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {signals.map((s, i) => (
-              <span
-                key={i}
-                className="rounded px-1.5 py-0.5 text-[10px] font-medium"
-                style={s.style}
-              >
-                {s.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3 text-right">
-        <div className="inline-flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            <Upload className="h-3 w-3" /> Simpan
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            title="Hapus (ke Sampah)"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
 function EnrichRow({
   rec,
   onOpen,
@@ -1896,46 +1279,6 @@ function EnrichDrawer({
 
 // ───────────────────────── small UI ─────────────────────────
 
-function RailStep({
-  num,
-  active,
-  title,
-  hint,
-  onClick,
-  className,
-}: {
-  num: number;
-  active: boolean;
-  title: string;
-  hint: string;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center gap-3.5 bg-card px-5 py-4 text-left transition-colors hover:bg-muted/40",
-        className,
-      )}
-    >
-      <span
-        className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-          active ? "bg-primary text-primary-foreground shadow-soft" : "bg-secondary text-secondary-foreground",
-        )}
-      >
-        {num}
-      </span>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold">{title}</div>
-        <div className="text-[11px] text-muted-foreground">{hint}</div>
-      </div>
-    </button>
-  );
-}
-
 function SectionTabButton({
   active,
   onClick,
@@ -2016,33 +1359,6 @@ function CountPill({ children }: { children: React.ReactNode }) {
     <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-secondary-foreground">
       {children}
     </span>
-  );
-}
-
-function SelectBox({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-card pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-      <ChevronRight className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-90 text-muted-foreground" />
-    </div>
   );
 }
 
