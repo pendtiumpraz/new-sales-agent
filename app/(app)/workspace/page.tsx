@@ -383,22 +383,36 @@ export default function WorkspaceHubPage() {
   // tenant's first product (1 workspace = 1 produk).
   const [connectOpen, setConnectOpen] = useState(false);
   const [connectProductId, setConnectProductId] = useState("");
+  const [newProductName, setNewProductName] = useState("");
   const connectProduct = useMutation({
     mutationFn: async () => {
       if (!wsId) throw new Error("Tidak ada workspace aktif");
-      if (!connectProductId) throw new Error("Pilih produk dulu");
+      // Connect an EXISTING product, or CREATE one inline — so a tenant whose
+      // onboarding product never materialised isn't stuck with nothing to pick.
+      let productId = connectProductId;
+      if (!productId) {
+        const name = newProductName.trim();
+        if (!name) throw new Error("Pilih produk atau isi nama produk baru");
+        const cr = await fetch("/api/product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        const cj = (await cr.json()) as ApiEnvelope<ProductRow>;
+        if (!cr.ok || !cj.ok || !cj.data) throw new Error(cj.error || "Gagal membuat produk");
+        productId = cj.data.id;
+      }
       const r = await fetch(`/api/workspace/${wsId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: connectProductId }),
+        body: JSON.stringify({ productId }),
       });
       const j = (await r.json()) as ApiEnvelope<WorkspaceRow>;
       if (!r.ok || !j.ok || !j.data) throw new Error(j.error || "Gagal menghubungkan produk");
       return j.data;
     },
     onSuccess: () => {
-      const picked = products.find((p) => p.id === connectProductId);
-      toast.success(picked ? `Produk "${picked.name}" terhubung` : "Produk terhubung");
+      toast.success("Produk terhubung ke workspace");
       // Re-render the hub connected: the workspace list now carries the productId,
       // and the product/market-fit satellites should reflect the new product.
       qc.invalidateQueries({ queryKey: ["m2", "workspace", "list"] });
@@ -406,6 +420,7 @@ export default function WorkspaceHubPage() {
       if (wsId) qc.invalidateQueries({ queryKey: ["m2", "workspace", wsId, "market-fit"] });
       setConnectOpen(false);
       setConnectProductId("");
+      setNewProductName("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghubungkan produk"),
   });
@@ -420,27 +435,17 @@ export default function WorkspaceHubPage() {
             &rdquo; — market-fit &amp; sales-play menyesuaikan produk ini.
           </DialogDescription>
         </DialogHeader>
-        {products.length === 0 ? (
-          <div className="py-1">
-            <EmptyState
-              className="border-0 py-8"
-              icon={Package}
-              title="Belum ada produk"
-              description="Buat produk dulu di Onboarding (1 workspace = 1 produk), lalu kembali ke sini untuk menghubungkannya."
-              action={
-                <Button asChild size="sm">
-                  <Link href="/onboarding">
-                    <Plus className="h-4 w-4" /> Buat produk di Onboarding
-                  </Link>
-                </Button>
-              }
-            />
-          </div>
-        ) : (
-          <>
-            <div className="space-y-1.5 py-1">
-              <Label className="text-xs">Produk</Label>
-              <Select value={connectProductId} onValueChange={setConnectProductId}>
+        <div className="space-y-3 py-1">
+          {products.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Pilih produk yang sudah ada</Label>
+              <Select
+                value={connectProductId}
+                onValueChange={(v) => {
+                  setConnectProductId(v);
+                  setNewProductName("");
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih produk…" />
                 </SelectTrigger>
@@ -453,24 +458,44 @@ export default function WorkspaceHubPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-center text-[11px] text-muted-foreground">— atau —</p>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setConnectOpen(false)}
-                disabled={connectProduct.isPending}
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={() => connectProduct.mutate()}
-                disabled={!connectProductId || connectProduct.isPending}
-              >
-                {connectProduct.isPending ? "Menghubungkan…" : "Hubungkan produk"}
-              </Button>
-            </div>
-          </>
-        )}
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Buat produk baru</Label>
+            <Input
+              value={newProductName}
+              onChange={(e) => {
+                setNewProductName(e.target.value);
+                if (e.target.value) setConnectProductId("");
+              }}
+              placeholder="mis. Paket Katering Sehat"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newProductName.trim() && !connectProduct.isPending)
+                  connectProduct.mutate();
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setConnectOpen(false)}
+            disabled={connectProduct.isPending}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={() => connectProduct.mutate()}
+            disabled={connectProduct.isPending || (!connectProductId && !newProductName.trim())}
+          >
+            {connectProduct.isPending
+              ? "Menghubungkan…"
+              : connectProductId
+                ? "Hubungkan produk"
+                : "Buat & hubungkan"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

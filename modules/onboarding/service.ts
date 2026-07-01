@@ -325,15 +325,42 @@ export const onboardingService = {
     state: OnboardingStateRow,
     actorUserId?: string,
   ): Promise<{ workspaceId: string; productId: string } | null> {
-    const existing = await workspaceService.list(ctx);
-    if (existing.length > 0) return null;
-
     const data = (state.data ?? {}) as Record<string, unknown>;
     const rawName = typeof data.productName === "string" ? data.productName.trim() : "";
     const productName = rawName || "Produk utama";
     const category = state.verticalKey ?? null;
     const targetMarketRaw =
       typeof data.targetMarket === "string" ? data.targetMarket.trim() : "";
+
+    const existing = await workspaceService.list(ctx);
+    if (existing.length > 0) {
+      // A workspace already exists (e.g. created manually via the /workspace
+      // dialog before onboarding completed). Don't leave it product-less: if one
+      // has no product yet AND the wizard captured a product, create + connect it
+      // to that workspace. Otherwise there is nothing to bootstrap.
+      const productless = existing.find((w) => !w.productId);
+      if (!productless || !rawName) return null;
+      const linkedProduct = await productService.create(ctx, {
+        name: productName,
+        category,
+        targetMarket: targetMarketRaw || null,
+      });
+      await workspaceService.update(ctx, productless.id, { productId: linkedProduct.id });
+      await platformRepo.insertAudit({
+        tenantId: ctx.tenantId,
+        actorUserId: actorUserId ?? ctx.userId,
+        action: "onboarding.bootstrap_workspace",
+        targetType: "workspace",
+        targetId: productless.id,
+        meta: {
+          workspaceId: productless.id,
+          productId: linkedProduct.id,
+          productName,
+          linkedToExisting: true,
+        },
+      });
+      return { workspaceId: productless.id, productId: linkedProduct.id };
+    }
 
     const product = await productService.create(ctx, {
       name: productName,
