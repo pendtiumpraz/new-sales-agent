@@ -6,7 +6,7 @@
 > Lainnya · Pengaturan**, plus **Superadmin** and the cross-cutting **engines** (Closing-Flow
 > AI, WhatsApp gateway, Chrome extension, Quota & subscription).
 
-_Last generated: 2026-07-01 (from code, not aspiration). Update when features land._
+_Last generated: 2026-07-01 (from code, not aspiration). Update when features land. Touched up 2026-07-01 to reflect the served `extension/` collector v0.14.0 (multi-channel + CSV + Deep Enrich + quota render), the mounted Superadmin Secrets/Docs tabs, and the encrypted secrets console._
 
 ---
 
@@ -135,7 +135,7 @@ _All six pages are wired to the rebuild backend (`{ok,data}` envelope, `requireP
 - **API / module:** `/api/autopilot*` (`[id]`, `trashed`, `restore`, `purge`, `text`), `/api/auto-reply` → `modules/outreach` (`autopilot_run_v2`)
 - **Data:** rebuild DB
 - **Status:** **WIP (honest)** — the run records + start/inspect/trash surface is Live and DB-backed, but the page only *records* a `queued` run and *displays* logs; the actual lifecycle (status transitions, step execution) is driven by the AI orchestrator elsewhere and **not wired from this surface**. Starting a run does not autonomously execute steps.
-- **Notes:** Start-run drawer with mode = suggest (human approves) vs auto; structured log-trace timeline; status filter incl. `escalated` → links to Eskalasi. A client-side **"Ekspor CSV"** of run prospect journeys exists (`components/autopilot/run-results.tsx`) — this is the only CSV export in the repo.
+- **Notes:** Start-run drawer with mode = suggest (human approves) vs auto; structured log-trace timeline; status filter incl. `escalated` → links to Eskalasi. A client-side **"Ekspor CSV"** of run prospect journeys exists (`components/autopilot/run-results.tsx`). (The browser extension also exports crawled leads to CSV — see Chrome extension.)
 
 ### Eskalasi / Handoff
 - **Purpose:** Human-takeover queue for AI-escalated conversations (objection/pricing/complaint/low-confidence → hand to a person).
@@ -278,7 +278,8 @@ _All six are rebuild-DB, tenant-scoped modular-monolith services with the full s
 - **API / module:** `/api/superadmin/{overview,tenants,provision}`, `/api/superadmin/tenants/[id]/activation`, `/api/tenant/[id]/{suspend,quota,restore}`, `/api/tenant/trashed` → `modules/superadmin` + `modules/tenant`
 - **Data:** rebuild DB · **Status: Live**
 - **Wired now:** "Buat akun" provisions **tenant + first admin `app_user` + owner membership** in one call; activation drawer sets **duration** (1/3/6/12-mo chips or date) + **AI-token quota**; "+ Kredit" adds 1M to `ai_tokens_max`; **suspend** kill-switch; soft-delete → Sampah → restore / slug-typed hard-purge; KPI strip (tenants/pending/users/audit).
-- **⚠️ Not wired in the console (honest gaps):** the `ConsoleTab` type declares `secrets`/`docs` tabs but only `aktif`/`sampah` render — **no secrets UI**. **Module entitlements, deployment-mode, and wa-mode** have live DB-backed routes (`/api/admin/{entitlements,deployment-mode,wa-mode}`) **and** components (`components/admin/{entitlement-matrix,deployment-mode-toggle,wa-mode-toggle}.tsx`) but **nothing renders them** — orphaned relative to the rebuilt console. The **payment-provider** config route (`/api/superadmin/payment-provider`) is live but has **no console UI** (set via platform setting). Note: tenant entitlements *are* consumed — the sidebar hides modules the superadmin disabled via `/api/tenant/entitlements`.
+- **Secrets & Config + Dokumentasi tabs (Live):** the console now mounts a **"Secrets & Config"** tab — superadmin-managed, **AES-256-GCM-encrypted** platform secrets/config via `/api/superadmin/secrets` + `lib/config/secrets.ts` (a ~35-key catalog grouped by category: AI / Payment / Email / Ingest & WA / Jobs / Flags), values **masked**, inline edit, DB/env/kosong source badge, and a "SECRETS_KEY missing" warning. Resolution is **DB (decrypt) → env fallback**, cached 60s; the callers for the AI key, Midtrans/Stripe-webhook, and WA/ingest tokens read via `getSecret`. Plus a **"Dokumentasi"** tab (architecture reference → `docs/HLA.md` / `docs/FEATURES.md`).
+- **⚠️ Still not wired in the console:** **module entitlements, deployment-mode, and wa-mode** have live DB-backed routes (`/api/admin/{entitlements,deployment-mode,wa-mode}`) **and** components (`components/admin/{entitlement-matrix,deployment-mode-toggle,wa-mode-toggle}.tsx`) but **nothing renders them** — orphaned relative to the rebuilt console. The **payment-provider** setting (`/api/superadmin/payment-provider`) is live but set via API (no dedicated console toggle yet). Note: tenant entitlements *are* consumed — the sidebar hides modules the superadmin disabled via `/api/tenant/entitlements`.
 
 ---
 
@@ -312,16 +313,20 @@ _All six are rebuild-DB, tenant-scoped modular-monolith services with the full s
 
 ---
 
-## Engine: Chrome extension (MV3, multi-channel)
+## Engine: Chrome extension (MV3)
 
-> `gateway/extension/` — "Maira WA + Discovery Bridge" v0.3.0. **One** modular extension = WA transport **+** LinkedIn/IG/marketplace discovery. Client-side DOM extraction → posts to the DB-backed APIs.
+> **Two artifacts exist.** The one the app SERVES + reps install is **`extension/`** — "Maira Sales — Multi-Platform Lead Collector" **v0.14.0** (downloaded as `public/maira-extension.zip` from `/settings/extension`). A separate, older **`gateway/extension/`** ("Maira WA + Discovery Bridge" v0.3.0) is the WA-Web transport bridge. Client-side DOM/RPA → posts to the DB-backed APIs; keys stay server-side.
 
-- **WA Web transport** — **Live** (DOM path). MutationObserver → inbound; poll → openChat → wait(`delayMs`) → `execCommand insertText` → synthetic Enter. Reply-only (skips groups). Selectors centralized in `SEL`.
-- **Discovery adapters** — **Live but best-effort/thin**. `EXTRACTORS` for 9 platforms (linkedin, linkedinpost, instagram, facebook, tiktok, shopee, tokopedia, google, googlemaps). Floating widget (Analisa / Simpan / Simpan semua). **Manual/rep-initiated only — does not background-crawl** (bulk sourcing belongs to the server SERP path). Facebook/TikTok/Shopee selectors are speculative.
-- **In-extension AI classify (metered)** — **Live**. `POST /api/discovery/classify` runs the model **server-side, metered** (`classifyLead`; DeepSeek key never leaves the server; scraped text untrusted-wrapped; grounded on the workspace product). Mock mode → heuristic.
-- **Ingest** — **Live**. Single person → `POST /api/ingest` (idempotent dedup; per-rep token auto-assigns + tags workspace). Bulk → `POST /api/discovery/ingest` (`ingestGraph`, Company→People graph; LinkedIn post commenters/reactors = intent-mining, "Simpan semua").
-- **Heartbeat / quota sync** — **Live** (channel), UI-thin. `background.js` posts `/api/extension/heartbeat` on startup, every 4 min (`chrome.alarms`), and on popup open; server drives "Terhubung" (`last_seen_at` < 10 min via `/api/extension/status`). The heartbeat **response syncs down** `connected`, the rep's workspaces, the platform `deepseekKey`, and the tenant's live **quota (used/limit per metric) + plan** (`tenantService.quotaSummary`). Note: the sync channel is live but the extension does **not yet render** the quota it receives.
-- **Not built (honest):** there is **no lead/discovery CSV export** in the extension (the only CSV export is Autopilot run results). There is **no "Deep Enrich"** feature — the closest real behavior is idempotent upsert-enrichment ("sudah ada (di-update)").
+**`extension/` (Maira Sales — the served collector) — Live:**
+- **Multi-channel search** — popup with a **channel dropdown** (LinkedIn · Google · Tokopedia · Shopee · Instagram · TikTok · DuckDuckGo · AI Websearch); one "Cari" dispatches the right background job (`content.js` LinkedIn RPA, `platforms.js` for google/tokopedia/shopee/ig/tiktok, `detect.js` generic). Two-stage RPA (search → enrich) with anti-ban jitter, posture (compliant/balanced/aggressive) + consent gate, daily cap, buffer + flush.
+- **Ingest** — per-rep token auto-attributes leads + tags the chosen workspace. Single → `POST /api/ingest`; bulk graph → `POST /api/discovery/ingest` (`ingestGraph`). In-extension AI (DeepSeek) classify runs **server-metered** via `/api/discovery/classify` (key never leaves the server).
+- **CSV export (Live)** — besides sending to the app, auto-downloads Excel-ready CSVs on each crawl, split **B2B / B2C / perusahaan** (`chrome.downloads`, BOM UTF-8). Columns: Nama · Jabatan · Perusahaan · Lokasi · Segmen · Channel · Skor · **Email · Telepon · WhatsApp** · URL · Ringkasan · Query · Tanggal. Filename `maira-<segmen>-<query>-<date>.csv`. Manual "⬇ Unduh CSV" button + "Auto-unduh CSV" toggle.
+- **Deep Enrich (Live, opt-in)** — cross-source contact hunt: for a collected lead, RPA across the sources the rep enables (**Google SERP dork · LinkedIn profil+postingan · IG/FB/TikTok · marketplace**), COLLECT raw evidence from all of them, THEN **one DeepSeek pass** picks the email/phone/WA most likely to belong to that person (confidence-scored, never fabricated) → buffer (CSV) + server (`contactPoints`). Rate-limited + anti-ban jitter; source checkboxes in the popup.
+- **Heartbeat + quota sync (Live)** — `background.js` posts `/api/extension/heartbeat` on startup, every 4 min (`chrome.alarms`), and on popup open → drives "Terhubung" (`last_seen_at` < 10 min via `/api/extension/status`). The response syncs down the platform `deepseekKey`, the rep's workspaces, and the tenant's live **quota (used/limit per metric) + plan** (`tenantService.quotaSummary`) — and the popup **renders** it ("Kuota · <plan>").
+
+**`gateway/extension/` (WA + Discovery Bridge v0.3.0) — Live (DOM path):**
+- **WA Web transport** — MutationObserver → inbound; poll outbox → openChat → wait(`delayMs`) → `insertText` → synthetic Enter. Reply-only (skips groups); selectors centralized in `SEL`.
+- Older discovery adapters (`EXTRACTORS` for 9 platforms) — superseded by the `extension/` collector for lead sourcing.
 
 ---
 
@@ -344,7 +349,7 @@ _All six are rebuild-DB, tenant-scoped modular-monolith services with the full s
 
 - **Rebuild data split:** Dashboard + Map read legacy `personTable`; rebuild CRM writes `modules/crm.contact` — new leads don't surface on those two screens yet.
 - **WIP surfaces:** Settings hub (static), Autopilot lifecycle (records-only, not driven from UI), Discovery per-channel scrapers (IG/FB/marketplace/TikTok), Handoff "Riwayat" tab (stub), Field map (placeholder) + no per-rep visit scoping, mobile field PWA `/m` (mock).
-- **Orphaned / backend-only:** cross-tenant data-trading marketplace API (no page), Reports CalibrationPanel (no import), Superadmin secrets/entitlements/deployment-mode/wa-mode/payment-provider UIs (routes + components exist, not mounted).
+- **Orphaned / backend-only:** cross-tenant data-trading marketplace API (no page), Reports CalibrationPanel (no import), Superadmin entitlements/deployment-mode/wa-mode UIs (components exist, not mounted) + payment-provider (set via API). (Secrets/config + docs ARE now mounted in the console.)
 - **Heuristic ≠ AI where it matters:** enrichment B2C/B2B classify + predictive readiness are deterministic heuristics; only **taxonomy classify** and the conversational replies call the metered LLM.
 - **Quotes:** restore-only, no hard-purge (unlike every other rebuild resource).
 - **WhatsApp automation ToS/ban risk:** both WAHA and the extension are WA Web automation and violate WhatsApp ToS (the Jan 2026 update bars 3rd-party AI chatbots); a ban hits the rep's personal number. Mitigations are server-enforced (reply-only allowlist, humanized pacing, low volume, semi-auto draft→approve). For scale/safety, the official **WA Cloud API** is the clean path. LinkedIn/IG scraping likewise violates their terms (kept manual + low-volume). The extension is **not 24/7** (runs only while Chrome + the WA Web tab are open); WA Web/LinkedIn DOM selectors are fragile (centralized in `SEL`/`EXTRACTORS`).

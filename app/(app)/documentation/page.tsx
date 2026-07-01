@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
-  BarChart3,
   Bot,
   Briefcase,
   Building2,
@@ -309,8 +308,8 @@ const CATEGORIES: DocCategory[] = [
   },
   {
     id: "kepatuhan",
-    label: "Kepatuhan & Admin",
-    blurb: "Privasi data dan kontrol platform.",
+    label: "Kepatuhan",
+    blurb: "Privasi & hak subjek data (UU PDP).",
     entries: [
       {
         title: "Kepatuhan & DSAR",
@@ -323,19 +322,6 @@ const CATEGORIES: DocCategory[] = [
           "Penghapusan tetap menyimpan suppression agar tidak dihubungi lagi.",
         ],
         keywords: "kepatuhan compliance dsar uu pdp gdpr privasi hapus ekspor audit",
-      },
-      {
-        title: "Superadmin",
-        icon: BarChart3,
-        href: "/admin",
-        badge: "Superadmin",
-        summary: "Konsol lintas-tenant: rollup anggota/biaya AI/pengiriman/paket, jejak audit, dan kill-switch suspend/aktifkan tenant.",
-        steps: [
-          "Khusus peran Superadmin: buka /admin.",
-          "Pantau ringkasan lintas tenant.",
-          "Suspend tenant via kill-switch bila perlu (memblokir AI & pengiriman).",
-        ],
-        keywords: "superadmin admin lintas tenant kill switch observability rollup",
       },
     ],
   },
