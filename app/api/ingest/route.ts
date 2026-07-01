@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql, eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
 
+import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -98,12 +99,13 @@ export async function POST(req: Request) {
   // (doc 41 §4). Tenant-level token / session ingest leaves them unassigned.
   let assignTo: string | null = null;
   const rep = token ? await resolveRepByToken(token) : null;
+  const ingestToken = await getSecret("LINKEDIN_INGEST_TOKEN");
   if (rep) {
     ctx = { tenantId: rep.tenantId, userId: rep.userId, role: "member" };
     assignTo = rep.userId;
-  } else if (token && process.env.LINKEDIN_INGEST_TOKEN && token === process.env.LINKEDIN_INGEST_TOKEN) {
+  } else if (token && ingestToken && token === ingestToken) {
     ctx = {
-      tenantId: process.env.LINKEDIN_INGEST_TENANT || "t_default",
+      tenantId: (await getSecret("LINKEDIN_INGEST_TENANT")) || "t_default",
       userId: "extension",
       role: "member",
     };

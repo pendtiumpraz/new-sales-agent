@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSecret } from "@/lib/config/secrets";
 import { gatewayTokenOk, pollOutbox, ackOutbox } from "@/lib/wa/store";
 import {
   wahaConfigured,
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
   // Accept the shared secret from the header OR a ?token= query param (WAHA's
   // webhook config is just a URL, so the query form is the easy path).
   const token = req.headers.get("x-wa-gateway-token") || url.searchParams.get("token");
-  if (!gatewayTokenOk(token)) {
+  if (!(await gatewayTokenOk(token))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -116,14 +117,14 @@ export async function POST(req: Request) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-wa-gateway-token": process.env.WA_GATEWAY_TOKEN ?? "",
+      "x-wa-gateway-token": (await getSecret("WA_GATEWAY_TOKEN")) ?? "",
     },
     body: JSON.stringify({ sessionId, from, body, name }),
   });
   const j = await r.json().catch(() => ({}));
 
   // No bridge on the WAHA path → deliver the enqueued reply bubbles ourselves.
-  if (wahaConfigured()) {
+  if (await wahaConfigured()) {
     try {
       await deliverViaWaha(sessionId);
     } catch (e) {

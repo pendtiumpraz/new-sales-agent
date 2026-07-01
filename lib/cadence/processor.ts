@@ -238,7 +238,7 @@ export async function processCadences(
           );
           summary.emailQueued++;
         }
-      } else if (step.channel === "whatsapp" && wahaConfigured()) {
+      } else if (step.channel === "whatsapp" && (await wahaConfigured())) {
         // Live WhatsApp via WAHA (doc 34) — send now, record the outcome.
         if (!c.phone) {
           status = "skipped";

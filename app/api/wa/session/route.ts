@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import { isManager } from "@/lib/team/members";
@@ -41,7 +42,7 @@ export async function GET() {
   const mode = await getWaMode();
   const sid = sessionIdFor(guard.ctx, mode);
 
-  if (wahaConfigured()) {
+  if (await wahaConfigured()) {
     const info = await getSessionInfo(wahaSessionName(sid));
     if (!info) {
       // Not created yet on WAHA → reflect the local row (likely idle).
@@ -65,20 +66,21 @@ export async function POST(req: Request) {
   if ("error" in guard) return guard.error;
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   const mode = await getWaMode();
+  const gatewayToken = await getSecret("WA_GATEWAY_TOKEN");
   // In per_platform mode only a manager may link the shared number.
   if (mode === "per_platform" && !isManager(guard.ctx.role)) {
     return NextResponse.json({ error: "Mode per-platform — hanya manajer yang boleh hubungkan nomor" }, { status: 403 });
   }
 
-  if (wahaConfigured()) {
+  if (await wahaConfigured()) {
     // The per-session inbound webhook needs the shared secret for /api/wa/waha/inbound.
-    if (!process.env.WA_GATEWAY_TOKEN) {
+    if (!gatewayToken) {
       return NextResponse.json({ error: "WA_GATEWAY_TOKEN wajib di-set (auth webhook WAHA)." }, { status: 400 });
     }
     const s = await getOrCreateSession(guard.ctx, mode); // ensure the wa_session row exists for attribution
     const name = wahaSessionName(s.id);
     const base = (process.env.APP_URL || new URL(req.url).origin).replace(/\/$/, "");
-    const webhookUrl = `${base}/api/wa/waha/inbound?token=${encodeURIComponent(process.env.WA_GATEWAY_TOKEN)}&sessionId=${encodeURIComponent(s.id)}`;
+    const webhookUrl = `${base}/api/wa/waha/inbound?token=${encodeURIComponent(gatewayToken)}&sessionId=${encodeURIComponent(s.id)}`;
     await upsertSession(name, webhookUrl);
     await setSessionStatus(s.id, "qr");
     const qr = await getQr(name);
@@ -87,7 +89,7 @@ export async function POST(req: Request) {
 
   // No gateway configured → fail fast instead of leaving the session stuck on
   // "pending" forever (doc audit #28).
-  if (!process.env.WA_GATEWAY_TOKEN) {
+  if (!gatewayToken) {
     return NextResponse.json(
       { error: "Gateway WhatsApp belum dikonfigurasi. Set WAHA_URL+WAHA_API_KEY (hosted) atau WA_GATEWAY_TOKEN + gateway VPS yang nge-poll /api/wa/gateway/outbox." },
       { status: 400 },
@@ -105,7 +107,7 @@ export async function DELETE() {
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
   const mode = await getWaMode();
   const id = sessionIdFor(guard.ctx, mode);
-  if (wahaConfigured()) {
+  if (await wahaConfigured()) {
     await logoutSession(wahaSessionName(id));
     await setSessionStatus(id, "disconnected", null);
     return NextResponse.json({ ok: true, source: "waha" });

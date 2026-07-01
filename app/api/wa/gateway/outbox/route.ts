@@ -13,7 +13,7 @@ function auth(req: Request) {
 }
 
 export async function GET(req: Request) {
-  if (!auth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await auth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!hasDb()) return NextResponse.json({ data: [] });
   // Per-rep extension passes ?sessionId=rep:<userId> to pull only its own jobs;
   // a central VPS gateway omits it and gets every session's pending work.
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!auth(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await auth(req))) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!hasDb()) return NextResponse.json({ ok: false });
   const body = (await req.json().catch(() => ({}))) as { ackIds?: string[] };
   await ackOutbox(body.ackIds ?? []);

@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
+import { getSecret } from "@/lib/config/secrets";
 import { db } from "@/lib/db/client";
 import { platformSettingTable, waSessionTable, waOutboxTable } from "@/lib/db/schema";
 import type { TenantContext } from "@/lib/db/tenant-context";
@@ -146,8 +147,8 @@ export async function ownerOfSession(sessionId: string): Promise<{ tenantId: str
   return { tenantId: s.tenantId, userId: s.ownerType === "rep" ? s.ownerId : "platform" };
 }
 
-// Gateway auth — a single shared token the VPS gateway holds (env).
-export function gatewayTokenOk(token: string | null): boolean {
-  const expected = process.env.WA_GATEWAY_TOKEN;
+// Gateway auth — a single shared token the VPS gateway holds (DB-managed → env).
+export async function gatewayTokenOk(token: string | null): Promise<boolean> {
+  const expected = await getSecret("WA_GATEWAY_TOKEN");
   return Boolean(expected && token && token === expected);
 }

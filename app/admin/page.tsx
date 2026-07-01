@@ -68,10 +68,26 @@ interface Overview {
   auditEvents: number;
 }
 
+// Secrets & Config — mirrors lib/config/secrets.ts SecretStatus (never carries a
+// full secret value; `preview` is a masked/truncated view only).
+interface SecretStatus {
+  key: string;
+  label: string;
+  category: string;
+  secret: boolean;
+  setInDb: boolean;
+  hasEnv: boolean;
+  preview: string;
+}
+interface SecretsResponse {
+  secrets: SecretStatus[];
+  hasMasterKey: boolean;
+}
+
 const AI_TOKENS_METRIC = "ai_tokens_max";
 
 type StatusFilter = "all" | "pending" | "active" | "suspended";
-type ConsoleTab = "aktif" | "sampah";
+type ConsoleTab = "aktif" | "sampah" | "secrets" | "docs";
 
 // ── small helpers ──────────────────────────────────────────────────
 async function readJson<T>(r: Response): Promise<T> {
@@ -657,9 +673,17 @@ export default function SuperadminConsole() {
                   </span>
                 )}
               </ConsoleTabButton>
+              <ConsoleTabButton active={tab === "secrets"} onClick={() => setTab("secrets")}>
+                <KeyIcon className="h-4 w-4" />
+                Secrets &amp; Config
+              </ConsoleTabButton>
+              <ConsoleTabButton active={tab === "docs"} onClick={() => setTab("docs")}>
+                <BookIcon className="h-4 w-4" />
+                Dokumentasi
+              </ConsoleTabButton>
             </div>
 
-            {tab === "aktif" ? (
+            {tab === "aktif" && (
               <>
                 {/* FILTER TABS */}
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -761,7 +785,9 @@ export default function SuperadminConsole() {
                   Sampah (bisa dipulihkan).
                 </p>
               </>
-            ) : (
+            )}
+
+            {tab === "sampah" && (
               <>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="text-muted-foreground">
@@ -839,6 +865,10 @@ export default function SuperadminConsole() {
                 </section>
               </>
             )}
+
+            {tab === "secrets" && <SecretsPanel />}
+
+            {tab === "docs" && <DocsPanel />}
           </div>
         </main>
       </div>
@@ -1473,8 +1503,284 @@ function TrashedTableRow({
   );
 }
 
+// ───────────────────────── Secrets & Config panel ─────────────────────────
+
+/**
+ * Platform secrets/config editor. Reads the masked status catalog and lets the
+ * operator set/clear each key. Full secret values are NEVER shown — the API only
+ * ever returns masked `preview`s; the inputs are write-only (POST { key, value }).
+ * Grouped by `category` for scanability.
+ */
+function SecretsPanel() {
+  const secretsQ = useQuery({
+    queryKey: ["superadmin", "secrets"],
+    queryFn: async () => readJson<SecretsResponse>(await fetch("/api/superadmin/secrets")),
+  });
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, SecretStatus[]>();
+    for (const s of secretsQ.data?.secrets ?? []) {
+      const arr = map.get(s.category) ?? [];
+      arr.push(s);
+      map.set(s.category, arr);
+    }
+    return Array.from(map.entries());
+  }, [secretsQ.data]);
+
+  if (secretsQ.isLoading) {
+    return (
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+        <TableLoading />
+      </section>
+    );
+  }
+
+  if (secretsQ.isError) {
+    return (
+      <section className="flex flex-col items-center justify-center gap-3 rounded-lg border border-border bg-card py-12 text-center shadow-soft">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertIcon />
+        </span>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Gagal memuat secrets</p>
+          <p className="text-xs text-muted-foreground">Terjadi kendala saat mengambil konfigurasi.</p>
+        </div>
+        <button
+          onClick={() => secretsQ.refetch()}
+          className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          Coba lagi
+        </button>
+      </section>
+    );
+  }
+
+  const hasMasterKey = secretsQ.data?.hasMasterKey ?? false;
+
+  return (
+    <div className="space-y-5">
+      {!hasMasterKey && (
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+            <AlertIcon className="h-5 w-5" />
+          </span>
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold text-destructive">SECRETS_KEY belum di-set di env</p>
+            <p className="text-xs text-muted-foreground">
+              Secret tak bisa disimpan terenkripsi. Set{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">SECRETS_KEY</code> di
+              environment agar console bisa menyimpan &amp; mengenkripsi secret.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground">
+        Nilai secret <b>tidak pernah</b> ditampilkan penuh — hanya preview tersamar. Kosongkan lalu
+        Simpan untuk menghapus override DB (kembali ke nilai <b>env</b>).
+      </p>
+
+      {grouped.map(([category, rows]) => (
+        <section key={category} className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+          <div className="border-b border-border bg-muted/50 px-5 py-2.5">
+            <h3 className="text-sm font-semibold">{category}</h3>
+          </div>
+          <div className="divide-y divide-border">
+            {rows.map((s) => (
+              <SecretRow key={s.key} secret={s} disabled={!hasMasterKey} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function SecretRow({ secret: s, disabled }: { secret: SecretStatus; disabled: boolean }) {
+  const qc = useQueryClient();
+  const [value, setValue] = useState("");
+
+  const save = useMutation({
+    mutationFn: async () =>
+      readJson<{ key: string; saved: boolean }>(
+        await fetch("/api/superadmin/secrets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: s.key, value }),
+        }),
+      ),
+    onSuccess: () => {
+      toast.success(value.trim() ? `${s.label} disimpan` : `${s.label} dikosongkan (pakai env)`);
+      setValue("");
+      qc.invalidateQueries({ queryKey: ["superadmin", "secrets"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menyimpan secret"),
+  });
+
+  const source: "DB" | "env" | "kosong" = s.setInDb ? "DB" : s.hasEnv ? "env" : "kosong";
+
+  return (
+    <div className="flex flex-col gap-3 px-5 py-3.5 md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">{s.label}</p>
+          <SourceBadge source={source} />
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{s.key}</code>
+          <span className="tabular-nums">{s.preview || "— belum diset —"}</span>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <input
+          type="password"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={disabled}
+          placeholder={s.setInDb ? "Ganti / kosongkan…" : "Set nilai…"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !disabled && !save.isPending) save.mutate();
+          }}
+          className="h-9 w-full rounded-lg border border-input bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-60 md:w-56"
+        />
+        <button
+          onClick={() => save.mutate()}
+          disabled={disabled || save.isPending}
+          className="h-9 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {save.isPending ? "…" : "Simpan"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SourceBadge({ source }: { source: "DB" | "env" | "kosong" }) {
+  if (source === "DB") {
+    return (
+      <span className="rounded-full bg-success/[0.12] px-2 py-0.5 text-[10px] font-semibold text-success">
+        DB
+      </span>
+    );
+  }
+  if (source === "env") {
+    return (
+      <span className="rounded-full bg-tertiary/[0.12] px-2 py-0.5 text-[10px] font-semibold text-tertiary">
+        env
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+      kosong
+    </span>
+  );
+}
+
+// ───────────────────────── Dokumentasi panel ─────────────────────────
+
+/** At-a-glance operator reference. Static — the full docs live in the repo. */
+function DocsPanel() {
+  const subsystems: { title: string; body: string }[] = [
+    {
+      title: "Multi-tenant + RLS",
+      body: "Isolasi data per-tenant lewat withTenant/TenantContext + Postgres RLS (belt-and-suspenders). Grain = tenant/akun, bukan per-user.",
+    },
+    {
+      title: "Auth & RBAC",
+      body: "next-auth + role guards (lib/rbac). Superadmin = permission platform.manage; konsol ini di luar shell white-label per-tenant.",
+    },
+    {
+      title: "AI metered + BYOK",
+      body: "Setiap call live lewat meteredGenerateText: kill-switch, cek kredit tenant, satu model aktif per tenant (BYOK atau env fallback), log token+biaya ke ai_usage. Multi-provider (deepseek/anthropic/openai/google).",
+    },
+    {
+      title: "Kuota / subscription + packs + Midtrans",
+      body: "Batas token AI per tenant (ai_tokens_max), paket langganan + top-up pack, pembayaran via Midtrans (+ Stripe).",
+    },
+    {
+      title: "WhatsApp gateway + extension",
+      body: "Transport gateway-agnostic (WAHA server-gateway + Chrome MV3 extension). Brain (orchestrator/humanizer/stage-machine) tetap server-side; transport hanya poll outbox + push inbound.",
+    },
+    {
+      title: "Discovery / enrichment",
+      body: "RPA per-channel (LinkedIn/Maps/IG/marketplace) mengisi graph Company→People; AI mengklasifikasi taksonomi + memfilter product-fit + merekomendasikan.",
+    },
+    {
+      title: "Secrets console",
+      body: "Konfigurasi & secret platform (DB-first terenkripsi AES-256-GCM, fallback env) dikelola di tab Secrets & Config.",
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-soft">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <BookIcon className="h-[18px] w-[18px]" />
+          </span>
+          <div>
+            <h2 className="text-base font-bold">Arsitektur Platform</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Modular monolith (Next.js App Router + Postgres multi-tenant). Referensi operator
+              ringkas — dokumentasi lengkap di{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">docs/HLA.md</code>{" "}
+              &amp;{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">docs/FEATURES.md</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+        <div className="border-b border-border bg-muted/50 px-5 py-2.5">
+          <h3 className="text-sm font-semibold">Subsistem utama</h3>
+        </div>
+        <ul className="divide-y divide-border">
+          {subsystems.map((sub) => (
+            <li key={sub.title} className="px-5 py-3.5">
+              <div className="flex items-start gap-2.5">
+                <CheckBadgeIcon className="mt-0.5 h-4 w-4 shrink-0 text-tertiary" />
+                <div>
+                  <p className="text-sm font-semibold">{sub.title}</p>
+                  <p className="mt-0.5 text-[13px] text-muted-foreground">{sub.body}</p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <p className="rounded-lg border border-border bg-muted/40 p-3 text-[13px] text-muted-foreground">
+        Dokumentasi lengkap di repo{" "}
+        <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">docs/HLA.md</code> &amp;{" "}
+        <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">docs/FEATURES.md</code>.
+      </p>
+    </div>
+  );
+}
+
 // ───────────────────────── inline icons (match mockup strokes) ─────────────────────────
 type IconProps = { className?: string };
+
+function KeyIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="m10.7 12.3 8.3-8.3" />
+      <path d="m17 5 3 3" />
+      <path d="m14 8 2.5 2.5" />
+    </svg>
+  );
+}
+function BookIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+    </svg>
+  );
+}
 
 function ShieldIcon({ className = "h-[18px] w-[18px]" }: IconProps) {
   return (

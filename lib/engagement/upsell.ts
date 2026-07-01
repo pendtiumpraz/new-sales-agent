@@ -212,7 +212,7 @@ export async function runUpsell(
           }),
         );
         summary.sent++;
-      } else if (contact?.phone && wahaConfigured()) {
+      } else if (contact?.phone && (await wahaConfigured())) {
         channel = "whatsapp";
         try {
           await sendWhatsApp({ to: contact.phone, text: message });

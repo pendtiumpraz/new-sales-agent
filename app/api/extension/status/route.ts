@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
+import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -18,7 +19,7 @@ export async function GET() {
   if ("error" in guard) return guard.error;
   const ctx = guard.ctx;
 
-  const tokenConfigured = Boolean(process.env.LINKEDIN_INGEST_TOKEN);
+  const tokenConfigured = Boolean(await getSecret("LINKEDIN_INGEST_TOKEN"));
   if (!hasDb()) return NextResponse.json({ connected: false, ever: false, tokenConfigured, source: "mock" });
 
   try {

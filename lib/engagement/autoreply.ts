@@ -195,7 +195,7 @@ export async function runAutoReply(
       const channelReady =
         channel === "email"
           ? Boolean(contact?.email)
-          : Boolean(contact?.phone && wahaConfigured());
+          : Boolean(contact?.phone && (await wahaConfigured()));
 
       const willSend = !escalate && cfg.autoSend && channelReady;
       let decision: "sent" | "escalated" | "skipped" | "failed" = willSend ? "sent" : "escalated";
@@ -326,7 +326,7 @@ export async function resolveEscalation(
   const channel = convo.channel === "email" ? "email" : "whatsapp";
   try {
     if (channel === "whatsapp") {
-      if (!contact?.phone || !wahaConfigured()) return { ok: false, error: "WhatsApp belum siap (WAHA/nomor)" };
+      if (!contact?.phone || !(await wahaConfigured())) return { ok: false, error: "WhatsApp belum siap (WAHA/nomor)" };
       await sendWhatsApp({ to: contact.phone, text: reply });
     } else {
       if (!contact?.email) return { ok: false, error: "kontak tanpa email" };

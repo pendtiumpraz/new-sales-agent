@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 // resolves the owning tenant (like the inbound route), so the read stays scoped
 // to that tenant instead of leaking across tenants.
 export async function GET(req: Request) {
-  if (!gatewayTokenOk(req.headers.get("x-wa-gateway-token"))) {
+  if (!(await gatewayTokenOk(req.headers.get("x-wa-gateway-token")))) {
     return fail("Unauthorized", 401, "unauthorized");
   }
   if (!hasDb()) return ok([]);

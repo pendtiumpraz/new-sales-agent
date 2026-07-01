@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSecret } from "@/lib/config/secrets";
 import { requirePermission } from "@/lib/rbac/guard";
 
 export const runtime = "nodejs";
@@ -10,6 +11,6 @@ export const runtime = "nodejs";
 export async function GET() {
   const guard = await requirePermission("tenant.settings.manage");
   if ("error" in guard) return guard.error;
-  const token = process.env.LINKEDIN_INGEST_TOKEN ?? "";
+  const token = (await getSecret("LINKEDIN_INGEST_TOKEN")) ?? "";
   return NextResponse.json({ token, configured: Boolean(token) });
 }

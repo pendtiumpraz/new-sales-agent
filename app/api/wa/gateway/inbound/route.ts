@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 // message. We log it (attributed to the session's rep) and, when WA_AUTO_REPLY
 // is on, draft a warm AI reply + enqueue it for the gateway to send.
 export async function POST(req: Request) {
-  if (!gatewayTokenOk(req.headers.get("x-wa-gateway-token"))) {
+  if (!(await gatewayTokenOk(req.headers.get("x-wa-gateway-token")))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });

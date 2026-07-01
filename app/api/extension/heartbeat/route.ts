@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { extensionConnectionTable } from "@/lib/db/schema";
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   const version = body.version ?? null;
   // The platform is the source of the AI key — the extension pulls it on connect
   // so the rep never pastes it manually (doc 40). Returned only on a valid token.
-  const deepseekKey = process.env.DEEPSEEK_API_KEY ?? "";
+  const deepseekKey = (await getSecret("DEEPSEEK_API_KEY")) ?? "";
 
   // Per-rep token → record the rep's heartbeat (drives monitoring "Aktif").
   if (token && hasDb()) {
@@ -50,11 +51,12 @@ export async function POST(req: Request) {
   }
 
   // Otherwise fall back to the tenant-level token.
-  if (!token || !process.env.LINKEDIN_INGEST_TOKEN || token !== process.env.LINKEDIN_INGEST_TOKEN) {
+  const ingestToken = await getSecret("LINKEDIN_INGEST_TOKEN");
+  if (!token || !ingestToken || token !== ingestToken) {
     return NextResponse.json({ ok: false, connected: false, error: "Token tidak valid" }, { status: 401 });
   }
   const ctx: TenantContext = {
-    tenantId: process.env.LINKEDIN_INGEST_TENANT || "t_default",
+    tenantId: (await getSecret("LINKEDIN_INGEST_TENANT")) || "t_default",
     userId: "extension",
     role: "member",
   };

@@ -3,22 +3,26 @@
 // WAHA_BASE_URL + WAHA_API_KEY, and callers degrade (cadence WA steps stay
 // queued, routes 503) instead of throwing. Fill the env keys to turn it on.
 
+import { getSecret } from "@/lib/config/secrets";
+
 // Accept either WAHA_BASE_URL (existing convention) or WAHA_URL (what WAHA's own
 // docs/quickstart use) so the env "just works" whichever the operator set.
-export function wahaConfigured(): boolean {
-  return Boolean((process.env.WAHA_BASE_URL || process.env.WAHA_URL) && process.env.WAHA_API_KEY);
+// WAHA_BASE_URL/WAHA_API_KEY/WAHA_SESSION resolve DB-first via getSecret; WAHA_URL
+// stays env-only (alias, not a managed secret).
+export async function wahaConfigured(): Promise<boolean> {
+  return Boolean(((await getSecret("WAHA_BASE_URL")) || process.env.WAHA_URL) && (await getSecret("WAHA_API_KEY")));
 }
 
-export function wahaSession(): string {
-  return process.env.WAHA_SESSION || "default";
+export async function wahaSession(): Promise<string> {
+  return (await getSecret("WAHA_SESSION")) || "default";
 }
 
-function base(): string {
-  return (process.env.WAHA_BASE_URL || process.env.WAHA_URL || "").replace(/\/$/, "");
+async function base(): Promise<string> {
+  return ((await getSecret("WAHA_BASE_URL")) || process.env.WAHA_URL || "").replace(/\/$/, "");
 }
 
-function headers(): Record<string, string> {
-  return { "Content-Type": "application/json", "X-Api-Key": process.env.WAHA_API_KEY ?? "" };
+async function headers(): Promise<Record<string, string>> {
+  return { "Content-Type": "application/json", "X-Api-Key": (await getSecret("WAHA_API_KEY")) ?? "" };
 }
 
 /**
@@ -35,16 +39,16 @@ export function toChatId(phone: string): string | null {
 
 /** Send a WhatsApp text via WAHA. Returns the provider message id. */
 export async function sendWhatsApp(opts: { to: string; text: string }): Promise<string> {
-  if (!wahaConfigured()) {
+  if (!(await wahaConfigured())) {
     throw new Error("WAHA belum dikonfigurasi (WAHA_BASE_URL/WAHA_API_KEY)");
   }
   const chatId = toChatId(opts.to);
   if (!chatId) throw new Error("Nomor WhatsApp tidak valid");
 
-  const res = await fetch(`${base()}/api/sendText`, {
+  const res = await fetch(`${await base()}/api/sendText`, {
     method: "POST",
-    headers: headers(),
-    body: JSON.stringify({ session: wahaSession(), chatId, text: opts.text }),
+    headers: await headers(),
+    body: JSON.stringify({ session: await wahaSession(), chatId, text: opts.text }),
   });
   const json = (await res.json().catch(() => ({}))) as {
     id?: string | { _serialized?: string };
@@ -66,14 +70,15 @@ export interface WahaStatus {
 
 /** Session health — lets the UI show whether WhatsApp is actually linked. */
 export async function wahaStatus(): Promise<WahaStatus> {
-  if (!wahaConfigured()) return { configured: false, session: wahaSession() };
+  const session = await wahaSession();
+  if (!(await wahaConfigured())) return { configured: false, session };
   try {
-    const res = await fetch(`${base()}/api/sessions/${wahaSession()}`, { headers: headers() });
+    const res = await fetch(`${await base()}/api/sessions/${session}`, { headers: await headers() });
     const json = (await res.json().catch(() => ({}))) as { status?: string };
-    if (!res.ok) return { configured: true, session: wahaSession(), error: `waha ${res.status}` };
-    return { configured: true, session: wahaSession(), status: json.status };
+    if (!res.ok) return { configured: true, session, error: `waha ${res.status}` };
+    return { configured: true, session, status: json.status };
   } catch (e) {
-    return { configured: true, session: wahaSession(), error: String(e) };
+    return { configured: true, session, error: String(e) };
   }
 }
 
@@ -101,9 +106,9 @@ export interface WahaSessionInfo {
 }
 
 export async function getSessionInfo(name: string): Promise<WahaSessionInfo | null> {
-  if (!wahaConfigured()) return null;
+  if (!(await wahaConfigured())) return null;
   try {
-    const r = await fetch(`${base()}/api/sessions/${encodeURIComponent(name)}`, { headers: headers() });
+    const r = await fetch(`${await base()}/api/sessions/${encodeURIComponent(name)}`, { headers: await headers() });
     if (!r.ok) return null;
     return (await r.json()) as WahaSessionInfo;
   } catch {
@@ -115,20 +120,22 @@ export async function getSessionInfo(name: string): Promise<WahaSessionInfo | nu
 // the webhook + (re)start it. Idempotent — safe to call on every "Connect".
 export async function upsertSession(name: string, webhookUrl: string): Promise<void> {
   const config = { webhooks: [{ url: webhookUrl, events: ["message"] }] };
-  const created = await fetch(`${base()}/api/sessions`, {
+  const b = await base();
+  const h = await headers();
+  const created = await fetch(`${b}/api/sessions`, {
     method: "POST",
-    headers: headers(),
+    headers: h,
     body: JSON.stringify({ name, start: true, config }),
   });
   if (!created.ok) {
-    await fetch(`${base()}/api/sessions/${encodeURIComponent(name)}`, {
+    await fetch(`${b}/api/sessions/${encodeURIComponent(name)}`, {
       method: "PUT",
-      headers: headers(),
+      headers: h,
       body: JSON.stringify({ config }),
     }).catch(() => {});
-    await fetch(`${base()}/api/sessions/${encodeURIComponent(name)}/start`, {
+    await fetch(`${b}/api/sessions/${encodeURIComponent(name)}/start`, {
       method: "POST",
-      headers: headers(),
+      headers: h,
     }).catch(() => {});
   }
 }
@@ -136,8 +143,10 @@ export async function upsertSession(name: string, webhookUrl: string): Promise<v
 // Raw QR string (preferred — crisp render) with a PNG data-URL fallback for WAHA
 // builds that only return an image.
 export async function getQr(name: string): Promise<string | null> {
+  const b = await base();
+  const h = await headers();
   try {
-    const r = await fetch(`${base()}/api/${encodeURIComponent(name)}/auth/qr?format=raw`, { headers: headers() });
+    const r = await fetch(`${b}/api/${encodeURIComponent(name)}/auth/qr?format=raw`, { headers: h });
     if (r.ok) {
       const j = (await r.json().catch(() => null)) as { value?: string } | null;
       if (j?.value) return j.value;
@@ -146,7 +155,7 @@ export async function getQr(name: string): Promise<string | null> {
     /* fall through to image */
   }
   try {
-    const r = await fetch(`${base()}/api/${encodeURIComponent(name)}/auth/qr?format=image`, { headers: headers() });
+    const r = await fetch(`${b}/api/${encodeURIComponent(name)}/auth/qr?format=image`, { headers: h });
     if (r.ok) {
       const ct = r.headers.get("content-type") || "image/png";
       const buf = Buffer.from(await r.arrayBuffer());
@@ -159,24 +168,26 @@ export async function getQr(name: string): Promise<string | null> {
 }
 
 export async function logoutSession(name: string): Promise<void> {
-  await fetch(`${base()}/api/sessions/${encodeURIComponent(name)}/logout`, { method: "POST", headers: headers() }).catch(() => {});
-  await fetch(`${base()}/api/sessions/${encodeURIComponent(name)}/stop`, { method: "POST", headers: headers() }).catch(() => {});
+  const b = await base();
+  const h = await headers();
+  await fetch(`${b}/api/sessions/${encodeURIComponent(name)}/logout`, { method: "POST", headers: h }).catch(() => {});
+  await fetch(`${b}/api/sessions/${encodeURIComponent(name)}/stop`, { method: "POST", headers: h }).catch(() => {});
 }
 
 // Send within a SPECIFIC session (per-account), unlike sendWhatsApp which uses the
 // single shared WAHA_SESSION.
 export async function sendTextSession(name: string, chatId: string, text: string): Promise<void> {
-  const r = await fetch(`${base()}/api/sendText`, {
+  const r = await fetch(`${await base()}/api/sendText`, {
     method: "POST",
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({ session: name, chatId, text }),
   });
   if (!r.ok) throw new Error(`waha sendText ${r.status}: ${await r.text().catch(() => "")}`);
 }
 
 export async function startTyping(name: string, chatId: string): Promise<void> {
-  await fetch(`${base()}/api/startTyping`, { method: "POST", headers: headers(), body: JSON.stringify({ session: name, chatId }) }).catch(() => {});
+  await fetch(`${await base()}/api/startTyping`, { method: "POST", headers: await headers(), body: JSON.stringify({ session: name, chatId }) }).catch(() => {});
 }
 export async function stopTyping(name: string, chatId: string): Promise<void> {
-  await fetch(`${base()}/api/stopTyping`, { method: "POST", headers: headers(), body: JSON.stringify({ session: name, chatId }) }).catch(() => {});
+  await fetch(`${await base()}/api/stopTyping`, { method: "POST", headers: await headers(), body: JSON.stringify({ session: name, chatId }) }).catch(() => {});
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
+import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -25,10 +26,11 @@ export async function POST(req: Request) {
   const token = req.headers.get("x-ingest-token");
   let ctx: TenantContext;
   const rep = token ? await resolveRepByToken(token) : null;
+  const ingestToken = await getSecret("LINKEDIN_INGEST_TOKEN");
   if (rep) {
     ctx = { tenantId: rep.tenantId, userId: rep.userId, role: "member" };
-  } else if (token && process.env.LINKEDIN_INGEST_TOKEN && token === process.env.LINKEDIN_INGEST_TOKEN) {
-    ctx = { tenantId: process.env.LINKEDIN_INGEST_TENANT || "t_default", userId: "extension", role: "member" };
+  } else if (token && ingestToken && token === ingestToken) {
+    ctx = { tenantId: (await getSecret("LINKEDIN_INGEST_TENANT")) || "t_default", userId: "extension", role: "member" };
   } else {
     const guard = await requirePermission("data.write");
     if ("error" in guard) return guard.error;

@@ -11,6 +11,7 @@
 // is needed on the frontend.
 import { createHash } from "node:crypto";
 
+import { getSecret } from "@/lib/config/secrets";
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 
@@ -67,7 +68,7 @@ function midtransBase(): string {
 }
 
 async function midtransCheckout(input: CheckoutInput): Promise<CheckoutResult> {
-  const serverKey = process.env.MIDTRANS_SERVER_KEY;
+  const serverKey = await getSecret("MIDTRANS_SERVER_KEY");
   if (!serverKey) {
     throw new ServiceError(
       "Midtrans belum dikonfigurasi — set MIDTRANS_SERVER_KEY (+ MIDTRANS_IS_PRODUCTION) di env.",

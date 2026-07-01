@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
+import { getSecret } from "@/lib/config/secrets";
 import { db, hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { planTable, subscriptionTable } from "@/lib/db/schema";
@@ -108,7 +109,7 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
 
 export async function POST(req: Request) {
   const stripe = getStripe();
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = await getSecret("STRIPE_WEBHOOK_SECRET");
   if (!stripe || !secret) {
     return NextResponse.json(
       { error: "Stripe webhook belum dikonfigurasi (STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET)." },

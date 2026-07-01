@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   try {
     if (b.channel === "whatsapp") {
-      if (!wahaConfigured()) {
+      if (!(await wahaConfigured())) {
         return NextResponse.json({ ok: false, error: "Gateway WhatsApp belum dikonfigurasi. Pakai mode manual (wa.me) atau set WA_GATEWAY_TOKEN.", needsManual: true });
       }
       let sent = 0;

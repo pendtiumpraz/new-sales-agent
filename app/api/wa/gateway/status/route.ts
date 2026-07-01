@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 // POST /api/wa/gateway/status (doc 41) — gateway reports session lifecycle
 // (qr | connected | disconnected) + the linked number. WA_GATEWAY_TOKEN-authed.
 export async function POST(req: Request) {
-  if (!gatewayTokenOk(req.headers.get("x-wa-gateway-token"))) {
+  if (!(await gatewayTokenOk(req.headers.get("x-wa-gateway-token")))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   if (!hasDb()) return NextResponse.json({ ok: false });

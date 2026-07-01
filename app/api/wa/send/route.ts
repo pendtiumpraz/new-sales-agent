@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const guard = await requirePermission("campaign.manage");
   if ("error" in guard) return guard.error;
 
-  if (!wahaConfigured()) {
+  if (!(await wahaConfigured())) {
     return NextResponse.json(
       { ok: false, error: "WAHA belum dikonfigurasi (WAHA_BASE_URL/WAHA_API_KEY)." },
       { status: 503 },

@@ -1,3 +1,4 @@
+import { getSecret } from "@/lib/config/secrets";
 import { hasDb } from "@/lib/db/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import type { TenantContext } from "@/lib/db/tenant-context";
@@ -28,16 +29,13 @@ export async function POST(req: Request) {
   let ownerUserId: string | null = null; // per-rep attribution when a rep token is used
 
   const rep = token ? await resolveRepByToken(token) : null;
+  const ingestToken = await getSecret("LINKEDIN_INGEST_TOKEN");
   if (rep) {
     ctx = { tenantId: rep.tenantId, userId: rep.userId, role: "member" };
     ownerUserId = rep.userId;
-  } else if (
-    token &&
-    process.env.LINKEDIN_INGEST_TOKEN &&
-    token === process.env.LINKEDIN_INGEST_TOKEN
-  ) {
+  } else if (token && ingestToken && token === ingestToken) {
     ctx = {
-      tenantId: process.env.LINKEDIN_INGEST_TENANT || "t_default",
+      tenantId: (await getSecret("LINKEDIN_INGEST_TENANT")) || "t_default",
       userId: "extension",
       role: "member",
     };
