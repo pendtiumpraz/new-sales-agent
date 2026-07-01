@@ -541,6 +541,21 @@ async function markPlatformEnriched(urls, collKey = "buffer") {
   await chrome.storage.local.set({ [collKey]: coll });
 }
 
+// Merge enriched fields + contacts (email/phone/whatsapp) onto the buffered item so
+// the local CSV carries them (contactPoints are still sent to the server separately).
+// Only non-empty patch values overwrite — never blank out an existing value.
+async function patchBufferByUrl(url, patch, collKey = "buffer") {
+  if (!url) return;
+  const clean = {};
+  for (const [k, v] of Object.entries(patch)) if (v !== undefined && v !== null && v !== "") clean[k] = v;
+  if (!Object.keys(clean).length) return;
+  const st = await state();
+  const coll = (st[collKey] || []).map((p) =>
+    p.linkedinUrl === url || p.sourceUrl === url ? { ...p, ...clean } : p,
+  );
+  await chrome.storage.local.set({ [collKey]: coll });
+}
+
 async function runEnrichPlatform(platform) {
   const c = await cfg();
   if (!PLATFORM_SCHEMAS[platform]) return setStatus("Platform tak didukung untuk enrich: " + platform);
@@ -563,14 +578,22 @@ async function runEnrichPlatform(platform) {
     await setStatus(`${platform} enrich ${done + 1}/${targets.length}…`);
     const res = await navAndScan(tab.id, url, "SCAN_ENRICH");
     if (res && res.ok && res.pageText) {
+      let ai = null;
       try {
-        const ai = await analyzePlatform(platform, c.deepseekKey, res.pageText, { url, name: item.fullName || item.name });
+        ai = await analyzePlatform(platform, c.deepseekKey, res.pageText, { url, name: item.fullName || item.name });
         await ingest({ origin: "extension", ...toIngestPayload(platform, item, ai) });
         analyzed++;
       } catch (e) {
         // AI failed — keep the Stage-1 list record (already flushed); just mark enriched.
       }
-      await markPlatformEnriched([url], collKey);
+      // Fold enriched fields + contacts (email/phone/whatsapp) onto the buffer item so
+      // the local CSV carries them.
+      const contacts = (ai && ai.contacts) || {};
+      await patchBufferByUrl(url, {
+        leadType: ai && ai.leadType, leadScore: ai && ai.leadScore, profileSummary: ai && ai.summary,
+        email: contacts.email, phone: contacts.phone, whatsapp: contacts.whatsapp,
+        enriched: true,
+      }, collKey);
       done++;
     }
     await sleep(jitter(4000, 9000)); // anti-ban pacing (same as LinkedIn)
@@ -737,6 +760,15 @@ async function runEnrich() {
       });
       // mark enriched in the buffer (+ any the platform says are already enriched)
       await markEnrichedLocally([p.linkedinUrl, ...((resp && resp.existingEnriched) || [])]);
+      // Fold the enriched fields + overlay contacts onto the buffer so the CSV carries
+      // the resolved segment (leadType) + email/phone (not just the Stage-1 scrape).
+      const liContact = cRes && cRes.ok && cRes.contact ? cRes.contact : {};
+      await patchBufferByUrl(p.linkedinUrl, {
+        title: prof.title, companyName: prof.companyName, location: prof.location,
+        leadType: prof.leadType, leadScore: prof.leadScore, profileSummary: prof.profileSummary,
+        email: liContact.email, phone: liContact.phone, website: liContact.website,
+        enriched: true,
+      });
       done++;
     }
     await sleep(jitter(4000, 9000)); // slow + human (anti-ban)
@@ -816,6 +848,9 @@ async function downloadCsvExports() {
     { label: "Segmen", get: (p) => segmentOf(p.leadType).toUpperCase() },
     { label: "Channel", get: (p) => String(p.source || "").split("+")[0] },
     { label: "Skor Fit", get: (p) => (p.leadScore != null ? Math.round(p.leadScore * 100) : "") },
+    { label: "Email", get: (p) => p.email || "" },
+    { label: "Telepon", get: (p) => p.phone || "" },
+    { label: "WhatsApp", get: (p) => p.whatsapp || "" },
     { label: "URL", get: (p) => p.linkedinUrl || p.sourceUrl || "" },
     { label: "Ringkasan", get: (p) => p.profileSummary || p.about || "" },
   ]);
@@ -823,6 +858,9 @@ async function downloadCsvExports() {
     { label: "Nama", get: (x) => x.name },
     { label: "Domain", get: (x) => x.domain },
     { label: "Industri", get: (x) => x.industry },
+    { label: "Email", get: (x) => x.email || "" },
+    { label: "Telepon", get: (x) => x.phone || "" },
+    { label: "WhatsApp", get: (x) => x.whatsapp || "" },
     { label: "Channel", get: (x) => String(x.source || "").split("+")[0] },
     { label: "URL", get: (x) => x.sourceUrl || "" },
     { label: "Ringkasan", get: (x) => x.summary || "" },
