@@ -61,7 +61,10 @@ export default function AppLayout({
     return () => {
       cancelled = true;
     };
-  }, [status, pathname, router]);
+    // Once per authenticated session — NOT per navigation. Tenant status rarely
+    // changes mid-session, and re-fetching on every route hop added a DB round-trip
+    // to every page load (perf: "semua page lambat" di Vercel).
+  }, [status, router]);
 
   // Hydrate the Knowledge Base from Postgres once per session. The store
   // guards itself with a `hydrated` flag, so this is a safe no-op on repeat

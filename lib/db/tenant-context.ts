@@ -37,9 +37,13 @@ export async function withTenant<T>(
   fn: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.tenant_id', ${ctx.tenantId}, true)`);
-    await tx.execute(sql`select set_config('app.user_id', ${ctx.userId}, true)`);
-    await tx.execute(sql`select set_config('app.role', ${ctx.role}, true)`);
+    // ONE round-trip for all three GUCs (was three separate awaits). On the
+    // serverless→Neon path every await is a network round-trip, so a page with N
+    // withTenant queries was paying 3N extra round-trips — a big chunk of the
+    // per-page latency. set_config(...,true) stays transaction-local (RLS-safe).
+    await tx.execute(
+      sql`select set_config('app.tenant_id', ${ctx.tenantId}, true), set_config('app.user_id', ${ctx.userId}, true), set_config('app.role', ${ctx.role}, true)`,
+    );
     return fn(tx);
   });
 }
