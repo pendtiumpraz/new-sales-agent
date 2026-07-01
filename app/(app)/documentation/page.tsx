@@ -90,7 +90,7 @@ const CATEGORIES: DocCategory[] = [
       {
         title: "Alur Workspace",
         icon: Briefcase,
-        href: "/workspaces",
+        href: "/workspace",
         badge: "Alur",
         summary: "Pusat closing-flow. Tiap workspace fokus 1 produk; langkah terkunci berurutan dari pilih produk sampai chat closing.",
         steps: [
@@ -364,7 +364,7 @@ export default function DocumentationPage() {
       <div className="space-y-6 p-6">
         {/* Use-case showcase — many sales/marketing scenarios per industry */}
         <Link
-          href="/use-case"
+          href="/workspace"
           className="group flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-card to-tertiary/8 p-4 transition hover:-translate-y-px hover:shadow-md"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_20px_-8px_rgba(251,94,59,0.55)]">

@@ -24,7 +24,7 @@ interface Cmd {
 
 const COMMANDS: Cmd[] = [
   // Primary daily flow — Workspace first.
-  { label: "Workspace (alur jualan)", href: "/workspaces", group: "Utama", kw: "kelola fokus produk market-fit closing alur" },
+  { label: "Workspace (alur jualan)", href: "/workspace", group: "Utama", kw: "kelola fokus produk market-fit closing alur" },
   { label: "Dashboard", href: "/dashboard", group: "Utama", kw: "beranda home ringkasan" },
   { label: "Inbox", href: "/inbox", group: "Utama", kw: "percakapan chat wa email" },
   { label: "Laporan", href: "/reports", group: "Utama", kw: "analitik report kalibrasi" },
@@ -48,7 +48,7 @@ const COMMANDS: Cmd[] = [
   { label: "Sales Lapangan", href: "/field", group: "Data & Tim", kw: "field peta kunjungan" },
 
   { label: "Panduan", href: "/documentation", group: "Atur", kw: "dokumentasi cara" },
-  { label: "Use Case", href: "/use-case", group: "Atur", kw: "skenario industri" },
+  { label: "Analisa Market-Fit", href: "/workspace", group: "Atur", kw: "skenario industri market fit use case" },
   { label: "Pengaturan", href: "/settings", group: "Atur", kw: "settings akun" },
   { label: "Hubungkan WhatsApp / Extension", href: "/settings/extension", group: "Atur", kw: "wa whatsapp waha qr extension scan" },
   { label: "AI & Model", href: "/settings/ai", group: "Atur", kw: "model byok token" },

@@ -364,7 +364,7 @@ function HandoffSettingsPageInner() {
                       )}
                       <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                         <Link
-                          href={`/inbox/${e.conversationId}`}
+                          href="/inbox"
                           className="hover:text-foreground hover:underline"
                         >
                           Lihat percakapan ({e.conversationId})

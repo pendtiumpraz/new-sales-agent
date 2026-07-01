@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const STEPS: { key: string; label: string; desc: string; href: string; icon: LucideIcon }[] = [
   { key: "mailbox", label: "Hubungkan mailbox", desc: "Kirim email dari identitasmu sendiri", href: "/settings/mailboxes", icon: Mail },
   { key: "kb", label: "Isi Basis Pengetahuan", desc: "Produk & harga, biar AI paham bisnismu", href: "/settings/knowledge-base", icon: BookOpen },
-  { key: "crawl", label: "Buat workspace & isi lead", desc: "Pilih produk → market-fit → tambah lead, semua di workspace", href: "/workspaces", icon: Radar },
+  { key: "crawl", label: "Buat workspace & isi lead", desc: "Pilih produk → market-fit → tambah lead, semua di workspace", href: "/workspace", icon: Radar },
   { key: "aiModel", label: "Pilih model AI", desc: "Set 1 model aktif untuk workspace-mu", href: "/settings/ai", icon: Sparkles },
 ];
 

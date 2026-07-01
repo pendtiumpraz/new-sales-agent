@@ -74,7 +74,7 @@ export function CalibrationPanel() {
   const wsQuery = useQuery({
     queryKey: ["workspaces"],
     queryFn: async () => {
-      const r = await fetch("/api/workspaces");
+      const r = await fetch("/api/workspace");
       if (!r.ok) return [] as WorkspaceRow[];
       return ((await r.json()).data ?? []) as WorkspaceRow[];
     },

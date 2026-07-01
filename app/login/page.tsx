@@ -41,13 +41,13 @@ function LoginPageInner() {
   // closing-flow), but honors ?next=<encoded-path> so redirects survive.
   const nextHref = (() => {
     const raw = searchParams.get("next");
-    if (!raw) return "/workspaces";
+    if (!raw) return "/workspace";
     try {
       const decoded = decodeURIComponent(raw);
       // Only allow same-origin internal paths.
-      return decoded.startsWith("/") ? decoded : "/workspaces";
+      return decoded.startsWith("/") ? decoded : "/workspace";
     } catch {
-      return "/workspaces";
+      return "/workspace";
     }
   })();
 

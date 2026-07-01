@@ -263,7 +263,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader title="Dashboard" description={description}>
         <Button asChild>
-          <Link href="/workspaces">
+          <Link href="/workspace">
             <Briefcase className="h-4 w-4" />
             Buka Workspace
           </Link>
@@ -541,7 +541,7 @@ export default function DashboardPage() {
                 description="Tambah lead lewat Discovery di workspace untuk melihatnya di sini."
                 action={
                   <Button asChild size="sm">
-                    <Link href="/workspaces">
+                    <Link href="/workspace">
                       <Briefcase className="h-4 w-4" /> Buka Workspace
                     </Link>
                   </Button>
