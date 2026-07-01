@@ -4,6 +4,7 @@ import { ServiceError } from "@/modules/_shared/api";
 import { crmRepo } from "@/modules/crm/repo";
 import { tenantRepo } from "@/modules/tenant/repo";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { notificationService } from "@/modules/notification/service";
 import type { CompanyRow } from "@/modules/crm/schema";
 
 import { dataMarketRepo, type DataListingLite } from "./repo";
@@ -312,6 +313,26 @@ export const dataMarketService = {
       importedCount: imported,
       amount: listing.price,
     });
+
+    // Persistent notifications for BOTH sides (each written under its own tenant's
+    // RLS context, mirroring the dual audit above). Tenant-wide; best-effort.
+    await notificationService.emit(ctx, {
+      type: "marketplace",
+      title: "Pembelian data berhasil",
+      body: `${imported} perusahaan diimpor dari "${listing.title}".`,
+      link: "/marketplace",
+      meta: { listingId: listing.id, importedCount: imported, amount: listing.price },
+    });
+    await notificationService.emit(
+      { tenantId: listing.sellerTenantId, userId: ctx.userId, role: "member" },
+      {
+        type: "marketplace",
+        title: "Data Anda terjual",
+        body: `Listing "${listing.title}" dibeli (${snapshot.length} perusahaan).`,
+        link: "/marketplace",
+        meta: { listingId: listing.id, companyCount: snapshot.length, amount: listing.price },
+      },
+    );
 
     return {
       purchase,

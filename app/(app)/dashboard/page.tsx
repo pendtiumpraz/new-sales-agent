@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { ChannelDot } from "@/components/shared/channel-dot";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -262,6 +264,7 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader title="Dashboard" description={description}>
+        <FeatureGuide guide={FEATURE_GUIDES.dashboard} />
         <Button asChild>
           <Link href="/workspace">
             <Briefcase className="h-4 w-4" />

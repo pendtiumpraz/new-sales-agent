@@ -48,6 +48,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { AppDrawer } from "@/components/shared/app-drawer";
@@ -603,6 +605,7 @@ export default function ContentPage() {
         title="Konten"
         description="Pustaka template pesan/konten + perencanaan (kalender editorial). Buat & sunting di panel kanan; hapus ke Sampah, pulihkan, atau hapus permanen."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.content} />
         {tab === "rencana" ? (
           <Button size="sm" onClick={() => openCreatePlan()}>
             <Plus className="h-4 w-4" /> Rencana konten

@@ -48,6 +48,8 @@ BEGIN
     'company_v2','contact','pipeline','pipeline_stage','deal','activity',
     -- inbox
     'conversation_v2','message_v2',
+    -- notification (topbar bell feed; user_id NULL = tenant-wide)
+    'notification',
     -- outreach
     'cadence_v2','cadence_step_v2','cadence_enrollment_v2','autopilot_run_v2','escalation','handoff',
     -- onboarding / entitlements

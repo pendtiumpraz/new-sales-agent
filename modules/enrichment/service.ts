@@ -2,6 +2,7 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { notificationService } from "@/modules/notification/service";
 import { crmService } from "@/modules/crm/service";
 import { crmRepo } from "@/modules/crm/repo";
 import { tenantService } from "@/modules/tenant/service";
@@ -961,6 +962,19 @@ export const enrichmentService = {
     // Consume quota for the NEW nodes only (updates / re-crawls are free).
     if (companiesCreated) await tenantService.bumpUsage(ctx, "companies_max", companiesCreated);
     if (peopleCreated) await tenantService.bumpUsage(ctx, "contacts_max", peopleCreated);
+
+    // Persistent notification: ONE batched "Lead baru" per ingest (not per contact —
+    // a bulk commenter-import can create dozens, and N rows would spam the bell).
+    // Tenant-wide; best-effort. Only when the graph actually produced NEW contacts.
+    if (peopleCreated > 0) {
+      await notificationService.emit(ctx, {
+        type: "lead",
+        title: "Lead baru",
+        body: `${peopleCreated} lead baru masuk dari ${channel}.`,
+        link: "/contacts",
+        meta: { jobId: job.id, channel, peopleCreated, companiesCreated },
+      });
+    }
 
     return {
       companiesUpserted,

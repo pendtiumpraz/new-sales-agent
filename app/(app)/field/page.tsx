@@ -43,6 +43,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { withFieldId } from "@/components/shared/field-id";
@@ -691,6 +693,7 @@ export default function FieldPage() {
         title="Sales Lapangan"
         description="Kunjungan lapangan & check-in tim sales — siapa, di mana, dan statusnya. Klik baris untuk detail kunjungan + riwayat check-in."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.field} />
         <Button size="sm" onClick={openCreate}>
           <Plus className="h-4 w-4" /> Kunjungan baru
         </Button>

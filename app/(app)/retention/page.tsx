@@ -44,6 +44,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { withFieldId } from "@/components/shared/field-id";
@@ -564,6 +566,7 @@ export default function RetentionPage() {
         title="Retensi & Win-back"
         description="Alur otomatis untuk menjaga & memenangkan kembali pelanggan — atur pemicu, segmen, dan langkah per channel (WA · email · telepon · SMS)."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.retention} />
         <Button size="sm" onClick={openCreate}>
           <Plus className="h-4 w-4" /> Buat flow
         </Button>

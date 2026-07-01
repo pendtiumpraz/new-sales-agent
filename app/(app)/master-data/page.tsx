@@ -49,6 +49,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -434,6 +436,7 @@ export default function MasterDataPage() {
         title="Master Data — Industri & Pekerjaan"
         description="Katalog yang dipakai AI untuk mengklasifikasi perusahaan & orang hasil crawl. Ada base bawaan (dipakai bersama, read-only) + tambahanmu sendiri (AI / manual)."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.masterData} />
         <Button
           size="sm"
           onClick={() => openCreate(activeKind)}

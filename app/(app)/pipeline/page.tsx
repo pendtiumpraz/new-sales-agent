@@ -30,6 +30,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
@@ -476,6 +478,7 @@ export default function PipelinePage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <FeatureGuide guide={FEATURE_GUIDES.pipeline} />
           <button
             type="button"
             onClick={() => refreshDeals()}

@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { ErrorState } from "@/components/shared/error-state";
 import { IDRAmount } from "@/components/shared/idr-amount";
 import { Badge } from "@/components/ui/badge";
@@ -316,6 +318,7 @@ function BillingHeader({
       title="Billing & Kuota"
       description="Paket aktif, saldo kredit AI, & pemakaian terhadap kuota — plus upgrade & portal langganan."
     >
+      <FeatureGuide guide={FEATURE_GUIDES.billing} />
       {loading ? (
         <Skeleton className="h-9 w-40 rounded-lg" />
       ) : credit ? (

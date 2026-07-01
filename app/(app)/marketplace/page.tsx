@@ -44,6 +44,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -398,6 +400,7 @@ export default function MarketplacePage() {
         title="Marketplace Data"
         description="Jual-beli data perusahaan (firmografis) antar-tenant. Jual dataset perusahaan hasil crawl-mu, atau beli dataset tenant lain — langsung terimpor ke CRM-mu."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.marketplace} />
         <Button size="sm" onClick={openCreate}>
           <Plus className="h-4 w-4" /> Jual data
         </Button>

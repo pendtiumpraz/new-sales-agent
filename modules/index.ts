@@ -61,3 +61,8 @@ export * from "./reports/schema";
 // into its own CRM. Owns: data_listing, data_purchase. This is a SEPARATE concept
 // from Module 9's `marketplace_*` (channel-integration lead source → /ecommerce).
 export * from "./data-market/schema";
+
+// Persistent notification feed (topbar bell) — one row per surfaced event (new
+// lead, won deal, escalation, low quota, marketplace sale, …). Written best-effort
+// at each event point via modules/notification/service.ts `emit`. Owns: notification.
+export * from "./notification/schema";

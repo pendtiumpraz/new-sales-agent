@@ -56,6 +56,8 @@ import {
 import { toast } from "sonner";
 
 import { ClosingReadinessBadge } from "@/components/inbox/closing-readiness-badge";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { ContentTemplatePicker } from "@/components/shared/content-template-picker";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -561,7 +563,13 @@ export default function InboxPage() {
         {/* header: title + WA mode toggle + search + view tabs + filter chips */}
         <div className="shrink-0 space-y-3 border-b border-border p-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold tracking-tight">Inbox</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-base font-bold tracking-tight">Inbox</h2>
+              <FeatureGuide
+                guide={FEATURE_GUIDES.inbox}
+                className="h-7 gap-1 px-2 text-[11px]"
+              />
+            </div>
             <button
               type="button"
               disabled={setWaMode.isPending}

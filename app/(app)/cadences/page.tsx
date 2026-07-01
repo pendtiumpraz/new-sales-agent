@@ -46,6 +46,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { ContentTemplatePicker } from "@/components/shared/content-template-picker";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -355,6 +357,7 @@ export default function CadencesPage() {
         title="Cadence"
         description="Urutan follow-up otomatis lintas channel (WhatsApp · Email · Telepon). Tiap step menunggu jeda lalu mengirim template. Klik baris untuk lihat & edit step + daftarkan kontak."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.cadences} />
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Cadence baru
         </Button>

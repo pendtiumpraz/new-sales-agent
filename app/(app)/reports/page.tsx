@@ -41,6 +41,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -307,6 +309,7 @@ export default function ReportsPage() {
         title="Laporan & Analitik"
         description="Dasbor agregat real-time atas data kontak, deal, percakapan, kesiapan closing, pesanan & kunjungan lapangan. Simpan tampilan favorit sebagai laporan."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.reports} />
         <Button size="sm" onClick={() => setForm({ ...EMPTY_SAVE_FORM, open: true })}>
           <Save className="h-4 w-4" /> Simpan laporan
         </Button>

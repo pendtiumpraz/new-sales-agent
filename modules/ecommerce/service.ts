@@ -2,6 +2,7 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { notificationService } from "@/modules/notification/service";
 import { crmService } from "@/modules/crm/service";
 import { ecommerceRepo } from "./repo";
 import type { MarketplaceOrderRow, CartRecoveryRow, OrderItem } from "./schema";
@@ -299,6 +300,14 @@ export const ecommerceService = {
       contactId,
       dealId: deal.id,
       value: order.total,
+    });
+    // Persistent notification: an order became a CRM deal. Tenant-wide; best-effort.
+    await notificationService.emit(ctx, {
+      type: "order",
+      title: "Order masuk ke CRM",
+      body: `Pesanan ${order.externalId} dikonversi jadi deal.`,
+      link: "/pipeline",
+      meta: { orderId: order.id, dealId: deal.id, contactId, value: order.total },
     });
     return { order: updated ?? order, contactId, dealId: deal.id };
   },

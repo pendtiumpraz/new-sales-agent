@@ -2,6 +2,7 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError, type Page } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { notificationService } from "@/modules/notification/service";
 import { workspaceRepo } from "@/modules/workspace/repo";
 import { productRepo } from "@/modules/product/repo";
 import { crmRepo, type PageParams } from "./repo";
@@ -718,6 +719,17 @@ export const crmService = {
     const row = await crmRepo.updateDeal(ctx, id, patch);
     if (!row) throw new ServiceError("Deal tidak ditemukan", 404, "not_found");
     await this.audit(ctx, "crm.deal.update", "deal", id, { fields: Object.keys(patch) });
+    // Persistent notification: a deal just crossed into WON (tenant-wide so the
+    // whole team sees the win). Best-effort — never blocks the update.
+    if (patch.status === "won" && current.status !== "won") {
+      await notificationService.emit(ctx, {
+        type: "deal",
+        title: "Deal menang 🎉",
+        body: `Deal "${row.name}" berhasil ditutup.`,
+        link: "/pipeline",
+        meta: { dealId: id, value: row.value, currency: row.currency },
+      });
+    }
     return row;
   },
 

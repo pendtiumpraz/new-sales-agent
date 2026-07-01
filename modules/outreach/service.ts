@@ -2,6 +2,7 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { notificationService } from "@/modules/notification/service";
 import { crmService } from "@/modules/crm/service";
 import { inboxService } from "@/modules/inbox/service";
 import { outreachRepo } from "./repo";
@@ -861,6 +862,15 @@ export const outreachService = {
     await this.audit(ctx, "outreach.escalation.create", "escalation", row.id, {
       conversationId,
       reason,
+    });
+    // Persistent notification — tenant-wide (userId null) so any available rep can
+    // pick up the handoff. Best-effort; never blocks raising the escalation.
+    await notificationService.emit(ctx, {
+      type: "escalation",
+      title: "Eskalasi ke manusia",
+      body: `Percakapan perlu ditinjau (${reason}).`,
+      link: "/escalations",
+      meta: { escalationId: row.id, conversationId, reason, priority },
     });
     return row;
   },

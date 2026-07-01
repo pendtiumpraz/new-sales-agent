@@ -3,6 +3,8 @@
 import { Building2, Globe2, Info } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,9 @@ export default function SettingsPage() {
   // workspace/profile band.
   return (
     <div>
-      <PageHeader title="Pengaturan" description="Kelola workspace, tim, dan integrasi." />
+      <PageHeader title="Pengaturan" description="Kelola workspace, tim, dan integrasi.">
+        <FeatureGuide guide={FEATURE_GUIDES.settings} />
+      </PageHeader>
 
       <div className="p-6">
         <div className="space-y-4">

@@ -4,7 +4,6 @@ import { useState, type SVGProps } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell,
   BookOpen,
   ChevronDown,
   LogOut,
@@ -52,6 +51,7 @@ import { useRetentionStore } from "@/lib/stores/retention-store";
 import { withWorkspace } from "@/lib/workspace/scope";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -534,19 +534,8 @@ export function TopBar() {
 
       <LanguageToggle className="hidden sm:inline-flex" />
 
-      {/* Notifications — opens the Inbox (no hardcoded fake feed). */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/inbox")}
-          >
-            <Bell className="h-5 w-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Notifikasi & Inbox</TooltipContent>
-      </Tooltip>
+      {/* Notifications — persistent DB-backed feed + unread badge (bell dropdown). */}
+      <NotificationBell />
 
       {/* Profile — tenant brand + user */}
       <DropdownMenu>

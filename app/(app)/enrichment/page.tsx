@@ -34,6 +34,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -258,6 +260,7 @@ export default function EnrichmentPage() {
         title="Pengayaan Data"
         description={`Lengkapi & klasifikasi lead, lalu push ke Contacts · Workspace: ${wsName}`}
       >
+        <FeatureGuide guide={FEATURE_GUIDES.enrichment} />
         <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium">
           <span className="h-2 w-2 rounded-full bg-warning" />
           Extension: <span className="font-semibold text-foreground/80">Belum terhubung</span>

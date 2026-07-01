@@ -14,6 +14,7 @@ import { packByKey } from "@/lib/billing/quota-packs";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { notificationService } from "@/modules/notification/service";
 import { tenantRepo } from "./repo";
 import type { AppUserRow, MembershipRow, TenantRow, UsageCounterRow, QuotaGrantRow } from "./schema";
 
@@ -153,6 +154,18 @@ export const tenantService = {
         verticalKey: input.verticalKey ?? null,
       },
     });
+    // Persistent notification to the TENANT (tenant-wide) that it's live. The emit
+    // context is scoped to the target tenant so its RLS WITH CHECK passes.
+    await notificationService.emit(
+      { tenantId: id, userId: actorUserId, role: "member" },
+      {
+        type: "tenant",
+        title: "Akun diaktifkan",
+        body: "Akun Anda kini aktif. Selamat bekerja!",
+        link: "/dashboard",
+        meta: { planKey: row.planKey ?? null },
+      },
+    );
     return row;
   },
 
@@ -168,6 +181,17 @@ export const tenantService = {
       targetType: "tenant",
       targetId: id,
     });
+    // Persistent notification to the TENANT (tenant-wide) that it's suspended.
+    await notificationService.emit(
+      { tenantId: id, userId: actorUserId, role: "member" },
+      {
+        type: "tenant",
+        title: "Akun ditangguhkan",
+        body: "Akun Anda ditangguhkan sementara. Hubungi admin platform.",
+        link: "/dashboard",
+        meta: {},
+      },
+    );
     return row;
   },
 
@@ -265,13 +289,23 @@ export const tenantService = {
         );
       }
     }
-    return tenantRepo.insertMembership(ctx, {
+    const membership = await tenantRepo.insertMembership(ctx, {
       id: "mbr_" + crypto.randomUUID(),
       tenantId: ctx.tenantId,
       userId,
       role,
       status,
     });
+    // Persistent notification to the TENANT (tenant-wide) — a new member joined.
+    // Best-effort; only fires on a genuinely NEW membership (existing returns early).
+    await notificationService.emit(ctx, {
+      type: "member",
+      title: "Anggota baru",
+      body: `Anggota baru ditambahkan ke tim (${role}).`,
+      link: "/settings/team",
+      meta: { membershipId: membership.id, userId, role },
+    });
+    return membership;
   },
 
   /** Resolve a user's first/primary membership (drives tenant + role at login). */
@@ -402,15 +436,50 @@ export const tenantService = {
       const grants = await tenantRepo.sumActiveGrants(ctx, metric);
       const limit = base + grants;
       if (used + delta > limit) {
+        await this.emitQuotaNotice(ctx, metric, true, used, limit);
         return { ok: false, scope: MONTHLY_METRICS.includes(metric) ? "month" : "total", used, limit };
+      }
+      // Early warning as usage crosses ~90% of the ceiling (de-duped, so at most
+      // one "hampir habis" per metric per window even on a hot check path).
+      if (limit > 0 && used + delta >= limit * 0.9) {
+        await this.emitQuotaNotice(ctx, metric, false, used, limit);
       }
     }
     const dailyCap = resolveDailyCap(planKey, metric);
     if (dailyCap !== null) {
       const dused = (await tenantRepo.getUsage(ctx, metric, dayPeriod()))?.used ?? 0;
-      if (dused + delta > dailyCap) return { ok: false, scope: "day", used: dused, limit: dailyCap };
+      if (dused + delta > dailyCap) {
+        await this.emitQuotaNotice(ctx, metric, true, dused, dailyCap);
+        return { ok: false, scope: "day", used: dused, limit: dailyCap };
+      }
     }
     return { ok: true, scope: "total", used: 0, limit: -1 };
+  },
+
+  /**
+   * Fire a tenant-wide quota notification (billing is a tenant concern). De-duped
+   * to one row per (title) per 6h so an over-quota tenant whose every AI/WA call
+   * re-evaluates doesn't flood the bell. Best-effort — `emit` never throws.
+   */
+  async emitQuotaNotice(
+    ctx: TenantContext,
+    metric: QuotaMetric,
+    exhausted: boolean,
+    used: number,
+    limit: number,
+  ): Promise<void> {
+    const label = METRIC_LABEL[metric] ?? metric;
+    await notificationService.emit(ctx, {
+      type: "quota",
+      title: exhausted ? "Kuota habis" : "Kuota hampir habis",
+      body: exhausted
+        ? `Kuota ${label} sudah habis (${used}/${limit}). Upgrade paket atau beli tambahan.`
+        : `Kuota ${label} hampir habis (${used}/${limit}).`,
+      link: "/settings/billing",
+      userId: null, // tenant-wide
+      meta: { metric, used, limit },
+      dedupeWithinMs: 6 * 60 * 60 * 1000,
+    });
   },
 
   async enforceQuota(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {

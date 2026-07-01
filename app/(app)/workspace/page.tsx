@@ -41,6 +41,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Badge } from "@/components/ui/badge";
@@ -890,6 +892,7 @@ export default function WorkspaceHubPage() {
         title={activeWs.name}
         description="Hub workspace — semua aktivitas sales fokus di sini. 1 workspace = 1 produk."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.workspace} />
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Workspace baru
         </Button>

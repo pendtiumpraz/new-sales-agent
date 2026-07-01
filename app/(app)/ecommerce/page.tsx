@@ -39,6 +39,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -440,6 +442,7 @@ export default function EcommercePage() {
         title="E-Commerce"
         description="Pesanan marketplace (Tokopedia / Shopee / TikTok Shop) + pemulihan keranjang yang ditinggalkan — recovery satu klik lewat WhatsApp."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.ecommerce} />
         <Button asChild variant="outline" size="sm">
           <Link href="/inbox?channel=whatsapp">
             <MessageCircle className="h-4 w-4" style={{ color: WA }} /> Buka Inbox

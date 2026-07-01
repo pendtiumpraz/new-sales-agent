@@ -39,6 +39,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -561,6 +563,7 @@ export default function ContactsCrmPage() {
         title="Kontak & Lead"
         description="Semua kontak/lead yang sudah diakuisisi — dengan segmentasi B2C vs B2B & status pengayaan data. Klik baris untuk lihat profil + data enrichment."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.contacts} />
         <Button asChild variant="outline" size="sm">
           <Link href="/contacts/discovery">
             <Upload className="h-4 w-4" /> Impor / Discovery

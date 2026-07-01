@@ -31,6 +31,8 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { FeatureGuide } from "@/components/shared/feature-guide";
+import { FEATURE_GUIDES } from "@/lib/feature-guides";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -236,6 +238,7 @@ export default function PenawaranListPage() {
         title="Penawaran"
         description="Quote/penawaran ke pelanggan — AI menyusun, dikirim via email, halaman publik melacak dibuka/diterima. 1 penawaran = 1 dokumen quote-to-cash."
       >
+        <FeatureGuide guide={FEATURE_GUIDES.penawaran} />
         <Button size="sm" onClick={() => setForm({ ...EMPTY_CREATE, open: true })}>
           <Plus className="h-4 w-4" /> Buat penawaran
         </Button>
