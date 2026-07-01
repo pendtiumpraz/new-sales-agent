@@ -360,15 +360,29 @@ export default function WorkspaceHubPage() {
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("lead_gen");
   const [newProductId, setNewProductId] = useState("");
+  const [createProductName, setCreateProductName] = useState(""); // used when newProductId === "__new__"
   const createWs = useMutation({
     mutationFn: async () => {
+      // Resolve the product: an existing id, or create a NEW product inline first
+      // (1 workspace = 1 produk) — so a fresh tenant can start a product right here.
+      let productId = newProductId && newProductId !== "__new__" ? newProductId : "";
+      if (newProductId === "__new__" && createProductName.trim()) {
+        const pr = await fetch("/api/product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: createProductName.trim() }),
+        });
+        const pj = (await pr.json()) as ApiEnvelope<{ id: string }>;
+        if (!pr.ok || !pj.ok || !pj.data) throw new Error(pj.error || "Gagal membuat produk");
+        productId = pj.data.id;
+      }
       const r = await fetch("/api/workspace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newName.trim(),
           type: newType,
-          ...(newProductId ? { productId: newProductId } : {}),
+          ...(productId ? { productId } : {}),
         }),
       });
       const j = (await r.json()) as ApiEnvelope<WorkspaceRow>;
@@ -379,9 +393,11 @@ export default function WorkspaceHubPage() {
       toast.success(`Workspace "${ws.name}" dibuat`);
       setActiveWs({ id: ws.id, name: ws.name, type: ws.type });
       qc.invalidateQueries({ queryKey: ["m2", "workspace", "list"] });
+      qc.invalidateQueries({ queryKey: ["m2", "product", "list"] });
       setCreateOpen(false);
       setNewName("");
       setNewProductId("");
+      setCreateProductName("");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat workspace"),
   });
@@ -636,27 +652,46 @@ export default function WorkspaceHubPage() {
               </SelectContent>
             </Select>
           </div>
-          {products.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Produk (opsional)</Label>
-              <Select
-                value={newProductId || "none"}
-                onValueChange={(v) => setNewProductId(v === "none" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Tanpa produk dulu" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Tanpa produk dulu</SelectItem>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Produk (opsional)</Label>
+            <Select
+              value={newProductId || "none"}
+              onValueChange={(v) => setNewProductId(v === "none" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Tanpa produk dulu" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa produk dulu</SelectItem>
+                {products.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__new__">+ Produk baru…</SelectItem>
+              </SelectContent>
+            </Select>
+            {newProductId === "__new__" && (
+              <Input
+                value={createProductName}
+                onChange={(e) => setCreateProductName(e.target.value)}
+                placeholder="Nama produk baru — mis. Paket UMKM Pro"
+                className="mt-1.5"
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "Enter" &&
+                    newName.trim() &&
+                    createProductName.trim() &&
+                    !createWs.isPending
+                  )
+                    createWs.mutate();
+                }}
+              />
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              1 workspace = 1 produk — buat baru sekarang, pilih yang sudah ada, atau lewati dulu.
+            </p>
+          </div>
         </div>
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button
@@ -666,7 +701,14 @@ export default function WorkspaceHubPage() {
           >
             Batal
           </Button>
-          <Button onClick={() => createWs.mutate()} disabled={!newName.trim() || createWs.isPending}>
+          <Button
+            onClick={() => createWs.mutate()}
+            disabled={
+              !newName.trim() ||
+              createWs.isPending ||
+              (newProductId === "__new__" && !createProductName.trim())
+            }
+          >
             {createWs.isPending ? "Membuat…" : "Buat workspace"}
           </Button>
         </div>
