@@ -20,6 +20,7 @@
 // Lives in the (app) shell.
 
 import { useId, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -50,6 +51,18 @@ import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import type { MapPoint } from "@/components/shared/visit-map";
+
+// Leaflet map is client-only (touches window) → load with ssr:false so it never
+// runs on the server / during prerender.
+const VisitMap = dynamic(() => import("@/components/shared/visit-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-[11px] text-muted-foreground">
+      Memuat peta…
+    </div>
+  ),
+});
 
 // ── API envelope + row shapes (NEW M9 field backend — { ok, data }) ──────────
 
@@ -1154,6 +1167,17 @@ function VisitDetailDrawer({
   const location =
     visit.address || company?.name || (contact ? `Lokasi ${contact.fullName}` : "Lokasi belum diisi");
 
+  // Real map points come from geo-stamped check-ins (the visit row carries no
+  // lat/lng yet). Empty → we show the placeholder below.
+  const mapPoints: MapPoint[] = checkIns
+    .filter((c) => c.lat != null && c.lng != null)
+    .map((c) => ({
+      lat: c.lat as number,
+      lng: c.lng as number,
+      kind: c.kind === "check_out" ? "check_out" : "check_in",
+      label: `${c.kind === "check_in" ? "Check-in" : "Check-out"}${c.address ? ` · ${c.address}` : ""} · ${fmtTimeID(c.recordedAt)}`,
+    }));
+
   return (
     <>
       {/* header */}
@@ -1180,27 +1204,29 @@ function VisitDetailDrawer({
 
       {/* body */}
       <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-        {/* (A) MAP PLACEHOLDER — Leaflet skipped for now */}
-        <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-[linear-gradient(135deg,hsl(14_90%_97%),hsl(173_60%_95%))]">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.5]"
-            style={{
-              backgroundImage:
-                "linear-gradient(hsl(14 40% 80% / .35) 1px, transparent 1px), linear-gradient(90deg, hsl(14 40% 80% / .35) 1px, transparent 1px)",
-              backgroundSize: "22px 22px",
-            }}
-          />
-          <div className="relative flex flex-col items-center gap-1 text-center">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft">
-              <MapPin className="h-4 w-4" />
-            </span>
-            <p className="text-[11px] font-medium text-foreground/80">{location}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {fmtCoords(checkIns[0]?.lat ?? null, checkIns[0]?.lng ?? null) ??
-                "Peta interaktif menyusul"}
-            </p>
+        {/* (A) MAP — real Leaflet map once there are geo-stamped check-ins; else a
+             placeholder (the visit row carries no lat/lng of its own yet). */}
+        {mapPoints.length > 0 ? (
+          <VisitMap points={mapPoints} className="h-36 overflow-hidden rounded-lg border border-border" />
+        ) : (
+          <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-[linear-gradient(135deg,hsl(14_90%_97%),hsl(173_60%_95%))]">
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.5]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(hsl(14 40% 80% / .35) 1px, transparent 1px), linear-gradient(90deg, hsl(14 40% 80% / .35) 1px, transparent 1px)",
+                backgroundSize: "22px 22px",
+              }}
+            />
+            <div className="relative flex flex-col items-center gap-1 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <p className="text-[11px] font-medium text-foreground/80">{location}</p>
+              <p className="text-[10px] text-muted-foreground">Peta muncul setelah check-in dengan lokasi.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* (B) STATUS + advance */}
         <div className="rounded-lg border border-border bg-muted/30 p-3">
