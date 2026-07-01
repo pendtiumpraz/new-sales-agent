@@ -14,7 +14,9 @@
 //           enrichment/plan.ts — the NEW shape, NOT linkedinQueries-only).
 //        B) "Tempel URL apa aja" — textarea → channel detected from the URL
 //           (incl. a post-URL intent-mining hint) → POST /api/discovery (kind:url)
-//           server-side crawl. Each scraped company becomes a result node.
+//           PREVIEW-ONLY server crawl (no DB write). Each scraped company becomes a
+//           result node; it lands in the rebuild tables only on "Simpan ke workspace"
+//           (→ /api/discovery/ingest → company_v2/contact + discovery_job → Riwayat).
 //   (3) Cross-channel PLAN grid — one card per channel (LinkedIn incl. post/
 //       komentar intent-mining, Google Maps, Google SERP/dork, Instagram,
 //       Facebook, Shopee/Tokopedia/TikTok) with its queries/actions + an HONEST
@@ -149,6 +151,31 @@ interface IngestGraphResult {
   companiesUpserted: number;
   peopleUpserted: number;
   jobId: string;
+}
+
+// ── scrape preview shapes — mirror the PREVIEW returned by POST /api/discovery ──
+// The url-scrape is preview-only (no DB write); these carry the crawled graph the
+// rep reviews before committing it via /api/discovery/ingest.
+interface ScrapedPerson {
+  fullName: string;
+  title?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  channelProfileUrl?: string | null;
+}
+interface ScrapedCompany {
+  name: string;
+  domain?: string | null;
+  industry?: string | null;
+  summary?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  socials?: Record<string, string>;
+  emails?: string[];
+  phones?: string[];
+  people?: ScrapedPerson[];
 }
 
 // ── the in-page Company→People graph (results) ───────────────────────────────
@@ -343,10 +370,12 @@ export default function DiscoveryPage() {
     });
   }
 
-  // ── (B) URL scrape → /api/discovery (kind:url). Each scraped company becomes a
-  // real result node we can then save to the workspace. Channel is detected from
-  // the URL (channel-neutral). NOTE: server-side crawl extracts company-level
-  // contacts from public pages; people come from the extension/ingest path.
+  // ── (B) URL scrape → /api/discovery (kind:url). PREVIEW-ONLY server crawl: it
+  // extracts the Company→People graph (company-level contacts from public pages +
+  // Hunter people, if configured) and returns it WITHOUT persisting. The graph
+  // becomes a result node the rep reviews, selects, and commits via "Simpan ke
+  // workspace" → /api/discovery/ingest (rebuild company_v2/contact + discovery_job).
+  // Channel is detected from the URL (channel-neutral).
   const scrape = useMutation({
     mutationFn: async (url: string) => {
       const u = url.startsWith("http") ? url : `https://${url}`;
@@ -357,45 +386,55 @@ export default function DiscoveryPage() {
         body: JSON.stringify({ kind: "url", url: u, ...(workspaceId ? { workspaceId } : {}) }),
       });
       const j = (await r.json().catch(() => null)) as
-        | {
-            ok?: boolean;
-            error?: string;
-            result?: {
-              name?: string;
-              domain?: string | null;
-              emails?: number;
-              phones?: number;
-              contactsCreated?: number;
-            } | null;
-          }
+        | { ok?: boolean; error?: string; company?: ScrapedCompany | null }
         | null;
-      if (!r.ok || !j || j.ok === false) throw new Error(j?.error || "Gagal scrape URL");
-      return { detection: det, result: j.result ?? null, url: u };
+      if (!r.ok || !j || j.ok === false || !j.company) throw new Error(j?.error || "Gagal scrape URL");
+      return { detection: det, company: j.company, url: u };
     },
-    onSuccess: ({ detection: det, result, url }) => {
+    onSuccess: ({ detection: det, company, url }) => {
       const channel: ChannelKey = det?.channel ?? "web";
       const label = det?.label ?? "Website";
-      const name = result?.name || result?.domain || url.replace(/^https?:\/\//, "");
-      const node: CompanyNode = {
-        id: `co_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        name,
-        industry: null,
-        domain: result?.domain ?? null,
+      const name = company.name || company.domain || url.replace(/^https?:\/\//, "");
+      const nodeId = `co_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const people: PersonNode[] = (company.people ?? []).map((p, i) => ({
+        id: `pe_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+        fullName: p.fullName,
+        title: p.title ?? null,
         channel,
         channelLabel: label,
-        // The crawl reports COUNTS, not the raw values — be honest: show that
-        // contacts were captured without inventing a phone/email string.
-        phone: null,
-        email: null,
-        address: null,
-        people: [],
+        profileHandle: p.channelProfileUrl ?? null,
+        phone: p.phone ?? null,
+        whatsapp: p.whatsapp ?? null,
+        email: p.email ?? null,
+      }));
+      const node: CompanyNode = {
+        id: nodeId,
+        name,
+        industry: company.industry ?? null,
+        domain: company.domain ?? null,
+        channel,
+        channelLabel: label,
+        // Real captured handles (first email/phone) — company_v2 holds one each; the
+        // per-person handles ride on the people rows below.
+        phone: company.phone ?? null,
+        email: company.email ?? null,
+        address: company.address ?? null,
+        people,
       };
       setCompanies((prev) => [node, ...prev]);
+      // Pre-select the company + its people for a one-click save.
       setSelectedCompanies((prev) => new Set(prev).add(node.id));
-      const got = result?.contactsCreated ?? 0;
+      setSelectedPeople((prev) => {
+        const next = new Set(prev);
+        for (const p of people) next.add(p.id);
+        return next;
+      });
+      const emails = company.emails?.length ?? 0;
+      const phones = company.phones?.length ?? 0;
+      const found = emails + phones + people.length;
       toast.success(
-        got > 0
-          ? `Scrape selesai — ${name}: ${got} kontak (${result?.emails ?? 0} email, ${result?.phones ?? 0} telp)`
+        found > 0
+          ? `Scrape selesai — ${name}: ${emails} email · ${phones} telp · ${people.length} orang. Pilih lalu Simpan ke workspace.`
           : `Scrape selesai — ${name} (tidak ada kontak publik ditemukan)`,
       );
     },
@@ -955,7 +994,7 @@ function CompanyGroup({
       {/* people OR an honest "no people yet" note (server crawl = company-level) */}
       {company.people.length === 0 ? (
         <div className="px-5 py-2.5 pl-12 text-[11px] text-muted-foreground">
-          Kontak level-perusahaan tersimpan. Orang di dalamnya diisi lewat <b>extension</b> (LinkedIn/IG) atau enrich —
+          Kontak level-perusahaan ditemukan. Orang di dalamnya diisi lewat <b>extension</b> (LinkedIn/IG) atau enrich —
           belum ada orang dari scrape ini.
         </div>
       ) : (
