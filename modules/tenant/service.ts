@@ -386,10 +386,10 @@ export const tenantService = {
     // Token AI" field + "+ Kredit" actually ENFORCE (before, evalQuota read only
     // plan+grants, so a plan-less tenant stayed unlimited no matter what was typed).
     // Override replaces the plan base; active top-up packs (grants) still stack.
-    let override = periodRow?.quotaLimit ?? null;
-    if (override === null && period !== "lifetime") {
-      override = (await tenantRepo.getUsage(ctx, metric, "lifetime"))?.quotaLimit ?? null;
-    }
+    // No 'lifetime' fallback: setQuota is now period-consistent (writes at
+    // metricPeriod), so a STALE legacy lifetime row must NOT be read as an override —
+    // otherwise a prior "+ Kredit" on an unlimited tenant would wrongly cap it.
+    const override = periodRow?.quotaLimit ?? null;
     const base = override ?? planLimit;
     if (base !== null) {
       const grants = await tenantRepo.sumActiveGrants(ctx, metric);
