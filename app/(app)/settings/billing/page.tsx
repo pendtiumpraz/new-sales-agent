@@ -24,7 +24,7 @@
 
 import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -213,6 +213,9 @@ export default function BillingSettingsPage() {
           error={tenantQ.isError}
           onRetry={() => tenantQ.refetch()}
         />
+
+        {/* ============ BUY QUOTA PACKS (top-up, 30-day) ============ */}
+        <QuotaPacksPanel canManage={canManage} />
 
         {/* ============ STRIPE CTA (reuse lib/billing) ============ */}
         <StripePanel
@@ -585,6 +588,114 @@ function Meter({
         <div className="mt-1 h-2 rounded-full border border-dashed border-muted" />
       )}
     </div>
+  );
+}
+
+/** Buy a top-up quota pack (30-day). Self-serve: instant grant in demo, or via the
+ *  configured gateway (Stripe/Xendit/Tripay/Midtrans) once wired. tenant.billing. */
+interface QuotaPack {
+  key: string;
+  metric: string;
+  amount: number;
+  days: number;
+  priceIdr: number;
+  label: string;
+}
+function QuotaPacksPanel({ canManage }: { canManage: boolean }) {
+  const qc = useQueryClient();
+  const [pending, setPending] = useState<string | null>(null);
+  const packsQ = useQuery({
+    queryKey: ["billing", "quota-packs"],
+    queryFn: async () => {
+      const r = await fetch("/api/billing/quota/packs");
+      const j = (await r.json().catch(() => null)) as ApiResult<{ packs: QuotaPack[]; provider: string }> | null;
+      if (!r.ok || !j || j.ok === false) throw new Error((j && "error" in j && j.error) || "gagal");
+      return j.data;
+    },
+    retry: false,
+  });
+
+  async function buy(packKey: string) {
+    setPending(packKey);
+    try {
+      const r = await fetch("/api/billing/quota/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packKey }),
+      });
+      const j = (await r.json().catch(() => null)) as
+        | ApiResult<{ mode: string; url?: string }>
+        | null;
+      if (!r.ok || !j || j.ok === false) throw new Error((j && "error" in j && j.error) || "gagal");
+      if (j.data.mode === "redirect" && j.data.url) {
+        window.location.href = j.data.url; // gateway checkout
+        return;
+      }
+      toast.success("Kuota tambahan aktif (30 hari).");
+      qc.invalidateQueries({ queryKey: ["settings", "billing"] });
+      qc.invalidateQueries({ queryKey: ["billing", "quota-packs"] });
+    } catch (e) {
+      toast.error(`Gagal beli: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setPending(null);
+    }
+  }
+
+  const provider = packsQ.data?.provider ?? "none";
+  return (
+    <Card className="shadow-soft">
+      <CardHeader className="border-b">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-tertiary/[0.12] text-tertiary">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          Beli kuota tambahan
+          <Badge variant="muted">30 hari</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-5">
+        {packsQ.isLoading ? (
+          <Skeleton className="h-24 w-full rounded-lg" />
+        ) : !packsQ.data?.packs?.length ? (
+          <p className="text-sm text-muted-foreground">Belum ada paket tambahan.</p>
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Tambahan kuota berlaku <b>30 hari</b>, di atas kuota paket.{" "}
+              {provider === "none"
+                ? "Mode instan (demo) — langsung aktif tanpa pembayaran."
+                : `Pembayaran via ${provider}.`}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {packsQ.data.packs.map((p) => (
+                <div
+                  key={p.key}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{p.label}</p>
+                    <IDRAmount value={p.priceIdr} className="text-xs text-muted-foreground" />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!canManage || pending !== null}
+                    onClick={() => buy(p.key)}
+                  >
+                    {pending === p.key ? "…" : "Beli"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            {!canManage && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Hanya Owner/Admin (izin <code>tenant.billing</code>) yang bisa beli.
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
