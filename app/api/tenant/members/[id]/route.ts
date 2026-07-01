@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { hasDb } from "@/lib/db/client";
 import { withTenant } from "@/lib/db/tenant-context";
 import { requirePermission } from "@/lib/rbac/guard";
-import { membershipsTable } from "@/lib/db/schema";
+import { membershipTable } from "@/modules/tenant/schema";
 import { ok, handle, ServiceError } from "@/modules/_shared/api";
 import type { Role } from "@/lib/rbac/permissions";
 
@@ -82,10 +82,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     await withTenant(ctx, (tx) =>
       tx
-        .update(membershipsTable)
+        .update(membershipTable)
         .set(patch)
         .where(
-          and(eq(membershipsTable.id, params.id), eq(membershipsTable.tenantId, ctx.tenantId)),
+          and(eq(membershipTable.id, params.id), eq(membershipTable.tenantId, ctx.tenantId)),
         ),
     );
     return ok({ source: "db" });
@@ -101,9 +101,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   return handle(async () => {
     await withTenant(ctx, (tx) =>
       tx
-        .delete(membershipsTable)
+        .delete(membershipTable)
         .where(
-          and(eq(membershipsTable.id, params.id), eq(membershipsTable.tenantId, ctx.tenantId)),
+          and(eq(membershipTable.id, params.id), eq(membershipTable.tenantId, ctx.tenantId)),
         ),
     );
     return ok({ source: "db" });

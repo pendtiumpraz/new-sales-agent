@@ -349,10 +349,23 @@ export const tenantService = {
     const tenant = await tenantRepo.getTenant(ctx.tenantId);
     const planKey = tenant?.planKey ?? null;
     const planLimit = resolvePlanLimits(planKey)[metric];
-    if (planLimit !== null) {
+    const period = metricPeriod(metric);
+    const periodRow = await tenantRepo.getUsage(ctx, metric, period);
+    const used = periodRow?.used ?? 0;
+    // Per-tenant OVERRIDE set from the superadmin console (setQuota writes
+    // usage_counter.quota_limit). Honor it whether it was written on the metric's
+    // period or on 'lifetime' (setQuota's default) — this is what makes the "Kuota
+    // Token AI" field + "+ Kredit" actually ENFORCE (before, evalQuota read only
+    // plan+grants, so a plan-less tenant stayed unlimited no matter what was typed).
+    // Override replaces the plan base; active top-up packs (grants) still stack.
+    let override = periodRow?.quotaLimit ?? null;
+    if (override === null && period !== "lifetime") {
+      override = (await tenantRepo.getUsage(ctx, metric, "lifetime"))?.quotaLimit ?? null;
+    }
+    const base = override ?? planLimit;
+    if (base !== null) {
       const grants = await tenantRepo.sumActiveGrants(ctx, metric);
-      const limit = planLimit + grants;
-      const used = (await tenantRepo.getUsage(ctx, metric, metricPeriod(metric)))?.used ?? 0;
+      const limit = base + grants;
       if (used + delta > limit) {
         return { ok: false, scope: MONTHLY_METRICS.includes(metric) ? "month" : "total", used, limit };
       }
