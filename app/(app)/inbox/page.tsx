@@ -39,6 +39,7 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  FileText,
   Inbox as InboxIcon,
   Mail,
   MessageSquare,
@@ -54,6 +55,7 @@ import {
 import { toast } from "sonner";
 
 import { ClosingReadinessBadge } from "@/components/inbox/closing-readiness-badge";
+import { ContentTemplatePicker } from "@/components/shared/content-template-picker";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -380,8 +382,16 @@ export default function InboxPage() {
 
   // ── composer / send ──────────────────────────────────────────────────────
   const [draft, setDraft] = useState("");
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+
+  // Insert a Konten template body into the composer (append at end, keep the draft).
+  function insertTemplate(body: string) {
+    setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${body}` : body));
+    setTemplatePickerOpen(false);
+    requestAnimationFrame(() => composerRef.current?.focus());
+  }
 
   const sendMsg = useMutation({
     mutationFn: async (vars: { conversationId: string; body: string; isAiGenerated?: boolean }) =>
@@ -836,6 +846,14 @@ export default function InboxPage() {
                       {q}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setTemplatePickerOpen(true)}
+                    title="Sisipkan dari Konten"
+                    className="ml-auto inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/[0.06] px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <FileText className="h-3 w-3" /> Template
+                  </button>
                 </div>
 
                 <div className="flex items-end gap-2">
@@ -1114,6 +1132,15 @@ export default function InboxPage() {
             akan dihapus selamanya beserta pesannya.
           </>
         }
+      />
+
+      {/* ===================== KONTEN TEMPLATE PICKER ===================== */}
+      <ContentTemplatePicker
+        open={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        channel={active?.channel}
+        subtitle="Pilih template untuk mengisi balasan"
+        onPick={(tpl) => insertTemplate(tpl.body)}
       />
 
       {/* nav unread mirror (kept off-DOM; the sidebar owns its own badge) */}

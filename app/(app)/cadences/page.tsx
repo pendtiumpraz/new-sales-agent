@@ -28,6 +28,7 @@ import {
   Check,
   ChevronRight,
   Clock,
+  FileText,
   Layers,
   Mail,
   MessageCircle,
@@ -45,6 +46,7 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ContentTemplatePicker } from "@/components/shared/content-template-picker";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { AppDrawerRaw } from "@/components/shared/app-drawer";
@@ -984,6 +986,7 @@ function StepEditor({
   deleting: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [channel, setChannel] = useState<StepChannel>((step.channel as StepChannel) ?? "wa");
   const [delayHours, setDelayHours] = useState(step.delayHours);
   const [subject, setSubject] = useState(step.subject ?? "");
@@ -1103,12 +1106,34 @@ function StepEditor({
           />
         )}
         {/* template */}
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-medium text-muted-foreground">Isi pesan</span>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="inline-flex h-6 items-center gap-1 rounded-md border border-primary/30 bg-primary/[0.06] px-2 text-[10px] font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <FileText className="h-3 w-3" /> Isi dari template
+          </button>
+        </div>
         <textarea
           rows={3}
           value={template}
           onChange={(e) => setTemplate(e.target.value)}
           placeholder="Isi pesan / skrip telepon…"
           className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+        />
+        <ContentTemplatePicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          channel={channel}
+          onPick={(tpl) => {
+            setTemplate(tpl.body);
+            if ((STEP_CHANNELS as readonly string[]).includes(tpl.channel)) {
+              setChannel(tpl.channel as StepChannel);
+              if (tpl.channel === "email" && tpl.subject) setSubject(tpl.subject);
+            }
+          }}
         />
         <div className="flex items-center justify-end gap-2">
           <button
@@ -1156,6 +1181,7 @@ function AddStepForm({
   nextIndex: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [channel, setChannel] = useState<StepChannel>("wa");
   const [delayHours, setDelayHours] = useState(24);
   const [subject, setSubject] = useState("");
@@ -1223,12 +1249,34 @@ function AddStepForm({
           className="h-8 w-full rounded-lg border border-border bg-card px-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
         />
       )}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-muted-foreground">Isi pesan</span>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="inline-flex h-6 items-center gap-1 rounded-md border border-primary/30 bg-primary/[0.06] px-2 text-[10px] font-medium text-primary transition-colors hover:bg-primary/10"
+        >
+          <FileText className="h-3 w-3" /> Isi dari template
+        </button>
+      </div>
       <textarea
         rows={3}
         value={template}
         onChange={(e) => setTemplate(e.target.value)}
         placeholder="Isi pesan / skrip telepon…"
         className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+      />
+      <ContentTemplatePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        channel={channel}
+        onPick={(tpl) => {
+          setTemplate(tpl.body);
+          if ((STEP_CHANNELS as readonly string[]).includes(tpl.channel)) {
+            setChannel(tpl.channel as StepChannel);
+            if (tpl.channel === "email" && tpl.subject) setSubject(tpl.subject);
+          }
+        }}
       />
       <div className="flex items-center justify-end gap-2">
         <button
