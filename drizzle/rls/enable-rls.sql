@@ -67,7 +67,7 @@ BEGIN
     -- reports
     'saved_report',
     -- retention
-    'retention_flow','retention_step',
+    'retention_flow','retention_step','retention_enrollment',
     -- sales / closing-flow
     'conversation_stage','closing_readiness','kb_technique',
     -- settings

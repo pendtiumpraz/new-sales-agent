@@ -214,6 +214,95 @@ export const ecommerceService = {
     return row;
   },
 
+  /**
+   * Convert a PAID/COMPLETED marketplace order into CRM: upsert the buyer as a
+   * `contact` (reuse the order's linked contact if live, else dedup by phone/email,
+   * else create), create a WON `deal` (value = order total) in the default
+   * pipeline's `is_won` stage, and back-link the order to the upserted contact.
+   *
+   * All CRM writes go through `crmService` (modular-monolith rule — ecommerce never
+   * touches CRM tables) and reuse its create/dedup logic (no duplication). If the
+   * tenant has no pipeline (or the default pipeline has no won stage) the WON deal
+   * is still created, just unattached to a stage — the conversion never blocks.
+   */
+  async convertOrderToCrm(
+    ctx: TenantContext,
+    orderId: string,
+  ): Promise<{ order: MarketplaceOrderRow; contactId: string; dealId: string }> {
+    const order = await this.getOrder(ctx, orderId);
+    const CONVERTIBLE = ["paid", "shipped", "delivered", "completed"];
+    if (!CONVERTIBLE.includes(order.status)) {
+      throw new ServiceError(
+        "Hanya pesanan yang sudah dibayar/selesai yang bisa dikonversi ke CRM",
+        409,
+        "not_paid",
+      );
+    }
+
+    const phone = order.buyerPhone?.trim() || null;
+    const buyerName = order.buyerName?.trim() || `Pembeli ${order.externalId}`;
+
+    // 1) Resolve/upsert the buyer contact.
+    let contactId: string | null = null;
+    // (a) already linked → verify it's still live.
+    if (order.contactId) {
+      try {
+        const live = await crmService.getContact(ctx, order.contactId);
+        contactId = live.id;
+      } catch (e) {
+        if (!(e instanceof ServiceError && e.code === "not_found")) throw e;
+      }
+    }
+    // (b) else dedup by phone/email against existing contacts.
+    if (!contactId) {
+      const dup = await crmService.findContactByPhoneOrEmail(ctx, { phone });
+      if (dup) contactId = dup.id;
+    }
+    // (c) else create a fresh contact from the order's buyer snapshot.
+    if (!contactId) {
+      const created = await crmService.createContact(ctx, {
+        fullName: buyerName,
+        phone,
+        whatsapp: phone,
+        segment: "b2c",
+        source: `ecommerce:${order.channel}`,
+        workspaceId: order.workspaceId ?? null,
+      });
+      contactId = created.id;
+    }
+
+    // 2) Resolve the default pipeline + its won stage (best-effort — no hard block).
+    const pipelines = await crmService.listPipelines(ctx);
+    const defaultPipeline = pipelines.find((p) => p.isDefault) ?? pipelines[0] ?? null;
+    let wonStageId: string | null = null;
+    if (defaultPipeline) {
+      const stages = await crmService.listStages(ctx, defaultPipeline.id);
+      wonStageId = stages.find((s) => s.isWon)?.id ?? null;
+    }
+
+    // 3) Create the WON deal (reuse crmService — value = order total).
+    const deal = await crmService.createDeal(ctx, {
+      name: `Pesanan ${order.externalId}`,
+      contactId,
+      pipelineId: defaultPipeline?.id ?? null,
+      stageId: wonStageId,
+      workspaceId: order.workspaceId ?? null,
+      value: order.total,
+      currency: order.currency,
+      status: "won",
+      sourceChannel: `ecommerce:${order.channel}`,
+    });
+
+    // 4) Back-link the order → upserted contact.
+    const updated = await ecommerceRepo.updateOrder(ctx, order.id, { contactId });
+    await this.audit(ctx, "ecommerce.order.convert", "marketplace_order", order.id, {
+      contactId,
+      dealId: deal.id,
+      value: order.total,
+    });
+    return { order: updated ?? order, contactId, dealId: deal.id };
+  },
+
   async softDeleteOrder(ctx: TenantContext, id: string): Promise<void> {
     const ok = await ecommerceRepo.softDeleteOrder(ctx, id);
     if (!ok) throw new ServiceError("Order tidak ditemukan", 404, "not_found");

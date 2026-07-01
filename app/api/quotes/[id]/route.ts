@@ -25,6 +25,7 @@ const PatchSchema = z.object({
   coverSubject: z.string().nullable().optional(),
   coverBody: z.string().nullable().optional(),
   dealId: z.string().nullable().optional(),
+  contactId: z.string().nullable().optional(),
   workspaceId: z.string().nullable().optional(),
   customerName: z.string().nullable().optional(),
   customerEmail: z.string().nullable().optional(),

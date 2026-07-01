@@ -5,6 +5,7 @@ import {
   jsonb,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -88,7 +89,53 @@ export const retentionStepTable = pgTable(
   }),
 );
 
+// ── retention_enrollment (TENANT — a contact enrolled in a retention flow) ───
+// The graph edge that connects a `retention_flow` to a real CRM `contact` (the
+// missing link this file wires up): mirrors `cadence_enrollment_v2` from the
+// outreach module. A contact walks the flow's ordered steps — `current_step` is
+// the index, `status` (active|paused|completed|stopped) the lifecycle, and
+// `next_run_at` the due-time a future processor would read. 1 LIVE row per
+// (flow, contact); re-enrolling after stop reuses the row (upsert clears
+// `deleted_at`). All refs are soft (no FK); integrity enforced in the service.
+export const retentionEnrollmentTable = pgTable(
+  "retention_enrollment",
+  {
+    id: text("id").primaryKey(), // ren_…
+    tenantId: text("tenant_id").notNull(),
+    flowId: text("flow_id").notNull(), // soft ref → retention_flow.id
+    contactId: text("contact_id").notNull(), // soft ref → contact.id
+    workspaceId: text("workspace_id"), // soft ref → workspace_v2.id (denormalized)
+    assignedUserId: text("assigned_user_id"), // soft ref → app_user.id (owning rep)
+    currentStep: integer("current_step").notNull().default(0), // index into the ordered steps
+    status: text("status").notNull().default("active"), // active|paused|completed|stopped
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }), // due-time a processor reads
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow().notNull(),
+    lastStepAt: timestamp("last_step_at", { withTimezone: true }), // when the last step fired
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    stopReason: text("stop_reason"), // why it was stopped (replied|opted_out|manual|…)
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft delete
+  },
+  (t) => ({
+    tenantIdx: index("retention_enrollment_tenant_idx").on(t.tenantId),
+    flowIdx: index("retention_enrollment_flow_idx").on(t.tenantId, t.flowId),
+    contactIdx: index("retention_enrollment_contact_idx").on(t.tenantId, t.contactId),
+    // One LIVE enrollment per (flow, contact). Re-enrolling after stop reuses the
+    // row (upsert clears deleted_at), so the unique key holds across restarts.
+    flowContactUq: uniqueIndex("retention_enrollment_flow_contact_uq").on(
+      t.tenantId,
+      t.flowId,
+      t.contactId,
+    ),
+    dueIdx: index("retention_enrollment_due_idx").on(t.tenantId, t.status, t.nextRunAt),
+  }),
+);
+
 export type RetentionFlowRow = typeof retentionFlowTable.$inferSelect;
 export type RetentionFlowInsert = typeof retentionFlowTable.$inferInsert;
 export type RetentionStepRow = typeof retentionStepTable.$inferSelect;
 export type RetentionStepInsert = typeof retentionStepTable.$inferInsert;
+export type RetentionEnrollmentRow = typeof retentionEnrollmentTable.$inferSelect;
+export type RetentionEnrollmentInsert = typeof retentionEnrollmentTable.$inferInsert;

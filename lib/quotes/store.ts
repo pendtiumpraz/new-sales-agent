@@ -2,7 +2,8 @@ import { and, desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
-import { quoteTable, dealsTable, type QuoteItem } from "@/lib/db/schema";
+import { quoteTable, type QuoteItem } from "@/lib/db/schema";
+import { crmService } from "@/modules/crm/service";
 import { meteredGenerateText } from "@/lib/ai/meter";
 import { stripMarkdown } from "@/lib/ai/sanitize";
 import { SAFETY_RULES, wrapUntrusted, looksInjected } from "@/lib/ai/safety";
@@ -171,6 +172,7 @@ export async function updateQuote(
         ...(patch.customerEmail !== undefined ? { customerEmail: patch.customerEmail } : {}),
         ...(patch.customerCompany !== undefined ? { customerCompany: patch.customerCompany } : {}),
         ...(patch.dealId !== undefined ? { dealId: patch.dealId } : {}),
+        ...(patch.contactId !== undefined ? { contactId: patch.contactId } : {}),
         ...(patch.workspaceId !== undefined ? { workspaceId: patch.workspaceId } : {}),
         updatedAt: new Date(),
       })
@@ -280,6 +282,41 @@ export async function markViewed(token: string): Promise<void> {
     .where(eq(quoteTable.publicToken, token));
 }
 
+/** Synthesize a TenantContext from a quote row so the public (no-session) accept
+ *  path can drive the tenant-scoped CRM service. Uses the quote's owning rep as
+ *  the actor (falls back to "system" for audit) and its tenant for RLS. */
+function ctxFromQuote(q: Quote): TenantContext {
+  return { tenantId: q.tenantId, userId: q.ownerUserId ?? "system", role: "tenant_admin" };
+}
+
+/**
+ * Accept is a closing signal → advance the quote's linked CRM `deal` to the
+ * pipeline's WON stage (status "won"). REUSES crmService (validated + audited via
+ * `crm.deal.update`) — never re-implements deal/stage logic. Best-effort &
+ * non-fatal: a missing / soft-deleted / cross-table deal id degrades to
+ * `{ won:false }` so accepting a quote can never error. Idempotent: a deal that is
+ * already "won" is left untouched.
+ */
+async function advanceLinkedDealToWon(
+  ctx: TenantContext,
+  dealId: string,
+): Promise<{ won: boolean; dealName?: string }> {
+  try {
+    const deal = await crmService.getDeal(ctx, dealId);
+    if (deal.status === "won") return { won: false, dealName: deal.name };
+    const stages = await crmService.listStages(ctx, deal.pipelineId ?? undefined);
+    const wonStage = stages.find((s) => s.isWon);
+    await crmService.updateDeal(ctx, dealId, {
+      status: "won",
+      ...(wonStage ? { stageId: wonStage.id } : {}),
+    });
+    return { won: true, dealName: deal.name };
+  } catch {
+    // Deal gone / not a CRM deal / write blocked → don't break the accept.
+    return { won: false };
+  }
+}
+
 export async function respondToQuote(token: string, action: "accept" | "reject"): Promise<Quote | null> {
   const q = await getQuoteByToken(token);
   if (!q) return null;
@@ -290,21 +327,40 @@ export async function respondToQuote(token: string, action: "accept" | "reject")
     .set(action === "accept" ? { status: "accepted", acceptedAt: now, updatedAt: now } : { status: "rejected", rejectedAt: now, updatedAt: now })
     .where(eq(quoteTable.publicToken, token))
     .returning();
-  // Accept is a closing signal → advance the linked deal to "tutup" (won), but
-  // NEVER regress one that's already further along. The old code forced
-  // "negosiasi" unconditionally, which moved already-won deals backward.
+  // Accept → move the linked CRM deal to Won via the crm service.
   if (action === "accept" && q.dealId) {
-    const STAGE_ORDER = ["prospek", "kualifikasi", "penawaran", "negosiasi", "tutup"];
-    const [deal] = await db
-      .select({ stage: dealsTable.stage })
-      .from(dealsTable)
-      .where(eq(dealsTable.id, q.dealId))
-      .limit(1);
-    const curIdx = deal ? STAGE_ORDER.indexOf(deal.stage) : -1;
-    const target = STAGE_ORDER.length - 1; // "tutup"
-    if (deal && curIdx >= 0 && curIdx < target) {
-      await db.update(dealsTable).set({ stage: "tutup", updatedAt: now }).where(eq(dealsTable.id, q.dealId));
-    }
+    await advanceLinkedDealToWon(ctxFromQuote(q), q.dealId);
   }
   return updated ?? q;
+}
+
+/**
+ * Rep-side accept (customer confirmed offline — WA / call, not the public link).
+ * Sets the quote status → accepted (idempotent, stamps accepted_at) and advances
+ * the linked CRM deal to Won. Returns whether a deal was moved so the UI can toast
+ * it. Tenant-scoped via the caller's session context.
+ */
+export async function acceptQuote(
+  ctx: TenantContext,
+  id: string,
+): Promise<{ quote: Quote; dealWon: boolean; dealName?: string } | null> {
+  const cur = await getQuote(ctx, id);
+  if (!cur) return null;
+  let quote = cur;
+  if (cur.status !== "accepted") {
+    const now = new Date();
+    const rows = await withTenant(ctx, (tx) =>
+      tx
+        .update(quoteTable)
+        .set({ status: "accepted", acceptedAt: now, updatedAt: now })
+        .where(and(eq(quoteTable.id, id), eq(quoteTable.tenantId, ctx.tenantId)))
+        .returning(),
+    );
+    quote = rows[0] ?? cur;
+  }
+  if (quote.dealId) {
+    const res = await advanceLinkedDealToWon(ctx, quote.dealId);
+    return { quote, dealWon: res.won, dealName: res.dealName };
+  }
+  return { quote, dealWon: false };
 }

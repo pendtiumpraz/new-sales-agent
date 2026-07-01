@@ -4,10 +4,13 @@ import { withTenant, type TenantContext } from "@/lib/db/tenant-context";
 import {
   retentionFlowTable,
   retentionStepTable,
+  retentionEnrollmentTable,
   type RetentionFlowRow,
   type RetentionFlowInsert,
   type RetentionStepRow,
   type RetentionStepInsert,
+  type RetentionEnrollmentRow,
+  type RetentionEnrollmentInsert,
 } from "./schema";
 
 /**
@@ -312,6 +315,110 @@ export const retentionRepo = {
         .delete(retentionStepTable)
         .where(
           and(eq(retentionStepTable.tenantId, ctx.tenantId), eq(retentionStepTable.flowId, flowId)),
+        ),
+    );
+  },
+
+  // ═══════════════════════ retention_enrollment ═════════════════════
+  async listEnrollments(
+    ctx: TenantContext,
+    filter?: { flowId?: string; contactId?: string; status?: string },
+  ): Promise<RetentionEnrollmentRow[]> {
+    return withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(retentionEnrollmentTable)
+        .where(
+          and(
+            eq(retentionEnrollmentTable.tenantId, ctx.tenantId),
+            isNull(retentionEnrollmentTable.deletedAt),
+            filter?.flowId ? eq(retentionEnrollmentTable.flowId, filter.flowId) : undefined,
+            filter?.contactId
+              ? eq(retentionEnrollmentTable.contactId, filter.contactId)
+              : undefined,
+            filter?.status ? eq(retentionEnrollmentTable.status, filter.status) : undefined,
+          ),
+        )
+        .orderBy(desc(retentionEnrollmentTable.updatedAt)),
+    );
+  },
+
+  async getEnrollment(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<RetentionEnrollmentRow | undefined> {
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(retentionEnrollmentTable)
+        .where(
+          and(
+            eq(retentionEnrollmentTable.tenantId, ctx.tenantId),
+            eq(retentionEnrollmentTable.id, id),
+            isNull(retentionEnrollmentTable.deletedAt),
+          ),
+        )
+        .limit(1),
+    );
+    return row;
+  },
+
+  /** Upsert the (flow, contact) enrollment — re-enroll reuses the row. */
+  async upsertEnrollment(
+    ctx: TenantContext,
+    flowId: string,
+    contactId: string,
+    values: Omit<RetentionEnrollmentInsert, "id" | "tenantId" | "flowId" | "contactId">,
+  ): Promise<RetentionEnrollmentRow> {
+    const id = "ren_" + crypto.randomUUID();
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .insert(retentionEnrollmentTable)
+        .values({ ...values, id, tenantId: ctx.tenantId, flowId, contactId })
+        .onConflictDoUpdate({
+          target: [
+            retentionEnrollmentTable.tenantId,
+            retentionEnrollmentTable.flowId,
+            retentionEnrollmentTable.contactId,
+          ],
+          set: { ...values, deletedAt: null, updatedAt: new Date() },
+        })
+        .returning(),
+    );
+    return row;
+  },
+
+  /** Cascade helper: flip deleted_at on every enrollment of a flow. */
+  async setEnrollmentsDeletedByFlow(
+    ctx: TenantContext,
+    flowId: string,
+    deleted: boolean,
+  ): Promise<void> {
+    await withTenant(ctx, (tx) =>
+      tx
+        .update(retentionEnrollmentTable)
+        .set({ deletedAt: deleted ? new Date() : null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(retentionEnrollmentTable.tenantId, ctx.tenantId),
+            eq(retentionEnrollmentTable.flowId, flowId),
+            deleted
+              ? isNull(retentionEnrollmentTable.deletedAt)
+              : isNotNull(retentionEnrollmentTable.deletedAt),
+          ),
+        ),
+    );
+  },
+
+  async hardDeleteEnrollmentsByFlow(ctx: TenantContext, flowId: string): Promise<void> {
+    await withTenant(ctx, (tx) =>
+      tx
+        .delete(retentionEnrollmentTable)
+        .where(
+          and(
+            eq(retentionEnrollmentTable.tenantId, ctx.tenantId),
+            eq(retentionEnrollmentTable.flowId, flowId),
+          ),
         ),
     );
   },

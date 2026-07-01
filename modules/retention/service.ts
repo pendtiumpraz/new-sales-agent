@@ -2,8 +2,9 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
+import { crmService } from "@/modules/crm/service";
 import { retentionRepo } from "./repo";
-import type { RetentionFlowRow, RetentionStepRow } from "./schema";
+import type { RetentionFlowRow, RetentionStepRow, RetentionEnrollmentRow } from "./schema";
 
 /**
  * retention domain service — retention / win-back flow + step business logic +
@@ -24,6 +25,7 @@ const FLOW_KINDS = ["retention", "win_back", "onboarding", "loyalty"] as const;
 const SEGMENTS = ["b2c", "b2b", "all"] as const;
 const FLOW_STATUSES = ["active", "paused", "archived"] as const;
 const STEP_CHANNELS = ["wa", "email", "call", "sms"] as const;
+const ENROLLMENT_STATUSES = ["active", "paused", "completed", "stopped"] as const;
 
 // ── input shapes ─────────────────────────────────────────────────────────────
 export interface CreateFlowInput {
@@ -48,6 +50,13 @@ export interface CreateStepInput {
   meta?: Record<string, unknown> | null;
 }
 export type UpdateStepInput = Partial<Omit<CreateStepInput, "flowId">>;
+
+export interface EnrollInput {
+  flowId: string;
+  contactId: string;
+  workspaceId?: string | null;
+  assignedUserId?: string | null;
+}
 
 // ── validation helpers ───────────────────────────────────────────────────────
 function assertEnum(value: string | undefined, allowed: readonly string[], field: string): string {
@@ -133,7 +142,9 @@ export const retentionService = {
   async softDeleteFlow(ctx: TenantContext, id: string): Promise<void> {
     const ok = await retentionRepo.softDeleteFlow(ctx, id);
     if (!ok) throw new ServiceError("Flow retensi tidak ditemukan", 404, "not_found");
+    // App-level cascade: trash the flow's steps AND enrollments alongside it.
     await retentionRepo.setStepsDeletedByFlow(ctx, id, true);
+    await retentionRepo.setEnrollmentsDeletedByFlow(ctx, id, true);
     await this.audit(ctx, "retention.flow.delete", "retention_flow", id);
   },
 
@@ -141,6 +152,7 @@ export const retentionService = {
     const ok = await retentionRepo.restoreFlow(ctx, id);
     if (!ok) throw new ServiceError("Flow retensi tidak ada di trash", 404, "not_found");
     await retentionRepo.setStepsDeletedByFlow(ctx, id, false);
+    await retentionRepo.setEnrollmentsDeletedByFlow(ctx, id, false);
     await this.audit(ctx, "retention.flow.restore", "retention_flow", id);
     return this.getFlow(ctx, id);
   },
@@ -149,6 +161,7 @@ export const retentionService = {
     const ok = await retentionRepo.hardDeleteFlow(ctx, id);
     if (!ok) throw new ServiceError("Flow retensi tidak ditemukan", 404, "not_found");
     await retentionRepo.hardDeleteStepsByFlow(ctx, id);
+    await retentionRepo.hardDeleteEnrollmentsByFlow(ctx, id);
     await this.audit(ctx, "retention.flow.purge", "retention_flow", id);
   },
 
@@ -245,6 +258,55 @@ export const retentionService = {
   async syncStepCount(ctx: TenantContext, flowId: string): Promise<void> {
     const count = await retentionRepo.countSteps(ctx, flowId);
     await retentionRepo.updateFlow(ctx, flowId, { stepCount: count });
+  },
+
+  // ═══════════════════════ retention_enrollment ═════════════════════
+  async listEnrollments(
+    ctx: TenantContext,
+    filter?: { flowId?: string; contactId?: string; status?: string },
+  ): Promise<RetentionEnrollmentRow[]> {
+    if (filter?.status) assertEnum(filter.status, ENROLLMENT_STATUSES, "status");
+    return retentionRepo.listEnrollments(ctx, filter);
+  },
+
+  /**
+   * Enroll a contact into a retention flow. Mirrors the outreach cadence enroll
+   * (the reference pattern): validates the flow (this module) + contact (CRM, the
+   * OWNING module — modular-monolith rule) live, then upserts the (flow, contact)
+   * row and schedules the FIRST step's run-time (now + step[0].delay_days). A flow
+   * with NO steps still enrolls (manual-trigger flows are valid) — it schedules
+   * `next_run_at=now`. Re-enrolling a stopped/completed contact reuses the row.
+   */
+  async enroll(ctx: TenantContext, input: EnrollInput): Promise<RetentionEnrollmentRow> {
+    const flowId = input.flowId?.trim();
+    const contactId = input.contactId?.trim();
+    if (!flowId) throw new ServiceError("flow_id wajib diisi", 400, "validation");
+    if (!contactId) throw new ServiceError("contact_id wajib diisi", 400, "validation");
+    const flow = await this.getFlow(ctx, flowId);
+    // Integrity: enroll only a live CRM contact (owning module's service).
+    await crmService.getContact(ctx, contactId);
+
+    const steps = await retentionRepo.listSteps(ctx, flowId);
+    const firstDelayDays = steps.length > 0 ? steps[0].delayDays ?? 0 : 0;
+    const nextRunAt = new Date(Date.now() + firstDelayDays * 86_400_000);
+
+    const row = await retentionRepo.upsertEnrollment(ctx, flowId, contactId, {
+      workspaceId: input.workspaceId ?? flow.workspaceId ?? null,
+      assignedUserId: input.assignedUserId ?? ctx.userId,
+      currentStep: 0,
+      status: "active",
+      nextRunAt,
+      enrolledAt: new Date(),
+      lastStepAt: null,
+      completedAt: null,
+      stopReason: null,
+      meta: null,
+    });
+    await this.audit(ctx, "retention.enrollment.enroll", "retention_enrollment", row.id, {
+      flowId,
+      contactId,
+    });
+    return row;
   },
 
   // ═══════════════════════ internal helpers ═════════════════════════

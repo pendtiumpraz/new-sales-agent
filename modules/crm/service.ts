@@ -300,6 +300,19 @@ export const crmService = {
     return row;
   },
 
+  /**
+   * Dedup lookup by contact key (phone / email) — returns the matching live
+   * contact or null (does NOT throw). Cross-module callers (e.g. ecommerce order
+   * → CRM conversion) use this to upsert a buyer into an existing contact instead
+   * of creating a duplicate.
+   */
+  async findContactByPhoneOrEmail(
+    ctx: TenantContext,
+    keys: { phone?: string | null; email?: string | null },
+  ): Promise<ContactRow | null> {
+    return (await crmRepo.findContactByPhoneOrEmail(ctx, keys)) ?? null;
+  },
+
   async createContact(ctx: TenantContext, input: CreateContactInput): Promise<ContactRow> {
     const fullName = input.fullName?.trim();
     if (!fullName) throw new ServiceError("Nama kontak wajib diisi", 400, "validation");

@@ -348,6 +348,41 @@ export const crmRepo = {
     return row;
   },
 
+  /**
+   * Dedup lookup for order/lead ingest: a live contact matching the given `phone`
+   * (against either `phone` or `whatsapp`) OR `email`. Lets a paid marketplace
+   * order UPSERT its buyer into an EXISTING CRM contact instead of duplicating.
+   * Returns undefined when neither key is supplied or nothing matches.
+   */
+  async findContactByPhoneOrEmail(
+    ctx: TenantContext,
+    keys: { phone?: string | null; email?: string | null },
+  ): Promise<ContactRow | undefined> {
+    const phone = keys.phone?.trim() || null;
+    const email = keys.email?.trim() || null;
+    if (!phone && !email) return undefined;
+    const orClauses = [
+      phone ? eq(contactTable.phone, phone) : undefined,
+      phone ? eq(contactTable.whatsapp, phone) : undefined,
+      email ? eq(contactTable.email, email) : undefined,
+    ].filter(Boolean);
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(contactTable)
+        .where(
+          and(
+            eq(contactTable.tenantId, ctx.tenantId),
+            isNull(contactTable.deletedAt),
+            or(...orClauses),
+          ),
+        )
+        .orderBy(desc(contactTable.createdAt))
+        .limit(1),
+    );
+    return row;
+  },
+
   async insertContact(ctx: TenantContext, values: ContactInsert): Promise<ContactRow> {
     const [row] = await withTenant(ctx, (tx) =>
       tx.insert(contactTable).values({ ...values, tenantId: ctx.tenantId }).returning(),

@@ -36,6 +36,8 @@ import {
   Smartphone,
   Sparkles,
   Trash2,
+  UserPlus,
+  Users,
   X,
   Zap,
 } from "lucide-react";
@@ -97,6 +99,31 @@ interface StepRow {
   meta: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Row from GET /api/retention/enrollments (modules/retention · retention_enrollment). */
+interface EnrollmentRow {
+  id: string;
+  flowId: string;
+  contactId: string;
+  currentStep: number;
+  status: string; // active | paused | completed | stopped
+  nextRunAt: string | null;
+  createdAt: string;
+}
+
+/** Row from GET /api/contacts (modules/crm · contact) — only what the picker needs. */
+interface ContactRow {
+  id: string;
+  fullName: string;
+  title: string | null;
+  segment: string;
+}
+
+/** Keyset page envelope returned by GET /api/contacts (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
 }
 
 // ── enums / display metadata ─────────────────────────────────────────────────
@@ -237,6 +264,25 @@ export default function RetentionPage() {
   });
   const flows = useMemo(() => flowsQ.data ?? [], [flowsQ.data]);
 
+  // live enrollments — resolve the per-flow enrolled count (active enrollments).
+  const enrollmentsQ = useQuery({
+    queryKey: ["retention", "enrollments", "list"],
+    queryFn: async () =>
+      readJson<EnrollmentRow[]>(await fetch("/api/retention/enrollments")),
+    retry: false,
+  });
+  const enrollments = useMemo(() => enrollmentsQ.data ?? [], [enrollmentsQ.data]);
+  const enrolledByFlow = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const e of enrollments) {
+      if (e.status === "active") m[e.flowId] = (m[e.flowId] ?? 0) + 1;
+    }
+    return m;
+  }, [enrollments]);
+
+  // ── enroll modal target (the flow being enrolled into) ─────────────────────
+  const [enrollFlow, setEnrollFlow] = useState<FlowRow | null>(null);
+
   // ── tabs ───────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<MainTab>("aktif");
 
@@ -337,6 +383,7 @@ export default function RetentionPage() {
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshFlows() {
     qc.invalidateQueries({ queryKey: ["retention", "flows"] });
+    qc.invalidateQueries({ queryKey: ["retention", "enrollments"] });
   }
 
   const createFlow = useMutation({
@@ -693,7 +740,9 @@ export default function RetentionPage() {
                   <FlowCard
                     key={f.id}
                     flow={f}
+                    enrolled={enrolledByFlow[f.id] ?? 0}
                     onEdit={() => openEdit(f)}
+                    onEnroll={() => setEnrollFlow(f)}
                     onDelete={() => setDeleteTarget(f)}
                   />
                 ))}
@@ -1046,6 +1095,238 @@ export default function RetentionPage() {
           </>
         }
       />
+
+      {/* ===================== ENROLL KONTAK MODAL ===================== */}
+      <EnrollModal
+        flow={enrollFlow}
+        onClose={() => setEnrollFlow(null)}
+        onEnrolled={refreshFlows}
+      />
+    </div>
+  );
+}
+
+// ───────────────────────── enroll modal (contact picker) ──────────────────────
+// Mirrors the cadence EnrollModal (app/(app)/cadences/page.tsx): reads the tenant's
+// contacts, lets the user multi-select, and POSTs one enrollment per selected
+// contact to /api/retention/flows/[id]/enroll. Toast + refresh on success.
+
+function EnrollModal({
+  flow,
+  onClose,
+  onEnrolled,
+}: {
+  flow: FlowRow | null;
+  onClose: () => void;
+  onEnrolled: () => void;
+}) {
+  const open = !!flow;
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const contactsQ = useQuery({
+    queryKey: ["retention", "enroll-contacts"],
+    enabled: open,
+    queryFn: async () =>
+      (await readJson<Page<ContactRow>>(await fetch("/api/contacts?limit=200"))).items,
+    retry: false,
+  });
+  const contacts = useMemo(() => contactsQ.data ?? [], [contactsQ.data]);
+
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setSelected(new Set());
+    }
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) => c.fullName.toLowerCase().includes(q) || (c.title ?? "").toLowerCase().includes(q),
+    );
+  }, [contacts, search]);
+
+  const enroll = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!flow) return { ok: 0, errors: ["flow tidak ada"] };
+      let ok = 0;
+      const errors: string[] = [];
+      for (const contactId of ids) {
+        try {
+          await readJson<EnrollmentRow>(
+            await fetch(`/api/retention/flows/${flow.id}/enroll`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contactId }),
+            }),
+          );
+          ok++;
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : "gagal");
+        }
+      }
+      return { ok, errors };
+    },
+    onSuccess: (res) => {
+      if (res.ok > 0) toast.success(`${res.ok} kontak didaftarkan ke "${flow?.name}"`);
+      if (res.errors.length > 0)
+        toast.error(`${res.errors.length} kontak gagal didaftarkan (${res.errors[0]})`);
+      onEnrolled();
+      onClose();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mendaftarkan kontak"),
+  });
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[60] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex max-h-[80vh] w-full max-w-md flex-col rounded-lg border border-border bg-card shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+              <UserPlus className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Enroll kontak</h3>
+              <p className="text-[11px] text-muted-foreground">ke flow &ldquo;{flow?.name}&rdquo;</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* search */}
+        <div className="border-b border-border px-5 py-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari kontak…"
+              className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+        </div>
+
+        {/* list */}
+        <div className="min-h-[180px] flex-1 overflow-y-auto px-2 py-2">
+          {contactsQ.isLoading ? (
+            <div className="space-y-1.5 px-3 py-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : contactsQ.isError ? (
+            <ErrorState
+              className="border-0 py-8"
+              title="Gagal memuat kontak"
+              description="Tidak bisa mengambil daftar kontak untuk enroll."
+              onRetry={() => contactsQ.refetch()}
+            />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              className="border-0 py-8"
+              icon={Users}
+              title={contacts.length === 0 ? "Belum ada kontak" : "Tidak ada yang cocok"}
+              description={
+                contacts.length === 0
+                  ? "Jalankan Discovery / Enrichment dulu untuk mendapatkan kontak."
+                  : "Coba kata kunci lain."
+              }
+            />
+          ) : (
+            <div className="space-y-0.5">
+              {filtered.map((c) => {
+                const on = selected.has(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggle(c.id)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors",
+                      on ? "bg-primary/[0.08]" : "hover:bg-muted",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                        on ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                      )}
+                    >
+                      {on && <Check className="h-3 w-3" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium text-foreground">{c.fullName}</p>
+                      {c.title && (
+                        <p className="truncate text-[11px] text-muted-foreground">{c.title}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+                      {c.segment}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* footer */}
+        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
+          <span className="text-[11px] text-muted-foreground">
+            <b className="text-foreground">{selected.size}</b> dipilih
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Batal
+            </button>
+            <Button
+              size="sm"
+              disabled={selected.size === 0 || enroll.isPending}
+              onClick={() => enroll.mutate(Array.from(selected))}
+            >
+              <UserPlus className="h-4 w-4" />
+              {enroll.isPending ? "Mendaftarkan…" : `Daftarkan (${selected.size})`}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1149,11 +1430,15 @@ function StatusChip({ status }: { status: string }) {
 
 function FlowCard({
   flow,
+  enrolled,
   onEdit,
+  onEnroll,
   onDelete,
 }: {
   flow: FlowRow;
+  enrolled: number;
   onEdit: () => void;
+  onEnroll: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -1185,6 +1470,10 @@ function FlowCard({
           <ArrowDownUp className="h-3.5 w-3.5" />
           <b className="text-foreground/80">{flow.stepCount}</b> langkah
         </span>
+        <span className="inline-flex items-center gap-1">
+          <Users className="h-3.5 w-3.5 text-tertiary" />
+          <b className="text-foreground/80">{enrolled}</b> ter-enroll
+        </span>
       </div>
 
       <div className="mt-3 flex items-center gap-1.5 border-t border-border pt-3">
@@ -1194,6 +1483,14 @@ function FlowCard({
           className="inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-md border border-border bg-card text-[11px] font-medium transition-colors hover:border-primary/40"
         >
           <Pencil className="h-3 w-3" /> Edit & langkah
+        </button>
+        <button
+          type="button"
+          onClick={onEnroll}
+          title="Enroll kontak ke flow ini"
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-tertiary/50 hover:text-tertiary"
+        >
+          <UserPlus className="h-3 w-3" /> Enroll kontak
         </button>
         <button
           type="button"

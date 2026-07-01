@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowRightLeft,
   Check,
   ChevronRight,
   MessageCircle,
@@ -33,6 +34,7 @@ import {
   ShoppingCart,
   Store,
   Trash2,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -107,6 +109,25 @@ interface CartRow {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
+}
+
+/** Row from GET /api/contacts (modules/crm · contact) — only what the row needs. */
+interface ContactRow {
+  id: string;
+  fullName: string;
+}
+
+/** Keyset page envelope returned by GET /api/contacts (data = { items, nextCursor }). */
+interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
+/** Result of POST /api/ecommerce/orders/[id]/convert. */
+interface ConvertResult {
+  order: OrderRow;
+  contactId: string;
+  dealId: string;
 }
 
 // ── enums / display metadata ─────────────────────────────────────────────────
@@ -219,6 +240,20 @@ export default function EcommercePage() {
 
   const orders = useMemo(() => ordersQ.data ?? [], [ordersQ.data]);
   const carts = useMemo(() => cartsQ.data ?? [], [cartsQ.data]);
+
+  // Contacts — resolve each order's soft `contact_id` ref to a name + /contacts
+  // link (the ref exists on the row but was never displayed). One cheap page.
+  const contactsQ = useQuery({
+    queryKey: ["ecom", "contacts", "lookup"],
+    queryFn: async () =>
+      (await readJson<Page<ContactRow>>(await fetch("/api/contacts?limit=200"))).items,
+    retry: false,
+  });
+  const contactNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of contactsQ.data ?? []) m[c.id] = c.fullName;
+    return m;
+  }, [contactsQ.data]);
 
   // Trashed (orders + carts) — lazy, only fetched once the Sampah tab opens.
   const trashedOrdersQ = useQuery({
@@ -335,6 +370,20 @@ export default function EcommercePage() {
       refreshAll();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menandai pulih"),
+  });
+
+  // CONVERT A PAID/COMPLETED ORDER → CRM: upsert a contact + create a WON deal in
+  // the default pipeline's won stage + back-link the order to the contact.
+  const convert = useMutation({
+    mutationFn: async (o: OrderRow) =>
+      readJson<ConvertResult>(
+        await fetch(`/api/ecommerce/orders/${o.id}/convert`, { method: "POST" }),
+      ),
+    onSuccess: () => {
+      toast.success("Order dikonversi: kontak + deal won dibuat");
+      refreshAll();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mengonversi order"),
   });
 
   const softDelete = useMutation({
@@ -608,6 +657,9 @@ export default function EcommercePage() {
                       <OrderTableRow
                         key={o.id}
                         order={o}
+                        contactName={o.contactId ? contactNameById[o.contactId] : undefined}
+                        onConvert={() => convert.mutate(o)}
+                        converting={convert.isPending && convert.variables?.id === o.id}
                         onDelete={() =>
                           setDeleteTarget({ kind: "order", id: o.id, label: `Pesanan ${o.externalId}` })
                         }
@@ -959,8 +1011,22 @@ function CartStatusPill({ status }: { status: string }) {
   );
 }
 
-function OrderTableRow({ order, onDelete }: { order: OrderRow; onDelete: () => void }) {
+function OrderTableRow({
+  order,
+  contactName,
+  onConvert,
+  converting,
+  onDelete,
+}: {
+  order: OrderRow;
+  contactName?: string;
+  onConvert: () => void;
+  converting: boolean;
+  onDelete: () => void;
+}) {
   const meta = channelMeta(order.channel);
+  // Only paid-ish orders can be converted to CRM (a WON deal implies payment).
+  const convertible = ["paid", "shipped", "delivered", "completed"].includes(order.status);
   return (
     <tr className="transition-colors hover:bg-muted/40">
       <td className="px-3 py-3 font-mono text-xs text-foreground/80">{order.externalId}</td>
@@ -971,6 +1037,16 @@ function OrderTableRow({ order, onDelete }: { order: OrderRow; onDelete: () => v
         <p className="truncate font-medium text-foreground">{order.buyerName || "—"}</p>
         {order.buyerPhone && (
           <p className="truncate text-[11px] text-muted-foreground">{order.buyerPhone}</p>
+        )}
+        {order.contactId && (
+          <Link
+            href="/contacts"
+            title="Lihat kontak tertaut di CRM"
+            className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-tertiary hover:underline"
+          >
+            <User className="h-3 w-3" />
+            {contactName ?? "Kontak tertaut"}
+          </Link>
         )}
       </td>
       <td className="px-3 py-3 text-foreground/80">
@@ -987,14 +1063,31 @@ function OrderTableRow({ order, onDelete }: { order: OrderRow; onDelete: () => v
         {fmtRelID(order.orderedAt ?? order.createdAt)}
       </td>
       <td className="px-3 py-3 text-right">
-        <button
-          type="button"
-          onClick={onDelete}
-          title="Hapus (ke Sampah)"
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="inline-flex items-center gap-1.5">
+          {convertible && (
+            <button
+              type="button"
+              onClick={onConvert}
+              disabled={converting}
+              title={
+                order.contactId
+                  ? "Konversi ulang ke CRM (buat deal won baru)"
+                  : "Konversi ke CRM — buat kontak + deal won"
+              }
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-60"
+            >
+              <ArrowRightLeft className="h-3 w-3" /> {converting ? "…" : "Konversi ke CRM"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Hapus (ke Sampah)"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </td>
     </tr>
   );
