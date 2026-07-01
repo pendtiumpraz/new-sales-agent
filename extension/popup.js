@@ -1,4 +1,4 @@
-const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey"];
+const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform"];
 const $ = (id) => document.getElementById(id);
 
 async function load() {
@@ -12,6 +12,7 @@ async function load() {
   $("consent").checked = !!cfg.consent;
   $("autoEnrich").checked = cfg.autoEnrich !== false;
   $("deepseekKey").value = cfg.deepseekKey ?? "";
+  $("searchPlatform").value = cfg.searchPlatform ?? "linkedin";
   await loadWorkspaces();
   toggleConsent();
   refreshStatus();
@@ -47,6 +48,7 @@ async function save() {
     consent: $("consent").checked,
     autoEnrich: $("autoEnrich").checked,
     deepseekKey: $("deepseekKey").value.trim(),
+    searchPlatform: $("searchPlatform").value,
   });
 }
 
@@ -75,36 +77,28 @@ $("connect").addEventListener("click", async () => {
   });
 });
 
-$("aiSearch").addEventListener("click", async () => {
-  await save();
-  $("status").textContent = "AI websearch (DeepSeek)…";
-  chrome.runtime.sendMessage({ type: "AI_SEARCH", query: $("query").value.trim() }, () => setTimeout(refreshStatus, 1000));
-});
-
-$("platformSearch").addEventListener("click", async () => {
-  await save();
-  $("status").textContent = `Cari di ${$("platformSel").value}…`;
-  chrome.runtime.sendMessage(
-    { type: "PLATFORM_SEARCH", platform: $("platformSel").value, query: $("query").value.trim() },
-    () => setTimeout(refreshStatus, 1000),
-  );
-});
-
-$("webSearch").addEventListener("click", async () => {
-  await save();
-  $("status").textContent = "Internet search (DuckDuckGo)…";
-  chrome.runtime.sendMessage({ type: "WEB_SEARCH", query: $("query").value.trim() }, () => setTimeout(refreshStatus, 1500));
-});
-
+// Unified search dispatch — pick a CHANNEL first (LinkedIn is one option, not "Tahap 1").
+// Maps each channel to the existing background message so no backend contract changes.
 $("startSearch").addEventListener("click", async () => {
   await save();
-  $("status").textContent = "Memulai Tahap 1…";
-  chrome.runtime.sendMessage({ type: "START_SEARCH" }, () => setTimeout(refreshStatus, 800));
+  const p = $("searchPlatform").value;
+  const query = $("query").value.trim();
+  const LABEL = {
+    linkedin: "LinkedIn", google: "Google", tokopedia: "Tokopedia", shopee: "Shopee",
+    instagram: "Instagram", tiktok: "TikTok", duckduckgo: "internet (DuckDuckGo)", ai: "AI Websearch",
+  };
+  $("status").textContent = `Cari di ${LABEL[p] || p}…`;
+  let msg;
+  if (p === "linkedin") msg = { type: "START_SEARCH" };
+  else if (p === "ai") msg = { type: "AI_SEARCH", query };
+  else if (p === "duckduckgo") msg = { type: "WEB_SEARCH", query };
+  else msg = { type: "PLATFORM_SEARCH", platform: p, query };
+  chrome.runtime.sendMessage(msg, () => setTimeout(refreshStatus, 1000));
 });
 
 $("startEnrich").addEventListener("click", async () => {
   await save();
-  $("status").textContent = "Memulai Tahap 2 (enrich)…";
+  $("status").textContent = "Enrich profil LinkedIn…";
   chrome.runtime.sendMessage({ type: "START_ENRICH" }, () => setTimeout(refreshStatus, 800));
 });
 

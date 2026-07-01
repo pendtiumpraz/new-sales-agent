@@ -167,7 +167,7 @@ export default function ExtensionPage() {
     <div>
       <PageHeader
         title="Extension Maira — WhatsApp & Discovery"
-        description="Satu extension: gateway WhatsApp (balas otomatis) + collector lead LinkedIn/Instagram (RPA) langsung ke workspace ini."
+        description="Satu extension: gateway WhatsApp (balas otomatis) + collector lead MULTI-CHANNEL (LinkedIn, Google, Tokopedia, Shopee, Instagram, TikTok) langsung ke workspace ini."
       />
       <div className="space-y-4 p-6">
         {/* Connection status */}
@@ -231,7 +231,7 @@ export default function ExtensionPage() {
               <div className="flex h-full flex-col gap-1 rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-accent">
                 <Globe className="h-5 w-5 text-primary" />
                 <p className="mt-1 text-sm font-semibold">Extension Chrome (.zip)</p>
-                <p className="text-xs text-muted-foreground">RPA 3 tahap — paling lengkap.</p>
+                <p className="text-xs text-muted-foreground">Multi-platform (LinkedIn · Google · Tokopedia · Shopee · IG · TikTok) — paling lengkap.</p>
                 <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">Unduh .zip <Download className="h-3.5 w-3.5" /></span>
               </div>
             </a>
@@ -311,9 +311,9 @@ export default function ExtensionPage() {
               <Step n={1}>Unduh & ekstrak <code>maira-extension.zip</code> ke satu folder.</Step>
               <Step n={2}>Buka <code>chrome://extensions</code> → aktifkan <b>Developer mode</b> (kanan atas).</Step>
               <Step n={3}>Klik <b>Load unpacked</b> → pilih folder hasil ekstrak.</Step>
-              <Step n={4}>Login ke <b>linkedin.com</b> di tab yang sama (extension pakai sesi Anda — tak menyimpan kredensial).</Step>
+              <Step n={4}>Login ke situs channel yang mau dipakai (<b>linkedin.com</b>, google, tokopedia, shopee, instagram, tiktok) — extension pakai sesi Anda, tak menyimpan kredensial.</Step>
               <Step n={5}>Klik ikon extension → tempel <b>URL aplikasi</b> + <b>Ingest token</b> di atas → isi query jabatan.</Step>
-              <Step n={6}><b>Tahap 1</b> "Mulai cari" (kumpulkan lead), lalu <b>Tahap 2</b> "Enrich profil" (track record). Lead masuk ke <b>workspace</b> (lewat Discovery, ter-scope ke produk).</Step>
+              <Step n={6}>Di popup: <b>pilih channel</b> (LinkedIn/Google/Tokopedia/Shopee/IG/TikTok) → isi query → <b>Cari</b>. Enrich profil (LinkedIn) opsional. Lead masuk ke <b>workspace</b> (ter-scope ke produk).</Step>
             </ol>
           </CardContent>
         </Card>

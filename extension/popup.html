@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      body { font: 13px/1.4 system-ui, sans-serif; width: 320px; margin: 0; padding: 12px; color: #1f2937; }
-      h1 { font-size: 14px; margin: 0 0 6px; }
-      .stage { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; margin: 12px 0 2px; }
+      body { font: 13px/1.4 system-ui, sans-serif; width: 332px; margin: 0; padding: 12px; color: #1f2937; }
+      h1 { font-size: 14px; margin: 0 0 4px; }
+      .stage { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; margin: 13px 0 3px; font-weight: 700; }
       label { display: block; font-size: 11px; color: #6b7280; margin-top: 8px; }
       input, select { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
       .row { display: flex; gap: 8px; }
       .row > * { flex: 1; }
-      button { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #FB5E3B; color: #fff; font-weight: 600; cursor: pointer; }
+      button { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #FD7A5C; color: #fff; font-weight: 600; cursor: pointer; }
       button.secondary { background: #f3f4f6; color: #1f2937; }
       button.danger { background: #fee2e2; color: #b91c1c; }
       .muted { color: #6b7280; font-size: 11px; }
@@ -23,64 +23,59 @@
     </style>
   </head>
   <body>
-    <h1>Maira Sales — LinkedIn Collector</h1>
-    <p class="muted">Jalan di sesi LinkedIn Anda sendiri (RPA). Login dulu ke LinkedIn di tab ini.</p>
+    <h1>Maira Sales — Multi-Platform Collector</h1>
+    <p class="muted">Cari lead dari LinkedIn, Google, Tokopedia, Shopee, Instagram, TikTok &amp; internet — jalan di sesi browser-mu (RPA). Login dulu ke channel yang mau dipakai.</p>
 
     <label>URL aplikasi</label>
-    <input id="apiBase" placeholder="https://app-anda.vercel.app" />
+    <input id="apiBase" placeholder="https://new-sales-agent.vercel.app" />
     <label>Ingest token (Pengaturan → Extension)</label>
-    <input id="token" type="password" placeholder="LINKEDIN_INGEST_TOKEN" />
-    <button id="connect" class="secondary">🔌 Hubungkan & tes koneksi</button>
+    <input id="token" type="password" placeholder="ingest token per-rep" />
+    <button id="connect" class="secondary">🔌 Hubungkan &amp; tes koneksi</button>
     <div id="connStatus" class="status">Belum terhubung — isi URL + token lalu klik Hubungkan.</div>
 
     <label>Workspace tujuan <span style="color:#9ca3af">(hasil crawl ditandai ke sini)</span></label>
     <select id="workspaceSel"><option value="">— Tanpa workspace (pool tenant) —</option></select>
 
-    <div class="stage">Tahap 1 — Cari (RPA search)</div>
+    <div class="stage">🔎 Cari lead — pilih channel</div>
+    <label>Channel</label>
+    <select id="searchPlatform">
+      <option value="linkedin">LinkedIn (search + profil)</option>
+      <option value="google">Google</option>
+      <option value="tokopedia">Tokopedia</option>
+      <option value="shopee">Shopee</option>
+      <option value="instagram">Instagram</option>
+      <option value="tiktok">TikTok</option>
+      <option value="duckduckgo">Internet (DuckDuckGo)</option>
+      <option value="ai">AI Websearch (DeepSeek)</option>
+    </select>
     <div class="row">
-      <div style="flex: 2"><label>Query jabatan / kata kunci</label><input id="query" placeholder="Logistics Manager Jakarta" /></div>
+      <div style="flex: 2"><label>Query / kata kunci</label><input id="query" placeholder="mis. Logistics Manager Jakarta / toko sepatu" /></div>
       <div><label>Maks halaman</label><input id="maxPages" type="number" min="1" max="100" value="5" /></div>
     </div>
-    <button id="startSearch">▶ Mulai cari (Tahap 1)</button>
+    <button id="startSearch">▶ Cari di channel terpilih</button>
+    <p class="muted" style="margin-top: 4px">LinkedIn/Google/marketplace/sosmed di-scrape di tab-nya (buka situsnya dulu); AI &amp; DuckDuckGo jalan di background.</p>
 
-    <div class="stage">AI Websearch (DeepSeek) — opsional</div>
-    <label>DeepSeek API key <span style="color:#9ca3af">(diisi otomatis saat Hubungkan, atau isi manual)</span></label>
+    <div class="stage">✨ Enrich profil (opsional — LinkedIn)</div>
+    <label class="chk"><input type="checkbox" id="autoEnrich" checked /> Auto-enrich setelah cari LinkedIn selesai</label>
+    <button id="startEnrich" class="secondary">▶ Enrich profil LinkedIn</button>
+
+    <label style="margin-top: 12px">DeepSeek API key <span style="color:#9ca3af">(otomatis saat Hubungkan)</span></label>
     <input id="deepseekKey" type="password" placeholder="diambil dari platform saat Hubungkan…" />
-    <button id="aiSearch" class="secondary">🔎 Cari kandidat via AI</button>
-
-    <div class="stage">Multi-platform & internet</div>
-    <div class="row">
-      <div style="flex:2"><label>Platform</label>
-        <select id="platformSel">
-          <option value="google">Google</option>
-          <option value="tokopedia">Tokopedia</option>
-          <option value="shopee">Shopee</option>
-          <option value="instagram">Instagram</option>
-          <option value="tiktok">TikTok</option>
-        </select>
-      </div>
-      <div style="flex:1;display:flex;align-items:flex-end"><button id="platformSearch" class="secondary" style="margin:0">Cari</button></div>
-    </div>
-    <button id="webSearch" class="secondary">🌐 Cari di internet (DuckDuckGo)</button>
-
-    <div class="stage">Tahap 2 — Enrich profil (track record)</div>
-    <label class="chk"><input type="checkbox" id="autoEnrich" checked /> Auto-lanjut ke enrich setelah Tahap 1 selesai</label>
-    <button id="startEnrich">▶ Enrich profil (Tahap 2)</button>
 
     <div class="grid2">
       <button id="flush" class="secondary">Kirim buffer</button>
       <button id="stop" class="danger">Stop</button>
     </div>
 
-    <div class="row" style="margin-top:8px">
+    <div class="row" style="margin-top: 8px">
       <div><label>Posture</label>
         <select id="postureMode"><option value="compliant">compliant</option><option value="balanced">balanced</option><option value="aggressive">aggressive</option></select>
       </div>
       <div><label>Daily cap</label><input id="dailyCap" type="number" value="200" /></div>
     </div>
     <div id="consentBox" class="warn" hidden>
-      Mode <b>aggressive</b> mungkin melanggar ToS LinkedIn & berisiko ban. Pakai akunmu sendiri, rate-limited.
-      <label class="chk"><input type="checkbox" id="consent" /> Saya paham risikonya & setuju.</label>
+      Mode <b>aggressive</b> mungkin melanggar ToS platform &amp; berisiko ban. Pakai akunmu sendiri, rate-limited.
+      <label class="chk"><input type="checkbox" id="consent" /> Saya paham risikonya &amp; setuju.</label>
     </div>
 
     <div class="stat"><span class="muted">Buffer</span><b id="bufCount">0</b></div>
