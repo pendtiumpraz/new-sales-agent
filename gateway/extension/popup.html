@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Maira WA + Discovery</title>
+    <title>Maira Discovery</title>
     <style>
       :root { color-scheme: light; }
-      body { width: 300px; margin: 0; font: 13px/1.4 system-ui, sans-serif; color: #0f172a; }
-      header { padding: 12px 14px; background: linear-gradient(90deg, #3b82f6, #6366f1); color: #fff; }
+      body { width: 320px; margin: 0; font: 13px/1.45 system-ui, sans-serif; color: #0f172a; }
+      header { padding: 12px 14px; background: linear-gradient(90deg, #FD7A5C, #f43f5e); color: #fff; }
       header b { font-size: 14px; }
       .body { padding: 12px 14px; }
       .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 7px; }
@@ -16,48 +16,68 @@
       .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; display: inline-block; }
       .on { background: #dcfce7; color: #166534; }
       .off { background: #fee2e2; color: #991b1b; }
-      code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+      code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 11px; word-break: break-all; }
       button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; padding: 6px 10px; }
-      button.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+      button.primary { background: #FD7A5C; color: #fff; border-color: #FD7A5C; }
       .switch { display: inline-flex; align-items: center; gap: 6px; }
       input[type="checkbox"] { width: 16px; height: 16px; }
-      .actions { display: flex; gap: 6px; margin: 8px 0 4px; }
-      #status { margin-top: 8px; font-size: 12px; min-height: 16px; }
-      .section-title { font-size: 12px; font-weight: 600; color: #475569; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: .5px; }
-      .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 6px; margin: 4px 0; }
-      .platform-item { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #f8fafc; display: flex; align-items: center; gap: 4px; }
-      .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+      .actions { display: flex; gap: 6px; margin: 10px 0 2px; }
+      #status { margin-top: 6px; font-size: 12px; min-height: 16px; }
+      .section-title { font-size: 12px; font-weight: 700; color: #475569; margin: 13px 0 5px; }
+      .how { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #9a3412; margin: 2px 0 8px; }
+      .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin: 4px 0; }
+      .platform-item { font-size: 11px; padding: 3px 7px; border-radius: 6px; background: #f8fafc; display: flex; align-items: center; gap: 5px; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+      .tag { margin-left: auto; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
+      .tag.live { background: #dcfce7; color: #166534; }
+      .tag.baru { background: #fef9c3; color: #854d0e; }
     </style>
   </head>
   <body>
-    <header><b>Maira WA + Discovery</b><div class="muted" style="color:#e0e7ff">Multi-platform · gateway contract</div></header>
+    <header>
+      <b>Maira Discovery</b>
+      <div class="muted" style="color:#ffe4d6">Cari lead dari channel MANA PUN — bukan cuma LinkedIn</div>
+    </header>
     <div class="body">
-      <!-- WA Bridge -->
-      <div class="row">
-        <label class="switch"><input type="checkbox" id="enabled" /> WhatsApp auto-reply</label>
-        <span id="state" class="pill off">OFF</span>
-      </div>
       <div class="row"><span class="muted">Backend</span><code id="baseUrl">—</code></div>
-      <div class="row"><span class="muted">Session</span><code id="sessionId">—</code></div>
 
-      <!-- Discovery -->
-      <div class="section-title">🕵️ Discovery Platform</div>
-      <div class="platform-grid" id="platforms">
-        <div class="platform-item"><span class="dot" style="background:#0a66c2"></span> LinkedIn</div>
-        <div class="platform-item"><span class="dot" style="background:#e1306c"></span> Instagram</div>
-        <div class="platform-item"><span class="dot" style="background:#1877f2"></span> Facebook</div>
-        <div class="platform-item"><span class="dot" style="background:#000"></span> TikTok</div>
-        <div class="platform-item"><span class="dot" style="background:#ee4d2d"></span> Shopee</div>
-        <div class="platform-item"><span class="dot" style="background:#4285f4"></span> Google</div>
-      </div>
+      <div class="section-title">🔌 Status koneksi</div>
+      <div id="status" class="muted">Mengecek…</div>
       <div id="discoveryStatus" class="muted small"></div>
 
-      <!-- Actions -->
+      <div class="section-title">🕵️ Cara pakai — SEMUA channel</div>
+      <div class="how">
+        Buka salah satu situs di bawah → tombol <b>➕ Simpan</b> muncul di <b>pojok kanan-bawah</b>
+        halaman → klik buat simpan lead. Di <b>LinkedIn post</b> ada <b>➕ Simpan semua</b>
+        (ambil semua komentator/reactor). Gak perlu buka popup ini tiap kali.
+      </div>
+      <div class="platform-grid">
+        <div class="platform-item"><span class="dot" style="background:#0a66c2"></span> LinkedIn <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#0a66c2"></span> LinkedIn Post <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#34a853"></span> Google Maps <span class="tag baru">BARU</span></div>
+        <div class="platform-item"><span class="dot" style="background:#4285f4"></span> Google <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#e1306c"></span> Instagram <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#1877f2"></span> Facebook <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#010101"></span> TikTok <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#ee4d2d"></span> Shopee <span class="tag live">LIVE</span></div>
+        <div class="platform-item"><span class="dot" style="background:#42b549"></span> Tokopedia <span class="tag baru">BARU</span></div>
+      </div>
+      <p class="muted small" style="margin-top:6px">
+        Widget-nya nempel di halaman situsnya (bukan di popup ini) + otomatis deteksi platform.
+        Kalau gak muncul: reload tab situsnya (Ctrl+R).
+      </p>
+
+      <div class="section-title">📱 WhatsApp bridge</div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="enabled" /> Auto-reply WA</label>
+        <span id="state" class="pill off">OFF</span>
+      </div>
+      <div class="row"><span class="muted">Session</span><code id="sessionId">—</code></div>
+
       <div class="actions">
         <button class="primary" id="test">Tes koneksi</button>
         <button id="opts">Pengaturan</button>
       </div>
-      <div id="status" class="muted"></div>
     </div>
     <script src="popup.js"></script>
   </body>
