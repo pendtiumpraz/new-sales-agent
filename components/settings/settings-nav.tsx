@@ -51,58 +51,28 @@ export function SettingsNav() {
   const visible = SECTIONS.filter((s) => !s.roles || s.roles.includes(role as DemoRole));
   const isActive = (s: Section) => (s.exact ? pathname === s.href : pathname.startsWith(s.href));
 
+  // ONE horizontal tab bar (desktop + mobile) — NOT a second left sidebar. Settings
+  // reads as top-tabs under the main shell, so there is no "double sidebar".
   return (
-    <>
-      {/* Desktop: left rail */}
-      <aside className="hidden w-56 shrink-0 border-r bg-card md:block">
-        <div className="sticky top-14 p-3">
-          <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Pengaturan
-          </p>
-          <nav className="space-y-0.5">
-            {visible.map((s) => {
-              const Icon = s.icon;
-              return (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    isActive(s)
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-foreground/75 hover:bg-accent hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {s.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
-
-      {/* Mobile: horizontal scroll bar */}
-      <div className="scrollbar-thin flex gap-1 overflow-x-auto border-b bg-card px-3 md:hidden">
-        {visible.map((s) => {
-          const Icon = s.icon;
-          return (
-            <Link
-              key={s.href}
-              href={s.href}
-              className={cn(
-                "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium",
-                isActive(s)
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {s.label}
-            </Link>
-          );
-        })}
-      </div>
-    </>
+    <div className="scrollbar-thin sticky top-14 z-10 flex gap-1 overflow-x-auto border-b bg-card px-3">
+      {visible.map((s) => {
+        const Icon = s.icon;
+        return (
+          <Link
+            key={s.href}
+            href={s.href}
+            className={cn(
+              "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
+              isActive(s)
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {s.label}
+          </Link>
+        );
+      })}
+    </div>
   );
 }

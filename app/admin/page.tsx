@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { SimpleMarkdown } from "@/components/shared/simple-markdown";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1681,23 +1680,6 @@ function SourceBadge({ source }: { source: "DB" | "env" | "kosong" }) {
 
 // ───────────────────────── Dokumentasi panel ─────────────────────────
 
-// Tailwind arbitrary-variant styling for rendered markdown (no typography plugin).
-const MD_CLASS =
-  "text-[13px] leading-relaxed text-foreground/90 " +
-  "[&_h1]:mb-2 [&_h1]:mt-5 [&_h1]:text-lg [&_h1]:font-bold first:[&_h1]:mt-0 " +
-  "[&_h2]:mb-2 [&_h2]:mt-6 [&_h2]:border-b [&_h2]:border-border [&_h2]:pb-1 [&_h2]:text-base [&_h2]:font-bold " +
-  "[&_h3]:mb-1 [&_h3]:mt-4 [&_h3]:text-sm [&_h3]:font-semibold [&_h4]:mt-3 [&_h4]:font-semibold " +
-  "[&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
-  "[&_a]:text-primary [&_a]:underline [&_strong]:font-semibold [&_strong]:text-foreground " +
-  "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12px] " +
-  "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border [&_pre]:bg-muted/50 [&_pre]:p-3 [&_pre]:text-[11px] [&_pre]:leading-snug " +
-  "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-[11px] " +
-  "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-primary/40 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground " +
-  "[&_hr]:my-4 [&_hr]:border-border " +
-  "[&_table]:my-3 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-[12px] " +
-  "[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold " +
-  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:align-top";
-
 /** Operator reference — subsystem summary + the FULL embedded docs (HLA / Features). */
 function DocsPanel() {
   const [doc, setDoc] = useState<"HLA" | "FEATURES">("HLA");
@@ -1786,10 +1768,9 @@ function DocsPanel() {
               <button
                 key={k}
                 onClick={() => setDoc(k)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  doc === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                )}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  doc === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
+                }`}
               >
                 {k === "HLA" ? "Arsitektur (HLA)" : "Katalog Fitur"}
               </button>
@@ -1802,9 +1783,7 @@ function DocsPanel() {
           ) : docQ.isError ? (
             <p className="text-sm text-destructive">Gagal memuat dokumen.</p>
           ) : (
-            <div className={MD_CLASS}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{docQ.data?.content ?? ""}</ReactMarkdown>
-            </div>
+            <SimpleMarkdown text={docQ.data?.content ?? ""} />
           )}
         </div>
       </section>

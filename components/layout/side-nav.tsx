@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   LogOut,
   Menu,
@@ -132,6 +133,9 @@ const IconKb = base(
 const IconMasterData = base(
   <path d="M4 3h7v7H4V3Zm9 0h7v7h-7V3ZM4 14h7v7H4v-7Zm9 0h7v7h-7v-7Zm2 2v3h3v-3h-3ZM6 5v3h3V5H6Zm9 0v3h3V5h-3ZM6 16v3h3v-3H6Z" />,
 );
+const IconSettings = base(
+  <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.9 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5c0 .4-.1.8-.1 1.2s0 .8.1 1.2l-2 1.5 2 3.4 2.3-1c.6.5 1.3.9 2 1.2L10 22h4l.5-2.7c.7-.3 1.4-.7 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2Z" />,
+);
 
 /* -------------------------------------------------------------------------- */
 /* NEW IA — grouped exactly like wireframes/index.html:                        */
@@ -195,12 +199,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Pengaturan",
     items: [
-      { href: "/branding", icon: IconBranding, color: "#FD7A5C", label: "Branding", desc: "Tema, logo & favicon (per-user, default Coral Sunset)" },
       { href: "/master-data", icon: IconMasterData, color: "#0D9488", label: "Master Data", desc: "Katalog industri & pekerjaan yang dipakai AI mengklasifikasi crawl" },
-      { href: "/settings/ai", icon: IconAi, color: "#8B5CF6", label: "AI", desc: "Provider AI + kunci BYOK" },
-      { href: "/settings/team", icon: IconTeam, color: "#EF4444", label: "Tim", desc: "Anggota tim & peran", managerOnly: true },
-      { href: "/settings/billing", icon: IconBilling, color: "#10B981", label: "Billing", desc: "Paket, kuota & tagihan", managerOnly: true },
-      { href: "/settings/knowledge-base", icon: IconKb, color: "#6B7280", label: "Basis Pengetahuan", desc: "Materi grounding untuk AI" },
+      { href: "/settings", icon: IconSettings, color: "#6B7280", label: "Pengaturan", desc: "AI · Tim · Billing · Extension · KB · Kepatuhan · Branding — semua di satu halaman (tab)" },
     ],
   },
 ];
@@ -592,6 +592,10 @@ export function TopBar() {
           <DropdownMenuItem onClick={() => router.push("/settings")}>
             <Settings className="h-4 w-4" />
             Pengaturan
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/documentation")}>
+            <BookOpen className="h-4 w-4" />
+            Dokumentasi
           </DropdownMenuItem>
           {currentUser.role === "Superadmin" && (
             <DropdownMenuItem onClick={() => router.push("/admin")}>
