@@ -35,6 +35,12 @@ import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import type { ApiResult, Page } from "@/modules/_shared/api";
 
+// Render on demand (never statically prerender). This page reads the persisted
+// workspace store on the client; forcing dynamic avoids the static-prerender ↔
+// client-hydration mismatch that surfaces as "Application error: a client-side
+// exception has occurred".
+export const dynamic = "force-dynamic";
+
 // ── API row shapes (mirror modules/crm/schema · selected fields) ─────────────
 interface PipelineRow {
   id: string;
