@@ -107,6 +107,32 @@ export const usageCounterTable = pgTable(
   }),
 );
 
+// ── quota_grant (TENANT — top-up packs on top of the plan) ──
+// A time-boxed quota ADD-ON: superadmin grant or a self-serve purchase. The
+// effective ceiling for a metric = plan limit + Σ active grants (status='active',
+// expires_at in the future). A 30-day pack sets expires_at = now + 30d.
+export const quotaGrantTable = pgTable(
+  "quota_grant",
+  {
+    id: text("id").primaryKey(), // qg_…
+    tenantId: text("tenant_id").notNull(),
+    metric: text("metric").notNull(), // messages_max | ai_tokens_max | contacts_max | …
+    amount: integer("amount").notNull(),
+    source: text("source").notNull().default("superadmin"), // superadmin | purchase | promo
+    provider: text("provider"), // stripe | xendit | tripay | midtrans | null (instant/superadmin)
+    externalRef: text("external_ref"), // gateway order/invoice id
+    status: text("status").notNull().default("active"), // active | pending | expired | refunded
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }), // null = no expiry
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => ({
+    tenantIdx: index("quota_grant_tenant_idx").on(t.tenantId),
+    metricIdx: index("quota_grant_tenant_metric_idx").on(t.tenantId, t.metric),
+  }),
+);
+
 export type TenantRow = typeof tenantTable.$inferSelect;
 export type TenantInsert = typeof tenantTable.$inferInsert;
 export type AppUserRow = typeof appUserTable.$inferSelect;
@@ -114,3 +140,5 @@ export type AppUserInsert = typeof appUserTable.$inferInsert;
 export type MembershipRow = typeof membershipTable.$inferSelect;
 export type MembershipInsert = typeof membershipTable.$inferInsert;
 export type UsageCounterRow = typeof usageCounterTable.$inferSelect;
+export type QuotaGrantRow = typeof quotaGrantTable.$inferSelect;
+export type QuotaGrantInsert = typeof quotaGrantTable.$inferInsert;

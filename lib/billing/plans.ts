@@ -105,3 +105,31 @@ export function resolvePlanLimits(planKey: string | null | undefined): Record<Qu
 export function metricPeriod(metric: QuotaMetric, now = new Date()): string {
   return MONTHLY_METRICS.includes(metric) ? now.toISOString().slice(0, 7) : "lifetime";
 }
+
+// ── Daily caps ───────────────────────────────────────────────────────────────
+// The monthly metrics (messages / AI) ALSO carry a per-day hard cap so a whole
+// month's budget can't be burned in one day. Enforced on top of the monthly limit
+// (both must pass). Tracked under a separate 'YYYY-MM-DD' usage_counter period.
+// null = no daily cap (e.g. the unlimited plan). Packs boost the monthly limit, NOT
+// the daily cap (the daily cap is a fixed rate limit).
+export const DAILY_CAP_METRICS: QuotaMetric[] = ["messages_max", "ai_tokens_max"];
+
+export const PLAN_DAILY_CAPS: Record<string, Partial<Record<QuotaMetric, number | null>>> = {
+  free: { messages_max: 20, ai_tokens_max: 5_000 },
+  starter: { messages_max: 150, ai_tokens_max: 40_000 },
+  growth: { messages_max: 1_500, ai_tokens_max: 400_000 },
+  enterprise: { messages_max: 15_000, ai_tokens_max: 4_000_000 },
+  unlimited: { messages_max: null, ai_tokens_max: null },
+};
+
+/** Daily cap for a metric on a plan (null = no daily cap / unlimited / unknown plan). */
+export function resolveDailyCap(planKey: string | null | undefined, metric: QuotaMetric): number | null {
+  if (!DAILY_CAP_METRICS.includes(metric)) return null;
+  const caps = planKey ? PLAN_DAILY_CAPS[planKey] : undefined;
+  return caps && metric in caps ? caps[metric] ?? null : null;
+}
+
+/** Day bucket 'YYYY-MM-DD' for the daily-cap usage_counter row. */
+export function dayPeriod(now = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}

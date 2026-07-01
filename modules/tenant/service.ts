@@ -1,10 +1,30 @@
 import type { TenantContext } from "@/lib/db/tenant-context";
-import { resolvePlanLimits, metricPeriod, QUOTA_METRICS, METRIC_LABEL, type QuotaMetric } from "@/lib/billing/plans";
+import {
+  resolvePlanLimits,
+  metricPeriod,
+  QUOTA_METRICS,
+  MONTHLY_METRICS,
+  METRIC_LABEL,
+  DAILY_CAP_METRICS,
+  resolveDailyCap,
+  dayPeriod,
+  type QuotaMetric,
+} from "@/lib/billing/plans";
 
 import { ServiceError } from "@/modules/_shared/api";
 import { platformRepo } from "@/modules/superadmin/repo";
 import { tenantRepo } from "./repo";
-import type { AppUserRow, MembershipRow, TenantRow, UsageCounterRow } from "./schema";
+import type { AppUserRow, MembershipRow, TenantRow, UsageCounterRow, QuotaGrantRow } from "./schema";
+
+export interface QuotaSummaryEntry {
+  metric: QuotaMetric;
+  label: string;
+  used: number;
+  limit: number | null; // plan limit + active packs; null = unlimited
+  grant?: number; // extra from active packs (present when > 0)
+  dailyUsed?: number; // messages / AI only
+  dailyCap?: number | null;
+}
 
 /**
  * tenant domain service — the REFERENCE implementation for the rebuild.
@@ -314,39 +334,61 @@ export const tenantService = {
    * exceed it. Unknown/unset plan → unlimited (fail-open) so unplanned tenants
    * never block. Callers that hold their own key (BYOK) skip the AI metric.
    */
-  async enforceQuota(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {
+  /**
+   * Evaluate whether `delta` more of a metric is allowed — checks BOTH the monthly/
+   * lifetime effective ceiling (plan limit + active top-up packs) AND the per-day cap
+   * (messages / AI). Returns the FIRST limit that would be exceeded. Packs lift the
+   * monthly/lifetime ceiling but NOT the daily cap (that stays a fixed rate limit).
+   */
+  async evalQuota(
+    ctx: TenantContext,
+    metric: QuotaMetric,
+    delta = 1,
+  ): Promise<{ ok: boolean; scope: "day" | "month" | "total"; used: number; limit: number }> {
     const tenant = await tenantRepo.getTenant(ctx.tenantId);
-    const limit = resolvePlanLimits(tenant?.planKey ?? null)[metric];
-    if (limit === null) return; // unlimited plan / metric
-    const period = metricPeriod(metric);
-    const row = await tenantRepo.getUsage(ctx, metric, period);
-    const used = row?.used ?? 0;
-    if (used + delta > limit) {
+    const planKey = tenant?.planKey ?? null;
+    const planLimit = resolvePlanLimits(planKey)[metric];
+    if (planLimit !== null) {
+      const grants = await tenantRepo.sumActiveGrants(ctx, metric);
+      const limit = planLimit + grants;
+      const used = (await tenantRepo.getUsage(ctx, metric, metricPeriod(metric)))?.used ?? 0;
+      if (used + delta > limit) {
+        return { ok: false, scope: MONTHLY_METRICS.includes(metric) ? "month" : "total", used, limit };
+      }
+    }
+    const dailyCap = resolveDailyCap(planKey, metric);
+    if (dailyCap !== null) {
+      const dused = (await tenantRepo.getUsage(ctx, metric, dayPeriod()))?.used ?? 0;
+      if (dused + delta > dailyCap) return { ok: false, scope: "day", used: dused, limit: dailyCap };
+    }
+    return { ok: true, scope: "total", used: 0, limit: -1 };
+  },
+
+  async enforceQuota(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {
+    const r = await this.evalQuota(ctx, metric, delta);
+    if (!r.ok) {
+      const per = r.scope === "day" ? " (hari ini)" : r.scope === "month" ? " (bulan ini)" : "";
       throw new ServiceError(
-        `Kuota ${METRIC_LABEL[metric]} tercapai (${used}/${limit}). Upgrade paket atau hubungi admin.`,
+        `Kuota ${METRIC_LABEL[metric]}${per} tercapai (${r.used}/${r.limit}). Upgrade paket atau beli tambahan.`,
         402,
         "quota_exceeded",
       );
     }
   },
 
-  /**
-   * Non-throwing sibling of enforceQuota — returns whether `delta` more is allowed.
-   * For paths that must degrade gracefully instead of erroring (e.g. WA auto-reply,
-   * which must not crash the inbound webhook when a tenant is out of message quota).
-   */
+  /** Non-throwing sibling — for paths that must degrade gracefully (e.g. WA auto-reply). */
   async canConsume(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<boolean> {
-    const tenant = await tenantRepo.getTenant(ctx.tenantId);
-    const limit = resolvePlanLimits(tenant?.planKey ?? null)[metric];
-    if (limit === null) return true;
-    const row = await tenantRepo.getUsage(ctx, metric, metricPeriod(metric));
-    return (row?.used ?? 0) + delta <= limit;
+    return (await this.evalQuota(ctx, metric, delta)).ok;
   },
 
-  /** Record consumption of a metric (call AFTER the action succeeds). */
+  /** Record consumption (AFTER success). Bumps the monthly/lifetime counter, and for
+   *  daily-capped metrics (messages / AI) the per-day counter too. */
   async bumpUsage(ctx: TenantContext, metric: QuotaMetric, delta = 1): Promise<void> {
     if (!delta) return;
     await tenantRepo.incrementUsage(ctx, metric, metricPeriod(metric), delta);
+    if (DAILY_CAP_METRICS.includes(metric)) {
+      await tenantRepo.incrementUsage(ctx, metric, dayPeriod(), delta);
+    }
   },
 
   /**
@@ -366,23 +408,77 @@ export const tenantService = {
    * current period). Drives the quota UI + the extension heartbeat so the rep sees
    * the same numbers the platform enforces. Seats `used` is the live member count.
    */
-  async quotaSummary(
-    ctx: TenantContext,
-  ): Promise<{ metric: QuotaMetric; used: number; limit: number | null; label: string }[]> {
+  async quotaSummary(ctx: TenantContext): Promise<QuotaSummaryEntry[]> {
     const tenant = await tenantRepo.getTenant(ctx.tenantId);
-    const limits = resolvePlanLimits(tenant?.planKey ?? null);
-    const out: { metric: QuotaMetric; used: number; limit: number | null; label: string }[] = [];
+    const planKey = tenant?.planKey ?? null;
+    const planLimits = resolvePlanLimits(planKey);
+    const out: QuotaSummaryEntry[] = [];
     for (const metric of QUOTA_METRICS) {
-      let used: number;
-      if (metric === "seats_max") {
-        used = await tenantRepo.countActiveMembers(ctx);
-      } else {
-        const row = await tenantRepo.getUsage(ctx, metric, metricPeriod(metric));
-        used = row?.used ?? 0;
+      const used =
+        metric === "seats_max"
+          ? await tenantRepo.countActiveMembers(ctx)
+          : (await tenantRepo.getUsage(ctx, metric, metricPeriod(metric)))?.used ?? 0;
+      const planLimit = planLimits[metric];
+      const grant = planLimit === null ? 0 : await tenantRepo.sumActiveGrants(ctx, metric);
+      const entry: QuotaSummaryEntry = {
+        metric,
+        label: METRIC_LABEL[metric],
+        used,
+        limit: planLimit === null ? null : planLimit + grant,
+        grant: grant || undefined,
+      };
+      if (DAILY_CAP_METRICS.includes(metric)) {
+        entry.dailyCap = resolveDailyCap(planKey, metric);
+        entry.dailyUsed = (await tenantRepo.getUsage(ctx, metric, dayPeriod()))?.used ?? 0;
       }
-      out.push({ metric, used, limit: limits[metric], label: METRIC_LABEL[metric] });
+      out.push(entry);
     }
     return out;
+  },
+
+  // ── Top-up packs (quota_grant) ───────────────────────────────────
+  /** Grant a top-up pack (superadmin or a self-serve purchase). days>0 → expires. */
+  async grantQuota(
+    ctx: TenantContext,
+    input: {
+      metric: QuotaMetric;
+      amount: number;
+      days?: number | null;
+      source?: string;
+      provider?: string | null;
+      externalRef?: string | null;
+      note?: string | null;
+    },
+    actorUserId?: string,
+  ): Promise<QuotaGrantRow> {
+    if (!QUOTA_METRICS.includes(input.metric)) throw new ServiceError("Metric tidak valid", 400, "validation");
+    if (!Number.isFinite(input.amount) || input.amount <= 0) throw new ServiceError("Jumlah harus > 0", 400, "validation");
+    const expiresAt = input.days && input.days > 0 ? new Date(Date.now() + input.days * 86_400_000) : null;
+    const row = await tenantRepo.insertQuotaGrant(ctx, {
+      id: "qg_" + crypto.randomUUID(),
+      tenantId: ctx.tenantId,
+      metric: input.metric,
+      amount: Math.floor(input.amount),
+      source: input.source ?? "superadmin",
+      provider: input.provider ?? null,
+      externalRef: input.externalRef ?? null,
+      status: "active",
+      note: input.note ?? null,
+      expiresAt,
+    });
+    await platformRepo.insertAudit({
+      tenantId: ctx.tenantId,
+      actorUserId: actorUserId ?? ctx.userId,
+      action: "tenant.quota.grant",
+      targetType: "quota_grant",
+      targetId: row.id,
+      meta: { metric: input.metric, amount: input.amount, days: input.days ?? null, source: row.source, provider: row.provider },
+    });
+    return row;
+  },
+
+  async listQuotaGrants(ctx: TenantContext): Promise<QuotaGrantRow[]> {
+    return tenantRepo.listActiveGrants(ctx);
   },
 
   // ── Soft delete + restore ────────────────────────────────────────

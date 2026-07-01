@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { withTenant, withUserContext, type TenantContext } from "@/lib/db/tenant-context";
@@ -7,6 +7,7 @@ import {
   appUserTable,
   membershipTable,
   usageCounterTable,
+  quotaGrantTable,
   type TenantRow,
   type TenantInsert,
   type AppUserRow,
@@ -14,6 +15,8 @@ import {
   type MembershipRow,
   type MembershipInsert,
   type UsageCounterRow,
+  type QuotaGrantRow,
+  type QuotaGrantInsert,
 } from "./schema";
 
 /**
@@ -281,6 +284,52 @@ export const tenantRepo = {
           target: [usageCounterTable.tenantId, usageCounterTable.metric, usageCounterTable.period],
           set: { used: sql`${usageCounterTable.used} + ${delta}`, updatedAt: new Date() },
         }),
+    );
+  },
+
+  // ── quota_grant (top-up packs) ───────────────────────────────────
+  /** Sum of ACTIVE grant amounts for a metric (status active, not deleted, not yet
+   *  expired). Drives the effective ceiling = plan limit + this. */
+  async sumActiveGrants(ctx: TenantContext, metric: string): Promise<number> {
+    const now = new Date();
+    const [row] = await withTenant(ctx, (tx) =>
+      tx
+        .select({ total: sql<number>`coalesce(sum(${quotaGrantTable.amount}),0)` })
+        .from(quotaGrantTable)
+        .where(
+          and(
+            eq(quotaGrantTable.tenantId, ctx.tenantId),
+            eq(quotaGrantTable.metric, metric),
+            eq(quotaGrantTable.status, "active"),
+            isNull(quotaGrantTable.deletedAt),
+            or(isNull(quotaGrantTable.expiresAt), gt(quotaGrantTable.expiresAt, now)),
+          ),
+        ),
+    );
+    return Number(row?.total ?? 0);
+  },
+
+  async insertQuotaGrant(ctx: TenantContext, values: QuotaGrantInsert): Promise<QuotaGrantRow> {
+    const [row] = await withTenant(ctx, (tx) => tx.insert(quotaGrantTable).values(values).returning());
+    return row;
+  },
+
+  /** Active (unexpired, non-deleted) grants for the tenant — drives the quota UI. */
+  async listActiveGrants(ctx: TenantContext): Promise<QuotaGrantRow[]> {
+    const now = new Date();
+    return withTenant(ctx, (tx) =>
+      tx
+        .select()
+        .from(quotaGrantTable)
+        .where(
+          and(
+            eq(quotaGrantTable.tenantId, ctx.tenantId),
+            eq(quotaGrantTable.status, "active"),
+            isNull(quotaGrantTable.deletedAt),
+            or(isNull(quotaGrantTable.expiresAt), gt(quotaGrantTable.expiresAt, now)),
+          ),
+        )
+        .orderBy(desc(quotaGrantTable.createdAt)),
     );
   },
 
