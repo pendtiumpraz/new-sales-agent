@@ -1,4 +1,4 @@
-const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform", "autoDownloadCsv"];
+const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform", "autoDownloadCsv", "deepGoogle", "deepLinkedin", "deepSocial", "deepMarketplace"];
 const $ = (id) => document.getElementById(id);
 
 async function load() {
@@ -14,6 +14,10 @@ async function load() {
   $("deepseekKey").value = cfg.deepseekKey ?? "";
   $("searchPlatform").value = cfg.searchPlatform ?? "linkedin";
   $("autoDownloadCsv").checked = cfg.autoDownloadCsv !== false;
+  $("deepGoogle").checked = cfg.deepGoogle !== false;
+  $("deepLinkedin").checked = cfg.deepLinkedin !== false;
+  $("deepSocial").checked = cfg.deepSocial !== false;
+  $("deepMarketplace").checked = cfg.deepMarketplace !== false;
   await loadWorkspaces();
   toggleConsent();
   refreshStatus();
@@ -51,6 +55,10 @@ async function save() {
     deepseekKey: $("deepseekKey").value.trim(),
     searchPlatform: $("searchPlatform").value,
     autoDownloadCsv: $("autoDownloadCsv").checked,
+    deepGoogle: $("deepGoogle").checked,
+    deepLinkedin: $("deepLinkedin").checked,
+    deepSocial: $("deepSocial").checked,
+    deepMarketplace: $("deepMarketplace").checked,
   });
 }
 
@@ -110,6 +118,12 @@ $("downloadCsv").addEventListener("click", async () => {
   chrome.runtime.sendMessage({ type: "DOWNLOAD_CSV" }, (r) => {
     $("status").textContent = r && r.files ? `CSV diunduh: ${r.files} file (cek folder Download).` : "Belum ada data untuk diunduh.";
   });
+});
+
+$("deepEnrich").addEventListener("click", async () => {
+  await save();
+  $("status").textContent = "Deep enrich mulai — biarkan tab aktif, jangan ditutup…";
+  chrome.runtime.sendMessage({ type: "DEEP_ENRICH" }, () => setTimeout(refreshStatus, 1200));
 });
 
 $("flush").addEventListener("click", async () => {

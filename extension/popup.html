@@ -59,6 +59,16 @@
     <label class="chk"><input type="checkbox" id="autoEnrich" checked /> Auto-enrich setelah cari LinkedIn selesai</label>
     <button id="startEnrich" class="secondary">▶ Enrich profil LinkedIn</button>
 
+    <div class="stage">🔬 Deep Enrich — cari email/HP lintas sumber</div>
+    <p class="muted" style="margin-top: 2px">Opt-in. Buat lead di buffer, hunt kontak di sumber tercentang → 1 pass AI verifikasi. Lambat + risiko ToS/ban — pakai bijak.</p>
+    <div class="grid2" style="margin-top: 4px">
+      <label class="chk"><input type="checkbox" id="deepGoogle" checked /> Google</label>
+      <label class="chk"><input type="checkbox" id="deepLinkedin" checked /> LinkedIn + post</label>
+      <label class="chk"><input type="checkbox" id="deepSocial" checked /> IG/FB/TikTok</label>
+      <label class="chk"><input type="checkbox" id="deepMarketplace" checked /> Marketplace</label>
+    </div>
+    <button id="deepEnrich" class="secondary">🔬 Deep Enrich buffer (batch)</button>
+
     <div class="stage">⬇ Ekspor CSV lokal</div>
     <label class="chk"><input type="checkbox" id="autoDownloadCsv" checked /> Auto-unduh CSV (B2B / B2C / perusahaan) tiap selesai crawl</label>
     <button id="downloadCsv" class="secondary">⬇ Unduh CSV sekarang (B2B &amp; B2C)</button>

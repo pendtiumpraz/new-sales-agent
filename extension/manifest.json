@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Maira Sales — Multi-Platform Lead Collector",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "description": "Collect + enrich leads from LinkedIn, Google, Tokopedia, Shopee, Instagram, TikTok + DuckDuckGo internet search — RPA + AI run in YOUR browser, buffered locally, sent to the platform. Rate-limited, consent-gated.",
   "permissions": ["storage", "tabs", "scripting", "alarms", "downloads"],
   "host_permissions": [
@@ -13,6 +13,8 @@
     "https://shopee.co.id/*",
     "https://www.instagram.com/*",
     "https://www.tiktok.com/*",
+    "https://www.facebook.com/*",
+    "https://web.facebook.com/*",
     "https://api.deepseek.com/*"
   ],
   "action": {
