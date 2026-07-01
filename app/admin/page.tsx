@@ -420,6 +420,7 @@ export default function SuperadminConsole() {
           seats_max: d.seats || null,
           contacts_max: d.contacts || null,
         },
+        note: d.note.trim() || undefined,
       };
       return readJson<{ tenant: TenantRow }>(
         await fetch("/api/superadmin/provision", {
@@ -443,12 +444,14 @@ export default function SuperadminConsole() {
       const body = {
         activeUntil: d.until ? new Date(d.until).toISOString() : null,
         planKey: d.plan || undefined,
+        verticalKey: d.vertical || undefined,
         quotas: {
           [AI_TOKENS_METRIC]: d.quota || null,
           messages_max: d.messages || null,
           seats_max: d.seats || null,
           contacts_max: d.contacts || null,
         },
+        note: d.note.trim() || undefined,
       };
       return readJson<TenantRow>(
         await fetch(`/api/superadmin/tenants/${d.tenantId}/activation`, {

@@ -97,6 +97,7 @@ export interface UpdateRunInput {
   summary?: string | null;
   error?: string | null;
   logEntry?: Record<string, unknown>; // appended to the run log
+  logEntries?: Record<string, unknown>[]; // batch-appended to the run log (in order)
 }
 
 export interface CreateEscalationInput {
@@ -581,9 +582,13 @@ export const outreachService = {
     }
     if (input.summary !== undefined) patch.summary = input.summary;
     if (input.error !== undefined) patch.error = input.error;
-    if (input.logEntry !== undefined) {
-      const log = Array.isArray(run.log) ? run.log : [];
-      patch.log = [...log, { at: new Date().toISOString(), ...input.logEntry }];
+    if (input.logEntry !== undefined || input.logEntries !== undefined) {
+      const base = Array.isArray(run.log) ? run.log : [];
+      const incoming: Record<string, unknown>[] = [];
+      if (input.logEntry !== undefined) incoming.push(input.logEntry);
+      if (input.logEntries !== undefined) incoming.push(...input.logEntries);
+      const stamped = incoming.map((e) => ({ at: new Date().toISOString(), ...e }));
+      patch.log = [...base, ...stamped];
     }
     const row = await outreachRepo.updateRun(ctx, id, patch);
     if (!row) throw new ServiceError("Autopilot run tidak ditemukan", 404, "not_found");
@@ -591,6 +596,196 @@ export const outreachService = {
       fields: Object.keys(patch),
     });
     return row;
+  },
+
+  /**
+   * Drive a queued/error run to completion SERVER-SIDE — the piece that was
+   * missing (runs were created "queued" and never advanced). Flips the run to
+   * `running` (stamps started_at), then REUSES the WA closing-flow orchestrator
+   * (`buildWaReply`) over the linked conversation to draft the next reply — no
+   * duplicated AI call. It appends a structured `log` trace and finishes the run:
+   *   - `auto`    → the drafted bubbles are persisted as OUTBOUND messages on the
+   *                 conversation (status queued); run → `done`.
+   *   - `suggest` → the drafted bubbles are only LOGGED for a rep to approve; run
+   *                 → `done`.
+   *   - handoff signal (complaint / negotiation / credit habis / low confidence)
+   *     → raises an escalation and finishes `escalated` — never an error.
+   * A run with no linked conversation (or an empty thread) finishes `done` with an
+   * honest "nothing to orchestrate" note (no fabricated steps). Any unexpected
+   * failure finishes `error` with the message. Persisted via `updateRun` + the
+   * run's `log` column.
+   */
+  async advanceRun(ctx: TenantContext, id: string): Promise<AutopilotRunRow> {
+    const run = await this.getRun(ctx, id);
+    if (run.status === "running")
+      throw new ServiceError("Run sedang berjalan", 409, "already_running");
+    if (run.status === "done" || run.status === "escalated")
+      throw new ServiceError("Run sudah selesai — tidak bisa dijalankan lagi", 409, "already_finished");
+    // queued | error → (re)start.
+
+    // 1) Mark running (stamps started_at) + first log entry.
+    await this.updateRun(ctx, id, {
+      status: "running",
+      logEntry: { step: "start", message: "Run dimulai — menyiapkan konteks." },
+    });
+
+    const entries: Record<string, unknown>[] = [];
+    const add = (step: string, message: string, extra?: Record<string, unknown>) =>
+      entries.push({ step, message, ...(extra ?? {}) });
+
+    try {
+      // ── No conversation: nothing to orchestrate (honest, no fabricated steps).
+      if (!run.conversationId) {
+        add("no-conversation", "Run tidak tertaut ke percakapan — tidak ada pesan untuk diorkestrasi.");
+        const done = await this.updateRun(ctx, id, {
+          status: "done",
+          summary: "Run manual tanpa percakapan tertaut — tidak ada langkah AI yang dijalankan.",
+          logEntries: entries,
+        });
+        await this.audit(ctx, "outreach.autopilot.advance", "autopilot_run", id, { status: "done" });
+        return done;
+      }
+
+      // ── Load context: conversation → thread → contact → workspace tuning → stage.
+      const conversation = await inboxService.getConversation(ctx, run.conversationId);
+      const messages = await inboxService.listMessages(ctx, {
+        conversationId: run.conversationId,
+      });
+      const history = messages.slice(-6).map((m) => ({
+        role: m.direction === "in" ? ("customer" as const) : ("us" as const),
+        text: m.body,
+      }));
+      // Reply to the latest INBOUND message; fall back to the conversation preview.
+      const lastInbound = [...messages].reverse().find((m) => m.direction === "in");
+      const message = lastInbound?.body ?? conversation.lastMessage ?? "";
+
+      if (!message.trim()) {
+        add("no-message", "Belum ada pesan masuk di percakapan ini untuk dibalas.");
+        const done = await this.updateRun(ctx, id, {
+          status: "done",
+          summary: "Percakapan belum punya pesan masuk — tidak ada balasan yang disusun.",
+          logEntries: entries,
+        });
+        await this.audit(ctx, "outreach.autopilot.advance", "autopilot_run", id, { status: "done" });
+        return done;
+      }
+
+      // Contact name (best-effort — a WA-synced convo may carry a raw phone id).
+      let contactName = "Pelanggan";
+      try {
+        const contact = await crmService.getContact(ctx, conversation.contactId);
+        if (contact?.fullName) contactName = contact.fullName;
+      } catch {
+        contactName = conversation.contactId || "Pelanggan";
+      }
+      add("context", `Konteks siap: ${history.length} pesan terakhir, kontak "${contactName}".`);
+
+      // Per-workspace tuning + persisted stage (lazy-load the AI stack so the
+      // shared outreach service module doesn't pull it into every route).
+      const { buildWaReply } = await import("@/lib/wa/orchestrator");
+      const { loadStage, saveStage } = await import("@/lib/sales/stage-store");
+      const { loadMarketFit } = await import("@/lib/market-fit/store");
+      const { loadSalesPlay } = await import("@/lib/sales-play/store");
+
+      const wsId = conversation.workspaceId ?? run.workspaceId ?? undefined;
+      let marketType: "B2B" | "B2C" | "mix" | undefined;
+      let salesPlay: Awaited<ReturnType<typeof loadSalesPlay>> | undefined;
+      if (wsId) {
+        const mf = await loadMarketFit(wsId);
+        marketType = mf?.marketType;
+        salesPlay = (await loadSalesPlay(wsId)) ?? undefined;
+      }
+      const stage = await loadStage(run.conversationId);
+
+      // ── The AI step (REUSED orchestrator — buildWaReply). It degrades to a
+      // holding/handoff result on no-model/credit-habis, so it never throws.
+      const result = await buildWaReply(ctx, {
+        contactName,
+        message,
+        history,
+        stage,
+        marketType,
+        salesPlay: salesPlay ?? undefined,
+      });
+      await saveStage(run.conversationId, result.nextStage);
+      add(
+        "analyze",
+        `Menganalisis percakapan — tahap ${result.nextStage}, kesiapan ${result.readiness.band} (${result.readiness.score}).`,
+        {
+          stage: result.nextStage,
+          readinessScore: result.readiness.score,
+          readinessBand: result.readiness.band,
+          source: result.source,
+        },
+      );
+
+      // ── Handoff signal → escalate, never auto-send (both modes).
+      if (result.action === "handoff") {
+        add("handoff", "AI meminta takeover manusia (komplain/negosiasi/kredit habis) — balasan tidak dikirim otomatis.");
+        try {
+          const esc = await this.createEscalation(ctx, {
+            conversationId: run.conversationId,
+            contactId: run.contactId ?? conversation.contactId ?? null,
+            workspaceId: wsId ?? null,
+            autopilotRunId: id,
+            reason: "low_confidence",
+            detail: "Autopilot meminta handoff otomatis.",
+          });
+          add("escalation", `Eskalasi dibuat (${esc.id}) — menunggu rep.`, { escalationId: esc.id });
+        } catch {
+          add("escalation", "Gagal membuat eskalasi otomatis — tetap perlu tinjauan manual.");
+        }
+        const escalated = await this.updateRun(ctx, id, {
+          status: "escalated",
+          summary: `AI meminta takeover manusia di tahap ${result.nextStage} — dieskalasi ke rep.`,
+          logEntries: entries,
+        });
+        await this.audit(ctx, "outreach.autopilot.advance", "autopilot_run", id, { status: "escalated" });
+        return escalated;
+      }
+
+      // ── Send/suggest branch: log each drafted bubble.
+      result.bubbles.forEach((b, i) =>
+        add("draft", `Bubble ${i + 1}: ${b.text}`, { bubble: i + 1, delayMs: b.delayMs }),
+      );
+
+      let summary: string;
+      if (run.mode === "auto") {
+        let sent = 0;
+        for (const b of result.bubbles) {
+          await inboxService.createMessage(ctx, {
+            conversationId: run.conversationId,
+            direction: "out",
+            body: b.text,
+            isAiGenerated: true,
+            status: "queued",
+          });
+          sent++;
+        }
+        add("send", `${sent} balasan dikirim ke percakapan (mode Auto).`);
+        summary = `AI membalas ${sent} bubble di tahap ${result.nextStage} (mode Auto).`;
+      } else {
+        add("suggest", `${result.bubbles.length} saran balasan dicatat untuk persetujuan rep (mode Saran).`);
+        summary = `AI menyarankan ${result.bubbles.length} balasan di tahap ${result.nextStage} (mode Saran) — menunggu persetujuan.`;
+      }
+
+      const done = await this.updateRun(ctx, id, {
+        status: "done",
+        summary,
+        logEntries: entries,
+      });
+      await this.audit(ctx, "outreach.autopilot.advance", "autopilot_run", id, { status: "done" });
+      return done;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Kesalahan tidak diketahui.";
+      const errored = await this.updateRun(ctx, id, {
+        status: "error",
+        error: msg,
+        logEntries: [...entries, { step: "error", message: `Run gagal: ${msg}` }],
+      });
+      await this.audit(ctx, "outreach.autopilot.advance", "autopilot_run", id, { status: "error" });
+      return errored;
+    }
   },
 
   async softDeleteRun(ctx: TenantContext, id: string): Promise<void> {

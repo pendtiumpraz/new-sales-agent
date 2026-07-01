@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlarmClock,
   BookOpen,
@@ -10,17 +10,20 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { RequireSuperadmin } from "@/components/auth/require-superadmin";
 import { SentimentMap } from "@/components/inbox/sentiment-map";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useHandoffStore } from "@/lib/stores/handoff-store";
 import { cn } from "@/lib/utils";
@@ -357,20 +360,188 @@ function HandoffSettingsPageInner() {
             <CardHeader>
               <CardTitle className="text-base">Eskalasi terbaru</CardTitle>
               <p className="text-xs text-muted-foreground">
-                Riwayat handoff dari AI ke agen.
+                Riwayat percakapan yang dialihkan AI ke agen. Kelola tindak
+                lanjutnya di halaman Eskalasi &amp; Handoff.
               </p>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={History}
-                title="Belum ada eskalasi terbaru."
-                description="Saat AI mengalihkan percakapan ke agen manusia, riwayat eskalasi akan muncul di sini."
-                className="border-0"
-              />
+              <RecentEscalations />
             </CardContent>
           </Card>
         )}
       </div>
     </div>
+  );
+}
+
+// ── Riwayat Eskalasi — read-only live history (GET /api/escalations) ───────────
+
+interface HistoryEscalation {
+  id: string;
+  conversationId: string;
+  contactId: string | null;
+  reason: string;
+  detail: string | null;
+  priority: string;
+  status: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+interface HistoryContact {
+  id: string;
+  fullName: string;
+}
+
+const REASON_LABEL: Record<string, string> = {
+  objection: "Keberatan",
+  pricing: "Harga",
+  complaint: "Komplain",
+  low_confidence: "AI ragu",
+  manual: "Manual",
+  policy: "Kebijakan",
+};
+const STATUS_META: Record<string, { label: string; cls: string; dot: string }> = {
+  open: { label: "Terbuka", cls: "bg-warning/15 text-warning", dot: "bg-warning" },
+  acknowledged: { label: "Ditangani", cls: "bg-info/10 text-info", dot: "bg-info" },
+  resolved: { label: "Selesai", cls: "bg-success/15 text-success", dot: "bg-success" },
+  dismissed: {
+    label: "Diabaikan",
+    cls: "bg-muted text-muted-foreground",
+    dot: "bg-muted-foreground",
+  },
+};
+const PRIORITY_LABEL: Record<string, string> = {
+  urgent: "Urgent",
+  high: "Tinggi",
+  normal: "Normal",
+  low: "Rendah",
+};
+
+function relTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diff = Date.now() - d.getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return "Baru saja";
+  if (m < 60) return `${m} mnt lalu`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} jam lalu`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `${days} hari lalu`;
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function RecentEscalations() {
+  const escQ = useQuery({
+    queryKey: ["handoff-settings", "escalations"],
+    queryFn: async () => {
+      const r = await fetch("/api/escalations");
+      const j = (await r.json().catch(() => null)) as
+        | { ok?: boolean; data?: HistoryEscalation[]; error?: string }
+        | null;
+      if (!r.ok || !j || j.ok === false) {
+        throw new Error(j?.error || "Gagal memuat riwayat eskalasi");
+      }
+      return j.data ?? [];
+    },
+    retry: false,
+  });
+  // Resolve contact names; degrade quietly to a placeholder on failure.
+  const contactsQ = useQuery({
+    queryKey: ["handoff-settings", "contacts"],
+    queryFn: async () => {
+      const r = await fetch("/api/contacts?limit=200");
+      const j = (await r.json().catch(() => null)) as
+        | { ok?: boolean; data?: { items?: HistoryContact[] } }
+        | null;
+      if (!r.ok || !j || j.ok === false) return [] as HistoryContact[];
+      return j.data?.items ?? [];
+    },
+    retry: false,
+  });
+
+  const contactById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of contactsQ.data ?? []) map[c.id] = c.fullName;
+    return map;
+  }, [contactsQ.data]);
+
+  if (escQ.isLoading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+  if (escQ.isError) {
+    return (
+      <ErrorState
+        className="border-0"
+        title="Gagal memuat riwayat"
+        description="Tidak bisa mengambil daftar eskalasi. Pastikan kamu login & database tersedia."
+        onRetry={() => escQ.refetch()}
+      />
+    );
+  }
+
+  const rows = [...(escQ.data ?? [])].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={History}
+        title="Belum ada eskalasi terbaru."
+        description="Saat AI mengalihkan percakapan ke agen manusia, riwayat eskalasi akan muncul di sini."
+        className="border-0"
+      />
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-border">
+      {rows.map((e) => {
+        const meta =
+          STATUS_META[e.status] ?? {
+            label: e.status,
+            cls: "bg-muted text-muted-foreground",
+            dot: "bg-muted-foreground",
+          };
+        const name = e.contactId ? contactById[e.contactId] ?? "Kontak" : "Kontak";
+        return (
+          <li key={e.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.12] text-[11px] font-semibold text-primary">
+              {name.slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-medium text-foreground">{name}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                  {REASON_LABEL[e.reason] ?? e.reason}
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    meta.cls,
+                  )}
+                >
+                  <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                  {meta.label}
+                </span>
+              </div>
+              {e.detail && (
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{e.detail}</p>
+              )}
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Prioritas {PRIORITY_LABEL[e.priority] ?? e.priority} · {relTime(e.createdAt)}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

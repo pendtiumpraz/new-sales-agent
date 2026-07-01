@@ -439,10 +439,31 @@ export default function ContactsCrmPage() {
   const [restoreTarget, setRestoreTarget] = useState<ContactRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<ContactRow | null>(null);
 
+  // ── create surface ───────────────────────────────────────────────────────────
+  const [newOpen, setNewOpen] = useState(false);
+
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshAll() {
     qc.invalidateQueries({ queryKey: ["crm", "contacts"] });
   }
+
+  // Manual create — fills the gap where contacts only arrived via Discovery.
+  const createContact = useMutation({
+    mutationFn: async (payload: Record<string, unknown>) =>
+      readJson<ContactRow>(
+        await fetch("/api/contacts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success(`Kontak "${row.fullName}" dibuat`);
+      refreshAll();
+      setNewOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat kontak"),
+  });
 
   // Enrich = PATCH the contact's enrichment_status → enriched (+ a segment override
   // when still unknown). No fabricated values; this flips the lifecycle field the
@@ -460,10 +481,10 @@ export default function ContactsCrmPage() {
         }),
       ),
     onSuccess: () => {
-      toast.success("Kontak ter-enrich — status diperbarui");
+      toast.success("Ditandai ter-enrich — status diperbarui");
       refreshAll();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menjalankan enrichment"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memperbarui status"),
   });
 
   // Re-classify segment from the drawer (AI klasifikasi · bisa override).
@@ -545,10 +566,13 @@ export default function ContactsCrmPage() {
             <Upload className="h-4 w-4" /> Impor / Discovery
           </Link>
         </Button>
-        <Button asChild size="sm">
+        <Button asChild variant="outline" size="sm">
           <Link href="/contacts/discovery">
-            <Plus className="h-4 w-4" /> Cari lead baru
+            <Search className="h-4 w-4" /> Cari lead baru
           </Link>
+        </Button>
+        <Button size="sm" onClick={() => setNewOpen(true)}>
+          <Plus className="h-4 w-4" /> Kontak baru
         </Button>
       </PageHeader>
 
@@ -1183,14 +1207,15 @@ export default function ContactsCrmPage() {
                 size="sm"
                 className="ml-auto"
                 disabled={enrich.isPending}
+                title="Tandai kontak sebagai ter-enrich (manual — belum menjalankan job enrichment nyata)"
                 onClick={() => enrich.mutate({ id: active.id })}
               >
-                <Sparkles className="h-4 w-4" />
+                <Check className="h-4 w-4" />
                 {enrich.isPending
                   ? "Memproses…"
                   : active.enrichmentStatus === "enriched"
-                    ? "Enrich ulang"
-                    : "Enrich sekarang"}
+                    ? "Tandai ulang"
+                    : "Tandai ter-enrich"}
               </Button>
             </div>
           </>
@@ -1248,6 +1273,15 @@ export default function ContactsCrmPage() {
             dihapus selamanya beserta deal &amp; aktivitasnya.
           </>
         }
+      />
+
+      {/* ===================== NEW CONTACT ===================== */}
+      <NewContactModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        companies={companiesQ.data ?? []}
+        pending={createContact.isPending}
+        onSubmit={(payload) => createContact.mutate(payload)}
       />
     </div>
   );
@@ -1484,9 +1518,10 @@ function ContactTableRow({
               type="button"
               onClick={onEnrich}
               disabled={enriching}
-              className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
+              title="Tandai kontak sebagai ter-enrich (manual, tanpa job)"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-semibold transition-colors hover:border-primary/40 disabled:opacity-60"
             >
-              <Sparkles className="h-3 w-3" /> {enriching ? "…" : "Enrich"}
+              <Check className="h-3 w-3" /> {enriching ? "…" : "Tandai"}
             </button>
           )}
           <button
@@ -1746,6 +1781,195 @@ function TableLoading() {
           <Skeleton className="h-4 w-16" />
         </div>
       ))}
+    </div>
+  );
+}
+
+// ───────────────────────── new-contact modal ─────────────────────────
+// Manual create surface (POST /api/contacts) — centered modal mirroring
+// cadence's EnrollModal chrome. companyId is an optional picker over the live
+// company list; segment/enrichment default to "unknown"/"none" server-side.
+
+const modalInputCls =
+  "h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
+
+function NewContactModal({
+  open,
+  onClose,
+  companies,
+  pending,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  companies: CompanyRow[];
+  pending: boolean;
+  onSubmit: (payload: Record<string, unknown>) => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [email, setEmail] = useState("");
+  const [segment, setSegment] = useState<"unknown" | "b2c" | "b2b">("unknown");
+  const [title, setTitle] = useState("");
+  const [companyId, setCompanyId] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setFullName("");
+    setWhatsapp("");
+    setEmail("");
+    setSegment("unknown");
+    setTitle("");
+    setCompanyId("");
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const canSubmit = !!fullName.trim() && !pending;
+
+  function submit() {
+    if (!canSubmit) return;
+    onSubmit({
+      fullName: fullName.trim(),
+      whatsapp: whatsapp.trim() || null,
+      email: email.trim() || null,
+      segment,
+      title: title.trim() || null,
+      companyId: companyId || null,
+    });
+  }
+
+  const sortedCompanies = useMemo(
+    () => [...companies].sort((a, b) => a.name.localeCompare(b.name, "id")),
+    [companies],
+  );
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[70] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex max-h-[88vh] w-full max-w-md flex-col rounded-lg border border-border bg-card shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+              <Plus className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Kontak baru</h3>
+              <p className="text-[11px] text-muted-foreground">Tambah kontak / lead secara manual</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* body */}
+        <div className="space-y-3.5 overflow-y-auto px-5 py-4">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Nama lengkap *</span>
+            <input
+              autoFocus
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="cth. Budi Santoso"
+              className={modalInputCls}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">WhatsApp</span>
+              <input
+                type="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="0812…"
+                className={modalInputCls}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nama@email.com"
+                className={modalInputCls}
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Segmen</span>
+            <select
+              value={segment}
+              onChange={(e) => setSegment(e.target.value as "unknown" | "b2c" | "b2b")}
+              className={cn(modalInputCls, "cursor-pointer")}
+            >
+              <option value="unknown">Belum diklasifikasi</option>
+              <option value="b2c">B2C — perorangan / customer</option>
+              <option value="b2b">B2B — partner / perusahaan</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Jabatan</span>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="cth. Purchasing Manager"
+              className={modalInputCls}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+              Perusahaan (opsional)
+            </span>
+            <select
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              className={cn(modalInputCls, "cursor-pointer")}
+            >
+              <option value="">— Tanpa perusahaan (perorangan) —</option>
+              {sortedCompanies.map((co) => (
+                <option key={co.id} value={co.id}>
+                  {co.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* footer */}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Batal
+          </Button>
+          <Button size="sm" onClick={submit} disabled={!canSubmit}>
+            {pending ? "Menyimpan…" : "Buat kontak"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

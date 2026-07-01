@@ -233,11 +233,15 @@ export default function PipelinePage() {
         )
       ).items,
   });
+  const contacts = useMemo(
+    () => (Array.isArray(contactsQ.data) ? contactsQ.data : []),
+    [contactsQ.data],
+  );
   const contactById = useMemo(() => {
     const m = new Map<string, ContactRow>();
-    for (const c of Array.isArray(contactsQ.data) ? contactsQ.data : []) m.set(c.id, c);
+    for (const c of contacts) m.set(c.id, c);
     return m;
-  }, [contactsQ.data]);
+  }, [contacts]);
 
   // The deal's segment is its contact's segment (deal carries no segment).
   function dealSegment(d: DealRow): "b2c" | "b2b" | "unknown" {
@@ -295,13 +299,25 @@ export default function PipelinePage() {
   const [restoreTarget, setRestoreTarget] = useState<DealRow | null>(null);
   const [purgeTarget, setPurgeTarget] = useState<DealRow | null>(null);
 
+  // ── create/edit surfaces (Deal baru · Buat pipeline · Tambah tahap · Lost) ──
+  const [newDealOpen, setNewDealOpen] = useState(false);
+  const [newPipelineOpen, setNewPipelineOpen] = useState(false);
+  const [newStageOpen, setNewStageOpen] = useState(false);
+  // When a deal is moved into a Lost stage we capture a reason before writing.
+  const [lostTarget, setLostTarget] = useState<{ deal: DealRow; stageId: string } | null>(null);
+
   function refreshDeals() {
     qc.invalidateQueries({ queryKey: ["crm", "deals"] });
   }
 
   // ── mutations ──
   const moveStage = useMutation({
-    mutationFn: async (vars: { deal: DealRow; stageId: string; status?: string }) =>
+    mutationFn: async (vars: {
+      deal: DealRow;
+      stageId: string;
+      status?: string;
+      lostReason?: string;
+    }) =>
       readJson<DealRow>(
         await fetch(`/api/deals/${vars.deal.id}`, {
           method: "PATCH",
@@ -309,6 +325,7 @@ export default function PipelinePage() {
           body: JSON.stringify({
             stageId: vars.stageId,
             ...(vars.status ? { status: vars.status } : {}),
+            ...(vars.lostReason !== undefined ? { lostReason: vars.lostReason } : {}),
           }),
         }),
       ),
@@ -316,8 +333,87 @@ export default function PipelinePage() {
       const st = stages.find((s) => s.id === vars.stageId);
       toast.success(`Tahap diperbarui → ${st?.name ?? "tahap baru"}`);
       refreshDeals();
+      setLostTarget(null);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memindah tahap"),
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Gagal memindah tahap");
+      setLostTarget(null);
+    },
+  });
+
+  // Edit a deal's core fields from the detail drawer (name / value / expectedClose).
+  const editDeal = useMutation({
+    mutationFn: async (vars: {
+      id: string;
+      patch: { name?: string; value?: number; expectedClose?: string | null };
+    }) =>
+      readJson<DealRow>(
+        await fetch(`/api/deals/${vars.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(vars.patch),
+        }),
+      ),
+    onSuccess: () => {
+      toast.success("Deal diperbarui");
+      refreshDeals();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memperbarui deal"),
+  });
+
+  // Create a new deal (name + value + contact + stage + expectedClose + channel).
+  const createDeal = useMutation({
+    mutationFn: async (payload: Record<string, unknown>) =>
+      readJson<DealRow>(
+        await fetch(`/api/deals`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success(`Deal "${row.name}" dibuat`);
+      refreshDeals();
+      setNewDealOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat deal"),
+  });
+
+  // Create a pipeline (board) — offered from the empty state / filter bar.
+  const createPipeline = useMutation({
+    mutationFn: async (payload: { name: string; isDefault: boolean }) =>
+      readJson<PipelineRow>(
+        await fetch(`/api/pipeline`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, workspaceId: scope ?? null }),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success(`Pipeline "${row.name}" dibuat`);
+      qc.invalidateQueries({ queryKey: ["crm", "pipelines"] });
+      setActivePipelineId(row.id);
+      setNewPipelineOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat pipeline"),
+  });
+
+  // Create a stage on the active pipeline (appended at the end).
+  const createStage = useMutation({
+    mutationFn: async (payload: Record<string, unknown>) =>
+      readJson<StageRow>(
+        await fetch(`/api/pipeline/stages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success(`Tahap "${row.name}" ditambahkan`);
+      qc.invalidateQueries({ queryKey: ["crm", "stages"] });
+      setNewStageOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menambah tahap"),
   });
 
   const softDelete = useMutation({
@@ -379,14 +475,28 @@ export default function PipelinePage() {
             kanan. <span className="font-semibold text-foreground/80">1 workspace = 1 produk.</span>
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => refreshDeals()}
-          className="flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium transition-colors hover:border-primary/40"
-        >
-          <RefreshIcon className="h-4 w-4 text-muted-foreground" />
-          Segarkan
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => refreshDeals()}
+            className="flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium transition-colors hover:border-primary/40"
+          >
+            <RefreshIcon className="h-4 w-4 text-muted-foreground" />
+            Segarkan
+          </button>
+          <button
+            type="button"
+            onClick={() => setNewDealOpen(true)}
+            disabled={!activePipelineId || stages.length === 0}
+            title={
+              stages.length === 0 ? "Buat pipeline & tahap dulu untuk menambah deal" : undefined
+            }
+            className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Deal baru
+          </button>
+        </div>
       </div>
 
       <div className="space-y-5 p-6">
@@ -489,7 +599,29 @@ export default function PipelinePage() {
                 </SegButton>
               </div>
 
-              <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              {/* board/stage authoring — always reachable once a pipeline exists */}
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewPipelineOpen(true)}
+                  className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-medium transition-colors hover:border-primary/40"
+                >
+                  <PlusIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  Buat pipeline
+                </button>
+                {activePipelineId && stages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNewStageOpen(true)}
+                    className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-medium transition-colors hover:border-primary/40"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    Tambah tahap
+                  </button>
+                )}
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <b className="text-foreground">{segmentedDeals.length}</b> deal di papan
               </span>
             </div>
@@ -510,13 +642,33 @@ export default function PipelinePage() {
               <BandEmpty
                 icon={<KanbanIcon className="h-6 w-6" />}
                 title="Belum ada pipeline"
-                hint="Buat pipeline (board) lebih dulu lewat backend CRM untuk mulai menyusun deal per tahap."
+                hint="Buat pipeline (board) lebih dulu untuk mulai menyusun deal per tahap."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setNewPipelineOpen(true)}
+                    className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    Buat pipeline
+                  </button>
+                }
               />
             ) : stages.length === 0 ? (
               <BandEmpty
                 icon={<ColumnsIcon className="h-6 w-6" />}
                 title="Pipeline ini belum punya tahap"
-                hint={`"${activePipeline?.name ?? "Pipeline"}" belum punya kolom tahap. Tambahkan pipeline_stage untuk menampilkan kanban.`}
+                hint={`"${activePipeline?.name ?? "Pipeline"}" belum punya kolom tahap. Tambahkan tahap untuk menampilkan kanban.`}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setNewStageOpen(true)}
+                    className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    Tambah tahap
+                  </button>
+                }
               />
             ) : (
               <div className="scroll-x -mx-6 overflow-x-auto px-6 pb-3">
@@ -677,10 +829,14 @@ export default function PipelinePage() {
             segment={dealSegment(openDeal)}
             contact={openDeal.contactId ? contactById.get(openDeal.contactId) : undefined}
             onClose={() => setOpenDealId(null)}
-            onMoveStage={(stageId, status) =>
-              moveStage.mutate({ deal: openDeal, stageId, status })
-            }
+            onMoveStage={(stageId, status) => {
+              // A move into a Lost stage must capture a reason first (below).
+              if (status === "lost") setLostTarget({ deal: openDeal, stageId });
+              else moveStage.mutate({ deal: openDeal, stageId, status });
+            }}
             onDelete={() => setDeleteTarget(openDeal)}
+            onSaveEdit={(patch) => editDeal.mutate({ id: openDeal.id, patch })}
+            savePending={editDeal.isPending}
             movePending={moveStage.isPending}
           />
         )}
@@ -729,6 +885,53 @@ export default function PipelinePage() {
         pending={purge.isPending}
         onClose={() => setPurgeTarget(null)}
         onConfirm={() => purgeTarget && purge.mutate(purgeTarget)}
+      />
+
+      {/* ===================== NEW DEAL ===================== */}
+      <NewDealModal
+        open={newDealOpen}
+        onClose={() => setNewDealOpen(false)}
+        pipelineId={activePipelineId}
+        stages={stages}
+        contacts={contacts}
+        pending={createDeal.isPending}
+        onSubmit={(payload) => createDeal.mutate(payload)}
+      />
+
+      {/* ===================== NEW PIPELINE ===================== */}
+      <NewPipelineModal
+        open={newPipelineOpen}
+        onClose={() => setNewPipelineOpen(false)}
+        pending={createPipeline.isPending}
+        onSubmit={(payload) => createPipeline.mutate(payload)}
+      />
+
+      {/* ===================== NEW STAGE ===================== */}
+      <NewStageModal
+        open={newStageOpen}
+        onClose={() => setNewStageOpen(false)}
+        pipelineId={activePipelineId}
+        pipelineName={activePipeline?.name ?? "Pipeline"}
+        nextSort={stages.length}
+        pending={createStage.isPending}
+        onSubmit={(payload) => createStage.mutate(payload)}
+      />
+
+      {/* ===================== MARK LOST (capture reason) ===================== */}
+      <LostReasonDialog
+        open={!!lostTarget}
+        dealName={lostTarget?.deal.name ?? ""}
+        pending={moveStage.isPending}
+        onClose={() => setLostTarget(null)}
+        onConfirm={(reason) =>
+          lostTarget &&
+          moveStage.mutate({
+            deal: lostTarget.deal,
+            stageId: lostTarget.stageId,
+            status: "lost",
+            lostReason: reason,
+          })
+        }
       />
     </div>
   );
@@ -927,6 +1130,8 @@ function DealDrawer({
   onClose,
   onMoveStage,
   onDelete,
+  onSaveEdit,
+  savePending,
   movePending,
 }: {
   deal: DealRow;
@@ -936,6 +1141,8 @@ function DealDrawer({
   onClose: () => void;
   onMoveStage: (stageId: string, status?: string) => void;
   onDelete: () => void;
+  onSaveEdit: (patch: { name?: string; value?: number; expectedClose?: string | null }) => void;
+  savePending: boolean;
   movePending: boolean;
 }) {
   const channel = deal.sourceChannel ?? contact?.channelPreference ?? null;
@@ -943,6 +1150,34 @@ function DealDrawer({
   const fit = Math.round((contact?.fitScore ?? 0) * 100);
   const fitColor = fit >= 80 ? "#10B981" : fit >= 65 ? "#F59E0B" : "#EF4444";
   const wonStage = stages.find((s) => s.isWon);
+  const lostStage = stages.find((s) => s.isLost);
+
+  // ── inline edit (name / value / expectedClose) ──
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(deal.name);
+  const [value, setValue] = useState(String(deal.value ?? 0));
+  const [expectedClose, setExpectedClose] = useState(
+    deal.expectedClose ? deal.expectedClose.slice(0, 10) : "",
+  );
+  // Re-seed the form whenever the drawer switches to a different deal.
+  useEffect(() => {
+    setEditing(false);
+    setName(deal.name);
+    setValue(String(deal.value ?? 0));
+    setExpectedClose(deal.expectedClose ? deal.expectedClose.slice(0, 10) : "");
+  }, [deal.id, deal.name, deal.value, deal.expectedClose]);
+
+  function submitEdit() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const num = Number(value);
+    onSaveEdit({
+      name: trimmed,
+      value: Number.isFinite(num) && num >= 0 ? num : 0,
+      expectedClose: expectedClose ? expectedClose : null,
+    });
+    setEditing(false);
+  }
 
   return (
     <>
@@ -963,27 +1198,94 @@ function DealDrawer({
 
       {/* body */}
       <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-        {/* value + segment */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-border bg-muted/20 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Nilai deal
+        {/* value + segment (view) OR edit form */}
+        {editing ? (
+          <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/[0.04] p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Edit deal
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+              >
+                Batal
+              </button>
             </div>
-            <div className="mt-1 text-lg font-bold text-foreground">{rpCompact(deal.value)}</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">{rpFull(deal.value)}</div>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Nama deal</span>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Nilai (Rp)</span>
+              <input
+                type="number"
+                min={0}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                Perkiraan closing
+              </span>
+              <input
+                type="date"
+                value={expectedClose}
+                onChange={(e) => setExpectedClose(e.target.value)}
+                className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={submitEdit}
+              disabled={savePending || !name.trim()}
+              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {savePending ? "Menyimpan…" : "Simpan perubahan"}
+            </button>
           </div>
-          <div className="rounded-lg border border-border bg-muted/20 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Segmen
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border bg-muted/20 p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Nilai deal
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="text-[10px] font-medium text-primary hover:underline"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="mt-1 text-lg font-bold text-foreground">{rpCompact(deal.value)}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">{rpFull(deal.value)}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Closing: {fmtDateTimeID(deal.expectedClose)}
+              </div>
             </div>
-            <div className="mt-1.5">
-              <SegBadge segment={segment} />
-            </div>
-            <div className="mt-1.5 text-[11px] capitalize text-muted-foreground">
-              Status: {deal.status === "won" ? "Won" : deal.status === "lost" ? "Lost" : "Aktif"}
+            <div className="rounded-lg border border-border bg-muted/20 p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Segmen
+              </div>
+              <div className="mt-1.5">
+                <SegBadge segment={segment} />
+              </div>
+              <div className="mt-1.5 text-[11px] capitalize text-muted-foreground">
+                Status: {deal.status === "won" ? "Won" : deal.status === "lost" ? "Lost" : "Aktif"}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* move stage */}
         <div>
@@ -1086,18 +1388,31 @@ function DealDrawer({
           <TrashIcon className="h-4 w-4" />
           Hapus
         </button>
-        {wonStage && deal.stageId !== wonStage.id && (
-          <button
-            type="button"
-            onClick={() => onMoveStage(wonStage.id, "won")}
-            disabled={movePending}
-            className="ml-auto flex h-9 items-center gap-1.5 rounded-lg bg-success px-4 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
-            style={{ background: "#10B981" }}
-          >
-            <CheckIcon className="h-4 w-4" />
-            Tandai Won
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {lostStage && deal.stageId !== lostStage.id && (
+            <button
+              type="button"
+              onClick={() => onMoveStage(lostStage.id, "lost")}
+              disabled={movePending}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-destructive/40 px-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+            >
+              <CloseIcon className="h-4 w-4" />
+              Tandai Lost
+            </button>
+          )}
+          {wonStage && deal.stageId !== wonStage.id && (
+            <button
+              type="button"
+              onClick={() => onMoveStage(wonStage.id, "won")}
+              disabled={movePending}
+              className="flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
+              style={{ background: "#10B981" }}
+            >
+              <CheckIcon className="h-4 w-4" />
+              Tandai Won
+            </button>
+          )}
+        </div>
       </div>
     </>
   );
@@ -1147,10 +1462,12 @@ function BandEmpty({
   icon,
   title,
   hint,
+  action,
 }: {
   icon: React.ReactNode;
   title: string;
   hint: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card py-14 text-center shadow-soft">
@@ -1159,6 +1476,7 @@ function BandEmpty({
       </span>
       <p className="text-sm font-medium">{title}</p>
       <p className="max-w-md text-xs text-muted-foreground">{hint}</p>
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }
@@ -1180,6 +1498,470 @@ function TableLoading() {
   );
 }
 
+// ───────────────────────── create/edit modals ─────────────────────────
+
+/** Centered modal chrome (Coral Sunset — mirrors cadence's EnrollModal). */
+function ModalShell({
+  open,
+  onClose,
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={`fixed inset-0 z-[70] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200 ${
+        open ? "opacity-100" : "pointer-events-none opacity-0"
+      }`}
+    >
+      <div
+        className={`flex max-h-[88vh] w-full max-w-md flex-col rounded-lg border border-border bg-card shadow-soft transition-all duration-200 ${
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0"
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+              {icon}
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">{title}</h3>
+              <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Label + control row for the modal forms. */
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputCls =
+  "h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
+
+function NewDealModal({
+  open,
+  onClose,
+  pipelineId,
+  stages,
+  contacts,
+  pending,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pipelineId: string | null;
+  stages: StageRow[];
+  contacts: ContactRow[];
+  pending: boolean;
+  onSubmit: (payload: Record<string, unknown>) => void;
+}) {
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+  const [contactId, setContactId] = useState("");
+  const [stageId, setStageId] = useState("");
+  const [expectedClose, setExpectedClose] = useState("");
+  const [sourceChannel, setSourceChannel] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setValue("");
+    setContactId("");
+    setExpectedClose("");
+    setSourceChannel("");
+    setStageId(stages[0]?.id ?? "");
+  }, [open, stages]);
+
+  const canSubmit = !!name.trim() && !!stageId && !!pipelineId && !pending;
+
+  function submit() {
+    if (!canSubmit) return;
+    const st = stages.find((s) => s.id === stageId);
+    const status = st?.isWon ? "won" : st?.isLost ? "lost" : "open";
+    const num = Number(value);
+    onSubmit({
+      name: name.trim(),
+      value: Number.isFinite(num) && num >= 0 ? num : 0,
+      pipelineId,
+      stageId,
+      status,
+      contactId: contactId || null,
+      expectedClose: expectedClose || null,
+      sourceChannel: sourceChannel || null,
+    });
+  }
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      icon={<PlusIcon className="h-4 w-4" />}
+      title="Deal baru"
+      subtitle="Tambahkan deal ke papan ini"
+    >
+      <div className="space-y-3.5 overflow-y-auto px-5 py-4">
+        <Field label="Nama deal *">
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="cth. Paket Pro — PT Sinar Jaya"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Nilai (Rp)">
+          <input
+            type="number"
+            min={0}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="0"
+            className={`${inputCls} tabular-nums`}
+          />
+        </Field>
+        <Field label="Kontak">
+          <select
+            value={contactId}
+            onChange={(e) => setContactId(e.target.value)}
+            className={`${inputCls} cursor-pointer`}
+          >
+            <option value="">— Tanpa kontak —</option>
+            {contacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.fullName}
+                {c.title ? ` · ${c.title}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Tahap *">
+          <select
+            value={stageId}
+            onChange={(e) => setStageId(e.target.value)}
+            className={`${inputCls} cursor-pointer`}
+          >
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Perkiraan closing">
+          <input
+            type="date"
+            value={expectedClose}
+            onChange={(e) => setExpectedClose(e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Kanal akuisisi">
+          <select
+            value={sourceChannel}
+            onChange={(e) => setSourceChannel(e.target.value)}
+            className={`${inputCls} cursor-pointer`}
+          >
+            <option value="">—</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+            <option value="email">Email</option>
+            <option value="shopee">Shopee</option>
+          </select>
+        </Field>
+      </div>
+      <ModalFooter
+        onClose={onClose}
+        onSubmit={submit}
+        disabled={!canSubmit}
+        label={pending ? "Menyimpan…" : "Buat deal"}
+      />
+    </ModalShell>
+  );
+}
+
+function NewPipelineModal({
+  open,
+  onClose,
+  pending,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pending: boolean;
+  onSubmit: (payload: { name: string; isDefault: boolean }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [isDefault, setIsDefault] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setIsDefault(false);
+  }, [open]);
+  const canSubmit = !!name.trim() && !pending;
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      icon={<KanbanIcon className="h-4 w-4" />}
+      title="Buat pipeline"
+      subtitle="Papan CRM baru untuk workspace ini"
+    >
+      <div className="space-y-3.5 px-5 py-4">
+        <Field label="Nama pipeline *">
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="cth. Pipeline Penjualan"
+            className={inputCls}
+          />
+        </Field>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80">
+          <input
+            type="checkbox"
+            checked={isDefault}
+            onChange={(e) => setIsDefault(e.target.checked)}
+            className="h-4 w-4 rounded border-border"
+          />
+          Jadikan papan default
+        </label>
+      </div>
+      <ModalFooter
+        onClose={onClose}
+        onSubmit={() => canSubmit && onSubmit({ name: name.trim(), isDefault })}
+        disabled={!canSubmit}
+        label={pending ? "Menyimpan…" : "Buat pipeline"}
+      />
+    </ModalShell>
+  );
+}
+
+function NewStageModal({
+  open,
+  onClose,
+  pipelineId,
+  pipelineName,
+  nextSort,
+  pending,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pipelineId: string | null;
+  pipelineName: string;
+  nextSort: number;
+  pending: boolean;
+  onSubmit: (payload: Record<string, unknown>) => void;
+}) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"open" | "won" | "lost">("open");
+  const [probability, setProbability] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setKind("open");
+    setProbability("");
+  }, [open]);
+  const canSubmit = !!name.trim() && !!pipelineId && !pending;
+  function submit() {
+    if (!canSubmit) return;
+    const prob = probability === "" ? null : Number(probability);
+    onSubmit({
+      pipelineId,
+      name: name.trim(),
+      sort: nextSort,
+      isWon: kind === "won",
+      isLost: kind === "lost",
+      probability: prob != null && Number.isFinite(prob) ? prob : null,
+    });
+  }
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      icon={<ColumnsIcon className="h-4 w-4" />}
+      title="Tambah tahap"
+      subtitle={`Kolom baru di "${pipelineName}"`}
+    >
+      <div className="space-y-3.5 px-5 py-4">
+        <Field label="Nama tahap *">
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="cth. Negosiasi"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Jenis tahap">
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as "open" | "won" | "lost")}
+            className={`${inputCls} cursor-pointer`}
+          >
+            <option value="open">Aktif (dalam proses)</option>
+            <option value="won">Menang (Won)</option>
+            <option value="lost">Kalah (Lost)</option>
+          </select>
+        </Field>
+        <Field label="Probabilitas (%) — opsional">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={probability}
+            onChange={(e) => setProbability(e.target.value)}
+            placeholder="cth. 40"
+            className={`${inputCls} tabular-nums`}
+          />
+        </Field>
+      </div>
+      <ModalFooter
+        onClose={onClose}
+        onSubmit={submit}
+        disabled={!canSubmit}
+        label={pending ? "Menyimpan…" : "Tambah tahap"}
+      />
+    </ModalShell>
+  );
+}
+
+function LostReasonDialog({
+  open,
+  dealName,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  dealName: string;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    setReason("");
+  }, [open]);
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      icon={<CloseIcon className="h-4 w-4" />}
+      title="Tandai deal sebagai Lost"
+      subtitle={dealName}
+    >
+      <div className="space-y-3 px-5 py-4">
+        <Field label="Alasan kalah (opsional)">
+          <textarea
+            autoFocus
+            rows={3}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="cth. Harga terlalu tinggi / pilih kompetitor / anggaran ditunda"
+            className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+          />
+        </Field>
+        <p className="text-[11px] text-muted-foreground">
+          Deal akan dipindah ke tahap Lost dan alasan disimpan untuk analisis kekalahan.
+        </p>
+      </div>
+      <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          Batal
+        </button>
+        <button
+          type="button"
+          onClick={() => onConfirm(reason.trim())}
+          disabled={pending}
+          className="h-9 rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {pending ? "Memproses…" : "Tandai Lost"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/** Shared Batal + primary-submit footer for the create modals. */
+function ModalFooter({
+  onClose,
+  onSubmit,
+  disabled,
+  label,
+}: {
+  onClose: () => void;
+  onSubmit: () => void;
+  disabled: boolean;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+      <button
+        type="button"
+        onClick={onClose}
+        className="h-9 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+      >
+        Batal
+      </button>
+      <button
+        type="button"
+        onClick={onSubmit}
+        disabled={disabled}
+        className="h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {label}
+      </button>
+    </div>
+  );
+}
+
 // ───────────────────────── inline icons (match mockup strokes) ─────────────────────────
 type IconProps = { className?: string };
 
@@ -1189,6 +1971,13 @@ function RefreshIcon({ className = "h-4 w-4" }: IconProps) {
       <path d="M3 12a9 9 0 1 0 9-9" />
       <path d="M3 4v5h5" />
       <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+function PlusIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" />
     </svg>
   );
 }

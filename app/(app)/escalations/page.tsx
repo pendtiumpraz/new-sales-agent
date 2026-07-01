@@ -1007,6 +1007,9 @@ export default function EscalationsHandoffPage() {
                 ? patchEsc.mutate({ id: active.id, patch: { priority } })
                 : patchHandoff.mutate({ id: active.id, patch: { priority } })
             }
+            onSaveNote={(note) =>
+              patchHandoff.mutate({ id: active.id, patch: { note } })
+            }
             onDelete={() => setDeleteTarget(active)}
             actionPending={
               setEscStatus.isPending ||
@@ -1434,6 +1437,7 @@ function DrawerBody({
   onCancelHandoff,
   onReassign,
   onRepriority,
+  onSaveNote,
   onDelete,
   actionPending,
 }: {
@@ -1456,12 +1460,16 @@ function DrawerBody({
   onCancelHandoff: () => void;
   onReassign: (userId: string) => void;
   onRepriority: (priority: string) => void;
+  onSaveNote: (note: string) => void;
   onDelete: () => void;
   actionPending: boolean;
 }) {
   const [note, setNote] = useState("");
   const name = contact?.fullName ?? "Kontak tidak dikenal";
   const isEsc = item.kind === "escalation";
+  // Baseline the persisted note so the handoff "Simpan catatan" button only
+  // enables when the rep has actually changed it.
+  const savedNote = isEsc ? item.escalation?.resolutionNote ?? "" : item.handoff?.note ?? "";
 
   // reset the resolution note when switching items
   useEffect(() => {
@@ -1651,6 +1659,22 @@ function DrawerBody({
             }
             className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-ring/30"
           />
+          {isEsc ? (
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Disimpan saat kamu menandai eskalasi <b>Selesai</b> / <b>Abaikan</b>.
+            </p>
+          ) : (
+            <div className="mt-2 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={actionPending || note === savedNote}
+                onClick={() => onSaveNote(note)}
+              >
+                <Check className="h-4 w-4" /> Simpan catatan
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

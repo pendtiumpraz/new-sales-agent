@@ -84,14 +84,23 @@ interface AutopilotRunRow {
 }
 
 /** Row from GET /api/conversations (modules/inbox · conversation_v2). Only the
- *  fields this page reads are typed; the rest of the row is ignored. */
+ *  fields this page reads are typed; the rest of the row is ignored.
+ *  NOTE: conversation_v2 has NO `subject` column — the human label is the last
+ *  message preview (`lastMessage`), falling back to channel + short id. */
 interface ConversationRow {
   id: string;
   contactId: string | null;
   channel: string | null;
-  subject: string | null;
+  lastMessage: string | null;
   status: string | null;
   lastMessageAt: string | null;
+}
+
+/** A human label for a conversation row — last-message preview, else channel + id. */
+function conversationLabel(c: ConversationRow): string {
+  const preview = c.lastMessage?.trim();
+  if (preview) return preview.length > 60 ? `${preview.slice(0, 59)}…` : preview;
+  return `${c.channel ?? "chat"} · ${c.id.slice(0, 8)}`;
 }
 
 // ── enums / display metadata ─────────────────────────────────────────────────
@@ -282,7 +291,8 @@ export default function AutopilotRunsPage() {
     return runs.filter((r) => {
       const okStatus = statusF === "all" || r.status === statusF;
       const okMode = modeF === "all" || r.mode === modeF;
-      const convo = r.conversationId ? conversationById[r.conversationId]?.subject ?? "" : "";
+      const convoRow = r.conversationId ? conversationById[r.conversationId] : null;
+      const convo = convoRow ? conversationLabel(convoRow) : "";
       const hay = `${runHeadline(r)} ${r.trigger ?? ""} ${convo} ${r.id}`.toLowerCase();
       const okSearch = !q || hay.includes(q);
       return okStatus && okMode && okSearch;
@@ -309,6 +319,11 @@ export default function AutopilotRunsPage() {
     queryFn: async () =>
       readJson<AutopilotRunRow>(await fetch(`/api/autopilot/${openId}`)),
     retry: false,
+    // Poll while the run is mid-flight so the log/status update live.
+    refetchInterval: (q) => {
+      const s = q.state.data?.status;
+      return s === "running" || s === "queued" ? 2500 : false;
+    },
   });
   const activeRow = useMemo(() => runs.find((r) => r.id === openId) ?? null, [runs, openId]);
   const active = detailQ.data ?? activeRow;
@@ -336,12 +351,13 @@ export default function AutopilotRunsPage() {
     qc.invalidateQueries({ queryKey: ["outreach", "autopilot"] });
   }
 
-  // START — POST a new autopilot run (records the AI orchestration lifecycle).
-  // Status defaults to queued (the orchestrator flips it to running/done/…). No
-  // log/metric values are invented; only the operator-chosen mode/convo/summary.
+  // START — POST a new autopilot run, then immediately DRIVE it server-side
+  // (create → queued, then POST /[id]/run advances it: running → done/escalated).
+  // The orchestrator reuses the WA closing-flow brain over the linked
+  // conversation; no log/metric values are invented client-side.
   const startRun = useMutation({
-    mutationFn: async () =>
-      readJson<AutopilotRunRow>(
+    mutationFn: async () => {
+      const created = await readJson<AutopilotRunRow>(
         await fetch("/api/autopilot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -353,14 +369,39 @@ export default function AutopilotRunsPage() {
             summary: startSummary.trim() || null,
           }),
         }),
-      ),
+      );
+      // Advance it right away (server-side). Returns the finished run row.
+      return readJson<AutopilotRunRow>(
+        await fetch(`/api/autopilot/${created.id}/run`, { method: "POST" }),
+      );
+    },
     onSuccess: (row) => {
-      toast.success("Autopilot run dimulai — status: antri");
+      toast.success("Autopilot run dijalankan");
       refreshAll();
       setStartOpen(false);
       setOpenId(row.id);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memulai run"),
+  });
+
+  // RUN — drive an EXISTING queued/error run to completion server-side.
+  const runRun = useMutation({
+    mutationFn: async (r: AutopilotRunRow) =>
+      readJson<AutopilotRunRow>(
+        await fetch(`/api/autopilot/${r.id}/run`, { method: "POST" }),
+      ),
+    onSuccess: (row) => {
+      toast.success(
+        row.status === "escalated"
+          ? "Run selesai — dieskalasi ke rep"
+          : row.status === "error"
+            ? "Run gagal — cek detail"
+            : "Run selesai",
+      );
+      refreshAll();
+      qc.invalidateQueries({ queryKey: ["outreach", "autopilot", "detail", row.id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menjalankan run"),
   });
 
   // SOFT delete — moves an active run into "Sampah" (deleted_at stamped).
@@ -610,6 +651,8 @@ export default function AutopilotRunsPage() {
                         }
                         onOpen={() => setOpenId(r.id)}
                         onDelete={() => setDeleteTarget(r)}
+                        onRun={() => runRun.mutate(r)}
+                        runPending={runRun.isPending && runRun.variables?.id === r.id}
                       />
                     ))}
                   </tbody>
@@ -781,7 +824,10 @@ export default function AutopilotRunsPage() {
                         className="inline-flex items-center gap-1 text-right font-medium text-primary hover:underline"
                       >
                         <MessageSquare className="h-3.5 w-3.5" />
-                        {conversationById[active.conversationId]?.subject ?? "Buka percakapan"}
+                        {(() => {
+                          const c = conversationById[active.conversationId!];
+                          return c ? conversationLabel(c) : "Buka percakapan";
+                        })()}
                       </Link>
                     </div>
                   )}
@@ -835,6 +881,23 @@ export default function AutopilotRunsPage() {
 
             {/* footer */}
             <div className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-5 py-3">
+              {(active.status === "queued" || active.status === "error") && (
+                <Button
+                  size="sm"
+                  disabled={runRun.isPending}
+                  onClick={() => active && runRun.mutate(active)}
+                >
+                  {runRun.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Menjalankan…
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" /> {active.status === "error" ? "Jalankan ulang" : "Jalankan"}
+                    </>
+                  )}
+                </Button>
+              )}
               {active.conversationId && (
                 <Button asChild variant="outline" size="sm">
                   <Link href="/inbox">
@@ -930,7 +993,7 @@ export default function AutopilotRunsPage() {
                 <option value="">— Tanpa percakapan —</option>
                 {(conversationsQ.data ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.subject || `${c.channel ?? "chat"} · ${c.id.slice(0, 8)}`}
+                    {conversationLabel(c)}
                   </option>
                 ))}
               </select>
@@ -960,8 +1023,10 @@ export default function AutopilotRunsPage() {
           <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground">
             <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tertiary" />
             <span>
-              Run dibuat berstatus <b className="text-foreground">antri</b>. Orkestrator AI yang
-              menjalankan langkah & mengisi log — halaman ini hanya mencatat & memantau.
+              Run langsung <b className="text-foreground">dijalankan</b>: orkestrator AI membaca
+              percakapan tertaut, menyusun balasan, dan mengisi log.{" "}
+              <b className="text-foreground">Auto</b> mengirim balasan ke percakapan;{" "}
+              <b className="text-foreground">Saran</b> hanya mencatatnya untuk kamu setujui.
             </span>
           </div>
         </div>
@@ -1140,13 +1205,18 @@ function RunTableRow({
   conversation,
   onOpen,
   onDelete,
+  onRun,
+  runPending,
 }: {
   run: AutopilotRunRow;
   conversation: ConversationRow | null;
   onOpen: () => void;
   onDelete: () => void;
+  onRun: () => void;
+  runPending: boolean;
 }) {
   const duration = fmtDuration(run.startedAt, run.finishedAt);
+  const canRun = run.status === "queued" || run.status === "error";
   return (
     <tr onClick={onOpen} className="cursor-pointer transition-colors hover:bg-muted/40">
       <td className="px-3 py-3">
@@ -1160,7 +1230,7 @@ function RunTableRow({
         {conversation && (
           <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] text-muted-foreground">
             <MessageSquare className="h-3 w-3" />
-            {conversation.subject || conversation.channel || "percakapan"}
+            {conversationLabel(conversation)}
           </p>
         )}
       </td>
@@ -1169,6 +1239,22 @@ function RunTableRow({
       <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">{duration ?? "—"}</td>
       <td className="px-3 py-3 text-right">
         <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {canRun && (
+            <button
+              type="button"
+              onClick={onRun}
+              disabled={runPending}
+              title={run.status === "error" ? "Jalankan ulang" : "Jalankan run"}
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+            >
+              {runPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Play className="h-3 w-3" />
+              )}
+              {run.status === "error" ? "Ulangi" : "Jalankan"}
+            </button>
+          )}
           <button
             type="button"
             onClick={onOpen}

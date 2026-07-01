@@ -81,6 +81,9 @@ export interface ProvisionTenantInput {
   quotas?: Record<string, number | null>;
   /** When true, activate the tenant immediately (otherwise it stays `pending`). */
   activate?: boolean;
+  /** Free-text internal note (superadmin-only). No dedicated column — persisted
+   *  onto the provision audit meta so it stays with the event trail. */
+  note?: string;
 }
 
 export interface ProvisionTenantResult {
@@ -299,6 +302,8 @@ export const superadminService = {
         adminEmail,
         activated: Boolean(input.activate || input.activeUntil),
         quotas: input.quotas ?? null,
+        verticalKey: input.verticalKey ?? null,
+        note: input.note?.trim() || null,
       },
     });
 
@@ -313,7 +318,14 @@ export const superadminService = {
   async setActivationWindow(
     ctx: TenantContext,
     tenantId: string,
-    input: { activeUntil?: string | null; planKey?: string; quotas?: Record<string, number | null> },
+    input: {
+      activeUntil?: string | null;
+      planKey?: string;
+      verticalKey?: string;
+      quotas?: Record<string, number | null>;
+      /** Internal note — no column, persisted onto the activation audit meta. */
+      note?: string;
+    },
     operatorUserId: string,
   ): Promise<TenantRow> {
     assertSuperadmin(ctx);
@@ -323,11 +335,26 @@ export const superadminService = {
         await tenantService.setQuota(targetTenantCtx, metric, limit, "lifetime", operatorUserId);
       }
     }
-    return tenantService.activate(
+    const row = await tenantService.activate(
       tenantId,
-      { until: input.activeUntil ?? null, planKey: input.planKey },
+      { until: input.activeUntil ?? null, planKey: input.planKey, verticalKey: input.verticalKey },
       operatorUserId,
     );
+
+    // The internal note has no tenant column — record it (plus the effective
+    // vertical) on a platform-level audit event so it stays with the trail.
+    const note = input.note?.trim();
+    if (note || input.verticalKey) {
+      await platformRepo.insertAudit({
+        tenantId,
+        actorUserId: operatorUserId,
+        action: "platform.activation",
+        targetType: "tenant",
+        targetId: tenantId,
+        meta: { note: note || null, verticalKey: input.verticalKey ?? null },
+      });
+    }
+    return row;
   },
 
   // ── cross-tenant member management ──────────────────────────────────

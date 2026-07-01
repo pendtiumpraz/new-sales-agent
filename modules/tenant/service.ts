@@ -59,6 +59,8 @@ export interface ActivateTenantInput {
   /** ISO date string for the activation ceiling; null/undefined = no expiry. */
   until?: string | null;
   planKey?: string;
+  /** Optionally (re)assign the tenant's vertical during activation. */
+  verticalKey?: string;
 }
 
 export const tenantService = {
@@ -131,6 +133,7 @@ export const tenantService = {
       activatedBy: actorUserId,
       activatedAt: new Date(),
       ...(input.planKey ? { planKey: input.planKey } : {}),
+      ...(input.verticalKey ? { verticalKey: input.verticalKey } : {}),
     });
     if (!row) throw new ServiceError("Tenant not found", 404, "not_found");
 
@@ -144,7 +147,11 @@ export const tenantService = {
       action: "tenant.activate",
       targetType: "tenant",
       targetId: id,
-      meta: { until: input.until ?? null, planKey: input.planKey ?? null },
+      meta: {
+        until: input.until ?? null,
+        planKey: input.planKey ?? null,
+        verticalKey: input.verticalKey ?? null,
+      },
     });
     return row;
   },

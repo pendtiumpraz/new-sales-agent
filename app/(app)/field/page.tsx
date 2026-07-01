@@ -35,6 +35,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Target,
   Trash2,
   User,
   X,
@@ -137,6 +138,14 @@ interface ContactRow {
 interface CompanyRow {
   id: string;
   name: string;
+}
+
+/** Slim row from GET /api/deals (modules/crm · deal) — link a visit to a deal. */
+interface DealRow {
+  id: string;
+  name: string;
+  value: number;
+  currency: string;
 }
 
 // ── enums / display metadata ─────────────────────────────────────────────────
@@ -270,7 +279,9 @@ interface VisitForm {
   scheduledAt: string; // datetime-local value
   contactId: string;
   companyId: string;
+  dealId: string;
   status: string;
+  outcome: string;
   notes: string;
 }
 
@@ -281,9 +292,37 @@ const EMPTY_VISIT_FORM: VisitForm = {
   scheduledAt: "",
   contactId: "",
   companyId: "",
+  dealId: "",
   status: "planned",
+  outcome: "",
   notes: "",
 };
+
+/** Convert a stored ISO timestamp → the `YYYY-MM-DDTHH:mm` value a
+ *  `datetime-local` input expects (in the browser's local timezone). */
+function isoToLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Ask the browser for the current position, resolving to `null` on
+ *  denial / unavailability / timeout (never rejects — the caller degrades). */
+function getPosition(): Promise<GeolocationPosition | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  });
+}
 
 // ── page ─────────────────────────────────────────────────────────────────────
 
@@ -311,6 +350,19 @@ export default function FieldPage() {
     queryFn: async () => readJson<CompanyRow[]>(await fetch("/api/companies")),
     retry: false,
   });
+  // Deals — resolve a visit's dealId + feed the Edit-form deal picker. Keyset
+  // page envelope ({ items, nextCursor }); degrade to [] on failure.
+  const dealsQ = useQuery({
+    queryKey: ["field", "deals", "resolve"],
+    queryFn: async () =>
+      (await readJson<Page<DealRow>>(await fetch("/api/deals?limit=200"))).items,
+    retry: false,
+  });
+  const dealById = useMemo(() => {
+    const m: Record<string, DealRow> = {};
+    for (const d of dealsQ.data ?? []) m[d.id] = d;
+    return m;
+  }, [dealsQ.data]);
   const contactById = useMemo(() => {
     const m: Record<string, ContactRow> = {};
     for (const c of contactsQ.data ?? []) m[c.id] = c;
@@ -378,11 +430,15 @@ export default function FieldPage() {
     );
   }, [trashed, search]);
 
-  // ── drawer (detail | create) ──────────────────────────────────────────────
+  // ── drawer (detail | create | edit) ──────────────────────────────────────
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<VisitForm>(EMPTY_VISIT_FORM);
   const [checkInNote, setCheckInNote] = useState("");
+  // Which check-in kind is mid-flight (geolocation prompt + POST) — keeps the
+  // button disabled while the browser resolves the position.
+  const [geoKind, setGeoKind] = useState<"check_in" | "check_out" | null>(null);
 
   const active = useMemo(() => visits.find((v) => v.id === openId) ?? null, [visits, openId]);
 
@@ -390,6 +446,25 @@ export default function FieldPage() {
   function closeDrawer() {
     setOpenId(null);
     setCreating(false);
+    setEditing(false);
+  }
+
+  /** Populate the shared form from a visit + switch the drawer into edit mode. */
+  function openEdit(v: VisitRow) {
+    setForm({
+      title: v.title,
+      purpose: v.purpose ?? "other",
+      address: v.address ?? "",
+      scheduledAt: isoToLocalInput(v.scheduledAt),
+      contactId: v.contactId ?? "",
+      companyId: v.companyId ?? "",
+      dealId: v.dealId ?? "",
+      status: v.status,
+      outcome: v.outcome ?? "",
+      notes: v.notes ?? "",
+    });
+    setCreating(false);
+    setEditing(true);
   }
 
   // Check-ins of the open visit.
@@ -424,6 +499,7 @@ export default function FieldPage() {
             scheduledAt: f.scheduledAt ? new Date(f.scheduledAt).toISOString() : null,
             contactId: f.contactId || null,
             companyId: f.companyId || null,
+            dealId: f.dealId || null,
             status: f.status,
             notes: f.notes.trim() || null,
           }),
@@ -437,6 +513,37 @@ export default function FieldPage() {
       setOpenId(row.id);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuat kunjungan"),
+  });
+
+  // Edit an existing visit — PATCHes the full editable field-set (title, purpose,
+  // address, schedule, CRM refs, dealId, outcome, notes). Returns to the detail view.
+  const updateVisit = useMutation({
+    mutationFn: async (vars: { id: string; f: VisitForm }) =>
+      readJson<VisitRow>(
+        await fetch(`/api/field/visits/${vars.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: vars.f.title.trim(),
+            purpose: vars.f.purpose || null,
+            address: vars.f.address.trim() || null,
+            scheduledAt: vars.f.scheduledAt ? new Date(vars.f.scheduledAt).toISOString() : null,
+            contactId: vars.f.contactId || null,
+            companyId: vars.f.companyId || null,
+            dealId: vars.f.dealId || null,
+            status: vars.f.status,
+            outcome: vars.f.outcome.trim() || null,
+            notes: vars.f.notes.trim() || null,
+          }),
+        }),
+      ),
+    onSuccess: (row) => {
+      toast.success(`Kunjungan "${row.title}" diperbarui`);
+      refreshAll();
+      setEditing(false);
+      setOpenId(row.id);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memperbarui kunjungan"),
   });
 
   // Advance status (planned → en_route → in_progress → completed) inline.
@@ -457,8 +564,17 @@ export default function FieldPage() {
   });
 
   // Record a check-in / check-out. The backend advances the visit's lifecycle.
+  // Geo coords (lat/lng/accuracy) come from the browser when the user allows it —
+  // see `handleCheckIn` below, which acquires the position before mutating.
   const recordCheckIn = useMutation({
-    mutationFn: async (vars: { visitId: string; kind: "check_in" | "check_out"; note: string }) =>
+    mutationFn: async (vars: {
+      visitId: string;
+      kind: "check_in" | "check_out";
+      note: string;
+      lat?: number | null;
+      lng?: number | null;
+      accuracy?: number | null;
+    }) =>
       readJson<CheckInRow>(
         await fetch("/api/field/check-ins", {
           method: "POST",
@@ -467,6 +583,9 @@ export default function FieldPage() {
             visitId: vars.visitId,
             kind: vars.kind,
             note: vars.note.trim() || null,
+            lat: vars.lat ?? null,
+            lng: vars.lng ?? null,
+            accuracy: vars.accuracy ?? null,
           }),
         }),
       ),
@@ -478,6 +597,39 @@ export default function FieldPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mencatat check-in"),
   });
+
+  /**
+   * Record a check-in/out, stamping the browser's geolocation so the VisitMap
+   * populates. If the user denies / the device can't fix a location, we still
+   * record the event (never an error) — just without coords, and we tag the note
+   * so the timeline is honest about it.
+   */
+  async function handleCheckIn(kind: "check_in" | "check_out") {
+    if (!active) return;
+    setGeoKind(kind);
+    const pos = await getPosition();
+    setGeoKind(null);
+    if (pos) {
+      recordCheckIn.mutate({
+        visitId: active.id,
+        kind,
+        note: checkInNote,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      });
+    } else {
+      const base = checkInNote.trim();
+      recordCheckIn.mutate({
+        visitId: active.id,
+        kind,
+        note: base ? `${base} (lokasi tidak tersedia)` : "lokasi tidak tersedia",
+        lat: null,
+        lng: null,
+        accuracy: null,
+      });
+    }
+  }
 
   const softDelete = useMutation({
     mutationFn: async (v: VisitRow) =>
@@ -800,7 +952,7 @@ export default function FieldPage() {
               </span>
             </span>
           ))}
-          . Klik baris → panel kanan (detail + check-in geo-stamped). Peta lapangan menyusul.
+          . Klik baris → panel kanan (detail + check-in geo-stamped). Peta terisi dari check-in berlokasi.
         </p>
       </div>
 
@@ -808,15 +960,17 @@ export default function FieldPage() {
       <AppDrawerRaw
         open={drawerOpen}
         onClose={closeDrawer}
-        title={creating ? "Jadwalkan kunjungan" : active?.title ?? "Detail kunjungan"}
+        title={creating ? "Jadwalkan kunjungan" : editing ? "Edit kunjungan" : active?.title ?? "Detail kunjungan"}
         widthClassName="w-[420px] max-w-full"
       >
         {creating ? (
-          <CreateVisitDrawer
+          <VisitFormDrawer
+            mode="create"
             form={form}
             setForm={setForm}
             contacts={contactsQ.data ?? []}
             companies={companiesQ.data ?? []}
+            deals={dealsQ.data ?? []}
             pending={createVisit.isPending}
             onClose={() => setCreating(false)}
             onSubmit={() => {
@@ -827,11 +981,30 @@ export default function FieldPage() {
               createVisit.mutate(form);
             }}
           />
+        ) : editing && active ? (
+          <VisitFormDrawer
+            mode="edit"
+            form={form}
+            setForm={setForm}
+            contacts={contactsQ.data ?? []}
+            companies={companiesQ.data ?? []}
+            deals={dealsQ.data ?? []}
+            pending={updateVisit.isPending}
+            onClose={() => setEditing(false)}
+            onSubmit={() => {
+              if (!form.title.trim()) {
+                toast.error("Judul kunjungan wajib diisi");
+                return;
+              }
+              updateVisit.mutate({ id: active.id, f: form });
+            }}
+          />
         ) : active ? (
           <VisitDetailDrawer
             visit={active}
             contact={active.contactId ? contactById[active.contactId] ?? null : null}
             company={active.companyId ? companyById[active.companyId] ?? null : null}
+            deal={active.dealId ? dealById[active.dealId] ?? null : null}
             checkIns={checkInsQ.data ?? []}
             checkInsLoading={checkInsQ.isLoading}
             checkInsError={checkInsQ.isError}
@@ -839,15 +1012,13 @@ export default function FieldPage() {
             checkInNote={checkInNote}
             setCheckInNote={setCheckInNote}
             recordingKind={
-              recordCheckIn.isPending
-                ? (recordCheckIn.variables?.kind ?? null)
-                : null
+              geoKind ?? (recordCheckIn.isPending ? (recordCheckIn.variables?.kind ?? null) : null)
             }
-            onCheckIn={(kind) =>
-              recordCheckIn.mutate({ visitId: active.id, kind, note: checkInNote })
-            }
+            locating={geoKind}
+            onCheckIn={handleCheckIn}
             onSetStatus={(status) => setStatus.mutate({ id: active.id, status })}
             statusPending={setStatus.isPending}
+            onEdit={() => openEdit(active)}
             onDelete={() => setDeleteTarget(active)}
             onClose={() => setOpenId(null)}
           />
@@ -1135,6 +1306,7 @@ function VisitDetailDrawer({
   visit,
   contact,
   company,
+  deal,
   checkIns,
   checkInsLoading,
   checkInsError,
@@ -1142,15 +1314,18 @@ function VisitDetailDrawer({
   checkInNote,
   setCheckInNote,
   recordingKind,
+  locating,
   onCheckIn,
   onSetStatus,
   statusPending,
+  onEdit,
   onDelete,
   onClose,
 }: {
   visit: VisitRow;
   contact: ContactRow | null;
   company: CompanyRow | null;
+  deal: DealRow | null;
   checkIns: CheckInRow[];
   checkInsLoading: boolean;
   checkInsError: boolean;
@@ -1158,9 +1333,11 @@ function VisitDetailDrawer({
   checkInNote: string;
   setCheckInNote: (v: string) => void;
   recordingKind: string | null;
+  locating: "check_in" | "check_out" | null;
   onCheckIn: (kind: "check_in" | "check_out") => void;
   onSetStatus: (status: string) => void;
   statusPending: boolean;
+  onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -1265,6 +1442,11 @@ function VisitDetailDrawer({
           <div className="space-y-2 text-[13px]">
             <DetailRow icon={Building2} label="Akun" value={company?.name ?? null} />
             <DetailRow icon={User} label="Kontak" value={contact?.fullName ?? null} />
+            <DetailRow
+              icon={Target}
+              label="Deal"
+              value={deal ? `${deal.name} · ${deal.currency} ${deal.value.toLocaleString("id-ID")}` : null}
+            />
             <DetailRow icon={MapPin} label="Alamat" value={visit.address} />
             <DetailRow icon={CalendarClock} label="Jadwal" value={fmtTimeID(visit.scheduledAt)} />
             <DetailRow icon={LogIn} label="Tiba (check-in)" value={fmtTimeID(visit.startedAt)} />
@@ -1303,7 +1485,11 @@ function VisitDetailDrawer({
               className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               <LogIn className="h-3.5 w-3.5" />
-              {recordingKind === "check_in" ? "Mencatat…" : "Check-in"}
+              {recordingKind === "check_in"
+                ? locating === "check_in"
+                  ? "Mengambil lokasi…"
+                  : "Mencatat…"
+                : "Check-in"}
             </button>
             <button
               type="button"
@@ -1312,12 +1498,16 @@ function VisitDetailDrawer({
               className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12px] font-semibold text-foreground transition-colors hover:border-primary/40 disabled:opacity-60"
             >
               <LogOut className="h-3.5 w-3.5" />
-              {recordingKind === "check_out" ? "Mencatat…" : "Check-out"}
+              {recordingKind === "check_out"
+                ? locating === "check_out"
+                  ? "Mengambil lokasi…"
+                  : "Mencatat…"
+                : "Check-out"}
             </button>
           </div>
           <p className="mt-1.5 text-[10px] text-muted-foreground">
-            Check-in stempel geo akan terisi otomatis di mobile. Di sini lokasi dicatat dari alamat
-            kunjungan.
+            Saat check-in, browser meminta izin lokasi untuk menstempel titik geo di peta. Jika izin
+            ditolak, check-in tetap tercatat—tanpa koordinat.
           </p>
         </div>
 
@@ -1355,7 +1545,7 @@ function VisitDetailDrawer({
 
       {/* footer */}
       <div className="flex shrink-0 items-center gap-2 border-t border-border bg-card px-5 py-3">
-        <Button variant="outline" size="sm" disabled>
+        <Button variant="outline" size="sm" onClick={onEdit}>
           <Pencil className="h-4 w-4" /> Edit
         </Button>
         <Button
@@ -1422,34 +1612,39 @@ function CheckInItem({ checkIn }: { checkIn: CheckInRow }) {
 
 // ── create-visit drawer ───────────────────────────────────────────────────────
 
-function CreateVisitDrawer({
+function VisitFormDrawer({
+  mode,
   form,
   setForm,
   contacts,
   companies,
+  deals,
   pending,
   onClose,
   onSubmit,
 }: {
+  mode: "create" | "edit";
   form: VisitForm;
   setForm: React.Dispatch<React.SetStateAction<VisitForm>>;
   contacts: ContactRow[];
   companies: CompanyRow[];
+  deals: DealRow[];
   pending: boolean;
   onClose: () => void;
   onSubmit: () => void;
 }) {
+  const isEdit = mode === "edit";
   return (
     <>
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Plus className="h-[18px] w-[18px]" />
+            {isEdit ? <Pencil className="h-[18px] w-[18px]" /> : <Plus className="h-[18px] w-[18px]" />}
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-bold">Kunjungan baru</h2>
+            <h2 className="truncate text-sm font-bold">{isEdit ? "Edit kunjungan" : "Kunjungan baru"}</h2>
             <p className="truncate text-[11px] text-muted-foreground">
-              Catat rencana kunjungan lapangan
+              {isEdit ? "Ubah detail & hasil kunjungan" : "Catat rencana kunjungan lapangan"}
             </p>
           </div>
         </div>
@@ -1529,6 +1724,32 @@ function CreateVisitDrawer({
           />
         </Field>
 
+        <Field label="Deal terkait" hint={deals.length === 0 ? "Belum ada deal di pipeline." : "Kaitkan kunjungan ke satu deal (opsional)."}>
+          <SelectInput
+            value={form.dealId}
+            onChange={(v) => setForm((f) => ({ ...f, dealId: v }))}
+            options={[
+              { value: "", label: "— tidak terkait —" },
+              ...deals.map((d) => ({
+                value: d.id,
+                label: `${d.name} · ${d.currency} ${d.value.toLocaleString("id-ID")}`,
+              })),
+            ]}
+          />
+        </Field>
+
+        {isEdit && (
+          <Field label="Hasil kunjungan" hint="Ringkasan hasil / outcome (opsional).">
+            <textarea
+              rows={2}
+              value={form.outcome}
+              onChange={(e) => setForm((f) => ({ ...f, outcome: e.target.value }))}
+              placeholder="mis. Owner tertarik, minta penawaran resmi minggu depan…"
+              className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </Field>
+        )}
+
         <Field label="Catatan" hint="Opsional.">
           <textarea
             rows={3}
@@ -1553,7 +1774,7 @@ function CreateVisitDrawer({
           className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-60"
         >
           <Check className="h-4 w-4" />
-          {pending ? "Menyimpan…" : "Buat kunjungan"}
+          {pending ? "Menyimpan…" : isEdit ? "Simpan perubahan" : "Buat kunjungan"}
         </button>
       </div>
     </>

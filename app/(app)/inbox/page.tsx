@@ -34,7 +34,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -44,12 +43,14 @@ import {
   Mail,
   MessageSquare,
   Paperclip,
+  Pencil,
   RotateCcw,
   Search,
   Send,
   Smile,
   Sparkles,
   Trash2,
+  X,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PurgeDialog } from "@/components/shared/purge-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { WaDraft } from "@/lib/wa/draft-store";
 import { cn } from "@/lib/utils";
 
 // ── API envelope ({ ok, data }) ──────────────────────────────────────────────
@@ -783,14 +785,16 @@ export default function InboxPage() {
               </button>
             </div>
 
-            {/* (b) AI draft handoff banner (semi mode) */}
+            {/* (b) AI draft review (semi mode) — only renders when a real pending
+                draft exists for this conversation (else it's nothing, no fake banner). */}
             {waMode === "semi" && (
-              <div className="flex shrink-0 items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-[11px]">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-                <span className="flex-1 text-amber-800">
-                  <b>Mode semi-auto:</b> AI menyusun draf, butuh persetujuan kamu sebelum dikirim.
-                </span>
-              </div>
+              <WaDraftReview
+                conversationId={active.id}
+                onEdit={(text) => {
+                  setDraft(text);
+                  requestAnimationFrame(() => composerRef.current?.focus());
+                }}
+              />
             )}
 
             {/* (c) messages — bubbles, date separators, WA wallpaper */}
@@ -1381,6 +1385,142 @@ function TrashedRowItem({
             <Trash2 className="h-3 w-3" /> Hapus permanen
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Semi-auto WA draft review — mounted in the thread header when WA mode is "semi".
+ * Polls GET /api/wa/draft for a pending AI draft on the open conversation; renders
+ * the paced bubbles with Approve / Edit / Buang. Renders NOTHING when no draft
+ * exists (so the composer isn't shoved down by an empty banner).
+ *   • Approve → send each bubble through the SAME path the composer uses
+ *     (POST /api/messages → message_v2, appears in the thread), then clear the draft.
+ *   • Edit    → load the bubbles into the composer for the rep to tweak & send,
+ *               then consume (clear) the held draft.
+ *   • Buang   → clear the held draft (POST /api/wa/draft {action:discard}), no send.
+ */
+function WaDraftReview({
+  conversationId,
+  onEdit,
+}: {
+  conversationId: string;
+  onEdit: (text: string) => void;
+}) {
+  const qc = useQueryClient();
+
+  const draftQ = useQuery({
+    queryKey: ["inbox", "wa", "draft", conversationId],
+    queryFn: async () => {
+      const r = await fetch(`/api/wa/draft?conversationId=${encodeURIComponent(conversationId)}`);
+      if (!r.ok) return null;
+      const j = (await r.json().catch(() => null)) as { draft?: WaDraft | null } | null;
+      return j?.draft ?? null;
+    },
+    refetchInterval: 10_000,
+    retry: false,
+  });
+
+  // Remove the held semi-auto draft (discard just clears it — no WA send).
+  async function clearHeldDraft() {
+    const r = await fetch("/api/wa/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, action: "discard" }),
+    });
+    if (!r.ok) throw new Error("Gagal memproses draf");
+  }
+
+  const approve = useMutation({
+    mutationFn: async (d: WaDraft) => {
+      for (const b of d.bubbles) {
+        const r = await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId,
+            direction: "out",
+            body: b.text,
+            isAiGenerated: true,
+          }),
+        });
+        if (!r.ok) throw new Error("Gagal mengirim draf");
+      }
+      await clearHeldDraft();
+    },
+    onSuccess: () => {
+      toast.success("Draf AI disetujui & dikirim");
+      qc.invalidateQueries({ queryKey: ["inbox", "wa", "draft", conversationId] });
+      qc.invalidateQueries({ queryKey: ["inbox", "messages", conversationId] });
+      qc.invalidateQueries({ queryKey: ["inbox", "conversations"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mengirim draf"),
+  });
+
+  const discard = useMutation({
+    mutationFn: clearHeldDraft,
+    onSuccess: () => {
+      toast.success("Draf AI dibuang");
+      qc.invalidateQueries({ queryKey: ["inbox", "wa", "draft", conversationId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal membuang draf"),
+  });
+
+  // Edit: hand the text to the composer, then quietly consume the held draft.
+  const consumeForEdit = useMutation({
+    mutationFn: clearHeldDraft,
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["inbox", "wa", "draft", conversationId] }),
+  });
+
+  const draft = draftQ.data;
+  if (!draft || draft.bubbles.length === 0) return null;
+  const busy = approve.isPending || discard.isPending || consumeForEdit.isPending;
+
+  return (
+    <div className="shrink-0 border-b border-primary/20 bg-primary/[0.05] px-4 py-3">
+      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-primary">
+        <Sparkles className="h-3.5 w-3.5" /> Draf AI menunggu persetujuan
+      </p>
+      <div className="mb-2.5 flex flex-col items-start gap-1.5">
+        {draft.bubbles.map((b, i) => (
+          <div
+            key={i}
+            className="w-fit max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-sm bg-card px-3 py-1.5 text-[13px] leading-relaxed shadow-sm"
+          >
+            {b.text}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => approve.mutate(draft)}
+          disabled={busy}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          <Check className="h-3.5 w-3.5" /> Setujui &amp; kirim
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onEdit(draft.bubbles.map((b) => b.text).join("\n"));
+            consumeForEdit.mutate();
+          }}
+          disabled={busy}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12px] font-medium transition-colors hover:border-primary/40 disabled:opacity-50"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => discard.mutate()}
+          disabled={busy}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
+        >
+          <X className="h-3.5 w-3.5" /> Buang
+        </button>
       </div>
     </div>
   );
