@@ -51,6 +51,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const verified = await authService.verifyCredentials(email, password);
           if (verified) {
             const { user, membership } = verified;
+            // Independent superadmin (no membership) → no tenant; lands in /admin.
+            if (!membership) {
+              return {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: "superadmin",
+                tenantId: "",
+                isSuperadmin: true,
+                tenantStatus: "active",
+                avatarColor: user.avatarColor ?? undefined,
+              };
+            }
             const tenant = await tenantService.get(membership.tenantId).catch(() => null);
             return {
               id: user.id,

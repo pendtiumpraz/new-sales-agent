@@ -50,7 +50,7 @@ export interface RegisterResult {
 
 export interface VerifiedCredential {
   user: AppUserRow;
-  membership: MembershipRow;
+  membership: MembershipRow | null; // null for an INDEPENDENT superadmin (no tenant)
 }
 
 /**
@@ -136,11 +136,13 @@ export const authService = {
     if (!user) return null;
     if (!(await verifyPassword(password, user.passwordHash))) return null;
 
+    // Superadmin is INDEPENDENT — not tied to (nor allowed in) any tenant/team, so
+    // no membership is required. A regular user MUST resolve to a tenant.
     const membership = await tenantService.firstMembership(user.id);
-    if (!membership) return null;
+    if (!membership && !user.isSuperadmin) return null;
 
     await tenantService.markLogin(user.id);
-    return { user, membership };
+    return { user, membership: membership ?? null };
   },
 
   /**

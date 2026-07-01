@@ -27,11 +27,14 @@ import type { TenantContext } from "@/lib/db/tenant-context";
 export async function getTenantContext(): Promise<TenantContext | null> {
   const session = await auth();
   const u = session?.user;
-  if (!u?.tenantId || !u?.id) return null;
+  if (!u?.id) return null;
+  // Superadmin is INDEPENDENT — no tenant. Every other user needs a tenant.
+  const isSuper = u.isSuperadmin === true || u.role === "superadmin";
+  if (!u.tenantId && !isSuper) return null;
 
   // JWT-derived baseline (fail-open default).
   const ctx: TenantContext = {
-    tenantId: u.tenantId,
+    tenantId: u.tenantId ?? "",
     userId: u.id,
     role: u.role,
     isSuperadmin: u.isSuperadmin ?? false,

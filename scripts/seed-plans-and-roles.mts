@@ -93,12 +93,15 @@ try {
     );
     const { rows } = await client.query(`select id from app_user where email=$1`, [email]);
     const uid = rows[0].id as string;
-    await client.query(
-      `insert into membership (id,tenant_id,user_id,role,status)
-       values ($1,$2,$3,$4,'active')
-       on conflict (id) do update set role=excluded.role, status='active'`,
-      [`seed_mbr_${id}`, tenantId, uid, role],
-    );
+    // Superadmin is INDEPENDENT — never gets a membership (auth allows login without one).
+    if (!isSuper) {
+      await client.query(
+        `insert into membership (id,tenant_id,user_id,role,status)
+         values ($1,$2,$3,$4,'active')
+         on conflict (id) do update set role=excluded.role, status='active'`,
+        [`seed_mbr_${id}`, tenantId, uid, role],
+      );
+    }
     return uid;
   }
 
@@ -112,13 +115,11 @@ try {
   );
   await applyLimits(DEMO_TENANT, "growth");
 
-  // 3) Fix the existing superadmin (seed_superadmin) — it had NO membership, so it
-  //    could never log in (verifyCredentials requires one). Give it one now.
+  // 3) Superadmin is INDEPENDENT — strip any membership tying a superadmin to a
+  //    tenant/team (they log in without one now). Cleans the old seed_mbr_super +
+  //    any membership on a superadmin app_user.
   await client.query(
-    `insert into membership (id,tenant_id,user_id,role,status)
-     values ('seed_mbr_super',$1,'seed_superadmin','tenant_owner','active')
-     on conflict (id) do update set status='active'`,
-    [DEMO_TENANT],
+    `delete from membership where user_id in (select id from app_user where is_superadmin = true)`,
   );
 
   // 4) A login for every role (maira1234) on the demo tenant.
@@ -142,14 +143,14 @@ try {
   console.log("PLAN catalog: free / starter / growth / enterprise / unlimited");
   console.log("");
   console.log("LOGINS (password: maira1234) :");
-  console.log("  superadmin@maira.local   — SUPERADMIN (platform)");
+  console.log("  superadmin@maira.local   — SUPERADMIN (platform, INDEPENDENT — no tenant/membership)");
   console.log("  owner@maira.local        — tenant_owner  @ Maira Demo (growth)");
   console.log("  admin@maira.local        — tenant_admin  @ Maira Demo (growth)");
   console.log("  manager@maira.local      — sales_manager @ Maira Demo (growth)");
   console.log("  rep@maira.local          — sales_rep     @ Maira Demo (growth)");
   console.log("  unlimited@maira.local    — tenant_owner  @ Maira Unlimited (ALL quotas unlimited)");
   console.log("");
-  console.log("Also fixed: superadmin@demo.local / demo1234 now has a membership -> can log in.");
+  console.log("Superadmin (superadmin@maira.local, superadmin@demo.local) log in WITHOUT any membership — independent, sees all tenants via /admin.");
 } finally {
   await client.end();
 }

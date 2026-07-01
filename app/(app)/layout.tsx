@@ -17,7 +17,7 @@ export default function AppLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const mainRef = useRef<HTMLElement>(null);
 
   // a11y (audit #18): move focus to the content region on every route change so
@@ -36,6 +36,15 @@ export default function AppLayout({
       router.replace(`/login?next=${next}`);
     }
   }, [status, pathname, router]);
+
+  // Superadmin is INDEPENDENT (no tenant) — home is the /admin console, not the
+  // tenant app shell. Bounce them so they never land on a tenant-scoped page with
+  // no workspace/tenant.
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role === "superadmin") {
+      router.replace("/admin");
+    }
+  }, [status, session, router]);
 
   // Activation gate (doc 38): a pending / expired / suspended tenant can't use
   // the app — bounce to /pending. Fails open (errors → ignore) so a glitch never
