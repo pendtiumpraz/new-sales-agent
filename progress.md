@@ -222,4 +222,64 @@ Transport (keputusan + caveat):
 
 ---
 
+## Selesai 2026-07-02 (re-audit + BYOA groundwork)
+
+> Sesi audit menyeluruh **FE ↔ BE ↔ DB**: nutup celah orphaning legacy-vs-rebuild,
+> buang backend mati/dobel, hidupin fitur yang ke-wire tapi nggak jalan, + fondasi UX
+> (Panduan per-fitur, notifikasi persist). Semua tsc + lint hijau tiap langkah.
+
+| Item | Commit |
+|---|---|
+| **Re-audit penuh FE↔BE↔DB** — telusuri tiap halaman → endpoint → tabel, catat field-miss + endpoint yatim | sesi ini |
+| **Fix orphaning legacy-vs-rebuild**: discovery scrape + extension `/api/ingest` sekarang nulis ke `company_v2`/`contact` (rebuild graph), bukan tabel legacy | `a787b94` + `b6d8578` |
+| **Buang backend mati/dobel**: pohon marketplace legacy, rollup `/reports` yang mati, endpoint dobel | `a787b94` |
+| **Hidupin fitur mati**: autopilot run lifecycle, inbox semi-draft, handoff note/history, pipeline create/edit + `lostReason`, manual create-contact, Field Edit + geo check-in, console note/vertical | `20de440` |
+| **Panduan per-fitur** (`FeatureGuide` di 19 halaman) — tutorial in-app tiap modul | `c6772ad` |
+| **Sistem notifikasi persist** (bell + 8 event emit) | `c6772ad` |
+| **`/marketplace` di-rebuild** jadi data-marketplace antar-tenant (jual/tukar data company) | `7956844` |
+| **Penawaran / Retensi / E-Commerce di-wire ke CRM graph** | `9380e3b` |
+| **Workspace tabs dibenerin**: Kontak parity dgn halaman Contacts, Sales Play/Teknik bisa di-set, Lainnya→Pengaturan | `f1ab9f1` |
+| **Inline "+ Produk baru"** di dialog Buat Workspace | `316825f` |
+| **Google Maps Level-1** sebagai channel extension (v0.15) | `b6d8578` + `a5b8216` |
+| **Bulk CSV contact import** (B2B/B2C) + template + API agent-usable + skill `/import-contacts` | `3939d37` |
+| **Vercel region `sin1`** + perf fixes (potong latency per-page) | `6f340f7` + sesi ini |
+
+---
+
+## PENDING / ROADMAP (belum dikerjakan)
+
+### BYOA — Bring Your Own Agent (disetujui, belum dibangun)
+
+> Arah: tenant boleh nyolokin agent/LLM sendiri (hemat token platform + privacy). Empat
+> potongan yang harus dibangun berurutan:
+
+- ⬜ **(a) API key per-account, scoped + revocable** — tabel `api_key` + guard Bearer-auth + UI Settings→API Keys.
+  _Kenapa: pintu masuk semua akses programatik tenant; tanpa ini nggak ada auth buat BYOA/agent._
+- ⬜ **(b) BYOA-pull task queue** — tabel `agent_task` + endpoint `GET` poll / `POST` result; saat tenant mode-BYOA, app **enqueue task** alih-alih call DeepSeek langsung.
+  _Kenapa: mindahin inferensi ke agent tenant (hemat token platform), sekaligus tetap ke-audit lewat hasil yang di-POST balik._
+- ⬜ **(c) Agent↔Extension** — dua kapabilitas:
+  - **DRIVE** (`extension_command` queue): platform/agent enqueue perintah crawl/enrich/stop, extension poll pakai tokennya → eksekusi RPA → lapor balik.
+    _Kenapa: bikin extension bisa dikendalikan dari server (bukan cuma manual click), jalur ke discovery terjadwal/otomatis._
+  - **ANALYZE**: rute AI in-browser extension lewat agent/LLM tenant → otomatis jadi **metered**.
+    _Kenapa: nutup lubang classify unmetered (lihat caveat) + naruh biaya di kredit tenant._
+- ⬜ **(d) Surface SKILL.md per-tenant** — section "API & Agent" + file skill bisa di-download.
+  _Kenapa: tenant butuh dokumentasi + skill siap-pakai buat ngedrive agentnya sendiri._
+
+### Caveat / gap terbuka (jujur, dari audit)
+
+- ⬜ **Extension crawl AI masih call DeepSeek LANGSUNG (unmetered)** sampai BYOA/metering (c-ANALYZE) mendarat.
+  _Kenapa: bypass C1–C6 + nggak kena kredit tenant → harus dirutein lewat meter._
+- ⬜ **Google Maps adapter — selektor DOM masih WIP** (butuh tuning di browser nyata) + **auto-tile >120 hasil** belum ada (TODO).
+  _Kenapa: DOM Maps rapuh; tanpa tiling hasil ke-cap ~120 per kueri._
+- ⬜ **Autopilot auto-mode nulis balasan ke thread inbox tapi NGGAK push ke WA session fisik** (bridge inbox↔WA-transport belum dibangun).
+  _Kenapa: dua backend percakapan belum nyambung → balasan auto nggak beneran terkirim._
+- ⬜ **Inbox semi-draft cuma muncul kalau `conversation_v2` id == id draft WA gaya-lama** (dua backend conversation belum di-bridge).
+  _Kenapa: id-space beda → draf nggak kelihatan di sebagian thread._
+- ⬜ **P3 field-miss belum di-surface di UI**: `sales_play.steps`/`config`, `taxonomy.description`, `contact.tags`/`lifecycle`.
+  _Kenapa: kolom ada di DB tapi nggak ke-render/ke-edit → data nggak lengkap._
+- ⬜ **Field AI `profileConfidence`/`experience`/`capturedAt` belum punya rumah kolom di rebuild**.
+  _Kenapa: hasil enrich AI nggak ada tempat persist di schema rebuild → ke-drop._
+
+---
+
 _Update terakhir: ditulis bareng implementasi sesi ini. Tiap fase selesai → centang + catat commit._
