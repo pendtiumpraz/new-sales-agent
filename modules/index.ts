@@ -70,3 +70,8 @@ export * from "./notification/schema";
 // Per-account (BYOA) API keys — a tenant's external agent calls the {ok,data}
 // data-level API with a scoped, revocable Bearer key (`msk_live_…`). Owns: api_key.
 export * from "./apikey/schema";
+
+// BYOA agent task-queue (Fase 2) — when a tenant runs in `byoa` mode the platform
+// enqueues a generation task here; the tenant's own agent (write-scope API key)
+// polls, generates with ITS OWN model, and posts the result back. Owns: agent_task.
+export * from "./agent-task/schema";

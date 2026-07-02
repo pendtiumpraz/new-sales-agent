@@ -57,6 +57,14 @@ export type KbScope = (typeof KB_SCOPES)[number];
 
 const COMPLIANCE_PREFIX = "compliance.";
 
+// BYOA source-of-AI mode (Fase 2). Stored as a tenant_settings k/v row under this
+// key (category "ai") — NO new table. `platform` = the platform DeepSeek call
+// (default); `byoa` = the tenant's own agent fulfills generations via the
+// agent_task queue. Read by the autopilot lifecycle (outreachService.advanceRun).
+const AI_MODE_KEY = "ai.mode";
+const AI_MODES = ["platform", "byoa"] as const;
+export type AiMode = (typeof AI_MODES)[number];
+
 /** Start of the current month in Asia/Jakarta (UTC+7) as a UTC Date — AI usage
  *  is windowed to this so the rollup is the manageable current-month spend, not
  *  an ever-growing lifetime total (mirrors the legacy /api/tenant/ai route). */
@@ -87,6 +95,8 @@ export interface AiConfig {
   }[];
   activeModelId: string | null;
   usage: { tokensIn: number; tokensOut: number; cost: number; calls: number };
+  /** Source of AI: `platform` (platform DeepSeek call) | `byoa` (tenant's own agent). */
+  aiMode: AiMode;
 }
 
 export interface MailboxConfig {
@@ -311,7 +321,29 @@ export const settingsService = {
       { tokensIn: 0, tokensOut: 0, cost: 0, calls: 0 },
     );
 
-    return { models: data.models, providers, activeModelId: data.active[0]?.modelId ?? null, usage };
+    const aiMode = await this.getAiMode(ctx);
+    return { models: data.models, providers, activeModelId: data.active[0]?.modelId ?? null, usage, aiMode };
+  },
+
+  /**
+   * Source-of-AI mode for the tenant (BYOA, Fase 2). `platform` (default) → the
+   * platform DeepSeek call; `byoa` → the tenant's own agent fulfills generations
+   * via the agent_task queue. Reads the `ai.mode` tenant_settings row; an unknown/
+   * missing value falls back to `platform`.
+   */
+  async getAiMode(ctx: TenantContext): Promise<AiMode> {
+    const row = await settingsRepo.getSetting(ctx, AI_MODE_KEY);
+    return row?.value === "byoa" ? "byoa" : "platform";
+  },
+
+  /** Set the tenant's source-of-AI mode (`platform` | `byoa`). Idempotent upsert. */
+  async setAiMode(ctx: TenantContext, mode: string): Promise<{ aiMode: AiMode }> {
+    if (!AI_MODES.includes(mode as AiMode)) {
+      throw new ServiceError(`aiMode harus salah satu dari: ${AI_MODES.join(", ")}`, 400, "validation");
+    }
+    await settingsRepo.upsertSetting(ctx, AI_MODE_KEY, { value: mode, category: "ai", label: "Sumber AI" });
+    await this.audit(ctx, "settings.ai.set_mode", "tenant_settings", null, { aiMode: mode });
+    return { aiMode: mode as AiMode };
   },
 
   /**

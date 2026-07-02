@@ -19,6 +19,7 @@
 // Manage controls (set-active + BYOK) are gated to tenant.settings.manage.
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -26,9 +27,11 @@ import {
   Bot,
   Check,
   Coins,
+  Cpu,
   Gauge,
   KeyRound,
   Loader2,
+  Server,
   Sparkles,
   Trash2,
   Wallet,
@@ -86,11 +89,14 @@ interface UsageRollup {
   calls: number;
 }
 
+type AiMode = "platform" | "byoa";
+
 interface AiConfig {
   models: ModelRow[];
   providers: ProviderRow[];
   activeModelId: string | null;
   usage: UsageRollup | null;
+  aiMode: AiMode;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -174,6 +180,27 @@ export default function AiSettingsPage() {
       invalidate();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mengubah model aktif"),
+  });
+
+  // Source-of-AI mode (BYOA, Fase 2): platform DeepSeek vs the tenant's own agent.
+  const setMode = useMutation({
+    mutationFn: async (aiMode: AiMode) =>
+      readJson<{ aiMode: AiMode }>(
+        await fetch("/api/settings/ai", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aiMode }),
+        }),
+      ),
+    onSuccess: (res) => {
+      toast.success(
+        res.aiMode === "byoa"
+          ? "Sumber AI: Agent saya (BYOA) — generasi dialihkan ke agent tenant"
+          : "Sumber AI: Platform DeepSeek",
+      );
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mengubah sumber AI"),
   });
 
   // BYOK save → existing infra route that writes the encrypted ai_credential row.
@@ -285,6 +312,18 @@ export default function AiSettingsPage() {
           />
         </section>
 
+        {/* ============ SUMBER AI (platform vs BYOA) ============ */}
+        {data && (
+          <AiModeCard
+            mode={data.aiMode}
+            canManage={canManage}
+            pending={setMode.isPending}
+            onSelect={(m) => {
+              if (m !== data.aiMode) setMode.mutate(m);
+            }}
+          />
+        )}
+
         {/* ============ PROVIDERS + MODELS ============ */}
         {configQ.isLoading ? (
           <ProvidersLoading />
@@ -344,6 +383,119 @@ export default function AiSettingsPage() {
 }
 
 // ───────────────────────── sub-components ─────────────────────────
+
+/** Source-of-AI toggle (BYOA, Fase 2): platform DeepSeek vs the tenant's own agent. */
+function AiModeCard({
+  mode,
+  canManage,
+  pending,
+  onSelect,
+}: {
+  mode: AiMode;
+  canManage: boolean;
+  pending: boolean;
+  onSelect: (m: AiMode) => void;
+}) {
+  const options: {
+    value: AiMode;
+    title: string;
+    desc: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      value: "platform",
+      title: "Platform DeepSeek",
+      desc: "Balasan & analisis digenerate oleh model platform (DeepSeek) memakai kuota/BYOK tenant. Default.",
+      icon: <Sparkles className="h-4 w-4" />,
+    },
+    {
+      value: "byoa",
+      title: "Agent saya (BYOA)",
+      desc: "Platform mengantre task; agent milikmu (pakai API key write-scope) menariknya, generate dengan modelmu sendiri, lalu kirim balik hasilnya.",
+      icon: <Cpu className="h-4 w-4" />,
+    },
+  ];
+  return (
+    <Card className="overflow-hidden shadow-soft">
+      <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-tertiary/[0.12] text-tertiary">
+            <Server className="h-4 w-4" />
+          </span>
+          Sumber AI
+        </CardTitle>
+        <Badge variant="muted" className="gap-1">
+          {mode === "byoa" ? "Agent saya (BYOA)" : "Platform DeepSeek"}
+        </Badge>
+      </CardHeader>
+      <CardContent className="space-y-3 p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {options.map((o) => {
+            const active = o.value === mode;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                disabled={!canManage || pending}
+                onClick={() => onSelect(o.value)}
+                className={cn(
+                  "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition",
+                  active
+                    ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
+                    : "border-border bg-card hover:border-primary/40",
+                  (!canManage || pending) && "cursor-not-allowed opacity-70",
+                )}
+              >
+                <span className="flex w-full items-center gap-2">
+                  <span
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-md",
+                      active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {o.icon}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{o.title}</span>
+                  {active && (
+                    <Badge className="ml-auto gap-1 bg-primary/15 text-primary">
+                      <Check className="h-3 w-3" /> Aktif
+                    </Badge>
+                  )}
+                </span>
+                <span className="text-[11px] leading-relaxed text-muted-foreground">{o.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {mode === "byoa" ? (
+            <>
+              Mode BYOA aktif untuk fitur async (mulai dari Autopilot). Agentmu butuh API key{" "}
+              <b>write-scope</b> — buat &amp; kelola di{" "}
+              <Link href="/settings/api-keys" className="font-medium text-primary hover:underline">
+                Settings → API Keys
+              </Link>
+              . Poll <code className="rounded bg-muted px-1">POST /api/agent/tasks/claim</code>, generate,
+              lalu <code className="rounded bg-muted px-1">POST /api/agent/tasks/&#123;id&#125;/result</code>.
+            </>
+          ) : (
+            <>
+              Ingin agent sendiri yang membalas? Pilih <b>Agent saya (BYOA)</b>, lalu siapkan API key
+              write-scope di{" "}
+              <Link href="/settings/api-keys" className="font-medium text-primary hover:underline">
+                Settings → API Keys
+              </Link>
+              .
+            </>
+          )}
+        </p>
+        {!canManage && (
+          <p className="text-[11px] text-warning">Hanya Owner/Admin tenant yang bisa mengubah sumber AI.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function UsageCard({
   label,

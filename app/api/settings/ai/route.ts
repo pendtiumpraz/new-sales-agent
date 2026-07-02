@@ -18,6 +18,7 @@ export async function GET() {
       providers: [],
       activeModelId: null,
       usage: { tokensIn: 0, tokensOut: 0, cost: 0, calls: 0 },
+      aiMode: "platform",
     });
   return handle(
     async () => ok(await settingsService.getAiConfig(g.ctx)),
@@ -25,15 +26,19 @@ export async function GET() {
   );
 }
 
-// PATCH /api/settings/ai → set the tenant's one active model. Body { modelId }.
+// PATCH /api/settings/ai → set the tenant's one active model (body { modelId }) OR
+// its source-of-AI mode (body { aiMode: "platform" | "byoa" }, Fase 2/BYOA).
 // tenant.settings.manage.
 export async function PATCH(req: Request) {
   const g = await requirePermission("tenant.settings.manage");
   if ("error" in g) return fail("Forbidden", 403, "forbidden");
   if (!hasDb()) return fail("Database tidak tersedia", 503, "no_db");
-  return handle(async () => {
-    const body = (await req.json()) as { modelId?: string };
-    if (!body?.modelId) return fail("modelId wajib diisi", 400, "validation");
+  return handle<Record<string, string>>(async () => {
+    const body = (await req.json()) as { modelId?: string; aiMode?: string };
+    if (body?.aiMode !== undefined) {
+      return ok(await settingsService.setAiMode(g.ctx, body.aiMode));
+    }
+    if (!body?.modelId) return fail("modelId atau aiMode wajib diisi", 400, "validation");
     return ok(await settingsService.setActiveModel(g.ctx, body.modelId));
   }, "api/settings/ai PATCH");
 }

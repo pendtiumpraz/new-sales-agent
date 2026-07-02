@@ -683,7 +683,6 @@ export const outreachService = {
 
       // Per-workspace tuning + persisted stage (lazy-load the AI stack so the
       // shared outreach service module doesn't pull it into every route).
-      const { buildWaReply } = await import("@/lib/wa/orchestrator");
       const { loadStage, saveStage } = await import("@/lib/sales/stage-store");
       const { loadMarketFit } = await import("@/lib/market-fit/store");
       const { loadSalesPlay } = await import("@/lib/sales-play/store");
@@ -698,8 +697,44 @@ export const outreachService = {
       }
       const stage = await loadStage(run.conversationId);
 
+      // ── BYOA (Fase 2): if the tenant runs its OWN agent, do NOT call the platform
+      // LLM inline. Persist the context log so far, ENQUEUE a draft_reply task, and
+      // leave the run RUNNING. The tenant's agent polls the queue, generates with
+      // its own model, and POSTs the result back → agentTaskService.applyResult
+      // appends the bubbles + finishes THIS run (auto → sends; suggest → draft).
+      // `platform` mode (default) keeps the synchronous behavior below UNCHANGED.
+      const { settingsService } = await import("@/modules/settings/service");
+      if ((await settingsService.getAiMode(ctx)) === "byoa") {
+        add(
+          "byoa-queue",
+          "Mode BYOA aktif — task draft_reply diantrekan untuk agent tenant. Run tetap berjalan sampai agent mengirim hasil.",
+        );
+        await this.updateRun(ctx, id, { logEntries: entries });
+        const { agentTaskService } = await import("@/modules/agent-task/service");
+        const task = await agentTaskService.enqueue(ctx, {
+          type: "draft_reply",
+          payload: {
+            conversationId: run.conversationId,
+            contactName,
+            history,
+            mode: run.mode,
+            stage,
+            marketType: marketType ?? null,
+          },
+          refType: "autopilot_run",
+          refId: id,
+        });
+        await this.audit(ctx, "outreach.autopilot.advance", "autopilot_run", id, {
+          status: "running",
+          byoa: true,
+          taskId: task.id,
+        });
+        return this.getRun(ctx, id); // stays "running" until the agent fulfills it
+      }
+
       // ── The AI step (REUSED orchestrator — buildWaReply). It degrades to a
       // holding/handoff result on no-model/credit-habis, so it never throws.
+      const { buildWaReply } = await import("@/lib/wa/orchestrator");
       const result = await buildWaReply(ctx, {
         contactName,
         message,
