@@ -18,13 +18,14 @@
 // enrichment + tabs Aktivitas/Deal/Catatan + Enrich). Every band has loading +
 // empty + error states. Lives in the (app) shell (inside the Kontak cluster subnav).
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   Check,
   ChevronRight,
+  Download,
   MessageSquare,
   Pencil,
   Plus,
@@ -409,10 +410,68 @@ export default function ContactsCrmPage() {
   // ── create surface ───────────────────────────────────────────────────────────
   const [newOpen, setNewOpen] = useState(false);
 
+  // ── CSV import surface ─────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset so the same file can be re-picked
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const rows = parseContactsCsv(text);
+      setImportFileName(file.name);
+      setImportRows(rows);
+      setImportResult(null);
+      setImportOpen(true);
+    } catch {
+      toast.error("Gagal membaca file CSV.");
+    }
+  }
+
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshAll() {
     qc.invalidateQueries({ queryKey: ["crm", "contacts"] });
   }
+
+  // Bulk CSV import → POST /api/contacts/import (same sink agents use). Sends every
+  // parsed row (empty-name rows are skipped + counted server-side, so the toast is
+  // accurate); dedup by whatsapp/email happens in the backend.
+  const importContacts = useMutation({
+    mutationFn: async (rows: ImportRow[]) => {
+      const contacts = rows.map((r) => ({
+        fullName: r.fullName?.trim() ?? "",
+        segment: r.segment?.trim().toLowerCase() || undefined,
+        title: r.title?.trim() || undefined,
+        companyName: r.companyName?.trim() || undefined,
+        whatsapp: r.whatsapp?.trim() || undefined,
+        email: r.email?.trim() || undefined,
+        notes: r.notes?.trim() || undefined,
+      }));
+      return readJson<ImportResult>(
+        await fetch("/api/contacts/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contacts }),
+        }),
+      );
+    },
+    onSuccess: (res) => {
+      toast.success(`${res.created} dibuat, ${res.skipped} dilewati`);
+      if (res.errors.length > 0) {
+        toast.error(`${res.errors.length} baris gagal — lihat detail di dialog.`);
+      }
+      refreshAll();
+      setImportResult(res);
+      // Clean import (nothing to review) → close; else keep open to show errors.
+      if (res.errors.length === 0) setImportOpen(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal mengimpor kontak"),
+  });
 
   // Manual create — fills the gap where contacts only arrived via Discovery.
   const createContact = useMutation({
@@ -531,14 +590,22 @@ export default function ContactsCrmPage() {
         <FeatureGuide guide={FEATURE_GUIDES.contacts} />
         <Button asChild variant="outline" size="sm">
           <Link href="/contacts/discovery">
-            <Upload className="h-4 w-4" /> Impor / Discovery
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/contacts/discovery">
             <Search className="h-4 w-4" /> Cari lead baru
           </Link>
         </Button>
+        <Button variant="outline" size="sm" onClick={downloadTemplate}>
+          <Download className="h-4 w-4" /> Unduh template
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+          <Upload className="h-4 w-4" /> Impor CSV
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={onFilePicked}
+        />
         <Button size="sm" onClick={() => setNewOpen(true)}>
           <Plus className="h-4 w-4" /> Kontak baru
         </Button>
@@ -1251,6 +1318,17 @@ export default function ContactsCrmPage() {
         pending={createContact.isPending}
         onSubmit={(payload) => createContact.mutate(payload)}
       />
+
+      {/* ===================== IMPOR CSV ===================== */}
+      <ImportCsvModal
+        open={importOpen}
+        fileName={importFileName}
+        rows={importRows}
+        result={importResult}
+        pending={importContacts.isPending}
+        onClose={() => setImportOpen(false)}
+        onConfirm={() => importContacts.mutate(importRows)}
+      />
     </div>
   );
 }
@@ -1872,6 +1950,375 @@ function NewContactModal({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────── CSV import ─────────────────────────
+// Bulk import (B2B & B2C) — client-side template download + a small robust CSV
+// parser (quoted fields + embedded commas + CRLF + "" escapes), header-mapped
+// (case-insensitive, tolerant of extra/missing columns). The parsed rows preview
+// in a modal, then POST /api/contacts/import (dedup + company upsert server-side).
+
+const MAX_IMPORT_ROWS = 1000;
+
+interface ImportRow {
+  fullName?: string;
+  segment?: string;
+  title?: string;
+  companyName?: string;
+  whatsapp?: string;
+  email?: string;
+  notes?: string;
+}
+
+interface ImportResult {
+  created: number;
+  skipped: number;
+  errors: { row: number; reason: string }[];
+}
+
+// Case-insensitive header → ImportRow field. Unknown headers are ignored (extra
+// columns tolerated); missing columns just leave the field undefined.
+const CSV_HEADER_MAP: Record<string, keyof ImportRow> = {
+  full_name: "fullName",
+  fullname: "fullName",
+  name: "fullName",
+  nama: "fullName",
+  "nama lengkap": "fullName",
+  segment: "segment",
+  segmen: "segment",
+  title: "title",
+  jabatan: "title",
+  company_name: "companyName",
+  company: "companyName",
+  perusahaan: "companyName",
+  whatsapp: "whatsapp",
+  wa: "whatsapp",
+  phone: "whatsapp",
+  telepon: "whatsapp",
+  telp: "whatsapp",
+  hp: "whatsapp",
+  email: "email",
+  notes: "notes",
+  note: "notes",
+  catatan: "notes",
+};
+
+/** Parse CSV text into a matrix of string cells (RFC-4180-ish: quotes, "" escapes,
+ *  embedded commas/newlines, CR/LF/CRLF). Fully-blank lines are dropped. */
+function parseCsvMatrix(input: string): string[][] {
+  let text = input;
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // strip BOM
+  const rows: string[][] = [];
+  let cur: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  let i = 0;
+  const pushField = () => {
+    cur.push(field);
+    field = "";
+  };
+  const pushRow = () => {
+    pushField();
+    rows.push(cur);
+    cur = [];
+  };
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      field += ch;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (ch === ",") {
+      pushField();
+      i++;
+      continue;
+    }
+    if (ch === "\r") {
+      i++;
+      continue;
+    }
+    if (ch === "\n") {
+      pushRow();
+      i++;
+      continue;
+    }
+    field += ch;
+    i++;
+  }
+  if (field.length > 0 || cur.length > 0) pushRow();
+  return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+/** Matrix → ImportRow[] using the (case-insensitive) header row. */
+function parseContactsCsv(text: string): ImportRow[] {
+  const matrix = parseCsvMatrix(text);
+  if (matrix.length === 0) return [];
+  const keys = matrix[0].map((h) => CSV_HEADER_MAP[h.trim().toLowerCase()]);
+  const out: ImportRow[] = [];
+  for (let r = 1; r < matrix.length; r++) {
+    const cells = matrix[r];
+    const rec: ImportRow = {};
+    keys.forEach((key, c) => {
+      if (key) rec[key] = (cells[c] ?? "").trim();
+    });
+    out.push(rec);
+  }
+  return out;
+}
+
+/** Download a ready-to-fill CSV template (blob, client-side) with 2 example rows. */
+function downloadTemplate() {
+  const lines = [
+    "full_name,segment,title,company_name,whatsapp,email,notes",
+    "Budi Santoso,b2b,Procurement Manager,PT Maju Jaya,08123456789,budi@majujaya.co.id,ketemu di pameran",
+    "Sari,b2c,,,08987654321,sari@gmail.com,minat paket UMKM",
+  ];
+  const blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "template-kontak.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function ImportCsvModal({
+  open,
+  fileName,
+  rows,
+  result,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  fileName: string;
+  rows: ImportRow[];
+  result: ImportResult | null;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const total = rows.length;
+  const emptyName = useMemo(() => rows.filter((r) => !r.fullName?.trim()).length, [rows]);
+  const willImport = total - emptyName;
+  const tooMany = total > MAX_IMPORT_ROWS;
+  const preview = rows.slice(0, 5);
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className={cn(
+        "fixed inset-0 z-[70] flex items-center justify-center bg-foreground/40 p-4 transition-opacity duration-200",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex max-h-[88vh] w-full max-w-lg flex-col rounded-lg border border-border bg-card shadow-soft transition-all duration-200",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+      >
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.12] text-primary">
+              <Upload className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Impor kontak dari CSV</h3>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {fileName || "Pilih file .csv"}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* body */}
+        <div className="space-y-4 overflow-y-auto px-5 py-4">
+          {result ? (
+            /* ── result view ── */
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <ImportStat label="Dibuat" value={result.created} tone="success" />
+                <ImportStat label="Dilewati" value={result.skipped} tone="muted" />
+                <ImportStat label="Gagal" value={result.errors.length} tone="destructive" />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                &quot;Dilewati&quot; = nama kosong atau duplikat (WhatsApp/email sudah ada).
+              </p>
+              {result.errors.length > 0 && (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
+                  {result.errors.map((er) => (
+                    <p key={er.row} className="text-[11px] text-destructive">
+                      <b>Baris {er.row + 1}</b>: {er.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── preview view ── */
+            <>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-[12px]">
+                <span>
+                  <b className="text-foreground">{total}</b> baris terbaca
+                </span>
+                <span className="text-success">
+                  <b>{willImport}</b> akan diimpor
+                </span>
+                {emptyName > 0 && (
+                  <span className="text-muted-foreground">
+                    {emptyName} dilewati (nama kosong)
+                  </span>
+                )}
+              </div>
+
+              {tooMany && (
+                <p className="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-[11px] text-warning">
+                  Maksimal {MAX_IMPORT_ROWS} baris per impor — pecah file jadi beberapa bagian.
+                </p>
+              )}
+
+              {total === 0 ? (
+                <p className="rounded-lg border border-dashed border-border p-4 text-center text-[12px] text-muted-foreground">
+                  Tidak ada baris data. Pastikan file punya header{" "}
+                  <code className="rounded bg-muted px-1">full_name,…</code> + minimal 1 baris.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <table className="w-full text-left text-[12px]">
+                    <thead className="bg-muted/60 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-2.5 py-2 font-semibold">Nama</th>
+                        <th className="px-2.5 py-2 font-semibold">Seg</th>
+                        <th className="px-2.5 py-2 font-semibold">Perusahaan</th>
+                        <th className="px-2.5 py-2 font-semibold">WA / Email</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {preview.map((r, idx) => (
+                        <tr key={idx} className={cn(!r.fullName?.trim() && "opacity-50")}>
+                          <td className="px-2.5 py-1.5">
+                            {r.fullName?.trim() || (
+                              <span className="italic text-muted-foreground">(kosong — dilewati)</span>
+                            )}
+                          </td>
+                          <td className="px-2.5 py-1.5 uppercase text-muted-foreground">
+                            {r.segment?.trim() || "—"}
+                          </td>
+                          <td className="truncate px-2.5 py-1.5 text-muted-foreground">
+                            {r.companyName?.trim() || "—"}
+                          </td>
+                          <td className="truncate px-2.5 py-1.5 text-muted-foreground">
+                            {r.whatsapp?.trim() || r.email?.trim() || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {total > preview.length && (
+                    <p className="border-t border-border bg-muted/30 px-2.5 py-1.5 text-[10px] text-muted-foreground">
+                      +{total - preview.length} baris lainnya…
+                    </p>
+                  )}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Duplikat (WhatsApp/email yang sudah ada) otomatis dilewati. Butuh format?{" "}
+                <button
+                  type="button"
+                  onClick={downloadTemplate}
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Unduh template
+                </button>
+                .
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* footer */}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+          {result ? (
+            <Button size="sm" onClick={onClose}>
+              Tutup
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={onClose} disabled={pending}>
+                Batal
+              </Button>
+              <Button size="sm" onClick={onConfirm} disabled={pending || willImport === 0 || tooMany}>
+                {pending ? "Mengimpor…" : `Impor ${willImport} kontak`}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "success" | "muted" | "destructive";
+}) {
+  const cls =
+    tone === "success"
+      ? "text-success"
+      : tone === "destructive"
+        ? "text-destructive"
+        : "text-foreground";
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3">
+      <p className={cn("text-2xl font-bold tabular-nums", cls)}>{value.toLocaleString("id-ID")}</p>
+      <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   );
 }
