@@ -14,6 +14,8 @@ import {
   type IngestCompanyInput,
   type IngestPersonInput,
 } from "@/modules/enrichment/service";
+import { settingsService } from "@/modules/settings/service";
+import { agentTaskService } from "@/modules/agent-task/service";
 
 export const runtime = "nodejs";
 
@@ -175,6 +177,18 @@ export async function POST(req: Request) {
   }
   if (!hasDb()) return NextResponse.json({ ok: false, source: "mock" });
 
+  // Source-of-AI mode (Fase 3 ANALYZE). `byoa` → the tenant's own agent classifies
+  // via the agent_task queue, so the server-side heuristic fallback is SKIPPED here
+  // and a `classify` task is enqueued per new/unclassified contact after ingest.
+  // `platform` (default) → the existing server-side fallback classify is UNCHANGED.
+  // Best-effort: any lookup error degrades to `platform`.
+  let aiMode: string = "platform";
+  try {
+    aiMode = await settingsService.getAiMode(ctx);
+  } catch (err) {
+    console.error("[ingest aiMode]", err);
+  }
+
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body", issues: parsed.error.issues }, { status: 400 });
@@ -256,7 +270,10 @@ export async function POST(req: Request) {
     let segment = segmentFromLeadType(p.leadType);
     let fitScore = normalizeScore(p.leadScore);
     let fitReason = p.leadReason ?? null;
-    if (!p.leadType && isEnriched) {
+    // In BYOA mode the tenant's own agent is the classifier — skip the server
+    // heuristic and leave the contact unclassified so a `classify` agent_task is
+    // enqueued below. Platform mode keeps the heuristic fallback UNCHANGED.
+    if (!p.leadType && isEnriched && aiMode !== "byoa") {
       const sig = classifySignals({ companyName: p.companyName, title: p.title, email, phone, whatsapp, socials });
       segment = sig.classification;
       fitScore = sig.fitScore;
@@ -333,6 +350,36 @@ export async function POST(req: Request) {
     }
     console.error("[api/ingest POST]", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
+
+  // Fase 3 ANALYZE — BYOA classify routing: hand each NEW/unclassified contact to
+  // the tenant's own agent (metered, its own model) instead of the extension's
+  // direct-DeepSeek call. Enqueue a Fase-2 `classify` agent_task per contact;
+  // applyResult (agentTaskService) writes segment/fitScore/fitReason back onto it.
+  // Batch-capped so a big crawl can't flood the queue. Best-effort: never fails the
+  // ingest. Platform mode enqueues nothing (server heuristic already ran above).
+  if (aiMode === "byoa") {
+    const unclassified = result.contacts.filter(
+      (c) => c.isNew || !c.segment || c.segment === "unknown",
+    );
+    const BYOA_CLASSIFY_CAP = 25;
+    try {
+      for (const c of unclassified.slice(0, BYOA_CLASSIFY_CAP)) {
+        await agentTaskService.enqueue(ctx, {
+          type: "classify",
+          payload: {
+            contactId: c.id,
+            fullName: c.fullName,
+            title: c.title,
+            companyName: c.companyName,
+          },
+          refType: "contact",
+          refId: c.id,
+        });
+      }
+    } catch (err) {
+      console.error("[ingest byoa classify enqueue]", err);
+    }
   }
 
   // Dedup signal for the extension: of the URLs just submitted, which are ALREADY

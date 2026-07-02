@@ -70,6 +70,44 @@ telepon, website**.
 > `scrapeMapsInPage()` (`background.js`) **best-effort** dan kemungkinan perlu disesuaikan
 > saat run pertama di Maps live. Status popup menandai ini ("selector mungkin perlu disesuaikan").
 
+## Dikendalikan platform (Fase 3 — DRIVE) + BYOA classify
+
+Selain crawl manual dari popup, extension ini bisa **dikendalikan dari platform/agent**.
+
+**DRIVE — perintah crawl/enrich jarak jauh.** Sebuah agent (API key scope `write`,
+Bearer `msk_live_…`) meng-*enqueue* perintah:
+
+```
+POST /api/agent/extension/commands
+{ "type": "crawl", "params": { "channel": "maps", "query": "PT travel Jakarta", "workspaceId": "ws_…" } }
+```
+
+Extension (pakai **ingest token per-rep** yang sama dgn heartbeat — **bukan** API key)
+mem-*poll* `GET /api/extension/commands` tiap **±1 menit** (dan tiap heartbeat 5 menit),
+meng-*claim* perintah (atomik, `FOR UPDATE SKIP LOCKED`), menjalankan scraper yang cocok
+di **browser rep yang login (RPA)**, lalu lapor hasil ke
+`POST /api/extension/commands/[id]/result`. Hasil crawl masuk CRM lewat `/api/ingest`
+seperti biasa.
+
+- `type:"crawl"` → `params.channel` = `maps|linkedin|google|tokopedia|shopee|instagram|tiktok|duckduckgo|ai` (+ `query`, `workspaceId?`, `limit?`).
+- `type:"enrich"` → jalankan Deep-Enrich atas buffer.
+- `type:"stop"` → hentikan run berjalan.
+- `targetUserId` (opsional) mengarahkan perintah ke **1 rep tertentu**; kosong = rep mana saja di tenant.
+- Popup menampilkan **"Perintah dari platform: N"** + tombol **"🛰️ Cek perintah dari platform"**.
+- **Syarat:** extension **terpasang + login (RPA)** di browser rep. Kalau tab-nya tak siap, perintah gagal/di-skip (dilaporkan).
+
+**BYOA classify — klasifikasi lead lewat agen tenant.** Heartbeat mengembalikan
+`aiMode` (`platform` | `byoa`). Di mode **BYOA**, extension **melewati klasifikasi
+DeepSeek di browser** (mengirim lead mentah); server meng-*enqueue* task `classify`
+ke **agen milik tenant** (metered, model sendiri) via antrean `agent_task`, lalu
+`applyResult` menulis `segment/fitScore/fitReason` ke kontak. Mode **platform**
+(default): klasifikasi in-browser + fallback heuristik server **tetap seperti semula**.
+Ini juga menutup celah *"DeepSeek langsung tanpa metering"* saat BYOA.
+
+> **WIP.** Wiring poll/dispatch memakai ulang scraper yang ada; alur/selector belum
+> diverifikasi tanpa Chrome nyata. Service worker bisa dimatikan Chrome di tengah run
+> panjang — perintah bisa tersangkut `claimed` (idempotent saat di-ulang).
+
 ## B) Userscript Tampermonkey
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/).

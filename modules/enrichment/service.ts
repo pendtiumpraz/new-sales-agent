@@ -194,12 +194,26 @@ export interface IngestGraphInput {
   analyze?: boolean;
 }
 
+/** A contact touched (created or updated) by an ingest — enough for a caller to
+ *  route it to a downstream classifier (Fase 3 BYOA classify) without a re-query. */
+export interface IngestGraphContactRef {
+  id: string;
+  fullName: string;
+  title: string | null;
+  companyName: string | null;
+  segment: string | null;
+  isNew: boolean;
+}
+
 export interface IngestGraphResult {
   companiesUpserted: number;
   peopleUpserted: number;
   companiesClassified: number;
   peopleClassified: number;
   jobId: string;
+  /** Every contact touched in this batch (created/updated), for downstream routing
+   *  (e.g. enqueue a BYOA `classify` agent_task per new/unclassified contact). */
+  contacts: IngestGraphContactRef[];
 }
 
 // ── validation helpers ───────────────────────────────────────────────────────
@@ -856,6 +870,9 @@ export const enrichmentService = {
     let peopleClassified = 0;
     let companiesCreated = 0; // NEW nodes only — drives quota consumption
     let peopleCreated = 0;
+    // Every contact touched (created/updated) this batch — returned for downstream
+    // routing (Fase 3 BYOA classify). Cheap: refs already in hand in the loop.
+    const touchedContacts: IngestGraphContactRef[] = [];
     // Map a companyRef key (domain|name, lowercased) → the resolved company id, so
     // people can attach to the company we just upserted in THIS batch.
     const companyIdByKey = new Map<string, string>();
@@ -988,6 +1005,14 @@ export const enrichmentService = {
           peopleCreated++;
         }
         peopleUpserted++;
+        touchedContacts.push({
+          id: contact.id,
+          fullName: contact.fullName,
+          title: contact.title ?? null,
+          companyName: ref?.name ?? null,
+          segment: contact.segment ?? null,
+          isNew: !existing,
+        });
 
         if (input.analyze) {
           const tagged = await this.classifyContactOccupation(ctx, contact);
@@ -1037,6 +1062,7 @@ export const enrichmentService = {
       companiesClassified,
       peopleClassified,
       jobId: job.id,
+      contacts: touchedContacts,
     };
   },
 

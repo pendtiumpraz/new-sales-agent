@@ -7,6 +7,8 @@ import { extensionConnectionTable } from "@/lib/db/schema";
 import { touchRepHeartbeat } from "@/lib/team/rep-account";
 import { workspaceService } from "@/modules/workspace/service";
 import { tenantService } from "@/modules/tenant/service";
+import { settingsService } from "@/modules/settings/service";
+import { extCommandService } from "@/modules/ext-command/service";
 
 export const runtime = "nodejs";
 
@@ -50,7 +52,22 @@ export async function POST(req: Request) {
       } catch (err) {
         console.error("[heartbeat quota]", err);
       }
-      return NextResponse.json({ ok: true, connected: true, tenant: rep.tenantId, scope: "rep", deepseekKey, workspaces, quota, plan, source: "db" });
+      // Fase 3: fold the tenant's source-of-AI mode (drives the BYOA classify-skip)
+      // + a NON-CLAIMING preview of platform-driven commands (for the popup count)
+      // into the ping. The extension CLAIMS commands via GET /api/extension/commands.
+      let aiMode: string = "platform";
+      let commands: Awaited<ReturnType<typeof extCommandService.previewQueuedForUser>> = [];
+      try {
+        aiMode = await settingsService.getAiMode(repCtx);
+      } catch (err) {
+        console.error("[heartbeat aiMode]", err);
+      }
+      try {
+        commands = await extCommandService.previewQueuedForUser(repCtx, rep.userId);
+      } catch (err) {
+        console.error("[heartbeat commands]", err);
+      }
+      return NextResponse.json({ ok: true, connected: true, tenant: rep.tenantId, scope: "rep", deepseekKey, workspaces, quota, plan, aiMode, commands, source: "db" });
     }
   }
 

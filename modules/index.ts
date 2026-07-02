@@ -75,3 +75,10 @@ export * from "./apikey/schema";
 // enqueues a generation task here; the tenant's own agent (write-scope API key)
 // polls, generates with ITS OWN model, and posts the result back. Owns: agent_task.
 export * from "./agent-task/schema";
+
+// Extension command queue (Fase 3, PART A "DRIVE") — an agent (write-scope API key)
+// enqueues a command here to DRIVE a tenant's browser extension (crawl/enrich/stop);
+// the extension (per-rep ingest token) polls, runs the RPA in the rep's browser, and
+// reports the result back. Crawl output lands in the CRM via /api/ingest.
+// Owns: extension_command.
+export * from "./ext-command/schema";

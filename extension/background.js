@@ -19,6 +19,7 @@ const DEFAULTS = {
   paused: false,
   autoEnrich: true, // Stage 1 → auto-continue to Stage 2 (enrichment)
   deepseekKey: "", // for AI analysis/websearch (runs in the browser, not the platform)
+  aiMode: "platform", // Fase 3: platform | byoa. In BYOA, SKIP in-browser DeepSeek classify
   workspaceId: "", // doc 44 — tag crawled leads to the workspace the rep picked in the popup
   autoDownloadCsv: true, // also drop a local CSV (B2B / B2C / perusahaan) on every crawl
   // Deep Enrich (opt-in cross-source contact hunt) — which sources to hit.
@@ -251,13 +252,99 @@ async function heartbeat() {
     // Cache the tenant's quota (used/limit per metric) + plan so the popup can show it
     // — kept in sync with the platform every heartbeat (per-rep token = the sync key).
     await chrome.storage.local.set({ workspaces, quota: Array.isArray(data.quota) ? data.quota : [], plan: data.plan ?? null });
+    // Fase 3: cache the source-of-AI mode (drives the BYOA classify-skip) + the count
+    // of platform-driven commands waiting (for the popup status line). `commands` here
+    // is a NON-CLAIMING preview — pollCommands() is what actually claims + dispatches.
+    const aiMode = data.aiMode === "byoa" ? "byoa" : "platform";
+    const commandsPending = Array.isArray(data.commands) ? data.commands.length : 0;
+    await chrome.storage.local.set({ aiMode, commandsPending });
     // If the previously selected workspace no longer exists, clear it.
     const cur = (await chrome.storage.local.get("workspaceId")).workspaceId;
     if (cur && !workspaces.some((w) => w.id === cur)) await chrome.storage.local.set({ workspaceId: "" });
-    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error, aiKey: !!data.deepseekKey, workspaces, quota: Array.isArray(data.quota) ? data.quota : [], plan: data.plan ?? null };
+    return { ok: res.ok, connected: !!data.connected, status: res.status, tenant: data.tenant, error: data.error, aiKey: !!data.deepseekKey, workspaces, quota: Array.isArray(data.quota) ? data.quota : [], plan: data.plan ?? null, aiMode, commandsPending };
   } catch (e) {
     return { ok: false, connected: false, error: String(e) };
   }
+}
+
+// ── Platform-driven commands (Fase 3 DRIVE) ─────────────────────────────────
+// The platform/agent enqueues commands (crawl/enrich/stop); we POLL + CLAIM them
+// (GET /api/extension/commands, per-rep ingest token — same token as heartbeat),
+// run the matching RPA in THIS browser, and report the result back. Crawl output
+// lands in the CRM via the normal /api/ingest sink. Polled on the heartbeat alarm
+// AND a shorter "commands" alarm (~1 min). Manual popup search keeps working.
+// WIP: selectors/flows reuse the existing scrapers — unverified without real Chrome.
+async function reportCommand(apiBase, token, id, body) {
+  try {
+    await fetch(apiBase.replace(/\/$/, "") + "/api/extension/commands/" + encodeURIComponent(id) + "/result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-ingest-token": token },
+      body: JSON.stringify(body || {}),
+    });
+  } catch (e) { /* best-effort — the command stays claimed if the report fails */ }
+}
+
+// Dispatch ONE claimed command to the matching scraper. Sets query/workspace/limit
+// into storage first (functions that read cfg pick them up), then runs + awaits.
+async function dispatchCommand(cmd) {
+  const p = (cmd && cmd.params) || {};
+  if (cmd.type === "stop") {
+    await chrome.storage.local.set({ running: false });
+    await setStatus("Perintah platform: STOP diterima.");
+    return { ok: true, action: "stop" };
+  }
+  if (cmd.type === "enrich") {
+    await runDeepEnrich();
+    return { ok: true, action: "deep-enrich", status: (await state()).lastStatus };
+  }
+  // crawl — route by channel. Persist params so cfg-reading scrapers use them.
+  const channel = String(p.channel || "google").toLowerCase();
+  const query = String(p.query || "").trim();
+  const patch = {};
+  if (query) patch.query = query;
+  if (p.workspaceId) patch.workspaceId = String(p.workspaceId);
+  if (Number.isFinite(p.limit)) patch.maxPages = Math.min(100, Math.max(1, Math.trunc(p.limit)));
+  if (Object.keys(patch).length) await chrome.storage.local.set(patch);
+  await setStatus(`Perintah platform: crawl "${query}" di ${channel}…`);
+  if (channel === "maps" || channel === "google_maps") await runMapsSearch(query);
+  else if (channel === "linkedin") await runSearch();
+  else if (channel === "duckduckgo" || channel === "web" || channel === "internet") await runWebSearch(query);
+  else if (channel === "ai" || channel === "deepseek") await runAiSearch(query);
+  else if (["google", "tokopedia", "shopee", "instagram", "tiktok"].includes(channel)) await runPlatformSearch(channel, query);
+  else await runWebSearch(query); // unknown channel → best-effort internet search
+  return { ok: true, action: "crawl", channel, query, status: (await state()).lastStatus };
+}
+
+async function pollCommands() {
+  const c = await cfg();
+  if (!c.token || !c.apiBase) return;
+  // Don't claim while a run is already in progress — the RPA drives the active tab
+  // and only one run works at a time. Leaves commands queued for the next cycle.
+  if ((await state()).running) return;
+  let commands = [];
+  try {
+    const res = await fetch(c.apiBase.replace(/\/$/, "") + "/api/extension/commands", {
+      method: "GET",
+      headers: { "x-ingest-token": c.token },
+    });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    commands = Array.isArray(data.commands) ? data.commands : [];
+  } catch (e) {
+    return;
+  }
+  if (!commands.length) return;
+  await chrome.storage.local.set({ commandsPending: commands.length });
+  for (const cmd of commands) {
+    try {
+      const result = await dispatchCommand(cmd);
+      await reportCommand(c.apiBase, c.token, cmd.id, { result });
+    } catch (e) {
+      await reportCommand(c.apiBase, c.token, cmd.id, { error: String(e && e.message ? e.message : e) });
+    }
+  }
+  // Refresh the pending count after the batch (best-effort).
+  await chrome.storage.local.set({ commandsPending: 0 });
 }
 
 // ── AI websearch (DeepSeek), run IN THE BROWSER ─────────────────────────────
@@ -600,9 +687,13 @@ async function runEnrichPlatform(platform) {
     if (res && res.ok && res.pageText) {
       let ai = null;
       try {
-        ai = await analyzePlatform(platform, c.deepseekKey, res.pageText, { url, name: item.fullName || item.name });
-        await ingest({ origin: "extension", ...toIngestPayload(platform, item, ai) });
-        analyzed++;
+        // Fase 3: BYOA mode SKIPS the in-browser DeepSeek classify — send the raw
+        // scraped item; the server routes classify to the tenant's metered agent.
+        if (c.aiMode !== "byoa") {
+          ai = await analyzePlatform(platform, c.deepseekKey, res.pageText, { url, name: item.fullName || item.name });
+          analyzed++;
+        }
+        await ingest({ origin: "extension", ...toIngestPayload(platform, item, ai || {}) });
       } catch (e) {
         // AI failed — keep the Stage-1 list record (already flushed); just mark enriched.
       }
@@ -1086,7 +1177,9 @@ async function runEnrich() {
       // ANALYZE in the extension BEFORE sending (doc 40): the platform can't read
       // LinkedIn, so DeepSeek parses the profile DOM here → structured fields +
       // classification. On failure we still send the selector-scraped fields.
-      if (c.deepseekKey && res.profile.pageText) {
+      // Fase 3: in BYOA mode SKIP the in-browser DeepSeek classify — send raw; the
+      // server routes classify to the tenant's own metered agent (agent_task queue).
+      if (c.deepseekKey && res.profile.pageText && c.aiMode !== "byoa") {
         try {
           await setStatus(`Stage 2 — analisa AI ${done + 1}/${targets.length}…`);
           const ai = await analyzeProfile(c.deepseekKey, res.profile.pageText, { fullName: res.profile.fullName, linkedinUrl: p.linkedinUrl });
@@ -1268,6 +1361,8 @@ async function maybeAutoDownloadCsv() {
 function scheduleNext() {
   chrome.alarms.create("flush", { delayInMinutes: 1 + Math.random() });
   chrome.alarms.create("heartbeat", { delayInMinutes: 5, periodInMinutes: 5 });
+  // Fase 3: shorter cadence to pick up platform-driven commands (~1 min).
+  chrome.alarms.create("commands", { delayInMinutes: 1, periodInMinutes: 1 });
 }
 chrome.runtime.onInstalled.addListener(() => { scheduleNext(); heartbeat(); });
 if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => { scheduleNext(); heartbeat(); });
@@ -1277,6 +1372,9 @@ chrome.alarms.onAlarm.addListener(async (a) => {
     scheduleNext();
   } else if (a.name === "heartbeat") {
     await heartbeat();
+    await pollCommands(); // learn aiMode/quota on the ping, then run any driven commands
+  } else if (a.name === "commands") {
+    await pollCommands();
   }
 });
 
@@ -1298,8 +1396,13 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
         return sendResponse({ ok: true });
       case "STATUS": {
         const st = await state();
-        return sendResponse({ ok: true, buffered: st.buffer.length, sentToday: st.sentToday, running: st.running, status: st.lastStatus });
+        const { commandsPending = 0, aiMode = "platform" } = await chrome.storage.local.get(["commandsPending", "aiMode"]);
+        return sendResponse({ ok: true, buffered: st.buffer.length, sentToday: st.sentToday, running: st.running, status: st.lastStatus, commandsPending, aiMode });
       }
+      // Manual "cek perintah platform" trigger (popup) — poll + dispatch now.
+      case "POLL_COMMANDS":
+        pollCommands();
+        return sendResponse({ ok: true });
       // "Test koneksi" / Connect — ping the app to verify URL + token (doc 40).
       case "CONNECT":
         return sendResponse(await heartbeat());

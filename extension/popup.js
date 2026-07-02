@@ -83,6 +83,8 @@ async function refreshStatus() {
     if (!st || !st.ok) return;
     $("bufCount").textContent = st.buffered ?? 0;
     $("sentCount").textContent = st.sentToday ?? 0;
+    $("cmdCount").textContent = st.commandsPending ?? 0;
+    $("aiModeLbl").textContent = st.aiMode === "byoa" ? "BYOA (agen tenant)" : "platform";
     if (st.status) $("status").textContent = st.status;
   });
 }
@@ -147,6 +149,12 @@ $("deepEnrich").addEventListener("click", async () => {
 $("flush").addEventListener("click", async () => {
   await save();
   chrome.runtime.sendMessage({ type: "FLUSH_NOW" }, () => setTimeout(refreshStatus, 600));
+});
+
+$("pollCommands").addEventListener("click", async () => {
+  await save();
+  $("status").textContent = "Mengecek perintah dari platform…";
+  chrome.runtime.sendMessage({ type: "POLL_COMMANDS" }, () => setTimeout(refreshStatus, 1200));
 });
 
 $("stop").addEventListener("click", () => {
