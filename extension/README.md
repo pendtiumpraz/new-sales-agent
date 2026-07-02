@@ -62,9 +62,13 @@ telepon, website**.
   dinormalisasi ke `+62…`. **Landline** (021/022/031/0274/061…) **dibuang**.
 - **Email:** tidak ada di Maps → tiap **website** listing otomatis di-crawl (jalur Deep-Enrich:
   `extractContactsInPage` + verifikasi DeepSeek) untuk ambil email/HP → disimpan sebagai
-  `contactPoint` **milik perusahaan** (ownerType `company`).
-- Hasil dikirim ke `/api/ingest` sebagai `companies[]` (`source:"maps"`, `capturedMode:"maps"`)
-  + `contactPoints[]`, ditandai ke workspace yang dipilih.
+  `contactPoint` **milik perusahaan** (ownerType `company`) **dan** milik kontak B2B (ownerType `person`).
+- **Maps → Perusahaan + kontak B2B ke workspace.** Tiap listing dikirim ke `/api/ingest` sebagai
+  **`companies[]`** (`source:"maps"`, `capturedMode:"maps"`) **dan** **`people[]`** (nama PT =
+  `fullName`, `companyName` sama supaya nyambung ke perusahaan, `leadType:"b2b_client"` →
+  `segment:"b2b"` di server, `status:"enriched"`), plus `contactPoints[]` ganda (ownerType
+  `company` **dan** `person`) untuk HP mobile + email. Semua ditandai ke workspace yang dipilih,
+  jadi listing muncul di tab **Kontak** (filter B2B) workspace, bukan cuma di **Perusahaan**.
 
 > **WIP — tuning selector.** DOM Maps sangat di-obfuscate + sering A/B-test. Selector di
 > `scrapeMapsInPage()` (`background.js`) **best-effort** dan kemungkinan perlu disesuaikan

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Maira Sales — Multi-Platform Lead Collector",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Collect + enrich leads from LinkedIn, Google, Google Maps (cari PT/bisnis), Tokopedia, Shopee, Instagram, TikTok + DuckDuckGo — RPA + AI run in YOUR browser, buffered locally, sent to the platform. Can be DRIVEN by the platform/agent (remote crawl/enrich commands). BYOA: lead classify routes to the tenant's own metered agent. Rate-limited, consent-gated.",
   "permissions": ["storage", "tabs", "scripting", "alarms", "downloads"],
   "host_permissions": [

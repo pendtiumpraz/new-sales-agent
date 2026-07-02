@@ -1008,6 +1008,7 @@ async function runMapsSearch(query) {
   if (!listings.length) return setStatus("Maps: 0 listing ke-ambil — selector mungkin perlu disesuaikan (DOM Maps berubah).");
 
   const companies = [];
+  const people = []; // each Maps listing ALSO becomes a B2B CONTACT (→ workspace Kontak)
   const contactPoints = [];
   const deepTargets = [];
   const seenName = new Set();
@@ -1018,24 +1019,44 @@ async function runMapsSearch(query) {
     seenName.add(name.toLowerCase());
     let domain = "";
     if (L.website) { try { domain = new URL(L.website).hostname.replace(/^www\./, ""); } catch (e) {} }
+    const sourceUrl = L.website || L.mapUrl || undefined;
     companies.push({
       name,
       domain: domain || undefined,
       summary: L.address || undefined, // address → company summary/location
       source: "maps",
       capturedMode: "maps",
-      sourceUrl: L.website || L.mapUrl || undefined,
+      sourceUrl,
+    });
+    // The business itself as a B2B lead → a `contact` tagged to the picked workspace
+    // (leadType b2b_client → segment b2b on the server). companyName === name links
+    // the contact to the company node above (Perusahaan still gets the company row).
+    people.push({
+      fullName: name,
+      companyName: name,
+      companyDomain: domain || undefined,
+      leadType: "b2b_client",
+      source: "maps",
+      sourceUrl,
+      status: "enriched",
     });
     const mob = normalizeMobileId(L.phone); // MOBILE (HP) only — landlines dropped
-    if (mob) { hp++; contactPoints.push({ ownerType: "company", companyName: name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps" }); }
+    if (mob) {
+      hp++;
+      // Company-scoped (Perusahaan) AND person-scoped (Kontak) — the same HP on both
+      // so the WA number lands on the B2B contact too (contact.whatsapp).
+      contactPoints.push({ ownerType: "company", companyName: name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps" });
+      contactPoints.push({ ownerType: "person", personName: name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps" });
+    }
     if (L.website) deepTargets.push({ name, website: L.website });
   }
 
-  await addLeads([], companies); // buffer for local CSV + dedup
+  await addLeads(people, companies); // buffer for local CSV (B2B) + dedup
   // One POST: the route inserts companies BEFORE contactPoints in the same tx, so
-  // each mobile HP links to its PT by dedup-key. ingest() auto-tags the picked
-  // workspace (doc 44). (A later alarm flush() re-sends the buffer — idempotent upsert.)
-  await ingest({ origin: "extension", companies, contactPoints });
+  // each mobile HP links to its PT + its person by dedup-key. ingest() auto-tags the
+  // picked workspace (doc 44) onto BOTH the company_v2 row and the b2b `contact`.
+  // (A later alarm flush() re-sends the buffer — idempotent upsert.)
+  await ingest({ origin: "extension", companies, people, contactPoints });
 
   // Queue each company website for the Maps email hunt (email is never on Maps).
   if (deepTargets.length) {
@@ -1082,12 +1103,27 @@ async function runMapsDeepEnrich() {
       if (!phoneRaw && (r.phones || []).length) phoneRaw = r.phones[0];
     }
     const cps = [];
-    if (email) cps.push({ ownerType: "company", companyName: t.name, channel: "email", value: email, consentStatus: "unknown", source: "maps-website" });
+    // Email/HP from the company website → company-scoped (Perusahaan) AND person-scoped
+    // (the b2b Kontak created in runMapsSearch) so the email lands on contact.email too.
+    if (email) {
+      cps.push({ ownerType: "company", companyName: t.name, channel: "email", value: email, consentStatus: "unknown", source: "maps-website" });
+      cps.push({ ownerType: "person", personName: t.name, channel: "email", value: email, consentStatus: "unknown", source: "maps-website" });
+    }
     const mob = normalizeMobileId(phoneRaw);
-    if (mob) cps.push({ ownerType: "company", companyName: t.name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps-website" });
+    if (mob) {
+      cps.push({ ownerType: "company", companyName: t.name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps-website" });
+      cps.push({ ownerType: "person", personName: t.name, channel: "wa", value: mob, consentStatus: "unknown", source: "maps-website" });
+    }
     if (cps.length) {
       hit++;
-      await ingest({ origin: "extension", companies: [{ name: t.name, source: "maps", capturedMode: "maps" }], contactPoints: cps });
+      // Re-send the person (idempotent upsert by name-in-company) so the enriched
+      // email/HP merges onto the existing b2b contact; company row updated too.
+      await ingest({
+        origin: "extension",
+        companies: [{ name: t.name, source: "maps", capturedMode: "maps" }],
+        people: [{ fullName: t.name, companyName: t.name, leadType: "b2b_client", source: "maps", status: "enriched" }],
+        contactPoints: cps,
+      });
       await patchCompanyByName(t.name, { email, phone: mob || undefined }); // fold onto the CSV row
     }
     t.done = true;
