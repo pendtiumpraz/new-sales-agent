@@ -183,6 +183,12 @@ export interface IngestPersonInput {
  */
 export interface IngestGraphInput {
   channel: string; // linkedin|google_maps|instagram|… (channel-neutral)
+  /**
+   * Human label for this run (the search term / seed the crawl batch came from).
+   * Surfaced in the Enrichment Riwayat next to the channel. Falls back to
+   * `ingest:<channel>` when the caller doesn't supply one.
+   */
+  query?: string | null;
   sourceUrl?: string | null;
   workspaceId?: string | null;
   ownerUserId?: string | null; // assigned rep (per-rep attribution)
@@ -850,12 +856,14 @@ export const enrichmentService = {
     if (companies.length) await tenantService.enforceQuota(ctx, "companies_max", 1);
     if (people.length) await tenantService.enforceQuota(ctx, "contacts_max", 1);
 
-    // Record the run for history (channel-tagged) BEFORE the upserts.
+    // Record the run for history (channel-tagged) BEFORE the upserts. `query` is the
+    // batch's search term/seed (from the extension flush) — falls back to a
+    // channel-tagged label so the Riwayat row is never blank.
     const job = await enrichmentRepo.insertJob(ctx, {
       id: "dsj_" + crypto.randomUUID(),
       tenantId: ctx.tenantId,
       workspaceId,
-      query: `ingest:${channel}`,
+      query: input.query?.trim() || `ingest:${channel}`,
       channel,
       source,
       status: "running",
@@ -1023,6 +1031,9 @@ export const enrichmentService = {
       await enrichmentRepo.updateJob(ctx, job.id, {
         status: "done",
         resultsCount: companiesUpserted + peopleUpserted,
+        // Per-run rollup of NEW nodes this flush produced (Riwayat: "N perusahaan · M kontak").
+        companiesCreated,
+        contactsCreated: peopleCreated,
         finishedAt: new Date(),
       });
       await this.audit(ctx, "enrichment.ingest.graph", "discovery_job", job.id, {

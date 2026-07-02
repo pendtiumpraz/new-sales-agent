@@ -1,4 +1,4 @@
-const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform", "autoDownloadCsv", "deepGoogle", "deepLinkedin", "deepSocial", "deepMarketplace"];
+const FIELDS = ["apiBase", "token", "query", "maxPages", "postureMode", "dailyCap", "consent", "autoEnrich", "deepseekKey", "searchPlatform", "deepGoogle", "deepLinkedin", "deepSocial", "deepMarketplace"];
 const $ = (id) => document.getElementById(id);
 
 const fmtNum = (n) => (n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0) + "rb" : String(n));
@@ -22,7 +22,6 @@ async function load() {
   $("autoEnrich").checked = cfg.autoEnrich !== false;
   $("deepseekKey").value = cfg.deepseekKey ?? "";
   $("searchPlatform").value = cfg.searchPlatform ?? "linkedin";
-  $("autoDownloadCsv").checked = cfg.autoDownloadCsv !== false;
   $("deepGoogle").checked = cfg.deepGoogle !== false;
   $("deepLinkedin").checked = cfg.deepLinkedin !== false;
   $("deepSocial").checked = cfg.deepSocial !== false;
@@ -70,7 +69,6 @@ async function save() {
     autoEnrich: $("autoEnrich").checked,
     deepseekKey: $("deepseekKey").value.trim(),
     searchPlatform: $("searchPlatform").value,
-    autoDownloadCsv: $("autoDownloadCsv").checked,
     deepGoogle: $("deepGoogle").checked,
     deepLinkedin: $("deepLinkedin").checked,
     deepSocial: $("deepSocial").checked,
@@ -130,14 +128,6 @@ $("startEnrich").addEventListener("click", async () => {
   await save();
   $("status").textContent = "Enrich profil LinkedIn…";
   chrome.runtime.sendMessage({ type: "START_ENRICH" }, () => setTimeout(refreshStatus, 800));
-});
-
-$("downloadCsv").addEventListener("click", async () => {
-  await save();
-  $("status").textContent = "Menyiapkan CSV…";
-  chrome.runtime.sendMessage({ type: "DOWNLOAD_CSV" }, (r) => {
-    $("status").textContent = r && r.files ? `CSV diunduh: ${r.files} file (cek folder Download).` : "Belum ada data untuk diunduh.";
-  });
 });
 
 $("deepEnrich").addEventListener("click", async () => {

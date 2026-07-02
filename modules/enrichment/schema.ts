@@ -64,6 +64,11 @@ export const discoveryJobTable = pgTable(
     posture: text("posture").notNull().default("compliant"), // compliant|balanced|aggressive
     origin: text("origin"), // manual|mcp|extension
     resultsCount: integer("results_count").notNull().default(0), // rollup of saved results
+    // Per-run rollup of NEW graph nodes an ingest flush created (0051): how many
+    // companies + contacts THIS batch produced — surfaced in the Enrichment Riwayat.
+    // Web-discovery (runDiscovery) jobs leave these 0 and use results_count instead.
+    companiesCreated: integer("companies_created").notNull().default(0),
+    contactsCreated: integer("contacts_created").notNull().default(0),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),

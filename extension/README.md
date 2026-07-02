@@ -48,6 +48,13 @@ jadi status hidup/mati terdeteksi otomatis.
 2. **Tahap 2:** **"Enrich profil (Tahap 2)"** → kunjungi tiap profil (jeda 4–9 dtk), ambil track record → kirim ke app.
 3. **Stop** kapan saja. **Kirim buffer** = flush manual.
 
+### Ekspor CSV
+**Ekspor CSV sekarang dari platform (halaman Kontak), bukan dari extension.** Extension hanya
+mengirim data hasil crawl ke aplikasi; tak ada file lokal yang ditulis. Tiap batch yang dikirim
+diberi label **`channel`** (maps/linkedin/google/…) + **`query`** (kata kunci pencarian) supaya
+platform bisa membangun **riwayat discovery**. Unduh CSV dari **Kontak → "Ekspor CSV"** (kolom
+sama persis dengan template impor → round-trip).
+
 ## Google Maps — cari PT/bisnis B2B (channel Level-1)
 
 Pilih channel **Google Maps (cari PT/bisnis)** → isi query (mis. `distributor kabel Surabaya`)

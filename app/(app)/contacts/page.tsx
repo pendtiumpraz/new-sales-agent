@@ -433,6 +433,22 @@ export default function ContactsCrmPage() {
     }
   }
 
+  // ── CSV export ──────────────────────────────────────────────────────────────
+  // Hit GET /api/contacts/export honoring the active segment filter → the browser
+  // downloads a text/csv attachment (columns match the import template → round-trip).
+  // Cookies ride along on the anchor navigation, so the endpoint's requirePermission
+  // sees the logged-in tenant. This Kontak page isn't workspace-scoped → no workspaceId.
+  function exportCsv() {
+    const params = new URLSearchParams();
+    if (segF !== "all") params.set("segment", segF);
+    const qs = params.toString();
+    const a = document.createElement("a");
+    a.href = `/api/contacts/export${qs ? `?${qs}` : ""}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   // ── mutations ──────────────────────────────────────────────────────────────
   function refreshAll() {
     qc.invalidateQueries({ queryKey: ["crm", "contacts"] });
@@ -606,6 +622,9 @@ export default function ContactsCrmPage() {
           className="hidden"
           onChange={onFilePicked}
         />
+        <Button variant="outline" size="sm" onClick={exportCsv}>
+          <Download className="h-4 w-4" /> Ekspor CSV
+        </Button>
         <Button size="sm" onClick={() => setNewOpen(true)}>
           <Plus className="h-4 w-4" /> Kontak baru
         </Button>

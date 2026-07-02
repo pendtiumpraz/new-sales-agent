@@ -30,6 +30,12 @@ export const runtime = "nodejs";
 // preserved verbatim ({ ok, count, analyzed, existingEnriched, source }).
 const Body = z.object({
   origin: z.enum(["mcp", "extension", "manual"]).default("manual"),
+  // Batch-level provenance the extension flush stamps (DISCOVERY HISTORY): the
+  // channel this crawl ran on + the search term/seed used. Both label the single
+  // `discovery_job` this flush records. Optional — derived from per-item source
+  // labels when absent.
+  channel: z.string().optional(),
+  query: z.string().optional(),
   // Workspace scope (doc 44): when the crawl is run for a specific workspace, every
   // person/company in this batch is tagged to it. Null → goes to the tenant pool.
   workspaceId: z.string().optional(),
@@ -323,18 +329,21 @@ export async function POST(req: Request) {
     });
   }
 
-  // Batch channel: derive from the crawled source labels (per-person source is kept
-  // on each contact); default "web".
+  // Batch channel: prefer the batch-level `channel` the extension flush stamps;
+  // else derive from the crawled source labels (per-person source is kept on each
+  // contact). `toChannel` normalizes aliases to the CHANNELS enum; default "web".
   const firstSrc =
     (b.people ?? []).find((p) => p.source)?.source ??
     (b.companies ?? []).find((c) => c.source)?.source ??
     null;
-  const channel = toChannel(firstSrc);
+  const channel = toChannel(b.channel ?? firstSrc);
 
   let result;
   try {
     result = await enrichmentService.ingestGraph(ctx, {
       channel,
+      // Label the run's discovery_job with the batch search term/seed (Riwayat).
+      query: b.query ?? null,
       sourceUrl: null,
       workspaceId: b.workspaceId ?? null,
       ownerUserId: assignTo, // per-rep attribution (doc 41)

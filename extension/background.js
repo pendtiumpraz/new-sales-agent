@@ -21,7 +21,6 @@ const DEFAULTS = {
   deepseekKey: "", // for AI analysis/websearch (runs in the browser, not the platform)
   aiMode: "platform", // Fase 3: platform | byoa. In BYOA, SKIP in-browser DeepSeek classify
   workspaceId: "", // doc 44 — tag crawled leads to the workspace the rep picked in the popup
-  autoDownloadCsv: true, // also drop a local CSV (B2B / B2C / perusahaan) on every crawl
   // Deep Enrich (opt-in cross-source contact hunt) — which sources to hit.
   deepGoogle: true,
   deepLinkedin: true,
@@ -104,6 +103,13 @@ async function setStatus(s) {
   await chrome.storage.local.set({ lastStatus: s });
 }
 
+// Remember the CHANNEL + QUERY of the current crawl run so ingest() can label
+// every flush of that run (the platform's discovery-history needs channel + query).
+// Set when a search STARTS; persists across the search→enrich chain of that run.
+async function setRun(channel, query) {
+  await chrome.storage.local.set({ runChannel: channel || "", runQuery: (query || "").trim() });
+}
+
 async function addLeads(people, companies) {
   const st = await state();
   const keyOf = (p) => (p.linkedinUrl || p.sourceUrl || `${p.fullName}|${p.companyName || ""}`).toLowerCase();
@@ -155,6 +161,11 @@ async function ingest(payload) {
   if (!c.token || !c.apiBase) return null;
   // Auto-tag every batch to the workspace the rep selected in the popup (doc 44).
   if (c.workspaceId && payload.workspaceId === undefined) payload = { ...payload, workspaceId: c.workspaceId };
+  // Label every batch with the current run's channel + query (top-level) so the
+  // backend can build discovery history. Only fill when the caller didn't set them.
+  const run = await chrome.storage.local.get(["runChannel", "runQuery"]);
+  if (run.runChannel && payload.channel === undefined) payload = { ...payload, channel: run.runChannel };
+  if (run.runQuery && payload.query === undefined) payload = { ...payload, query: run.runQuery };
   try {
     const res = await fetch(c.apiBase.replace(/\/$/, "") + "/api/ingest", {
       method: "POST",
@@ -356,6 +367,7 @@ async function runAiSearch(query) {
   const q = (query || c.query || "").trim();
   if (!c.deepseekKey) return setStatus("Isi DeepSeek API key di popup dulu.");
   if (!q) return setStatus("Isi query dulu.");
+  await setRun("ai", q);
   await setStatus(`AI websearch (DeepSeek): "${q}"…`);
   try {
     const res = await fetch("https://api.deepseek.com/chat/completions", {
@@ -397,7 +409,6 @@ async function runAiSearch(query) {
     await addLeads(people, []);
     await flush();
     await setStatus(`AI websearch: ${people.length} kandidat (terverifikasi) → dikirim ke app.`);
-    await maybeAutoDownloadCsv();
   } catch (e) {
     await setStatus("AI websearch error: " + String(e));
   }
@@ -412,6 +423,7 @@ async function runWebSearch(query) {
   const c = await cfg();
   const q = (query || c.query || "").trim();
   if (!q) return setStatus("Isi query dulu.");
+  await setRun("web", q);
   await setStatus(`Internet search (DuckDuckGo): "${q}"…`);
 
   let results = [];
@@ -493,7 +505,6 @@ async function runWebSearch(query) {
   if (people.length && c.deepseekKey) people = await verifyLeads(c.deepseekKey, q, people);
   await ingest({ origin: "extension", companies, people });
   await setStatus(`Internet search: ${companies.length} situs${people.length ? ` + ${people.length} orang (terverifikasi)` : ""} → dikirim ke app.`);
-  await maybeAutoDownloadCsv();
 }
 
 // ── Per-platform RPA search (Google/Tokopedia/Shopee/IG/TikTok) ───────────────
@@ -516,6 +527,7 @@ async function runPlatformSearch(platform, query) {
   if (!url) return setStatus("Platform tidak dikenal.");
   const tab = await activeLinkedInTab();
   if (!tab) return setStatus("Buka 1 tab browser (login ke platform-nya) lalu mulai.");
+  await setRun(platform, q);
   await setStatus(`Cari di ${platform}: "${q}"…`);
   const res = await navAndScan(tab.id, url, "SCAN_PLATFORM");
   if (!res || !res.ok) return setStatus(`Gagal scan ${platform} (${(res && res.error) || "?"}).`);
@@ -524,7 +536,6 @@ async function runPlatformSearch(platform, query) {
   await setStatus(`${platform}: ${(res.people || []).length} orang + ${(res.companies || []).length} toko/situs → dikirim. (buffer ${n})`);
   // Auto-continue to Stage 2 enrich (mirror LinkedIn runSearch → runEnrich).
   if (c.autoEnrich !== false && c.deepseekKey && n > 0) await runEnrichPlatform(platform);
-  else await maybeAutoDownloadCsv();
 }
 
 // ── Multi-platform Stage 2: enrich + in-extension DeepSeek analysis (doc 45) ──
@@ -635,9 +646,9 @@ async function markPlatformEnriched(urls, collKey = "buffer") {
   await chrome.storage.local.set({ [collKey]: coll });
 }
 
-// Merge enriched fields + contacts (email/phone/whatsapp) onto the buffered item so
-// the local CSV carries them (contactPoints are still sent to the server separately).
-// Only non-empty patch values overwrite — never blank out an existing value.
+// Patch a buffered item (matched by URL) with progress FLAGS (enriched /
+// deepEnriched / deepConfidence) so re-runs skip already-processed leads. Only
+// non-empty patch values overwrite — never blank out an existing value.
 async function patchBufferByUrl(url, patch, collKey = "buffer") {
   if (!url) return;
   const clean = {};
@@ -648,19 +659,6 @@ async function patchBufferByUrl(url, patch, collKey = "buffer") {
     p.linkedinUrl === url || p.sourceUrl === url ? { ...p, ...clean } : p,
   );
   await chrome.storage.local.set({ [collKey]: coll });
-}
-
-// Same as patchBufferByUrl but for the COMPANY buffer, matched by name (Maps
-// companies carry no URL key). Only non-empty patch values overwrite.
-async function patchCompanyByName(name, patch) {
-  if (!name) return;
-  const clean = {};
-  for (const [k, v] of Object.entries(patch)) if (v !== undefined && v !== null && v !== "") clean[k] = v;
-  if (!Object.keys(clean).length) return;
-  const key = String(name).toLowerCase();
-  const st = await state();
-  const companies = (st.companies || []).map((x) => (String(x.name || "").toLowerCase() === key ? { ...x, ...clean } : x));
-  await chrome.storage.local.set({ companies });
 }
 
 async function runEnrichPlatform(platform) {
@@ -697,21 +695,14 @@ async function runEnrichPlatform(platform) {
       } catch (e) {
         // AI failed — keep the Stage-1 list record (already flushed); just mark enriched.
       }
-      // Fold enriched fields + contacts (email/phone/whatsapp) onto the buffer item so
-      // the local CSV carries them.
-      const contacts = (ai && ai.contacts) || {};
-      await patchBufferByUrl(url, {
-        leadType: ai && ai.leadType, leadScore: ai && ai.leadScore, profileSummary: ai && ai.summary,
-        email: contacts.email, phone: contacts.phone, whatsapp: contacts.whatsapp,
-        enriched: true,
-      }, collKey);
+      // Mark the buffer item enriched so a re-run SKIPS it (no redundant re-crawl).
+      await patchBufferByUrl(url, { enriched: true }, collKey);
       done++;
     }
     await sleep(jitter(4000, 9000)); // anti-ban pacing (same as LinkedIn)
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`${platform} enrich selesai — ${done} di-enrich${analyzed ? ` (${analyzed} dianalisa AI)` : ""} + dikirim.`);
-  await maybeAutoDownloadCsv();
 }
 
 // ── RPA navigation helper ───────────────────────────────────────────────────
@@ -874,10 +865,7 @@ async function runDeepEnrich() {
     await setStatus(`Deep ${done + 1}/${targets.length}: analisa AI…`);
     const resolved = await deepAnalyzeContacts(c.deepseekKey, { name, company }, evidence);
     const keyUrl = person.linkedinUrl || person.sourceUrl;
-    await patchBufferByUrl(keyUrl, {
-      email: resolved.email, phone: resolved.phone, whatsapp: resolved.whatsapp,
-      deepEnriched: true, deepConfidence: resolved.confidence,
-    });
+    await patchBufferByUrl(keyUrl, { deepEnriched: true, deepConfidence: resolved.confidence });
     if (resolved.email || resolved.phone || resolved.whatsapp) {
       hit++;
       const cps = [];
@@ -890,7 +878,6 @@ async function runDeepEnrich() {
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`Deep enrich selesai — ${done} lead, ${hit} dapat kontak. Run lagi untuk sisa buffer.`);
-  await maybeAutoDownloadCsv();
 }
 
 // ── Google Maps channel (Level-1 discovery of B2B companies / PT) ─────────────
@@ -992,6 +979,7 @@ async function runMapsSearch(query) {
   if (!q) return setStatus("Isi query dulu (mis. 'distributor kabel Surabaya').");
   const tab = await activeLinkedInTab();
   if (!tab) return setStatus("Buka 1 tab browser lalu mulai — Maps akan dibuka otomatis.");
+  await setRun("maps", q);
   const url = "https://www.google.com/maps/search/" + encodeURIComponent(q);
   await setStatus(`Google Maps: "${q}" — buka + scroll daftar hasil (bisa lama)…`);
   await chrome.tabs.update(tab.id, { url });
@@ -1068,7 +1056,6 @@ async function runMapsSearch(query) {
 
   const endNote = out && out.reachedEnd ? "akhir daftar" : `${out ? out.scrolls : 0}x scroll`;
   await setStatus(`Maps: ${companies.length} listing (${endNote}) → dikirim · ${hp} HP mobile · ${deepTargets.length} situs utk email (selector mungkin perlu disesuaikan).`);
-  await maybeAutoDownloadCsv();
 
   // Auto-hunt emails from each company website (reuses the Deep-Enrich crawler).
   if (c.autoEnrich !== false && deepTargets.length) await runMapsDeepEnrich();
@@ -1124,7 +1111,6 @@ async function runMapsDeepEnrich() {
         people: [{ fullName: t.name, companyName: t.name, leadType: "b2b_client", source: "maps", status: "enriched" }],
         contactPoints: cps,
       });
-      await patchCompanyByName(t.name, { email, phone: mob || undefined }); // fold onto the CSV row
     }
     t.done = true;
     await chrome.storage.local.set({ mapsDeepQueue });
@@ -1133,7 +1119,6 @@ async function runMapsDeepEnrich() {
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`Maps email selesai — ${done} situs discan, ${hit} dapat email/HP. Run lagi untuk sisa.`);
-  await maybeAutoDownloadCsv();
 }
 
 // ── Stage 1: paginated search ───────────────────────────────────────────────
@@ -1142,6 +1127,7 @@ async function runSearch() {
   if (!c.query) return setStatus("Isi query pencarian dulu.");
   const tab = await activeLinkedInTab();
   if (!tab) return setStatus("Buka 1 tab LinkedIn (sudah login) lalu mulai.");
+  await setRun("linkedin", c.query);
 
   await chrome.storage.local.set({ running: true });
   let total = 0;
@@ -1187,7 +1173,6 @@ async function runSearch() {
   } else {
     await chrome.storage.local.set({ running: false });
     await setStatus(`Stage 1 selesai — ${total} lead di buffer. Klik "Enrich profil" untuk track record.`);
-    await maybeAutoDownloadCsv();
   }
 }
 
@@ -1262,22 +1247,12 @@ async function runEnrich() {
       });
       // mark enriched in the buffer (+ any the platform says are already enriched)
       await markEnrichedLocally([p.linkedinUrl, ...((resp && resp.existingEnriched) || [])]);
-      // Fold the enriched fields + overlay contacts onto the buffer so the CSV carries
-      // the resolved segment (leadType) + email/phone (not just the Stage-1 scrape).
-      const liContact = cRes && cRes.ok && cRes.contact ? cRes.contact : {};
-      await patchBufferByUrl(p.linkedinUrl, {
-        title: prof.title, companyName: prof.companyName, location: prof.location,
-        leadType: prof.leadType, leadScore: prof.leadScore, profileSummary: prof.profileSummary,
-        email: liContact.email, phone: liContact.phone, website: liContact.website,
-        enriched: true,
-      });
       done++;
     }
     await sleep(jitter(4000, 9000)); // slow + human (anti-ban)
   }
   await chrome.storage.local.set({ running: false });
   await setStatus(`Stage 2 selesai — ${done} profil di-enrich${analyzed ? ` (${analyzed} dianalisa AI)` : ""} + dikirim ke aplikasi.`);
-  await maybeAutoDownloadCsv();
 }
 
 // ── Flush buffered leads (Stage 1 list) to the app ──────────────────────────
@@ -1308,91 +1283,8 @@ async function flush() {
   }
 }
 
-// ── CSV export (local download) ──────────────────────────────────────────────
-// Besides sending to the app, drop a local CSV so the rep has an Excel-ready copy.
-// People are split by segment (leadType) into B2B / B2C (+ "lainnya"); companies
-// get their own file. Filenames carry the crawl query + date. Runs in the SW via a
-// data: URL (no DOM / Blob URL available in MV3).
-function csvCell(v) {
-  const s = v == null ? "" : String(v);
-  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-function toCsv(headers, rows) {
-  const head = headers.map((h) => csvCell(h.label)).join(",");
-  const body = rows.map((r) => headers.map((h) => csvCell(h.get(r))).join(",")).join("\r\n");
-  return "﻿" + head + "\r\n" + body; // BOM → Excel reads UTF-8 (karakter Indonesia)
-}
-function slugify(s) {
-  return (String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)) || "hasil";
-}
-function segmentOf(leadType) {
-  if (leadType === "b2c_customer") return "b2c";
-  if (leadType === "b2b_partner" || leadType === "b2b_client") return "b2b";
-  return "lainnya";
-}
-function downloadCsv(csv, filename) {
-  const url = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
-  try {
-    chrome.downloads.download({ url, filename, saveAs: false }, () => void chrome.runtime.lastError);
-  } catch (e) { /* downloads permission missing / SW quirk — ignore */ }
-}
-async function downloadCsvExports() {
-  const c = await cfg();
-  const st = await state();
-  const date = today();
-  const stamp = `${slugify(c.query)}-${date}`;
-  const meta = (cols) => [...cols, { label: "Query", get: () => c.query || "" }, { label: "Tanggal", get: () => date }];
-  const PERSON = meta([
-    { label: "Nama", get: (p) => p.fullName },
-    { label: "Jabatan", get: (p) => p.title },
-    { label: "Perusahaan", get: (p) => p.companyName },
-    { label: "Lokasi", get: (p) => p.location },
-    { label: "Segmen", get: (p) => segmentOf(p.leadType).toUpperCase() },
-    { label: "Channel", get: (p) => String(p.source || "").split("+")[0] },
-    { label: "Skor Fit", get: (p) => (p.leadScore != null ? Math.round(p.leadScore * 100) : "") },
-    { label: "Email", get: (p) => p.email || "" },
-    { label: "Telepon", get: (p) => p.phone || "" },
-    { label: "WhatsApp", get: (p) => p.whatsapp || "" },
-    { label: "URL", get: (p) => p.linkedinUrl || p.sourceUrl || "" },
-    { label: "Ringkasan", get: (p) => p.profileSummary || p.about || "" },
-  ]);
-  const COMPANY = meta([
-    { label: "Nama", get: (x) => x.name },
-    { label: "Domain", get: (x) => x.domain },
-    { label: "Industri", get: (x) => x.industry },
-    { label: "Email", get: (x) => x.email || "" },
-    { label: "Telepon", get: (x) => x.phone || "" },
-    { label: "WhatsApp", get: (x) => x.whatsapp || "" },
-    { label: "Channel", get: (x) => String(x.source || "").split("+")[0] },
-    { label: "URL", get: (x) => x.sourceUrl || "" },
-    { label: "Ringkasan", get: (x) => x.summary || "" },
-  ]);
-  const people = st.buffer || [];
-  const groups = { b2b: [], b2c: [], lainnya: [] };
-  for (const p of people) groups[segmentOf(p.leadType)].push(p);
-  let files = 0;
-  for (const seg of ["b2b", "b2c", "lainnya"]) {
-    if (groups[seg].length) { downloadCsv(toCsv(PERSON, groups[seg]), `maira-${seg}-${stamp}.csv`); files++; }
-  }
-  if ((st.companies || []).length) { downloadCsv(toCsv(COMPANY, st.companies), `maira-perusahaan-${stamp}.csv`); files++; }
-  await setStatus(
-    files
-      ? `CSV diunduh: ${files} file (B2B ${groups.b2b.length} · B2C ${groups.b2c.length}${groups.lainnya.length ? ` · lainnya ${groups.lainnya.length}` : ""}${(st.companies || []).length ? ` · perusahaan ${st.companies.length}` : ""}).`
-      : "Belum ada data untuk diunduh.",
-  );
-  return files;
-}
-// Auto-download at the end of a crawl, debounced so a search→enrich chain fires once.
-async function maybeAutoDownloadCsv() {
-  const c = await cfg();
-  if (c.autoDownloadCsv === false) return;
-  const st = await state();
-  if (!(st.buffer || []).length && !(st.companies || []).length) return;
-  const last = (await chrome.storage.local.get("lastCsvAt")).lastCsvAt || 0;
-  if (Date.now() - last < 8000) return; // debounce double-fire
-  await chrome.storage.local.set({ lastCsvAt: Date.now() });
-  await downloadCsvExports();
-}
+// CSV export moved to the PLATFORM (Kontak page → GET /api/contacts/export). The
+// extension no longer writes local files — it only sends collected data to the app.
 
 function scheduleNext() {
   chrome.alarms.create("flush", { delayInMinutes: 1 + Math.random() });
@@ -1464,9 +1356,6 @@ chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
       case "MAPS_ENRICH":
         runMapsDeepEnrich();
         return sendResponse({ ok: true });
-      // Manual "⬇ Unduh CSV" (B2B / B2C / perusahaan) from the popup.
-      case "DOWNLOAD_CSV":
-        return sendResponse({ ok: true, files: await downloadCsvExports() });
       // Opt-in cross-source contact hunt over the buffer (Google / LinkedIn / socials / marketplace).
       case "DEEP_ENRICH":
         runDeepEnrich();

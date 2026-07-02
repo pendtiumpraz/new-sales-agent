@@ -70,6 +70,8 @@ interface DiscoveryJobRow {
   posture: string;
   origin: string | null;
   resultsCount: number;
+  companiesCreated: number; // NEW company nodes this run produced (0051)
+  contactsCreated: number; // NEW contact nodes this run produced (0051)
   error: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -727,10 +729,43 @@ function jobLabel(j: DiscoveryJobRow): string {
   return j.query?.trim() || `${j.channel} crawl`;
 }
 
+/** Minimal workspace shape for the id→name map (GET /api/workspace). */
+interface WorkspaceLite {
+  id: string;
+  name: string;
+}
+
+/**
+ * What this run PRODUCED, for the Riwayat row. Ingest flushes report NEW companies +
+ * contacts; web-discovery runs (which leave those 0) fall back to the raw candidate
+ * count so both job kinds read sensibly.
+ */
+function jobCounts(j: DiscoveryJobRow): string {
+  const parts: string[] = [];
+  if (j.companiesCreated > 0) parts.push(`${j.companiesCreated} perusahaan`);
+  if (j.contactsCreated > 0) parts.push(`${j.contactsCreated} kontak`);
+  if (parts.length === 0) parts.push(`${j.resultsCount} kandidat`);
+  return parts.join(" · ");
+}
+
 function HistoryPanel({ jobsQ }: { jobsQ: ReturnType<typeof useQuery<DiscoveryJobRow[]>> }) {
   const qc = useQueryClient();
   const [view, setView] = useState<DiscoveryView>("results");
   const jobs = jobsQ.data ?? [];
+
+  // Resolve workspace names for the "Workspace" column (jobs carry only workspaceId).
+  const wsQ = useQuery({
+    queryKey: ["m2", "workspace", "list"],
+    queryFn: async () => readJson<WorkspaceLite[]>(await fetch("/api/workspace")),
+    retry: false,
+  });
+  const wsNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const w of wsQ.data ?? []) m.set(w.id, w.name);
+    return m;
+  }, [wsQ.data]);
+  const wsName = (id: string | null): string | null =>
+    id ? wsNameById.get(id) ?? null : null;
 
   // ── trash query (lazy) ───────────────────────────────────────────────────
   const trashedQ = useQuery({
@@ -841,9 +876,10 @@ function HistoryPanel({ jobsQ }: { jobsQ: ReturnType<typeof useQuery<DiscoveryJo
                         {j.channel}
                       </span>
                       <span className="min-w-0 flex-1 truncate">
-                        <b>{j.query}</b>{" "}
+                        <b>{jobLabel(j)}</b>{" "}
                         <span className="text-muted-foreground">
-                          · {j.resultsCount} kandidat · {fmtRelID(j.finishedAt ?? j.createdAt)}
+                          · {jobCounts(j)} · {fmtRelID(j.finishedAt ?? j.createdAt)}
+                          {wsName(j.workspaceId) ? ` · ${wsName(j.workspaceId)}` : ""}
                         </span>
                       </span>
                       <span
@@ -904,7 +940,9 @@ function HistoryPanel({ jobsQ }: { jobsQ: ReturnType<typeof useQuery<DiscoveryJo
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-foreground/80">{jobLabel(j)}</p>
                       <p className="truncate text-[11px] text-muted-foreground">
-                        {j.resultsCount} kandidat · dihapus {fmtRelID(j.deletedAt ?? null)}
+                        {jobCounts(j)}
+                        {wsName(j.workspaceId) ? ` · ${wsName(j.workspaceId)}` : ""} · dihapus{" "}
+                        {fmtRelID(j.deletedAt ?? null)}
                       </p>
                     </div>
                     <button
