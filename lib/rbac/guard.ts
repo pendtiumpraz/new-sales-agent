@@ -43,10 +43,28 @@ export async function requirePermission(
   options: GuardOptions = {},
 ): Promise<Guard> {
   const ctx = await getTenantContext();
-  // 401 — no session at all.
+  // 401 — no session / no valid API key at all.
   if (!ctx) {
     return { error: fail("Unauthorized", 401, "unauthorized") };
   }
+
+  // API-key (BYOA) scope cap — runs BEFORE the role check so an API key can NEVER
+  // reach an admin/platform permission regardless of the key user's role. A key is
+  // strictly data-level for v1:
+  //   • platform.manage  → 403 always (admin/superadmin actions stay session-only)
+  //   • read scope       → only data.read
+  //   • write scope      → data.read + data.write (NOT tenant.*/campaign/ai/export)
+  if (ctx.apiKeyScope) {
+    if (permission === "platform.manage") {
+      return { error: fail("Forbidden", 403, "forbidden") };
+    }
+    const allowed: Permission[] =
+      ctx.apiKeyScope === "write" ? ["data.read", "data.write"] : ["data.read"];
+    if (!allowed.includes(permission)) {
+      return { error: fail("Forbidden", 403, "forbidden") };
+    }
+  }
+
   // 403 — authenticated but lacks the permission.
   if (!can(ctx.role as Role, permission)) {
     return { error: fail("Forbidden", 403, "forbidden") };

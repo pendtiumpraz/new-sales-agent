@@ -66,3 +66,7 @@ export * from "./data-market/schema";
 // lead, won deal, escalation, low quota, marketplace sale, …). Written best-effort
 // at each event point via modules/notification/service.ts `emit`. Owns: notification.
 export * from "./notification/schema";
+
+// Per-account (BYOA) API keys — a tenant's external agent calls the {ok,data}
+// data-level API with a scoped, revocable Bearer key (`msk_live_…`). Owns: api_key.
+export * from "./apikey/schema";

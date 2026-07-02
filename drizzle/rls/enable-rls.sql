@@ -50,6 +50,8 @@ BEGIN
     'conversation_v2','message_v2',
     -- notification (topbar bell feed; user_id NULL = tenant-wide)
     'notification',
+    -- api_key (per-account BYOA keys; auth-time lookup uses a superadmin ctx)
+    'api_key',
     -- outreach
     'cadence_v2','cadence_step_v2','cadence_enrollment_v2','autopilot_run_v2','escalation','handoff',
     -- onboarding / entitlements

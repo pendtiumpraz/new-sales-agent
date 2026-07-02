@@ -17,6 +17,14 @@ export interface TenantContext {
    * (login, provisioning `targetCtx`, register) stay valid without it.
    */
   isSuperadmin?: boolean;
+  /**
+   * Set ONLY when this context was resolved from an API-key Bearer (BYOA), never
+   * from a session. It is a NON-PERSISTED marker — `withTenant` never reads it
+   * (RLS uses tenant_id/user_id/role only). `requirePermission` reads it to cap an
+   * API key to data-level access: a `read` key may only `data.read`; a `write` key
+   * may `data.read`/`data.write`; NEITHER may `platform.manage` or any admin perm.
+   */
+  apiKeyScope?: "read" | "write";
 }
 
 /**
