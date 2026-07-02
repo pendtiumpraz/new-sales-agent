@@ -7,6 +7,8 @@ import { resolve } from "node:path";
 const DOCS = {
   HLA: { title: "High-Level Architecture", file: "docs/HLA.md" },
   FEATURES: { title: "Feature Catalog", file: "docs/FEATURES.md" },
+  PITCH_TECH: { title: "Pitch Deck — Teknis", file: "docs/PITCH-TECHNICAL.md" },
+  PITCH_BIZ: { title: "Pitch Deck — Bisnis", file: "docs/PITCH-BUSINESS.md" },
 };
 
 const out: Record<string, { title: string; content: string }> = {};

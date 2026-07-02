@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SimpleMarkdown, extractHeadings } from "@/components/shared/simple-markdown";
+import { SlideDeck } from "@/components/shared/slide-deck";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2177,8 +2178,16 @@ function QuotaInput({
   );
 }
 
+type DocKey = "HLA" | "FEATURES" | "PITCH_TECH" | "PITCH_BIZ";
+const DOC_LABELS: Record<DocKey, string> = {
+  HLA: "Arsitektur (HLA)",
+  FEATURES: "Katalog Fitur",
+  PITCH_TECH: "Pitch Teknis",
+  PITCH_BIZ: "Pitch Bisnis",
+};
+
 function DocsPanel() {
-  const [doc, setDoc] = useState<"HLA" | "FEATURES">("HLA");
+  const [doc, setDoc] = useState<DocKey>("HLA");
   const docQ = useQuery({
     queryKey: ["superadmin", "docs", doc],
     queryFn: async () =>
@@ -2186,7 +2195,8 @@ function DocsPanel() {
     retry: false,
   });
   const content = docQ.data?.content ?? "";
-  const toc = useMemo(() => extractHeadings(content), [content]);
+  const isDeck = doc === "PITCH_TECH" || doc === "PITCH_BIZ";
+  const toc = useMemo(() => (isDeck ? [] : extractHeadings(content)), [content, isDeck]);
   const jump = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -2203,8 +2213,8 @@ function DocsPanel() {
             Arsitektur & katalog fitur platform — sumber <code className="font-mono">docs/*.md</code>
           </p>
         </div>
-        <div className="ml-auto inline-flex rounded-lg border border-border bg-card p-0.5">
-          {(["HLA", "FEATURES"] as const).map((k) => (
+        <div className="ml-auto inline-flex flex-wrap rounded-lg border border-border bg-card p-0.5">
+          {(["HLA", "FEATURES", "PITCH_TECH", "PITCH_BIZ"] as const).map((k) => (
             <button
               key={k}
               onClick={() => setDoc(k)}
@@ -2214,7 +2224,7 @@ function DocsPanel() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {k === "HLA" ? "Arsitektur (HLA)" : "Katalog Fitur"}
+              {DOC_LABELS[k]}
             </button>
           ))}
         </div>
@@ -2224,6 +2234,8 @@ function DocsPanel() {
         <p className="p-6 text-sm text-muted-foreground">Memuat dokumen…</p>
       ) : docQ.isError ? (
         <p className="p-6 text-sm text-destructive">Gagal memuat dokumen.</p>
+      ) : isDeck ? (
+        <SlideDeck text={content} title={docQ.data?.title} />
       ) : (
         <div className="flex gap-5">
           {/* Table of contents — jump to a section instead of scrolling the wall */}
